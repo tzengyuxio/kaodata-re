@@ -1,5 +1,6 @@
 import math
 import os
+import struct
 import bitarray
 import click
 from PIL import Image
@@ -360,3 +361,173 @@ def genpei_montage(face_file, out_dir, prefix):
 genpei.add_command(genpei_cg, "cg")
 genpei.add_command(genpei_face, "face")
 genpei.add_command(genpei_montage, "montage")
+
+
+# ---------------------------------------------------------------- face data
+# Verified decoders for the portraits, ported from genpei-zh (tools/gfx.py,
+# tools/dump_gfx.py, tools/unpack_exe.py, tools/dump_data.py). Format notes:
+# notes/genpei.md. These supersede genpei_face_colors and the planar order of
+# utils.to_3bpp_indexes for this game.
+
+GENPEI_TRANSPARENT = 255
+SCENARIO_SIZE = 41266         # Sndata.gp: 4 scenarios
+SCENARIO_HEADER = 0x26
+GENERAL_SIZE = 71
+N_GENERALS = 400
+# Montage composition table: DGROUP:0x59CE = file 0x5C23E of the unpacked MZ,
+# whose header is 0x53D0 bytes; offset below is into the expanded image.
+MONTAGE_TABLE = 0x5C23E - 0x53D0
+MONTAGE_TYPES = 3
+HAIKEI_BG = (64, 80, 5)       # five 64x80 backgrounds at the start of Haikei.gp
+
+
+def load_mainpal(data: bytes, index: int = 0) -> list[tuple[int, int, int]]:
+    """Mainpal.pld: 48-byte sets of 16 colours, one 4-bit value per byte in B, R, G order."""
+    pal = data[index * 48:(index + 1) * 48]
+    return [(pal[i * 3 + 1] * 0x11, pal[i * 3 + 2] * 0x11, pal[i * 3] * 0x11) for i in range(16)]
+
+
+def decode_planar(data: bytes, offset: int, w: int, h: int, planes: int) -> bytearray:
+    """Byte-interleaved planes: every `planes` bytes hold 8 pixels, byte k = bit k, MSB leftmost."""
+    out = bytearray(w * h)
+    pos = offset
+    for i in range(w * h // 8):
+        for p in range(planes):
+            b = data[pos + p]
+            if b:
+                for k in range(8):
+                    if b & (0x80 >> k):
+                        out[i * 8 + k] |= 1 << p
+        pos += planes
+    return out
+
+
+def apply_mask(px: bytearray, data: bytes, offset: int) -> bytearray:
+    """1bpp mask, MSB leftmost, bit 1 = transparent."""
+    for i in range(len(px) // 8):
+        b = data[offset + i]
+        for k in range(8):
+            if b & (0x80 >> k):
+                px[i * 8 + k] = GENPEI_TRANSPARENT
+    return px
+
+
+def masked_part(data: bytes, offset: int, w: int, h: int) -> bytearray:
+    """3bpp colour immediately followed by its 1bpp mask."""
+    return apply_mask(decode_planar(data, offset, w, h, 3), data, offset + w * h * 3 // 8)
+
+
+def read_rle3(data: bytes, pos: int) -> tuple[int, int, bytes, int]:
+    """`u16 w, u16 h` + 3-bit RLE (same stream as utils.unpack_npk_3bits);
+    returns (w, h, pixels, position after the stream)."""
+    w, h = struct.unpack_from("<HH", data, pos)
+    pos += 4
+    dest = bytearray()
+    while len(dest) < w * h:
+        b = data[pos]
+        pos += 1
+        if b & 0x80:
+            back = (((b >> 4) & 3) + 1) * (w if b & 0x40 else 4)
+            for _ in range(((b & 0x0F) + 1) * 4):
+                dest.append(dest[-back] if len(dest) >= back else 0)
+        else:
+            b1, b2 = b, data[pos]
+            pos += 1
+            quad = []
+            for _ in range(4):
+                quad.append(((b1 & 8) >> 1) | ((b2 & 0x80) >> 6) | ((b2 & 8) >> 3))
+                b1 <<= 1
+                b2 <<= 1
+            dest.extend(quad * ((b >> 4) + 1))
+    return w, h, bytes(dest[:w * h]), pos
+
+
+def load_kaodata(data: bytes) -> list[tuple[bytes, tuple[int, int]]]:
+    """Kaodata.gp: 90 x (128x160 face RLE3, 128x160 mask RLE3, u8 x, u8 y).
+    Mask colour 7 = transparent; (x, y) = top-left of the 64x80 in-game window."""
+    out, pos = [], 0
+    while pos < len(data):
+        _, _, face, pos = read_rle3(data, pos)
+        _, _, mask, pos = read_rle3(data, pos)
+        px = bytes(GENPEI_TRANSPARENT if m else v for v, m in zip(face, mask))
+        out.append((px, (data[pos], data[pos + 1])))
+        pos += 2
+    return out
+
+
+def unpack_main_exe(exe: bytes) -> bytes:
+    """Expand the run-length packed Main.exe load image (relocations not applied).
+    See genpei-zh tools/unpack_exe.py for the stub layout."""
+    hdr = struct.unpack_from("<14H", exe, 0)
+    image = exe[hdr[4] * 16:]
+    cs = hdr[11]
+    stub = image[cs * 16:]
+    if stub[1:7] != bytes.fromhex("9c508cda5252"):
+        raise ValueError("unknown packer stub")
+    top = cs * 16 + struct.unpack_from("<H", stub, 0x10)[0] * 16
+    out = bytearray(top)
+    ctl, src, dst = 0x1977, cs * 16 - 11, top - 1
+    for _ in range(struct.unpack_from("<H", stub, 0x2B)[0]):
+        b0 = stub[ctl]
+        lit = stub[ctl - 1]
+        ctl -= 2
+        if b0 & 1:
+            lit = (lit << 8) | stub[ctl]
+            ctl -= 1
+        fill = b0 >> 2
+        if b0 & 2:
+            fill = (fill << 8) | stub[ctl]
+            ctl -= 1
+        value = stub[ctl]
+        ctl -= 1
+        for _ in range(lit):
+            out[dst] = image[src]
+            dst -= 1
+            src -= 1
+        for _ in range(fill):
+            out[dst] = value
+            dst -= 1
+    if dst != -1:
+        raise ValueError(f"expansion ended at {dst + 1:#x}, not at 0")
+    return bytes(out)
+
+
+def montage_types(image: bytes) -> list[dict]:
+    """Composition table, one entry per face type 1-3: per layer
+    (file, offset, width, height, (x, y)) and the 64x80 window corner.
+    Positions are in a 128x160 buffer of 16 bytes per row."""
+    def xy(v):
+        return v % 16 * 8, v // 16
+
+    out = []
+    for t in range(MONTAGE_TYPES):
+        v = struct.unpack_from("<IIHH8H5H", image, MONTAGE_TABLE + t * 0x26)
+        out.append(dict(
+            head=("Montage.gp", v[0], v[4] * 8, v[5], xy(v[12])),
+            body=("Montage.gp", v[1], v[6] * 8, v[7], xy(v[13])),
+            eyes=("Haikei.gp", v[2], v[8] * 8, v[9], xy(v[14])),
+            mouth=("Haikei.gp", v[3], v[10] * 8, v[11], xy(v[15])),
+            window=xy(v[16])))
+    return out
+
+
+def load_backgrounds(haikei: bytes) -> list[bytearray]:
+    w, h, n = HAIKEI_BG
+    tex = decode_planar(haikei, 0, w, h * n, 3)
+    return [tex[i * w * h:(i + 1) * w * h] for i in range(n)]
+
+
+def load_generals(sndata: bytes, scenario: int = 0) -> list[dict]:
+    """Sndata.gp generals: name (+0x00 surname, +0x0E given), half-width kana
+    readings (+0x07, +0x13) and face code (+0x1A, u16; 0xFFFF = none)."""
+    def sjis(b):
+        return b.split(b"\0", 1)[0].decode("cp932")
+
+    base = scenario * SCENARIO_SIZE + SCENARIO_HEADER
+    out = []
+    for i in range(N_GENERALS):
+        g = sndata[base + i * GENERAL_SIZE:base + (i + 1) * GENERAL_SIZE]
+        out.append(dict(id=i, surname=sjis(g[0:7]), surname_kana=sjis(g[7:14]),
+                        given=sjis(g[14:19]), given_kana=sjis(g[19:26]),
+                        face=struct.unpack_from("<H", g, 0x1A)[0]))
+    return out

@@ -79,3 +79,12 @@ Early KOEI Games Data Research
 ## Usage 使用方法
 
 (WIP)
+
+### 匯出 kaodata 統一格式資料集
+
+```sh
+cd dekoei
+python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaodata>/data-local/genpei-dos
+```
+
+輸出 `dataset.json`、`pixels.bin`、`checksums.json`，格式見 kaodata 網站 repo 的 `docs/data-format.md`。目前支援 `genpei-dos`（源平合戰 DOS），相關格式見 [notes/genpei.md](notes/genpei.md)。
