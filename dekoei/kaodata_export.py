@@ -1,4 +1,4 @@
-"""Export datasets in the kaodata unified format (kaodata/0).
+"""Export datasets in the kaodata unified format (kaodata/1).
 
 Spec: docs/data-format.md of the kaodata website repo. Each dataset is written
 as dataset.json + its pixel blobs (raw deflate, named in "blobs") +
@@ -16,7 +16,7 @@ import click
 
 import genpei
 
-FORMAT = "kaodata/0"
+FORMAT = "kaodata/1"
 TRANSPARENT = 255
 
 
