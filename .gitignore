@@ -133,6 +133,7 @@ dmypy.json
 .vscode
 _*
 GAMES
+games/
 KAO
 TEST_OUTPUT
 WIP
