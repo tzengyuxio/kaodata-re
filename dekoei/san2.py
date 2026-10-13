@@ -157,6 +157,47 @@ def san2_face(face_file, out_dir, prefix):
     )
 
 
+def person_loader(file, taiki_file):
+    """Raw person records (taiki layout): scenarios 1-6, then TAIKI, deduplicated by face code."""
+    offsets = [
+        0x0,
+        0x33AF,
+        0x675E,
+        0x9B0D,
+        0xCEBC,
+        0x1026B,
+    ]  # size=0x33af per scenario
+    read_count, read_size = 215, struct.calcsize(s2_format)  # count=215
+    tf_read_count, tf_read_size = 420, struct.calcsize(s2_format_taiki)  # count=420
+    person_data = []
+    kaos = set()  # 用來過濾重複
+    with open(file, "rb") as f, open(taiki_file, "rb") as tf:
+        for offset in offsets:
+            f.seek(offset + 0x16)
+            for _ in range(read_count):
+                pd = f.read(read_size)
+                if pd[26:28] in kaos:  # [26:28]
+                    continue
+                if pd[28:32] == b"\x00\x00\x00\x00":
+                    break
+                person_data.append(b"".join([b"\xFF\xFF\xFF", pd]))
+                kaos.add(pd[26:28])
+        tf.seek(0x6)
+        for _ in range(tf_read_count):
+            pd = tf.read(tf_read_size)
+            if pd[29:31] in kaos:  # [29:31]
+                continue
+            if pd[31:35] == b"\x00\x00\x00\x00":
+                break
+            person_data.append(pd)
+            kaos.add(pd[29:31])
+    return person_data
+
+
+def load_san2_persons(file, taiki_file) -> list[S2Person]:
+    return load_person(person_loader(file, taiki_file), s2_format_taiki, S2Person)
+
+
 @click.command(help="人物資料解析")
 @click.option("-f", "--file", "file", help="劇本檔案", required=True)
 @click.option("-t", "--taiki-file", "taiki_file", help="待機檔案", required=True)
@@ -173,45 +214,7 @@ def san2_person(file, taiki_file, to):
 
     dekoei.py san2 person -f ~/dosbox/SAN2/SCENARIO.DAT -t ~/DOSBox/san2/TAIKI.DAT
     """
-
-    def person_loader(file, taiki_file):
-        offsets = [
-            0x0,
-            0x33AF,
-            0x675E,
-            0x9B0D,
-            0xCEBC,
-            0x1026B,
-        ]  # size=0x33af per scenario
-        read_count, read_size = 215, struct.calcsize(s2_format)  # count=215
-        tf_read_count, tf_read_size = 420, struct.calcsize(s2_format_taiki)  # count=420
-        person_data = []
-        kaos = set()  # 用來過濾重複
-        with open(file, "rb") as f, open(taiki_file, "rb") as tf:
-            for offset in offsets:
-                f.seek(offset + 0x16)
-                for _ in range(read_count):
-                    pd = f.read(read_size)
-                    if pd[26:28] in kaos:  # [26:28]
-                        continue
-                    if pd[28:32] == b"\x00\x00\x00\x00":
-                        break
-                    person_data.append(b"".join([b"\xFF\xFF\xFF", pd]))
-                    kaos.add(pd[26:28])
-            tf.seek(0x6)
-            for _ in range(tf_read_count):
-                pd = tf.read(tf_read_size)
-                if pd[29:31] in kaos:  # [29:31]
-                    continue
-                if pd[31:35] == b"\x00\x00\x00\x00":
-                    break
-                person_data.append(pd)
-                kaos.add(pd[29:31])
-        return person_data
-
-    person_data = person_loader(file, taiki_file)
-
-    persons = load_person(person_data, s2_format_taiki, S2Person)
+    persons = load_san2_persons(file, taiki_file)
     print_table(s2_table_title, s2_headers, persons, to)
 
 
@@ -408,6 +411,38 @@ def san2_grpa(game_dir, out_dir, prefix):
         else images
     )
     save_single_images(images, out_dir, prefix)
+
+
+# ---------------------------------------------------------------- montage (DOS MONTAGE.DAT)
+# A composite face code has bit 15 set, bits 0-2 = head, then a 2-bit record number per area
+# (bits 3-4, 5-6, 7-8, 9-10, 11-12). Each head is a 0x18C0-byte block of 4 records per area, in
+# the same 3bpp half-height layout as KAODATA.DAT (24 bytes per row). MAIN.EXE builds the face in a
+# 960-byte buffer: copies the first two areas, then ORs the other three in (see notes/san2.md).
+MONTAGE_HEAD_SIZE = 0x18C0
+# (offset in the head block, bytes per record, offset in the face buffer), from MAIN.EXE's tables
+MONTAGE_AREAS = [(0, 432, 0), (1728, 528, 432), (3840, 192, 240), (4608, 240, 528), (5568, 192, 384)]
+MONTAGE_SHIFTS = [3, 5, 7, 9, 11]
+
+
+def is_montage_code(code: int) -> bool:
+    return bool(code & 0x8000)
+
+
+def montage_record(data: bytes, head: int, area: int, record: int) -> bytes:
+    base, size, _ = MONTAGE_AREAS[area]
+    pos = head * MONTAGE_HEAD_SIZE + base + record * size
+    return data[pos:pos + size]
+
+
+def compose_montage(data: bytes, code: int) -> bytes:
+    """The game's 960-byte face buffer for a composite code."""
+    face = bytearray(960)
+    for area, shift in enumerate(MONTAGE_SHIFTS):
+        _, size, dest = MONTAGE_AREAS[area]
+        rec = montage_record(data, code & 7, area, code >> shift & 3)
+        for i, b in enumerate(rec):
+            face[dest + i] = b if area < 2 else face[dest + i] | b
+    return bytes(face)
 
 
 san2.add_command(san2_face, "face")

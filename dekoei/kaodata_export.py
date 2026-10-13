@@ -15,6 +15,8 @@ import zlib
 import click
 
 import genpei
+import san2
+import utils
 
 FORMAT = "kaodata/1"
 TRANSPARENT = 255
@@ -230,10 +232,81 @@ def build_genpei(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-DATASETS = {"genpei-dos": build_genpei}
+# ---------------------------------------------------------------- SAN2 (DOS, Chinese)
+
+SAN2_INPUTS = ["KAODATA.DAT", "MONTAGE.DAT", "SCENARIO.DAT", "TAIKI.DAT"]
+SAN2_PALETTES = [("ega", "EGA", ["#000000", "#55ff55", "#ff5555", "#ffff55", "#5555ff", "#55ffff", "#ff55ff", "#ffffff"]),
+                 ("pc98", "PC-98", ["#000000", "#00ff00", "#ff0000", "#ffff00", "#0000ff", "#00ffff", "#ff00ff", "#ffffff"])]
+# montage areas in drawing order; nose and mouth are named by where the game draws them
+SAN2_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("mouth", "口"), ("nose", "鼻")]
+SAN2_FACE = 960  # 64x40 half-height, 3bpp
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos)")
+def san2_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
+    """3bpp half-height rows (24 bytes each) -> full-height 64-wide indexes; 0 -> 255 unless opaque."""
+    px = bytes(c if opaque or c else TRANSPARENT for c in utils.to_3bpp_indexes(raw))
+    rows = [px[i:i + 64] for i in range(0, len(px), 64)]
+    return 64, 2 * len(rows), b"".join(r + r for r in rows)
+
+
+def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN2_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for head in range(8):
+        parts = {}
+        for area, (slot, _) in enumerate(SAN2_SLOTS):
+            items = []
+            for rec in range(4):
+                w, h, px = san2_pixels(san2.montage_record(files["MONTAGE.DAT"], head, area, rec), area < 2)
+                items.append(store.add(w, h, px))
+            parts[slot] = {"at": [0, san2.MONTAGE_AREAS[area][2] // 24 * 2], "items": items}
+        variants.append({"id": str(head), "label": f"類型 {head}", "parts": parts})
+
+    kao = files["KAODATA.DAT"]
+    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True), blob=1), "code": f"{i // SAN2_FACE + 1:04X}"}
+                 for i in range(0, len(kao), SAN2_FACE)]
+
+    characters = []
+    for p in san2.load_san2_persons(os.path.join(game_dir, "SCENARIO.DAT"), os.path.join(game_dir, "TAIKI.DAT")):
+        ch = {"id": p.id, "name": p["name"]}
+        code = p.face
+        if san2.is_montage_code(code):
+            ch["face"] = {"variant": code & 7, "parts": [code >> s & 3 for s in san2.MONTAGE_SHIFTS],
+                          "code": f"{code:04X}"}
+        elif 1 <= code <= len(portraits):
+            ch["face"] = {"portrait": code - 1}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san2-dos", "game": "SAN2", "platform": "DOS",
+        "title": {"ja": "三國志II", "zh": "三國志II"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN2_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": i, "label": label, "colors": colors} for i, label, colors in SAN2_PALETTES],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": i, "label": label} for i, label in SAN2_SLOTS],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
+DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2}
+
+
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
