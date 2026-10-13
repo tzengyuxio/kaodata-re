@@ -240,6 +240,18 @@ SAN2_PALETTES = [("ega", "EGA", ["#000000", "#55ff55", "#ff5555", "#ffff55", "#5
 # montage areas in drawing order; nose and mouth are named by where the game draws them
 SAN2_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("mouth", "口"), ("nose", "鼻")]
 SAN2_FACE = 960  # 64x40 half-height, 3bpp
+# historical spelling where the game's name differs, by character id (checked against the
+# faction field and san2-fc); not set for 朵思王, 金環結, 董余奴 (abbreviated or unsure)
+SAN2_NAME_HISTORICAL = {
+    31: "張顗", 61: "蔡瑁", 67: "張咨", 98: "趙範", 121: "劉璝", 122: "雷銅", 157: "于禁", 164: "夏侯楙",
+    167: "桓階", 181: "陳紀", 218: "李堪", 220: "廖化", 249: "嚴畯", 258: "步騭", 260: "蔡中", 264: "向舉",
+    284: "向寵", 297: "鮑隆", 308: "阿會喃", 322: "沙摩柯", 332: "毌丘儉",
+}
+# KAODATA portraits no character uses (0-based), grouped by what they show
+SAN2_PORTRAIT_GROUPS = {
+    **{i: "美女" for i in [192, 194, 198, 200, 202, *range(203, 219)]},
+    **{i: "其他" for i in [27, 177, 190, 191, 193, 195, 196, 197, 199, 201]},
+}
 
 
 def san2_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
@@ -270,10 +282,14 @@ def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
     kao = files["KAODATA.DAT"]
     portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True), blob=1), "code": f"{i // SAN2_FACE + 1:04X}"}
                  for i in range(0, len(kao), SAN2_FACE)]
+    for i, group in SAN2_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
 
     characters = []
     for p in san2.load_san2_persons(os.path.join(game_dir, "SCENARIO.DAT"), os.path.join(game_dir, "TAIKI.DAT")):
         ch = {"id": p.id, "name": p["name"]}
+        if p.id in SAN2_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN2_NAME_HISTORICAL[p.id]
         code = p.face
         if san2.is_montage_code(code):
             ch["face"] = {"variant": code & 7, "parts": [code >> s & 3 for s in san2.MONTAGE_SHIFTS],
