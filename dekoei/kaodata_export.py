@@ -241,11 +241,12 @@ SAN2_PALETTES = [("ega", "EGA", ["#000000", "#55ff55", "#ff5555", "#ffff55", "#5
 SAN2_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("mouth", "口"), ("nose", "鼻")]
 SAN2_FACE = 960  # 64x40 half-height, 3bpp
 # historical spelling where the game's name differs, by character id (checked against the
-# faction field and san2-fc); not set for 朵思王, 金環結, 董余奴 (abbreviated or unsure)
+# faction field and san2-fc; 南蠻 names follow 三國演義)
 SAN2_NAME_HISTORICAL = {
     31: "張顗", 61: "蔡瑁", 67: "張咨", 98: "趙範", 121: "劉璝", 122: "雷銅", 157: "于禁", 164: "夏侯楙",
     167: "桓階", 181: "陳紀", 218: "李堪", 220: "廖化", 249: "嚴畯", 258: "步騭", 260: "蔡中", 264: "向舉",
-    284: "向寵", 297: "鮑隆", 308: "阿會喃", 322: "沙摩柯", 332: "毌丘儉",
+    284: "向寵", 297: "鮑隆", 306: "朵思大王", 308: "阿會喃", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
+    332: "毌丘儉",
 }
 # KAODATA portraits no character uses (0-based), per koei-wiki 遊戲/三國志II/人物顏
 SAN2_PORTRAIT_GROUPS = {

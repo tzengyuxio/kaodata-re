@@ -35,7 +35,7 @@
 ## 人物
 
 - 沿用 `san2 person` 的讀法（`san2.load_san2_persons`）：依劇本 1–6、再到 TAIKI.DAT 的順序，以頭像碼去重，共 352 人。劇本裡的格位每個劇本都不一樣，遊戲沒有固定的人物編號，匯出的 `id` 就是這個順序。
-- 姓名是遊戲內碼（KOEI-TW），用 `utils.to_unicode_name` 轉成繁體中文，錯字照錄在 `name`。和史書不同的 21 人在 `kaodata_export.SAN2_NAME_HISTORICAL` 填 `nameHistorical`，依據是主公欄位與 `san2-fc` 同位置的人。例如 id 157 寫成「樂進」，但它和 id 39 的樂進是不同人，FC 版同位置是于禁。朵思王、金環結、董余奴是簡寫，或正確寫法不確定，所以沒有填。
+- 姓名是遊戲內碼（KOEI-TW），用 `utils.to_unicode_name` 轉成繁體中文，錯字照錄在 `name`。和史書不同的 24 人在 `kaodata_export.SAN2_NAME_HISTORICAL` 填 `nameHistorical`，依據是主公欄位與 `san2-fc` 同位置的人。例如 id 157 寫成「樂進」，但它和 id 39 的樂進是不同人，FC 版同位置是于禁。南蠻的朵思王、金環結、董余奴照《三國演義》寫成朵思大王、金環三結、董荼那（FC 版寫董荼奴）。
 - KAODATA 有 31 張沒有人物使用，用途見 koei-wiki〈遊戲/三國志II/人物顏〉：
   - P027 華佗、P177 司馬徽、P190 許子將：`特殊人物`
   - P191–P202：`新君主`。建立新諸侯時，依年齡（青、中、老）× 性別 × 文官或武官自動決定，共 12 張
