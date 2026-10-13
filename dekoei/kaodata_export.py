@@ -247,10 +247,11 @@ SAN2_NAME_HISTORICAL = {
     167: "桓階", 181: "陳紀", 218: "李堪", 220: "廖化", 249: "嚴畯", 258: "步騭", 260: "蔡中", 264: "向舉",
     284: "向寵", 297: "鮑隆", 308: "阿會喃", 322: "沙摩柯", 332: "毌丘儉",
 }
-# KAODATA portraits no character uses (0-based), grouped by what they show
+# KAODATA portraits no character uses (0-based), per koei-wiki 遊戲/三國志II/人物顏
 SAN2_PORTRAIT_GROUPS = {
-    **{i: "美女" for i in [192, 194, 198, 200, 202, *range(203, 219)]},
-    **{i: "其他" for i in [27, 177, 190, 191, 193, 195, 196, 197, 199, 201]},
+    27: "特殊人物", 177: "特殊人物", 190: "特殊人物",  # 華佗, 司馬徽, 許子將
+    **{i: "新君主" for i in range(191, 203)},  # age x sex x civil/military
+    **{i: "女兒" for i in range(203, 219)},  # daughters of factions 0-15 (marriage diplomacy)
 }
 
 
