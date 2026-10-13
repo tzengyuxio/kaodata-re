@@ -250,10 +250,11 @@ SAN2_NAME_HISTORICAL = {
 }
 # KAODATA portraits no character uses (0-based), per koei-wiki 遊戲/三國志II/人物顏
 SAN2_PORTRAIT_GROUPS = {
-    27: "特殊人物", 177: "特殊人物", 190: "特殊人物",  # 華佗, 司馬徽, 許子將
+    27: "特殊人物", 177: "特殊人物", 190: "特殊人物",
     **{i: "新君主" for i in range(191, 203)},  # age x sex x civil/military
     **{i: "女兒" for i in range(203, 219)},  # daughters of factions 0-15 (marriage diplomacy)
 }
+SAN2_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子將"}
 
 
 def san2_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
@@ -286,6 +287,8 @@ def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
                  for i in range(0, len(kao), SAN2_FACE)]
     for i, group in SAN2_PORTRAIT_GROUPS.items():
         portraits[i]["group"] = group
+    for i, name in SAN2_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
 
     characters = []
     for p in san2.load_san2_persons(os.path.join(game_dir, "SCENARIO.DAT"), os.path.join(game_dir, "TAIKI.DAT")):
