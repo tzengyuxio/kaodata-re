@@ -6,7 +6,7 @@
 
 - 3bpp byte-interleaved planar，`utils.to_3bpp_indexes` 的順序（第一個 byte 是色號 bit 2）。
 - 半高：每列 64 px＝24 bytes，畫面上每列重複兩次，所以 64×40 的資料顯示成 64×80。
-- 色盤：EGA `#000000 #55FF55 #FF5555 #FFFF55 #5555FF #55FFFF #FF55FF #FFFFFF`。PC-98 版同樣的色號順序，色值為 `#00FF00` 等。
+- 色盤：EGA `#000000 #55FF55 #FF5555 #FFFF55 #5555FF #55FFFF #FF55FF #FFFFFF`。匯出只放這一組。PC-98 版的頭像是重畫的，把 PC-98 色值套在 DOS 的像素上，會得到一張從來不存在的圖；PC-98 版另外從原檔匯出成 `san2-pc98`。
 
 ## 頭像碼
 

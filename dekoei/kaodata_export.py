@@ -235,8 +235,7 @@ def build_genpei(game_dir: str) -> tuple[dict, list[bytes]]:
 # ---------------------------------------------------------------- SAN2 (DOS, Chinese)
 
 SAN2_INPUTS = ["KAODATA.DAT", "MONTAGE.DAT", "SCENARIO.DAT", "TAIKI.DAT"]
-SAN2_PALETTES = [("ega", "EGA", ["#000000", "#55ff55", "#ff5555", "#ffff55", "#5555ff", "#55ffff", "#ff55ff", "#ffffff"]),
-                 ("pc98", "PC-98", ["#000000", "#00ff00", "#ff0000", "#ffff00", "#0000ff", "#00ffff", "#ff00ff", "#ffffff"])]
+SAN2_PALETTE = ["#000000", "#55ff55", "#ff5555", "#ffff55", "#5555ff", "#55ffff", "#ff55ff", "#ffffff"]  # EGA
 # montage areas in drawing order; nose and mouth are named by where the game draws them
 SAN2_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("mouth", "口"), ("nose", "鼻")]
 SAN2_FACE = 960  # 64x40 half-height, 3bpp
@@ -309,7 +308,7 @@ def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN2_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": i, "label": label, "colors": colors} for i, label, colors in SAN2_PALETTES],
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
