@@ -33,6 +33,7 @@ cd dekoei
 ../.venv/bin/python dekoei.py export san3-pc98 --game-dir ../games/san3-pc98 --out ~/works/kaodata/data-local/san3-pc98
 ../.venv/bin/python dekoei.py export san4-dos --game-dir ../games/san4-dos --out ~/works/kaodata/data-local/san4-dos
 ../.venv/bin/python dekoei.py export san4-pc98 --game-dir ../games/san4-pc98 --out ~/works/kaodata/data-local/san4-pc98
+../.venv/bin/python dekoei.py export san4pk-pc98 --game-dir ../games/san4pk-pc98 --out ~/works/kaodata/data-local/san4pk-pc98
 ../.venv/bin/python dekoei.py export san5pk-dos --game-dir ../games/san5pk-dos --out ~/works/kaodata/data-local/san5pk-dos
 ../.venv/bin/python dekoei.py export san5pk-pc98 --game-dir ../games/san5pk-pc98 --out ~/works/kaodata/data-local/san5pk-pc98
 ../.venv/bin/python dekoei.py export suikoden-pc98 --game-dir ../games/suikoden-pc98 --out ~/works/kaodata/data-local/suikoden-pc98
@@ -60,11 +61,11 @@ Python 端沒有 linter／formatter 設定。
 - **kaodata 統一格式匯出**（`kaodata_export.py`，目前開發中的 `feat/kaodata-export`）：
   - 產出給 kaodata 網站 repo 用的 `kaodata/1` 格式：`dataset.json`＋raw-deflate 的 pixel blobs（`pixels.bin`、`portraits.bin`）＋`checksums.json`。規格在**網站 repo** 的 `docs/data-format.md`，不在本 repo。
   - 檔內有一份依規格 §6 實作的 reference renderer（`compose_display`、`portrait_display` 等），`checksums.json` 由它算出；改資料結構時要同步讓 renderer 結果正確。
-  - `DATASETS` dict 對應 dataset id → builder 函式：`genpei-dos` → `build_genpei`、`san2-dos` → `build_san2`、`san2-pc98`／`san2-x68` → `build_san2_jp`、`san3-dos`／`san3-pc98` → `build_san3`、`san4-dos`／`san4-pc98` → `build_san4`、`san5pk-dos`／`san5pk-pc98` → `build_san5pk`、`lempe-dos` → `build_lempe`、`san1-pc98` → `build_san1_pc98`、`suikoden-pc98` → `build_suikoden_pc98`。
+  - `DATASETS` dict 對應 dataset id → builder 函式：`genpei-dos` → `build_genpei`、`san2-dos` → `build_san2`、`san2-pc98`／`san2-x68` → `build_san2_jp`、`san3-dos`／`san3-pc98` → `build_san3`、`san4-dos`／`san4-pc98`／`san4pk-pc98` → `build_san4`、`san5pk-dos`／`san5pk-pc98` → `build_san5pk`、`lempe-dos` → `build_lempe`、`san1-pc98` → `build_san1_pc98`、`suikoden-pc98` → `build_suikoden_pc98`。
     - `build_genpei` 只用 `genpei.py` 後段的新函式（`load_mainpal`、`montage_types`、`load_kaodata`、`unpack_main_exe` 等），組合表 offset 從展開後的 Main.exe 讀，不寫死。
     - `build_san2` 用 `san2.py` 的 `MONTAGE_AREAS`／`compose_montage`（表格讀自 MAIN.EXE，見 `notes/san2.md`）與 `load_san2_persons`。`san2-pc98`／`san2-x68` 用 `build_san2_jp`：全高頭像在 KAODATA1–3，組合臉零件在 KAODATA3 後段（`san2.JP_MONTAGE_*`，鼻口順序和 DOS 相反），人物用 `load_san2_jp_persons`。
     - `build_san3` 用 `san3.py` 的 `MONTAGE_AREAS` 等（表格讀自 MAIN.EXE，見 `notes/san3.md`）與 `load_san3_persons`；像素是 byte k＝bit k（`genpei.decode_planar`），不是 `to_3bpp_indexes`。`san3-pc98` 也用 `build_san3`（`pc98=True`）：頭像檔相同，人物改用 `load_san3_pc98_persons`（Shift-JIS＋外字），色盤與事件人物名換成日文版的。
-    - `build_san4` 用 `sango.py` 的 `load_san4_faces`（KAODATA.S4 是自訂的 RLE＋nibble 壓縮）、`SAN4_MONTAGE_*`（眼、口的列號依頭型不同）與 `load_san4_persons`（SNDATA／TAIKI 是 LS11），見 `notes/san4.md`。MONDATA 像素是 byte k＝bit k。`san4-pc98` 也用 `build_san4`（`pc98=True`），人物姓名是 Shift-JIS＋外字。
+    - `build_san4` 用 `sango.py` 的 `load_san4_faces`（KAODATA.S4 是自訂的 RLE＋nibble 壓縮）、`SAN4_MONTAGE_*`（眼、口的列號依頭型不同）與 `load_san4_persons`（SNDATA／TAIKI 是 LS11），見 `notes/san4.md`。MONDATA 像素是 byte k＝bit k。`san4-pc98` 也用 `build_san4`（`pc98=True`），人物姓名是 Shift-JIS＋外字；`san4pk-pc98` 再加 `pk=True`：多收 KAODATAP 的水滸伝武將頭像、KAODATA2 的挑臉追加頭像與 NBDATA.SUI 的 117 人。
     - `build_san5pk` 只有逐人頭像（KAODATA.S5 未壓縮，byte k＝bit k，後面接 KAOEX.S5 的追加頭像），`san5pk-pc98` 用同一個 builder（`pc98=True`），人物用 `sango.load_san5_persons`；DOS 版的 MAIN.EXE 是破解過的，只當程式碼參考，見 `notes/san5.md`。
     - `build_san1_pc98`：PICDATA 半高頭像，組合臉是三段橫條（`san1.PC98_BANDS`），人物從 SAVEDATA 的存檔槽 0 讀（劇本檔有編碼），見 `notes/san1.md`。`build_suikoden_pc98` 只有逐人頭像，見 `notes/koei-games.md`。
     - `build_lempe` 只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`，見 `notes/lempe.md`。
