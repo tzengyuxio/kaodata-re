@@ -1988,6 +1988,105 @@ def build_nobu7_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- EIKETSU3 (毛利元就傳, Win, Chinese)
+
+EIKETSU3_WIN_INPUTS = ["KAO.E3", "PMPALET.E3", "DATA.E3"]
+# DATA.E3 records: 0-199 officers and event people, 200-247 retainers with generated names sharing 8 faces,
+# 248-499 generic NPCs, 500-791 troops, 792-799 event people
+EIKETSU3_WIN_PEOPLE = list(range(200)) + list(range(792, 800))
+EIKETSU3_WIN_TROOPS = set(range(272, 296)) | set(range(500, 792))  # 士兵, troop units
+EIKETSU3_WIN_RETAINERS = range(200, 248)
+# childhood or earlier names of the same person (same face, or the young face of their set)
+EIKETSU3_WIN_ALIASES = {"少輔太郎": "毛利隆元", "少輔次郎": "吉川元春", "德壽丸": "小早川隆景", "竹千代": "德川家康",
+                        "松平元康": "德川家康", "竹若丸": "安國寺惠瓊", "夫人": "妙姬"}
+# no record uses the older faces; they follow the record's face in KAO.E3 (matched by eye, the EXE draws
+# whatever face the person object holds)
+EIKETSU3_WIN_LOOKS = {
+    "毛利元就": [(0, "少年"), (1, "青年"), (2, "壯年"), (3, "老年")],
+    "毛利隆元": [(4, "少年"), (5, "青年"), (6, "壯年")],
+    "吉川元春": [(7, "少年"), (8, "青年"), (9, "壯年")],
+    "小早川隆景": [(10, "少年"), (11, "青年"), (12, "壯年")],
+    "毛利輝元": [(13, "青年"), (14, "壯年")],
+    "陶晴賢": [(15, "青年"), (16, "壯年")],
+    "山中鹿之介": [(17, "青年"), (18, "壯年"), (19, "頭巾")],
+    "織田信長": [(20, "青年"), (21, "壯年"), (22, "老年")],
+    "德川家康": [(23, "少年"), (24, "青年"), (25, "壯年")],
+    "安國寺惠瓊": [(26, "少年"), (27, "青年")],
+    "妙姬": [(29, "青年"), (30, "壯年")],
+}
+EIKETSU3_WIN_PAIRS = range(42, 74, 2)  # face + 1 is the same officer, older
+EIKETSU3_WIN_NAME_HISTORICAL = {"神原康政": "榊原康政", "佐佐成正": "佐佐成政", "下間賴簾": "下間賴廉"}
+EIKETSU3_WIN_FACE = 112
+# faces some character uses go first; the grouped ones go to extra.bin
+EIKETSU3_WIN_BLOBS = ["portraits.bin", "extra.bin"]
+
+
+def build_eiketsu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in EIKETSU3_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = ls11.ls11_decode_parts(files["KAO.E3"])
+    records = koei_games.load_eiketsu3_win_persons(os.path.join(game_dir, "DATA.E3"))
+
+    characters, by_name = [], {}
+    for i in EIKETSU3_WIN_PEOPLE:
+        name, code = records[i]
+        name = EIKETSU3_WIN_ALIASES.get(name, name)
+        if name in by_name:
+            continue
+        looks = EIKETSU3_WIN_LOOKS.get(name)
+        if looks is None and code in EIKETSU3_WIN_PAIRS:
+            looks = [(code, "青年"), (code + 1, "壯年")]
+        ch = by_name[name] = {"id": len(characters), "name": name, "face": {"portrait": code}}
+        if looks:
+            ch["face"]["label"] = dict(looks)[code]
+            ch["expressions"] = [{"portrait": p, "label": label} for p, label in looks if p != code]
+        if name in EIKETSU3_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = EIKETSU3_WIN_NAME_HISTORICAL[name]
+        characters.append(ch)
+
+    # faces only retainers, NPCs or troops use take the first role name (digits dropped)
+    portraits = [{"code": f"{i:04X}"} for i in range(len(faces))]
+    person_faces = {look["portrait"] for ch in characters for look in [ch["face"]] + ch.get("expressions", [])}
+    for i, (name, code) in enumerate(records):
+        p = portraits[code]
+        if code in person_faces or "name" in p:
+            continue
+        if i in EIKETSU3_WIN_RETAINERS:
+            p.update(name="一般武將", group="一般人物")
+        elif i not in EIKETSU3_WIN_PEOPLE:
+            p.update(name=name.rstrip("0123456789"), group="部隊" if i in EIKETSU3_WIN_TROOPS else "一般人物")
+    for i, p in enumerate(portraits):
+        if i not in person_faces and "group" not in p:
+            p["group"] = "未使用"
+
+    store = ImageStore(EIKETSU3_WIN_BLOBS)
+    for i in sorted(person_faces) + [i for i in range(len(faces)) if i not in person_faces]:
+        # colour 0 is the background (shown as magenta filler), 255 is transparent in kaodata
+        px = bytes(faces[i]).replace(b"\0", b"\xff")
+        portraits[i]["img"] = store.add(EIKETSU3_WIN_FACE, EIKETSU3_WIN_FACE, px, blob=int(i not in person_faces))
+    portraits = [{"img": p.pop("img"), **p} for p in portraits]
+
+    # PMPALET.E3 part 0 (B, R, G; the map palettes agree on colours 10-174, which the faces use)
+    pal = ls11.ls11_decode_parts(files["PMPALET.E3"])[0]
+    colours = ["#000000"] * 10 + [f"#{pal[i + 1]:02X}{pal[i + 2]:02X}{pal[i]:02X}" for i in range(30, 175 * 3, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "eiketsu3-win", "game": "EIKETSU3", "platform": "WIN",
+        "title": {"ja": "毛利元就 誓いの三矢", "zh": "毛利元就傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU3_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- EIKETSU4 (織田信長傳, Win, Chinese)
 
 EIKETSU4_WIN_INPUTS = ["KAO.E4", "PMPALET.E4", "DATA.E4"]
@@ -2233,12 +2332,13 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
+            "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
             "eiketsu5-win": build_eiketsu5_win,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

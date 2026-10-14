@@ -768,6 +768,21 @@ def load_eiketsu5_win_persons(path) -> list[tuple[str, int]]:
         persons.append((data[o:o + 13].split(b"\0")[0].decode("big5"), code))
     return persons
 
+# EIKETSU3 (毛利元就傳, Win, Chinese): DATA.E3 part 0 holds 800 person records of 54 bytes;
+# +0 name (13-byte Big5), +13 reading (half-width katakana), +28 u16 face (KAO.E3 part)
+EIKETSU3_WIN_PERSON = 54
+
+
+def load_eiketsu3_win_persons(path) -> list[tuple[str, int]]:
+    """(name, face) of every DATA.E3 person record."""
+    with open(path, "rb") as f:
+        data = ls11_decode_parts(f.read())[0]
+    persons = []
+    for o in range(0, len(data), EIKETSU3_WIN_PERSON):
+        face, = struct.unpack_from("<H", data, o + 28)
+        persons.append((data[o:o + 13].split(b"\0")[0].decode("big5"), face))
+    return persons
+
 # GENGHIS4 PK (Win, Chinese): SCEDAT1-4.CK each hold a run of 51-byte male records followed by
 # 24-byte female records. A male record is u16 id + 17-byte Big5 name (NUL, then spaces) + ...; a female
 # one u8 id + name (CKW95.EXE 0x495F10). Offsets below count from the name:

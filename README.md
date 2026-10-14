@@ -67,14 +67,14 @@ Early KOEI Games Data Research
 | AIR2      | 航空霸業II                  | 1993 |       DOS        |       |        |                     |
 | EIKETSU   | 三國志英傑傳                | 1995 |     DOS,WIN      |       |        |                     |
 | KOUMEI    | 三國志孔明傳                | 1996 |       WIN        |       |        |                     |
-|           | 毛利元就 三矢之誓           | 1996 |                  |       |        |                     |
+| EIKETSU3  | 毛利元就 三矢之誓           | 1996 |       WIN        |       |        |                     |
 | EIKETSU4  | 織田信長傳                  | 1998 |       WIN        |       |        |                     |
 | EIKETSU5  | 三國志曹操傳                | 1998 |       WIN        |       |        |                     |
 | GENPEI    | 源平合戰                    | 1994 |                  |       |        |                     |
 | LIBERTY   | 獨立戰爭                    | 1993 |       DOS        |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 37 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
+* 目前支援 38 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -107,6 +107,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `eiketsu-dos` | 三國志英傑傳                 | DOS 中文版 |  264 |  240 |        | [notes/eiketsu.md](notes/eiketsu.md) |
 | `koumei-win` | 三國志孔明傳                   | Win 中文版 |  240 |  288 |        | [notes/koumei.md](notes/koumei.md) |
+| `eiketsu3-win` | 毛利元就傳                   | Win 中文版 |  201 |  332 |        | [notes/eiketsu3.md](notes/eiketsu3.md) |
 | `eiketsu4-win` | 織田信長傳                   | Win 中文版 |  186 |  219 |        | [notes/eiketsu4.md](notes/eiketsu4.md) |
 | `eiketsu5-win` | 三國志曹操傳                 | Win 中文版 |  162 |  228 |        | [notes/eiketsu5.md](notes/eiketsu5.md) |
 | `san6pk-win` | 三國志VI 威力加強版            | Win 中文版 |  532 |  666 |        | [notes/san6.md](notes/san6.md)     |
