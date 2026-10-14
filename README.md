@@ -64,7 +64,7 @@ Early KOEI Games Data Research
 | TK2       | 提督之決斷II                | 1993 |       DOS        |       |        |                     |
 | WINNING   | 光榮賽馬／賽馬大亨          | 1993 |       DOS        |       |        |                     |
 | AIR2      | 航空霸業II                  | 1993 |       DOS        |       |        |                     |
-| EIKETSU   | 三國志英傑傳                | 1995 |       WIN        |       |        |                     |
+| EIKETSU   | 三國志英傑傳                | 1995 |     DOS,WIN      |       |        |                     |
 | KOUMEI    | 三國志孔明傳                | 1996 |       WIN        |       |        |                     |
 |           | 毛利元就 三矢之誓           | 1996 |                  |       |        |                     |
 |           | 織田信長傳                  | 1998 |                  |       |        |                     |
@@ -104,6 +104,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `san4pk-pc98` | 三國志IV 威力加強版           | PC-98      |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
+| `eiketsu-dos` | 三國志英傑傳                 | DOS 中文版 |  264 |  240 |        | [notes/eiketsu.md](notes/eiketsu.md) |
 | `koumei-win` | 三國志孔明傳                   | Win 中文版 |  240 |  288 |        | [notes/koumei.md](notes/koumei.md) |
 | `san6pk-win` | 三國志VI 威力加強版            | Win 中文版 |  532 |  666 |        | [notes/san6.md](notes/san6.md)     |
 | `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |

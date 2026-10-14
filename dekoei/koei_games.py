@@ -97,6 +97,145 @@ def eiketsu_face(face_file, out_dir, prefix):
 
 eiketsu.add_command(eiketsu_face, 'face')
 
+
+def decode_tfdce(src: bytes) -> tuple[int, int, list[list[bytearray]]]:
+    """Decode an image of TFDED.COM (TF-DCE 5.11, the int 62h driver of 英傑傳 DOS).
+
+    Returns (bytes per row, rows, planes), planes[p][row] being the bytes of plane p.
+    Each coded plane is a byte stream laid out column by column (a byte column is 8 pixels),
+    going down the first column, up the next and so on. See notes/eiketsu.md.
+    """
+    pos = src[0]  # header length
+    w = src[pos]
+    h = src[pos + 1] | src[pos + 2] << 8
+    codes = src[pos + 3] | src[pos + 4] << 8  # 4 bits per plane, in stream order
+    order = [(src[pos + 5] >> (2 * k)) & 3 for k in range(4)]  # plane of each stream slot
+    flags = src[pos + 6]
+    pos += 7
+    if flags & 0x40:  # palette
+        pos += 32
+    dic = []
+    if flags & 0x20:  # 2-byte codes used by opcodes 00-1F
+        n = src[pos]
+        dic = [(src[pos + 1 + 2 * i], src[pos + 2 + 2 * i]) for i in range(n)]
+        pos += 1 + 2 * n
+    planes = [[bytearray(w) for _ in range(h)] for _ in range(4)]
+    total = w * h
+
+    def rc(n):
+        col, k = divmod(n, h)
+        return (k if col % 2 == 0 else h - 1 - k), col
+
+    def rol(b, s):
+        s &= 7
+        return ((b << s) | (b >> (8 - s))) & 0xff
+
+    xforms = (lambda b: b, lambda b: b ^ 0xff, lambda b: rol(b, 7), lambda b: rol(b, 1))
+    masks = [0x00, 0xff, 0x55, 0xaa]  # recent AND masks, kept over all planes
+    for p in order:
+        code = codes & 0xf
+        codes >>= 4
+        plane = planes[p]
+        if code == 1:  # solid
+            for row in plane:
+                row[:] = bytes([src[pos]]) * w
+            pos += 1
+        elif code == 2:  # copy of another plane
+            other = planes[order[src[pos]]]
+            pos += 1
+            for y in range(h):
+                plane[y][:] = other[y]
+        elif code == 3:
+            n = 0
+            while n < total:
+                c = src[pos]
+                pos += 1
+                arg = None
+                if c < 0x20:
+                    c, arg = dic[c]
+                    if c >> 4 in (0, 1, 6):
+                        continue
+                hi = c >> 4
+                if arg is None and hi not in (6, 7) and not (hi in (5, 9) and c & 0xc == 0xc):
+                    arg = src[pos]
+                    pos += 1
+                if hi >= 10:  # run
+                    cnt, f = (c - 0x9e) & 0xff, lambda i, y, x, b=arg: b
+                elif hi == 7:  # literal
+                    if arg is not None:
+                        lit = bytes([arg])
+                    else:
+                        lit = src[pos:pos + (c & 0xf) + 1]
+                        pos += len(lit)
+                    cnt, f = len(lit), lambda i, y, x, lit=lit: lit[i]
+                elif hi in (6, 8):  # repeated byte pair
+                    if hi == 6:
+                        pair = src[pos:pos + 2]
+                        pos += 2
+                    else:
+                        pair = ((arg & 0xf) * 0x11, (arg >> 4) * 0x11)
+                    cnt, f = ((c & 0xf) + 1) * 2, lambda i, y, x, pair=pair: pair[i & 1]
+                elif hi == 4:  # copy from d byte columns to the left
+                    cnt, f = arg + 2, lambda i, y, x, d=(c & 0xf) + 1: plane[y][x - d]
+                elif hi == 2:  # copy from d bytes back in the stream
+                    def f(i, y, x, d=arg):
+                        sy, sx = rc(n - d)
+                        return plane[sy][sx]
+                    cnt = (c & 0xf) + 3
+                elif hi == 3:  # another plane, transformed
+                    cnt = arg + 2
+                    f = lambda i, y, x, o=planes[order[(c >> 2) & 3]], t=xforms[c & 3]: t(o[y][x])
+                else:  # 5, 9: another plane AND a mask (9: mask rotating per byte)
+                    if arg is None:
+                        o, mask, cnt = planes[order[c & 3]], src[pos], src[pos + 1] + 2
+                        pos += 2
+                        masks[2:] = [mask, masks[2]]
+                    else:
+                        o, k, cnt = planes[order[(c >> 2) & 3]], c & 3, arg + 2
+                        mask = masks[k]
+                        if k:
+                            masks[k - 1], masks[k] = mask, masks[k - 1]
+                    r = 0 if hi == 5 else 1 if mask in (0x55, 0xaa) else 2
+                    f = lambda i, y, x, o=o, m=mask, r=r: o[y][x] & rol(m, r * i)
+                for i in range(cnt):
+                    y, x = rc(n)
+                    plane[y][x] = f(i, y, x)
+                    n += 1
+                    if n >= total:
+                        break
+    return w, h, planes
+
+
+def load_eiketsu_dos_faces(facedat) -> list[bytes]:
+    """FACEDAT.R3 (DOS): 240 x (u32 offset from the table end, u16 size), TF-DCE images of 64x80, 8 colours."""
+    with open(facedat, "rb") as f:
+        data = f.read()
+    faces = []
+    for i in range(240):
+        off, size = struct.unpack_from("<IH", data, i * 6)
+        w, h, planes = decode_tfdce(data[240 * 6 + off:240 * 6 + off + size])
+        px = bytearray(w * 8 * h)
+        for y in range(h):
+            for x in range(w * 8):
+                bit = 0x80 >> (x & 7)
+                px[y * w * 8 + x] = sum(1 << p for p in range(4) if planes[p][y][x >> 3] & bit)
+        faces.append(bytes(px))
+    return faces
+
+
+# BAKDATA.R3 (DOS): 384 person records of 21 bytes from 0x1100 (256 officers, then troops and townsfolk);
+# +0 name 6 bytes Big5 (NUL or space padded), +6 kana reading, +14 face
+EIKETSU_DOS_PERSONS = (0x1100, 384, 21)
+
+
+def load_eiketsu_dos_persons(bakdata) -> list[tuple[str, int]]:
+    """(name, face code) of every BAKDATA.R3 person record, in file order."""
+    with open(bakdata, "rb") as f:
+        data = f.read()
+    start, count, size = EIKETSU_DOS_PERSONS
+    return [(data[o:o + 6].split(b"\0")[0].decode("big5").strip(), data[o + 14])
+            for o in range(start, start + count * size, size)]
+
 ##############################################################################
 
 

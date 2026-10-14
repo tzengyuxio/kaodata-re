@@ -1712,6 +1712,62 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- EIKETSU (DOS, Chinese)
+
+EIKETSU_DOS_INPUTS = ["FACEDAT.R3", "BAKDATA.R3"]
+# MAIN.EXE DGROUP 0xB0A (B, R, G, 4 bits each, set through GRPDRV); faces use colours 0-7
+EIKETSU_DOS_PALETTE = ["#000000", "#2041A2", "#E36100", "#C371A2", "#00B271", "#82C3F3", "#F3C351", "#F3F3F3"]
+# BAKDATA names that are troops or unnamed townsfolk, not characters
+EIKETSU_DOS_TROOPS = {"步兵隊", "弓兵隊", "騎兵隊", "賊兵", "軍樂隊", "運輸隊", "異民族"}
+EIKETSU_DOS_FOLK = {"猛獸師", "妖術師", "武術家", "民眾", "宮吏", "農民", "商人", "旅客", "女子", "官差", "使者", "文官",
+                    "武官", "夫人", "少女", "？？？", "道具屋", "童子"}
+EIKETSU_DOS_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "劉貴": "劉璝"}
+
+
+def build_eiketsu_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in EIKETSU_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+    faces = koei_games.load_eiketsu_dos_faces(os.path.join(game_dir, "FACEDAT.R3"))
+    portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
+
+    records = koei_games.load_eiketsu_dos_persons(os.path.join(game_dir, "BAKDATA.R3"))
+    generic = EIKETSU_DOS_TROOPS | EIKETSU_DOS_FOLK
+    characters, users = [], {}  # users: face code -> names, in file order
+    for name, code in records:
+        if name not in users.setdefault(code, []):
+            users[code].append(name)
+        if name in generic:
+            continue
+        ch = {"id": len(characters), "name": name, "face": {"portrait": code}}
+        if name in EIKETSU_DOS_NAME_HISTORICAL:
+            ch["nameHistorical"] = EIKETSU_DOS_NAME_HISTORICAL[name]
+        characters.append(ch)
+    person_faces = {c["face"]["portrait"] for c in characters}
+    for code, names in users.items():
+        if code not in person_faces:
+            portraits[code].update(name=names[0], group="部隊" if names[0] in EIKETSU_DOS_TROOPS else "一般人物")
+    for i, p in enumerate(portraits):
+        if i not in users:
+            p["group"] = "未使用"
+
+    meta = {
+        "format": FORMAT, "id": "eiketsu-dos", "game": "EIKETSU", "platform": "DOS",
+        "title": {"ja": "三國志英傑伝", "zh": "三國志英傑傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": EIKETSU_DOS_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1724,10 +1780,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
-            "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win}
+            "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, eiketsu-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

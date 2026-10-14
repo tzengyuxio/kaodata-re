@@ -40,6 +40,7 @@ mask 應該有 2560 bytes
 
 ### DOS
 
+- 已解開，格式見 [eiketsu.md](eiketsu.md)（TFDED.COM 的 TF-DCE 壓縮）
 - 人物似乎只有八色
 - 檔案 342 KB
 - 前面有 1440 bytes 為 offsets 資料, 6 bytes 一組, 240 組
