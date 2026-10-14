@@ -506,6 +506,60 @@ def build_san4(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+SAN5PK_INPUTS = ["KAODATA.S5", "SNDATA.S5", "TAIKI.S5"]
+# DGROUP 0x5C94 of MAIN.EXE (B, R, G, 4 bits each), colours 8-15 are the faces; widened as (v << 4) | (v >> 2)
+SAN5PK_PALETTE = ["#202010", "#104171", "#B23000", "#B27141", "#206110", "#618292", "#E3A282", "#E3D3C3"]
+# speakers without a person record; names from the MAIN.EXE list at DGROUP 0x8E7A (see notes/san5.md)
+SAN5PK_PORTRAIT_NAMES = {500: "獻帝", 501: "貂蟬", 502: "民眾", 503: "民眾", 504: "民眾", 505: "民眾", 506: "使者",
+                         507: "士兵"}
+# faces offered when registering a new officer (overlay 16 picker), by sex; 733-782 follow each range
+SAN5PK_PORTRAIT_GROUPS = {
+    **{i: "事件人物" for i in SAN5PK_PORTRAIT_NAMES},
+    **{i: "新武將（男）" for i in [*range(508, 625), *range(733, 758)]},
+    **{i: "新武將（女）" for i in [*range(625, 733), *range(758, 783)]},
+}
+
+
+def build_san5pk(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN5PK_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    kao = files["KAODATA.S5"]
+    portraits = [{"img": store.add(*san3_pixels(kao[i:i + sango.SAN5_FACE], True)),
+                  "code": f"{i // sango.SAN5_FACE:04X}"} for i in range(0, len(kao), sango.SAN5_FACE)]
+    for i, group in SAN5PK_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in SAN5PK_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    characters = []
+    # scenarios 1-12 in order, deduplicated by face code (one name per code)
+    seen = set()
+    for _, name, code in sango.load_san5_persons(os.path.join(game_dir, "SNDATA.S5"),
+                                                  os.path.join(game_dir, "TAIKI.S5")):
+        if code in seen:
+            continue
+        seen.add(code)
+        characters.append({"id": len(characters), "name": name, "face": {"portrait": code}})
+
+    meta = {
+        "format": FORMAT, "id": "san5pk-dos", "game": "SAN5PK", "platform": "DOS",
+        "title": {"ja": "三國志V with パワーアップキット", "zh": "三國志V 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN5PK_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": SAN5PK_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 LEMPE_INPUTS = ["KAODATA.DAT", "NPDATA.CIM"]
 # correct name where the Chinese release names a different person than the English one
 # (identity from the English and Japanese names, see koei-wiki 拿破崙/人物資料 mapping)
@@ -564,10 +618,10 @@ def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
 
 
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2, "san3-dos": build_san3, "lempe-dos": build_lempe,
-            "san4-dos": build_san4}
+            "san4-dos": build_san4, "san5pk-dos": build_san5pk}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, san3-dos, san4-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, san3-dos, san4-dos, san5pk-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
