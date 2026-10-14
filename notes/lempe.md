@@ -32,11 +32,15 @@
 
 | 頭像 | 碼 | 出處 | 用途 |
 |---|---|---|---|
-| P255 | 0xFF | 0x6096：取人物頭像時，若是拿破崙且官階＝6 | 第一執政 |
-| P256 | 0x100 | 同上，官階＝7 | 皇帝 |
+| P255 | 0xFF | 0x6096：取人物頭像時，若是拿破崙且官階＝6 | 拿破崙：第一執政 |
+| P256 | 0x100 | 同上，官階＝7 | 拿破崙：皇帝 |
 | P257 | 0x101 | 0xE14A 事件 2「My love, please be careful!」；0x12EC4 字串「Josephine」 | 約瑟芬 |
 | P258 | 0x102 | 0x12EC4 字串「Marie Louise」 | 瑪麗路易斯 |
 | P259 | 0x103 | 0xE14A 事件 3、5（埃及遠征）；0x1D26D | 尼爾森 |
 
-- 官階值 6、7 的意義沒有完全追到：官銜字串表依序是 War prisoners、Reserves、Officers、Commander、Commander-in-Chief、Governor、First Consul、King、Emperor，不一定直接用官階值索引。P255、P256 是第一執政、皇帝，是依劇本時期（1802 第一執政、1806 皇帝）與畫面（P255 長髮、P256 短髮）推定，與 `kaocgeditor` 的頭像名稱一致。
-- 名稱用中文版 `MAIN.EXE` 的寫法：「第一執政」「皇帝」「約瑟芬」「瑪麗路易斯」「尼爾森」。
+- 0x6096 與官銜函式 0x60E8 都用 0x5F82 取官階，拿破崙是參數 0x44。0x60E8 把官階換成官銜表（DGROUP 0x3984 起的指標，索引 2 起依序是 War prisoners、Reserves、Officers、Commander、Commander-in-Chief、Governor、First Consul、King、Emperor）的索引：
+  - 官階 5：Commander；拿破崙在 `[0x1642]`＝2 時是 Commander-in-Chief
+  - 官階 6：拿破崙是 First Consul，其他人是 Governor
+  - 官階 7：0x6CFC 成立時是 Emperor，否則是 King（King 的人若是 Carolina／Victoria 改成 Queen）
+- 所以 P255＝第一執政、P256＝皇帝。匯出時放在人物 0 的 `expressions`，`label` 用中文版 `MAIN.EXE` 的官銜：P000「司令官」（官階 ≤5，也用在「總司令官」）、P255「第一執政」、P256「皇帝」。中文版官銜表依序是 戰俘（未解碼）、預備軍官、現役軍官、司令官、總司令官、督政官、第一執政、國王、皇帝。
+- P257–P259 的名稱用中文版 `MAIN.EXE` 的寫法：「約瑟芬」「瑪麗路易斯」「尼爾森」。

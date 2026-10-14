@@ -98,14 +98,18 @@ def to_rgba(src: tuple[int, int, bytes], colors: list[str]) -> bytes:
 
 def display_entries(meta: dict, blobs: list[bytes]):
     """(key, indexed display) for every face, as covered by checksums.json (spec §8)."""
+    def face_display(face):
+        if "portrait" in face:
+            return portrait_display(meta, blobs, face["portrait"], face.get("bg"))
+        return compose_display(meta, blobs, face)
+
     for ch in meta["characters"]:
         face = ch.get("face")
         if face is None:
             continue
-        if "portrait" in face:
-            yield f"ch:{ch['id']}", portrait_display(meta, blobs, face["portrait"], face.get("bg"))
-        else:
-            yield f"ch:{ch['id']}", compose_display(meta, blobs, face)
+        yield f"ch:{ch['id']}", face_display(face)
+        for k, expr in enumerate(ch.get("expressions", []), 1):
+            yield f"ch:{ch['id']}/{k}", face_display(expr)
     for i in range(len(meta.get("portraits", []))):
         yield f"pt:{i}", portrait_display(meta, blobs, i)
 
@@ -331,8 +335,10 @@ LEMPE_NAME_HISTORICAL = {
     25: "米約", 52: "古爾戈", 77: "薩默塞特", 104: "烏瓦羅夫", 109: "戈爾恰科夫", 121: "沃龍佐夫", 160: "普羅韋拉",
 }
 # face numbers past the person byte, passed to the face routine by MAIN.EXE (see notes/lempe.md)
-LEMPE_PORTRAIT_GROUPS = {255: "拿破崙", 256: "拿破崙", 257: "事件人物", 258: "事件人物", 259: "事件人物"}
-LEMPE_PORTRAIT_NAMES = {255: "拿破崙（第一執政）", 256: "拿破崙（皇帝）", 257: "約瑟芬", 258: "瑪麗路易斯", 259: "尼爾森"}
+LEMPE_PORTRAIT_GROUPS = {257: "事件人物", 258: "事件人物", 259: "事件人物"}
+LEMPE_PORTRAIT_NAMES = {257: "約瑟芬", 258: "瑪麗路易斯", 259: "尼爾森"}
+# Napoleon (character 0) by rank: <=5, 6, 7; labels are the Chinese MAIN.EXE titles
+LEMPE_NAPOLEON_FACES = [(0, "司令官"), (255, "第一執政"), (256, "皇帝")]
 
 
 def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -357,6 +363,10 @@ def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
         if p.id in LEMPE_NAME_HISTORICAL:
             ch["nameHistorical"] = LEMPE_NAME_HISTORICAL[p.id]
         ch["face"] = {"portrait": p.face}
+        if p.id == 0:
+            (_, label), *rest = LEMPE_NAPOLEON_FACES
+            ch["face"]["label"] = label
+            ch["expressions"] = [{"portrait": i, "label": label} for i, label in rest]
         characters.append(ch)
 
     meta = {
