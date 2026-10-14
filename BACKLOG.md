@@ -21,14 +21,14 @@
 - [x] 三國志曹操傳 Win 中文版（`6.3_三國志曹操傳_killpeople.rar`）— 安裝程式 `edk5.exe` 用 7z 解到 `games/eiketsu5-win/`，做 `eiketsu5-win` 匯出（2026-10-15）
 - [x] 英傑傳 織田信長傳 Win 中文版（`6.7_英傑傳四織田信長傳_killpeople.rar`）— 解到 `games/eiketsu4-win/`，做 `eiketsu4-win` 匯出（2026-10-15）
 - [x] 信長之野望 將星錄 Win 中文版（`5.31_信長之野望七_killpeople.rar`）— 解到 `games/nobu7-win/`（不含動畫），做 `nobu7-win` 匯出（2026-10-14）
-- [ ] 成吉思汗 蒼狼與白鹿IV Win 中文版（`6.3_成吉思汗四_killpeople.rar`）（2026-10-14）
+- [ ] 成吉思汗 蒼狼與白鹿IV Win 中文版（`6.3_成吉思汗四_killpeople.rar`）— 無印版，頭像是 PK 版的前段（見 `notes/genghis4.md`），要不要另做 `genghis4-win` 再評估（2026-10-14）
 - [x] 大航海時代外傳 Win 中文版（`5.31_大航海時代外傳_killpeople.rar`）— 解到 `games/koukaigd-win/`，做 `koukaigd-win` 匯出（2026-10-14）
 - [x] 三國志英傑傳 DOS 中文版（`6.10_三國志英傑傳_killpeople.rar`）— 解到 `games/eiketsu-dos/`，做 `eiketsu-dos` 匯出（2026-10-14）
 
 ## 待分析遊戲（`games/win/` 新增的檔案）
 
 - [x] 大航海時代III Win 中文版（`大航海時代_III (中文).zip`）— 解到 `games/koukai3-win/`（不含 AVI），做 `koukai3-win` 匯出（2026-10-14）
-- [ ] 成吉思汗 蒼狼與白鹿IV 威力加強版（`成吉思汗 IV-威力加強版/`）（2026-10-14）
+- [x] 成吉思汗 蒼狼與白鹿IV 威力加強版（`成吉思汗 IV-威力加強版/`）— 複製到 `games/genghis4pk-win/`，做 `genghis4pk-win` 匯出（2026-10-15）
 - [ ] 英傑傳系列（`[系列] 英傑傳/`）（2026-10-14）
 - [ ] 太閤立志傳系列（`[系列] 太閣立志傳 (pw 可能也是 Old-Games）/`）（2026-10-14）
 - [ ] 維新之嵐 PC 版（`維新之嵐[PC版].rar`）（2026-10-14）

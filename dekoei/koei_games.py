@@ -768,6 +768,35 @@ def load_eiketsu5_win_persons(path) -> list[tuple[str, int]]:
         persons.append((data[o:o + 13].split(b"\0")[0].decode("big5"), code))
     return persons
 
+# GENGHIS4 PK (Win, Chinese): SCEDAT1-4.CK each hold a run of 51-byte male records followed by
+# 24-byte female records. A male record is u16 id + 17-byte Big5 name (NUL, then spaces) + ...; a female
+# one u8 id + name (CKW95.EXE 0x495F10). Offsets below count from the name:
+# male: +40 11 11, +44 u16 face (MenPuk.bmp); female: +17 nation, +21 02, +22 u8 face (WomenPuk.bmp)
+
+
+def load_genghis4_win_persons(path) -> tuple[list[tuple[str, int]], list[tuple[str, int]]]:
+    """((name, face) of the men, (name, face) of the women) of one SCEDAT*.CK scenario."""
+    with open(path, "rb") as f:
+        data = f.read()
+
+    def name(o):
+        return data[o:o + 17].split(b"\0")[0].decode("big5")
+
+    def male(o):
+        return data[o + 40:o + 42] == b"\x11\x11"
+
+    o = next(o for o in range(len(data)) if all(male(o + k * 51) for k in range(10)))
+    men = []
+    while male(o):
+        men.append((name(o), struct.unpack_from("<H", data, o + 44)[0]))
+        o += 51
+    o -= 1  # a u8 id instead of u16 before the first female name
+    women = []
+    while o + 23 <= len(data) and data[o + 21] == 2:
+        women.append((name(o), data[o + 22]))
+        o += 24
+    return men, women
+
 ##############################################################################
 
 

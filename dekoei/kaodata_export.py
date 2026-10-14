@@ -15,6 +15,7 @@ import zlib
 from collections import Counter
 
 import click
+from PIL import Image
 
 import genpei
 import koei_games
@@ -2138,6 +2139,85 @@ def build_eiketsu5_win(game_dir: str) -> tuple[dict, list[bytes]]:
     }
     return meta, [bytes(b) for b in store.blobs]
 
+
+# ---------------------------------------------------------------- GENGHIS4 PK (Win, Chinese)
+
+GENGHIS4PK_WIN_INPUTS = ["MENPUK.BMP", "WOMENPUK.bmp", "SCEDAT1.CK", "SCEDAT2.CK", "SCEDAT3.CK", "SCEDAT4.CK"]
+# CKW95.EXE 0x46BA30 / 0x46BAB0: 64x80 cells, men 20 x 34 (face clamped to 0x2A7), women 14 x 13
+# (face clamped to 0xB5)
+GENGHIS4PK_WIN_SHEETS = [("MENPUK.BMP", 20, 0x2A7), ("WOMENPUK.bmp", 14, 0xB5)]
+# the sheets leave the Windows static colours (0-9, 246-255) magenta; faces use 0, 5 and 255
+GENGHIS4PK_WIN_STATIC = {0: (0, 0, 0), 1: (128, 0, 0), 2: (0, 128, 0), 3: (128, 128, 0), 4: (0, 0, 128),
+                         5: (128, 0, 128), 6: (0, 128, 128), 7: (192, 192, 192), 8: (192, 220, 192),
+                         9: (166, 202, 240), 246: (255, 251, 240), 247: (160, 160, 164), 248: (128, 128, 128),
+                         249: (255, 0, 0), 250: (0, 255, 0), 251: (255, 255, 0), 252: (0, 0, 255),
+                         253: (255, 0, 255), 254: (0, 255, 255), 255: (255, 255, 255)}
+GENGHIS4PK_WIN_WHITE = 254  # colour 255 (white) moves here, 255 being transparent; 254 is unused
+GENGHIS4PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "female.bin"]
+
+
+def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in GENGHIS4PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(GENGHIS4PK_WIN_BLOBS)
+
+    portraits, sheets, blank = [], [], set()
+    for sex, (name, cols, _) in enumerate(GENGHIS4PK_WIN_SHEETS):
+        im = Image.open(os.path.join(game_dir, name))
+        sheets.append(im.getpalette())
+        w, h = im.size
+        px = im.tobytes().replace(b"\xff", bytes([GENGHIS4PK_WIN_WHITE]))
+        count, cells = w // 64 * (h // 80), []
+        for i in range(count):
+            x, y = i % cols * 64, i // cols * 80
+            cell = b"".join(px[(y + r) * w + x:(y + r) * w + x + 64] for r in range(80))
+            blob = 2 if sex else i * 2 // count
+            portraits.append({"img": store.add(64, 80, cell, blob=blob), "code": f"{sex << 12 | i:04X}"})
+            cells.append(cell)
+        # the patterned filler cells all equal the last one (men 616-617, 664-679; women 159, 175-181)
+        blank |= {len(portraits) - count + i for i, cell in enumerate(cells) if cell == cells[-1]}
+    assert sheets[0] == sheets[1]
+    first_female = len(portraits) - count
+
+    # scenarios 1-4, men then women; one character per (sex, name, face)
+    characters, seen = [], set()
+    for k in range(1, 5):
+        people = koei_games.load_genghis4_win_persons(os.path.join(game_dir, f"SCEDAT{k}.CK"))
+        for sex, persons in enumerate(people):
+            for name, face in persons:
+                face = min(face, GENGHIS4PK_WIN_SHEETS[sex][2])
+                if (sex, name, face) in seen:
+                    continue
+                seen.add((sex, name, face))
+                characters.append({"id": len(characters), "name": name,
+                                   "face": {"portrait": first_female + face if sex else face}})
+    used = {c["face"]["portrait"] for c in characters}
+    for i, p in enumerate(portraits):
+        if i in blank and i not in used:
+            p["group"] = "空白"
+        elif i not in used:
+            p["group"] = "其他頭像（女）" if i >= first_female else "其他頭像（男）"
+
+    pal = sheets[0]
+    colours = [GENGHIS4PK_WIN_STATIC.get(i, tuple(pal[i * 3:i * 3 + 3])) for i in range(255)]
+    colours[GENGHIS4PK_WIN_WHITE] = GENGHIS4PK_WIN_STATIC[255]
+
+    meta = {
+        "format": FORMAT, "id": "genghis4pk-win", "game": "GENGHIS4", "platform": "WIN",
+        "title": {"ja": "チンギスハーン・蒼き狼と白き牝鹿IV パワーアップキット", "zh": "成吉思汗 蒼狼與白鹿IV 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS4PK_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": [f"#{r:02X}{g:02X}{b:02X}" for r, g, b in colours]}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -2154,10 +2234,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
             "eiketsu4-win": build_eiketsu4_win,
-            "eiketsu5-win": build_eiketsu5_win}
+            "eiketsu5-win": build_eiketsu5_win,
+            "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

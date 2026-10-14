@@ -47,7 +47,7 @@ Early KOEI Games Data Research
 |           | 蒼狼與白鹿                  | 1985 |                  |       |        |                     |
 | GENGHIS   | 蒼狼與白鹿 成吉思汗         | 1987 |       DOS        |       |        |                     |
 | (GENCHOH) | 蒼狼與白鹿 元朝秘史         | 1992 |                  |       |        |                     |
-|           | 成吉思汗 蒼狼與白鹿IV       | 1998 |                  |       |        |                     |
+| GENGHIS4  | 成吉思汗 蒼狼與白鹿IV       | 1998 |       WIN        |       |        |                     |
 | KOUKAI    | 大航海時代                  | 1990 |       DOS        |       |        |                     |
 | KOUKAI2   | 大航海時代II                | 1993 |       DOS        |       |        |                     |
 | KOUKAIGD  | 大航海時代外傳              | 1998 |       WIN        |       |        |                     |
@@ -74,7 +74,7 @@ Early KOEI Games Data Research
 | LIBERTY   | 獨立戰爭                    | 1993 |       DOS        |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 36 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
+* 目前支援 37 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -119,6 +119,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `koukaigd-win` | 大航海時代外傳               | Win 中文版 |  169 |  157 |   ○    | [notes/koukaigd.md](notes/koukaigd.md) |
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
+| `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  862 |        | [notes/genghis4.md](notes/genghis4.md) |
 | `nobu3-dos`  | 信長之野望・戰國群雄傳         | DOS 中文版 |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
 | `nobu4-dos`  | 信長之野望・武將風雲錄         | DOS 中文版 |  507 |  311 |   ○    | [notes/nobu4.md](notes/nobu4.md)   |
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
