@@ -1538,6 +1538,107 @@ def build_nobu4_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- TAIKOH (太閤立志傳, DOS, Chinese)
+
+TAIKOH_DOS_INPUTS = ["MAIN.EXE", "TBS.DAT", "KAO.PUT", "MONTA.PUT", "HIME.PUT"]
+TAIKOH_DOS_PALETTE = 0x8468  # DGROUP: 8 x (B, R, G), 4 bits each, written to the DAC as v << 2 (MAIN.EXE 0x90F0)
+TAIKOH_DOS_TYPE = 0x5A90  # MONTA.PUT bytes per head type
+# slot -> (label, offset in type, items, first row, rows); eyes, nose and mouth are ORed on (MAIN.EXE 0x86D5)
+TAIKOH_DOS_SLOTS = {"top": ("上", 0, 8, 0, 40), "bottom": ("下", 0x1E00, 8, 40, 40), "eyes": ("眼", 0x3C00, 8, 22, 16),
+                    "nose": ("鼻", 0x5580, 3, 32, 18), "mouth": ("口", 0x4800, 8, 46, 18)}
+TAIKOH_DOS_OR = ("eyes", "nose", "mouth")
+TAIKOH_DOS_TYPES = ["甲冑", "正面", "側面", "斜側"]
+TAIKOH_DOS_HIME = 0x1000  # HIME.PUT face codes, kept apart from KAO.PUT's
+TAIKOH_DOS_NAME_HISTORICAL = {
+    "田山義綱": "畠山義綱", "田山義慶": "畠山義慶", "北田具教": "北畠具教", "北田具房": "北畠具房",
+    "北田政成": "北畠政成", "神原忠政": "榊原忠政", "神原康政": "榊原康政", "坪和氏續": "垪和氏續",
+    "坪和康忠": "垪和康忠", "脅阪安治": "脇坂安治",  # 畠, 榊, 垪, 脇 missing from the font
+    "常束正家": "長束正家", "突戶隆家": "宍戶隆家", "桶口直房": "樋口直房",
+}
+
+
+def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in TAIKOH_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    mon = files["MONTA.PUT"]
+    variants = []
+    for v, label in enumerate(TAIKOH_DOS_TYPES):
+        parts = {}
+        for slot, (_, offset, count, row, rows) in TAIKOH_DOS_SLOTS.items():
+            size = rows * 24
+            base = v * TAIKOH_DOS_TYPE + offset
+            items = [store.add(64, rows, bytes(utils.to_3bpp_indexes(mon[base + i * size:base + (i + 1) * size])))
+                     for i in range(count)]
+            parts[slot] = {"at": [0, row], "items": items}
+        variants.append({"id": str(v), "label": label, "parts": parts})
+
+    kao, hime = files["KAO.PUT"], files["HIME.PUT"]
+    portraits = [{"img": store.add(64, 80, bytes(utils.to_3bpp_indexes(kao[i:i + 1920])), blob=1),
+                  "code": f"{i // 1920:04X}"} for i in range(0, len(kao), 1920)]
+    first_hime = len(portraits)
+    portraits += [{"img": store.add(64, 80, bytes(utils.to_3bpp_indexes(hime[i:i + 1920])), blob=1),
+                   "code": f"{TAIKOH_DOS_HIME | i // 1920:04X}"} for i in range(0, len(hime), 1920)]
+
+    # people at the start of a game, then those TBS.DAT brings in later; one character per name
+    characters, seen = [], set()
+    persons = koei_games.load_taikoh_dos_persons(os.path.join(game_dir, "MAIN.EXE"), os.path.join(game_dir, "TBS.DAT"))
+    for name, code in persons:
+        if name in seen:
+            continue
+        seen.add(name)
+        ch = {"id": len(characters), "name": name}
+        if name in TAIKOH_DOS_NAME_HISTORICAL:
+            ch["nameHistorical"] = TAIKOH_DOS_NAME_HISTORICAL[name]
+        if code < 0x4000:  # MAIN.EXE 0x8924
+            ch["face"] = {"portrait": code}
+        else:
+            ch["face"] = {"variant": code & 3,
+                          "parts": [code >> 11 & 7, code >> 8 & 7, code >> 5 & 7, (code >> 14) - 1, code >> 2 & 7],
+                          "code": f"{code:04X}"}
+        characters.append(ch)
+    for name, face in koei_games.load_taikoh_dos_women(os.path.join(game_dir, "MAIN.EXE")):
+        if face != 0xFF:
+            characters.append({"id": len(characters), "name": name, "face": {"portrait": first_hime + face}})
+
+    used = {c["face"]["portrait"] for c in characters if "portrait" in c["face"]}
+    for i, p in enumerate(portraits[:first_hime]):
+        if i not in used:
+            p["group"] = "其他頭像"
+
+    main = files["MAIN.EXE"]
+    pal = main[koei_games.TAIKOH_DOS_DGROUP + TAIKOH_DOS_PALETTE:][:24]
+    colours = ["#" + "".join(f"{v << 4 | v >> 2:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
+               for i in range(0, 24, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "taikoh-dos", "game": "TAIKOH", "platform": "DOS",
+        "title": {"ja": "太閤立志伝", "zh": "太閤立志傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "or"} if slot in TAIKOH_DOS_OR else {})}
+                      for slot, (label, *_) in TAIKOH_DOS_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "nose", "hi": 15, "lo": 14, "base": 1}, {"of": "top", "hi": 13, "lo": 11},
+                {"of": "bottom", "hi": 10, "lo": 8}, {"of": "eyes", "hi": 7, "lo": 5},
+                {"of": "mouth", "hi": 4, "lo": 2}, {"of": "$variant", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- AIR2 (DOS, Chinese)
 
 # face sheets in resource order; group names from the Chinese AM2IBM.EXE (幹部職員一覽, 秘書, 廠商名)
@@ -2333,6 +2434,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
+            "taikoh-dos": build_taikoh_dos,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2342,7 +2444,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

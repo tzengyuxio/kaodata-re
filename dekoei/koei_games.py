@@ -1111,6 +1111,37 @@ def taikoh_face(face_file, out_dir, prefix):
 
 
 taikoh.add_command(taikoh_face, 'face')
+
+# DOS (Chinese) MAIN.EXE: DGROUP is file 0x5C180 (0x6A00-byte header + segment 0x5578). Person records are
+# 0x47 bytes: +0 surname (6 bytes), +7 given name (6 bytes), +14 u16 face code; the 241 at the start of a game
+# are at DGROUP 0xB8C, TBS.DAT holds 472 more in the same layout. Women: 30 x 12 bytes at DGROUP 0x776,
+# +0 name (6 bytes), +7 HIME.PUT face (0xFF none). See notes/taikoh.md
+TAIKOH_DOS_DGROUP = 0x5C180
+TAIKOH_DOS_PERSON = 0x47
+
+
+def _taikoh_persons(data: bytes, start: int, count: int) -> list[tuple[str, int]]:
+    return [(koei_tw_name(data[o:o + 6]) + koei_tw_name(data[o + 7:o + 13]),
+             int.from_bytes(data[o + 14:o + 16], "little"))
+            for o in range(start, start + count * TAIKOH_DOS_PERSON, TAIKOH_DOS_PERSON)]
+
+
+def load_taikoh_dos_persons(main_exe, tbs) -> list[tuple[str, int]]:
+    """(name, face code) of the people in MAIN.EXE, then those in TBS.DAT."""
+    with open(main_exe, "rb") as f:
+        main = f.read()
+    with open(tbs, "rb") as f:
+        later = f.read()
+    return (_taikoh_persons(main, TAIKOH_DOS_DGROUP + 0xB8C, 241)
+            + _taikoh_persons(later, 0, len(later) // TAIKOH_DOS_PERSON))
+
+
+def load_taikoh_dos_women(main_exe) -> list[tuple[str, int]]:
+    """(name, HIME.PUT face or 0xFF) of the 30 women in MAIN.EXE."""
+    with open(main_exe, "rb") as f:
+        main = f.read()
+    o = TAIKOH_DOS_DGROUP + 0x776
+    return [(koei_tw_name(main[o + i * 12:o + i * 12 + 6]), main[o + i * 12 + 7]) for i in range(30)]
 ##############################################################################
 
 
