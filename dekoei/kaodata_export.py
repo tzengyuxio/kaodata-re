@@ -2205,7 +2205,7 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     colours[GENGHIS4PK_WIN_WHITE] = GENGHIS4PK_WIN_STATIC[255]
 
     meta = {
-        "format": FORMAT, "id": "genghis4pk-win", "game": "GENGHIS4", "platform": "WIN",
+        "format": FORMAT, "id": "genghis4pk-win", "game": "GENGHIS4PK", "platform": "WIN",
         "title": {"ja": "チンギスハーン・蒼き狼と白き牝鹿IV パワーアップキット", "zh": "成吉思汗 蒼狼與白鹿IV 威力加強版"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS4PK_WIN_INPUTS]},

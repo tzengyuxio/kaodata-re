@@ -1,10 +1,10 @@
-# 成吉思汗 蒼狼與白鹿IV 威力加強版（GENGHIS4, Win 中文版）頭像相關格式
+# 成吉思汗 蒼狼與白鹿IV 威力加強版（GENGHIS4PK, Win 中文版）頭像相關格式
 
 `dekoei.py export genghis4pk-win` 用到的格式。
 
 - 來源是 `games/win/成吉思汗 IV-威力加強版/`（已安裝的目錄），複製到 `games/genghis4pk-win/`，不含 AVI、WAV、`MP3/`。
 - 主程式 `CKW95.EXE`（Win32 PE，imagebase 0x400000，.data VA 0x5D5000＝檔案 0x1D3800），下文的位址都是 VA。
-- 無印版在 `games/6.3_成吉思汗四_killpeople.rar`（`yuan4/`，`Men.bmp`／`Women.bmp`），還沒做。
+- 無印版在 `games/6.3_成吉思汗四_killpeople.rar`（`yuan4/`，`Men.bmp`／`Women.bmp`），還沒做；要做的話 game code 用 GENGHIS4（PK 版另用 GENGHIS4PK，同 SAN4PK）。
 
 ## MENPUK.BMP／WOMENPUK.bmp：頭像
 
