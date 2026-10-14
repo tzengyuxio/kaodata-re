@@ -591,12 +591,14 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
         portraits[i]["name"] = name
     if pk:
         shown = [bytes(genpei.decode_planar(files["KAODATAP.S4"], i * 1920, 64, 80, 3)) for i in range(SAN4PK_SHOWN)]
-        portraits += [{"img": store.add(64, 80, px, blob=1), "code": f"{i:04X}"}
+        portraits += [{"img": store.add(64, 80, px, blob=1), "code": f"{i:04X}", "group": "水滸傳檔案"}
                       for i, px in enumerate(shown) if i >= len(faces)]
         picker = [bytes(genpei.decode_planar(files["KAODATA2.S4"], i * 1920, 64, 80, 3))
                   for i in range(len(files["KAODATA2.S4"]) // 1920)]
         extra = [px for px in picker if px not in shown[len(faces):]]
-        for px, name, group in zip(extra, SAN4PK_EXTRA_NAMES, SAN4PK_EXTRA_GROUPS, strict=True):
+        extra = list(zip(extra, SAN4PK_EXTRA_NAMES, SAN4PK_EXTRA_GROUPS, strict=True))
+        # 水滸伝 extras first, next to the 水滸伝 officers 340-456
+        for px, name, group in extra[150:] + extra[:150]:
             portraits.append({"img": store.add(64, 80, px, blob=2), "group": group, **({} if name == "-" else {"name": name})})
 
     characters = []
@@ -1552,7 +1554,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
             "san3-pc98": lambda game_dir: build_san3(game_dir, pc98=True), "lempe-dos": build_lempe,
-            "san4-dos": build_san4, "san4-pc98": lambda game_dir: build_san4(game_dir, pc98=True),
+            "san4-dos": build_san4,
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
@@ -1562,7 +1564,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
