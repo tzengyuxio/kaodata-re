@@ -565,7 +565,8 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
-    store = ImageStore(["pixels.bin", "portraits.bin"])
+    # PK: the picker faces borrowed from 三國志III / 水滸伝 go in their own blob
+    store = ImageStore(["pixels.bin", "portraits.bin"] + (["extra.bin"] if pk else []))
 
     mon = files["MONDATA.S4"]
     variants = []
@@ -594,7 +595,7 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
                   for i in range(len(files["KAODATA2.S4"]) // 1920)]
         extra = [px for px in picker if px not in shown[len(faces):]]
         for px, name, group in zip(extra, SAN4PK_EXTRA_NAMES, SAN4PK_EXTRA_GROUPS, strict=True):
-            portraits.append({"img": store.add(64, 80, px, blob=1), "group": group, **({} if name == "-" else {"name": name})})
+            portraits.append({"img": store.add(64, 80, px, blob=2), "group": group, **({} if name == "-" else {"name": name})})
 
     characters = []
     # scenarios 1-6 in order; 羌族、烏丸族、山越族、南蠻族 share one face code, so key on the name too
@@ -672,10 +673,12 @@ def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     for name in SAN5PK_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
-    store = ImageStore(["portraits.bin"])
+    # KAOEX.S5 (borrowed faces) goes in its own blob
+    store = ImageStore(["portraits.bin", "extra.bin"])
 
     kao = files["KAODATA.S5"] + files["KAOEX.S5"]
-    portraits = [{"img": store.add(*san3_pixels(kao[i:i + sango.SAN5_FACE], True)),
+    portraits = [{"img": store.add(*san3_pixels(kao[i:i + sango.SAN5_FACE], True),
+                                   blob=int(i >= len(files["KAODATA.S5"]))),
                   "code": f"{i // sango.SAN5_FACE:04X}"} for i in range(0, len(kao), sango.SAN5_FACE)]
     for i, group in SAN5PK_PORTRAIT_GROUPS.items():
         portraits[i]["group"] = group
