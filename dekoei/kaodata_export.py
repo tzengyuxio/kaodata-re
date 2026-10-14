@@ -1412,6 +1412,103 @@ def build_nobu3_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+NOBU4_DOS_INPUTS = ["KAODATA.DAT", "MONDATA.DAT", "SNDATA1.CIM", "SNDATA1T.CIM", "SNDATA2.CIM", "SNDATA2T.CIM",
+                    "SNDATA3.CIM", "SNDATA3T.CIM"]
+NOBU4_DOS_PALETTE = ["#000000", "#00aa00", "#aa0000", "#ffff00", "#0000aa", "#00aaaa", "#aa00aa", "#ffffff"]
+NOBU4_DOS_TYPE = 0x5A90  # MONDATA.DAT bytes per head type
+# slot -> (label, offset in type, items, first row, rows); eyes, nose and mouth are XORed on (MAIN.EXE 0x6E9C)
+NOBU4_DOS_SLOTS = {"top": ("上", 0, 8, 0, 40), "bottom": ("下", 0x1E00, 8, 40, 40), "eyes": ("眼", 0x3C00, 8, 22, 16),
+                   "nose": ("鼻", 0x5580, 3, 32, 18), "mouth": ("口", 0x4800, 8, 46, 18)}
+NOBU4_DOS_XOR = ("eyes", "nose", "mouth")
+NOBU4_DOS_TYPES = ["甲冑", "正面", "側面", "斜側"]
+# face code -> name, where scenarios spell one person differently (the others are typos)
+NOBU4_DOS_NAME_PICK = {0x9652: "遠藤基信", 0xBC: "服部半藏", 0x57: "真田昌幸", 0x86: "小早川秀包", 0xC045: "大友親盛",
+                       0x7E: "柳生宗矩"}
+NOBU4_DOS_NAME_HISTORICAL = {
+    "田山義綱": "畠山義綱", "田山義慶": "畠山義慶",  # 畠 missing from the font
+    "北田具教": "北畠具教", "北田具房": "北畠具房", "北田政成": "北畠政成",
+    "神原康政": "榊原康政",  # 榊 missing from the font
+    "管沼定村": "菅沼定村", "肉戶隆家": "宍戶隆家", "四天王政孝": "四王天政孝",
+}
+# portraits no character uses, shown by constant codes (MAIN.EXE call sites of 0x714A)
+NOBU4_DOS_PORTRAITS = {139: ("今井宗久", "特殊人物"), 140: ("千利休", "特殊人物"), 273: ("澤彥", "特殊人物"),
+                       274: ("朝廷使者", "特殊人物"), 275: ("路易斯・弗羅伊斯", "特殊人物"), 296: ("義姬", "特殊人物"),
+                       297: ("田山義繼", "特殊人物")}
+NOBU4_DOS_PRINCESSES = range(276, 296)  # 0x114 + rand(20)
+
+
+def build_nobu4_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU4_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    mon = files["MONDATA.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for v, label in enumerate(NOBU4_DOS_TYPES):
+        parts = {}
+        for slot, (_, offset, count, row, rows) in NOBU4_DOS_SLOTS.items():
+            size = rows * 24
+            items = [store.add(64, rows, bytes(utils.to_3bpp_indexes(
+                mon[v * NOBU4_DOS_TYPE + offset + i * size:v * NOBU4_DOS_TYPE + offset + (i + 1) * size])))
+                for i in range(count)]
+            parts[slot] = {"at": [0, row], "items": items}
+        variants.append({"id": str(v), "label": label, "parts": parts})
+
+    kao = files["KAODATA.DAT"]
+    portraits = [{"img": store.add(64, 80, bytes(utils.to_3bpp_indexes(kao[i:i + 1920])), blob=1),
+                  "code": f"{i // 1920:04X}"} for i in range(0, len(kao), 1920)]
+    for i, (name, group) in NOBU4_DOS_PORTRAITS.items():
+        portraits[i].update(name=name, group=group)
+    for i in NOBU4_DOS_PRINCESSES:
+        portraits[i]["group"] = "公主"
+
+    # scenario 1, its later arrivals, then scenarios 2 and 3 (as nobu4-fc for ids 0-249);
+    # one character per face code
+    characters, seen = [], set()
+    for table in koei_games.load_nobu4_dos_people(game_dir):
+        for name, code in table:
+            if code in seen:
+                continue
+            seen.add(code)
+            name = NOBU4_DOS_NAME_PICK.get(code, name)
+            ch = {"id": len(characters), "name": name}
+            if name in NOBU4_DOS_NAME_HISTORICAL:
+                ch["nameHistorical"] = NOBU4_DOS_NAME_HISTORICAL[name]
+            if code < 0x4000:
+                ch["face"] = {"portrait": code}
+            else:
+                ch["face"] = {"variant": code & 3,
+                              "parts": [code >> 2 & 7, code >> 5 & 7, code >> 8 & 7, (code >> 14) - 1, code >> 11 & 7],
+                              "code": f"{code:04X}"}
+            characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "nobu4-dos", "game": "NOBU4", "platform": "DOS",
+        "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": NOBU4_DOS_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "xor"} if slot in NOBU4_DOS_XOR else {})}
+                      for slot, (label, *_) in NOBU4_DOS_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "nose", "hi": 15, "lo": 14, "base": 1}, {"of": "mouth", "hi": 13, "lo": 11},
+                {"of": "eyes", "hi": 10, "lo": 8}, {"of": "bottom", "hi": 7, "lo": 5},
+                {"of": "top", "hi": 4, "lo": 2}, {"of": "$variant", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1423,10 +1520,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
-            "nobu3-dos": build_nobu3_dos}
+            "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

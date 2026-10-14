@@ -376,6 +376,43 @@ def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
     return tables
 
 
+# NOBU4 DOS gaiji (GAIJI.DAT, glyph = code - 0x9F); 0xA0 0xA1 together draw 宗我部, 0xB3 0xB4 squeeze two characters
+NOBU4_GAIJI = {0x9F: "長", 0xA0: "宗", 0xA1: "我部", 0xA3: "蘆", 0xA4: "堯", 0xA5: "香", 0xA8: "瓊",
+               0xB3: "山內", 0xB4: "深谷"}
+
+
+def nobu4_name(raw: bytes) -> str:
+    """KOEI Taiwan internal code name with NOBU4 gaiji (0xEB xx), cut at the first zero byte."""
+    out = ''
+    for i in range(0, len(raw) - 1, 2):
+        if raw[i] == 0:
+            break
+        out += NOBU4_GAIJI[raw[i + 1]] if raw[i] == 0xEB else to_unicode_name(raw[i:i + 2])
+    return out
+
+
+def load_nobu4_dos_people(game_dir) -> list[list[tuple[str, int]]]:
+    """(name, face code) per table: SNDATA1, SNDATA1T, SNDATA2, SNDATA2T, SNDATA3, SNDATA3T."""
+    tables = []
+    for n in range(1, 4):
+        with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+            data = f.read()
+        people = []
+        # 33-byte records from 0x1192: surname 6, 0, given name 6, 0, ..., +0x15 face code
+        for o in range(0x1192, len(data) - 32, 33):
+            if not data[o]:
+                break
+            people.append((nobu4_name(data[o:o + 6]) + nobu4_name(data[o + 7:o + 13]),
+                           int.from_bytes(data[o + 0x15:o + 0x17], 'little')))
+        tables.append(people)
+        with open(f'{game_dir}/SNDATA{n}T.CIM', 'rb') as f:
+            data = f.read()
+        # 28-byte records of later arrivals: +3 surname 6, 0, given name 6, 0, ..., +0x18 face code
+        tables.append([(nobu4_name(data[o + 3:o + 9]) + nobu4_name(data[o + 10:o + 16]),
+                        int.from_bytes(data[o + 0x18:o + 0x1A], 'little'))
+                       for o in range(0, len(data) - 27, 28) if data[o + 3]])
+    return tables
+
 ##############################################################################
 
 
