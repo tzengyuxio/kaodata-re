@@ -1968,9 +1968,9 @@ def build_nobu7_win(game_dir: str) -> tuple[dict, list[bytes]]:
         if i not in used and "group" not in p:
             p["group"] = "其他頭像"
 
-    # Grppal.nb7 part 0: B, R, G triplets; faces use colours 10-245, 0-9 are filler
+    # Grppal.nb7 part 0: B, R, G triplets; faces use colours 10-245 (kept), 0-9 are filler
     pal = ls11.ls11_decode_parts(files["Grppal.nb7"])[0]
-    colours = ["#000000"] * 10 + [f"#{pal[i + 1]:02X}{pal[i + 2]:02X}{pal[i]:02X}" for i in range(30, 768, 3)]
+    colours = ["#000000"] * 10 + [f"#{pal[i + 1]:02X}{pal[i + 2]:02X}{pal[i]:02X}" for i in range(30, 246 * 3, 3)]
 
     meta = {
         "format": FORMAT, "id": "nobu7-win", "game": "NOBU7", "platform": "WIN",
