@@ -236,6 +236,44 @@ def load_eiketsu_dos_persons(bakdata) -> list[tuple[str, int]]:
     return [(data[o:o + 6].split(b"\0")[0].decode("big5").strip(), data[o + 14])
             for o in range(start, start + count * size, size)]
 
+
+# koukaiGD.exe: two mate tables (120 records of 27 bytes; 0x416190 copies table [0x4BFDA1] = protagonist),
+# then the given-name and surname tables (13-byte Big5 slots); all file offsets
+KOUKAIGD_WIN_MATES = (0x773E0, 0x78088)
+KOUKAIGD_WIN_NAMES = (0x78D30, 0x79348)
+# Sdata.dat: event people, 26-byte records (20-byte Big5 name, face at +23)
+KOUKAIGD_WIN_EVENT = (0x9AA, 20, 26)
+
+
+def load_koukaigd_win_mates(exe) -> list[list[tuple[str | None, int]]]:
+    """Per mate table: (name or None for an empty / player slot, face code) of every record."""
+    with open(exe, "rb") as f:
+        data = f.read()
+
+    def name(table, i):
+        o = table + i * 13
+        return data[o:o + 13].split(b"\0")[0].decode("big5")
+
+    tables = []
+    for start in KOUKAIGD_WIN_MATES:
+        rows = []
+        for o in range(start, start + 120 * 27, 27):
+            given, surname = data[o], data[o + 1]
+            full = None if 0xFF in (given, surname) else \
+                f"{name(KOUKAIGD_WIN_NAMES[0], given)}•{name(KOUKAIGD_WIN_NAMES[1], surname)}"
+            rows.append((full, int.from_bytes(data[o + 2:o + 4], "little")))
+        tables.append(rows)
+    return tables
+
+
+def load_koukaigd_win_events(sdata) -> list[tuple[str, int]]:
+    """(name, portrait) of the Sdata.dat event people."""
+    with open(sdata, "rb") as f:
+        data = f.read()
+    start, count, size = KOUKAIGD_WIN_EVENT
+    return [(data[o:o + 20].split(b"\0")[0].decode("big5"), data[o + 23])
+            for o in range(start, start + count * size, size)]
+
 ##############################################################################
 
 

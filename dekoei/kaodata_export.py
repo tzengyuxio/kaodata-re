@@ -18,6 +18,7 @@ import click
 import genpei
 import koei_games
 import liberty
+import ls11
 import san1
 import san2
 import san3
@@ -36,7 +37,7 @@ def get_image(meta: dict, blobs: list[bytes], img: int) -> tuple[int, int, bytes
     return w, h, pixels[offset:offset + w * h]
 
 
-def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, y: int, xor: bool = False) -> None:
+def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, y: int, blend: str | None = None) -> None:
     sw, sh, data = src
     for sy in range(sh):
         dy = y + sy
@@ -47,7 +48,9 @@ def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, 
             c = data[sy * sw + sx]
             if 0 <= dx < dw and c != TRANSPARENT:
                 d = dst[dy * dw + dx]
-                dst[dy * dw + dx] = c ^ d if xor and d != TRANSPARENT else c
+                if blend and d != TRANSPARENT:
+                    c = c ^ d if blend == "xor" else c | d
+                dst[dy * dw + dx] = c
 
 
 def crop(src: tuple[int, int, bytes], rect) -> tuple[int, int, bytes]:
@@ -83,7 +86,7 @@ def compose_display(meta: dict, blobs: list[bytes], face: dict) -> tuple[int, in
         sp = variant["parts"][slot["id"]]
         item = sp["items"][part]
         img, (x, y) = (item, sp.get("at", [0, 0])) if isinstance(item, int) else (item["img"], item["at"])
-        blit(canvas, cw, ch, get_image(meta, blobs, img), x, y, slot.get("blend") == "xor")
+        blit(canvas, cw, ch, get_image(meta, blobs, img), x, y, slot.get("blend"))
     shown = (cw, ch, bytes(canvas))
     if "window" in variant:
         shown = crop(shown, variant["window"])
@@ -1768,6 +1771,95 @@ def build_eiketsu_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOUKAI GAIDEN (Win, Chinese)
+
+KOUKAIGD_WIN_INPUTS = ["Kao.lzw", "Monkao.dat", "koukaiGD.exe", "Sdata.dat"]
+KOUKAIGD_WIN_PORTRAITS = 157  # Kao.lzw parts; the rest are 48x48 discovery pictures
+# exe file 0x5D780 (B, R, G, 4 bits each); faces use colours 0-7
+KOUKAIGD_WIN_PALETTE = ["#000000", "#0041D3", "#D34100", "#D361A2", "#00A261", "#00A2F3", "#F3A261", "#F3E3D3"]
+# Monkao.dat: 7 raw part types of 0x60C0 bytes after the LS11 data; rows are 24 bytes, byte k = bit k
+KOUKAIGD_WIN_PARTS = 0x476A2
+KOUKAIGD_WIN_TYPE = 0x60C0
+KOUKAIGD_WIN_TYPES = 7
+# slot -> (label, offset in the type, item bytes, count, first row, code shift, code mask) (exe 0x434580);
+# top and bottom are copied, then eyes, nose and mouth are ORed in (0x434660)
+KOUKAIGD_WIN_SLOTS = {"top": ("上", 0, 0x318, 8, 0, 0, 7), "bottom": ("下", 0x18C0, 0x468, 8, 33, 3, 7),
+                      "eyes": ("眼", 0x3C00, 0x1B0, 8, 21, 8, 7), "nose": ("鼻", 0x4980, 0x240, 4, 29, 6, 3),
+                      "mouth": ("口", 0x5280, 0x1C8, 8, 45, 11, 7)}
+KOUKAIGD_WIN_OR = ("eyes", "nose", "mouth")
+
+
+def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOUKAIGD_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    mon = files["Monkao.dat"]
+    variants = []
+    for v in range(KOUKAIGD_WIN_TYPES):
+        parts = {}
+        for slot, (_, offset, size, count, row, _, _) in KOUKAIGD_WIN_SLOTS.items():
+            base = KOUKAIGD_WIN_PARTS + v * KOUKAIGD_WIN_TYPE + offset
+            items = [store.add(64, size // 24, bytes(genpei.decode_planar(mon, base + i * size, 64, size // 24, 3)))
+                     for i in range(count)]
+            parts[slot] = {"at": [0, row], "items": items}
+        variants.append({"id": str(v), "label": f"類型 {v + 1}", "parts": parts})
+
+    kao = ls11.ls11_decode_parts(files["Kao.lzw"])[:KOUKAIGD_WIN_PORTRAITS]
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(p, 0, 64, 80, 3)), blob=1), "code": f"{i:04X}"}
+                 for i, p in enumerate(kao)]
+
+    def face(code, variant=0):
+        if code & 0xC000 == 0:
+            return {"portrait": code}
+        return {"variant": variant, "parts": [code >> shift & mask for *_, shift, mask in KOUKAIGD_WIN_SLOTS.values()],
+                "code": f"{code:04X}"}
+
+    tables = koei_games.load_koukaigd_win_mates(os.path.join(game_dir, "koukaiGD.exe"))
+    # protagonist t plays with table t, where slot t is the empty player record; the other table names them
+    people = [(tables[1 - t][t][0], tables[t][t][1]) for t in (0, 1)]
+    people += [row for table in tables for row in table if row[0] is not None]
+    people += koei_games.load_koukaigd_win_events(os.path.join(game_dir, "Sdata.dat"))
+    characters, seen = [], set()
+    for name, code in people:
+        if name in seen:
+            continue
+        seen.add(name)
+        ch = {"id": len(characters), "name": name, "face": face(code)}
+        if "variant" in ch["face"]:
+            # the type is not in the code: the game takes it from the fleet, or at random (exe 0x434500)
+            ch["face"]["label"] = variants[0]["label"]
+            ch["expressions"] = [{**face(code, v), "label": variants[v]["label"]} for v in range(1, KOUKAIGD_WIN_TYPES)]
+        characters.append(ch)
+    used = {c["face"]["portrait"] for c in characters if "portrait" in c["face"]}
+    for i, p in enumerate(portraits):
+        if i not in used:
+            p["group"] = "其他頭像"
+
+    meta = {
+        "format": FORMAT, "id": "koukaigd-win", "game": "KOUKAIGD", "platform": "WIN",
+        "title": {"ja": "大航海時代外伝", "zh": "大航海時代外傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAIGD_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": KOUKAIGD_WIN_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "or"} if slot in KOUKAIGD_WIN_OR else {})}
+                      for slot, (label, *_) in KOUKAIGD_WIN_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1780,10 +1872,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
-            "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos}
+            "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "koukaigd-win": build_koukaigd_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, eiketsu-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, eiketsu-dos, koukaigd-win, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

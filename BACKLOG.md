@@ -22,7 +22,7 @@
 - [ ] 英傑傳 織田信長傳 Win 中文版（`6.7_英傑傳四織田信長傳_killpeople.rar`）— 資料檔 `*.E4`（2026-10-14）
 - [ ] 信長之野望 將星錄 Win 中文版（`5.31_信長之野望七_killpeople.rar`）（2026-10-14）
 - [ ] 成吉思汗 蒼狼與白鹿IV Win 中文版（`6.3_成吉思汗四_killpeople.rar`）（2026-10-14）
-- [ ] 大航海時代外傳 Win 中文版（`5.31_大航海時代外傳_killpeople.rar`）（2026-10-14）
+- [x] 大航海時代外傳 Win 中文版（`5.31_大航海時代外傳_killpeople.rar`）— 解到 `games/koukaigd-win/`，做 `koukaigd-win` 匯出（2026-10-14）
 - [x] 三國志英傑傳 DOS 中文版（`6.10_三國志英傑傳_killpeople.rar`）— 解到 `games/eiketsu-dos/`，做 `eiketsu-dos` 匯出（2026-10-14）
 
 ## 待分析遊戲（`games/pc98/` 新增的 `[PC98]` 壓縮檔）
