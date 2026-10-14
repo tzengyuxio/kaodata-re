@@ -332,7 +332,8 @@ LEMPE_INPUTS = ["KAODATA.DAT", "NPDATA.CIM"]
 # correct name where the Chinese release names a different person than the English one
 # (identity from the English and Japanese names, see koei-wiki 拿破崙/人物資料 mapping)
 LEMPE_NAME_HISTORICAL = {
-    25: "米約", 52: "古爾戈", 77: "薩默塞特", 104: "烏瓦羅夫", 109: "戈爾恰科夫", 121: "沃龍佐夫", 160: "普羅韋拉",
+    25: "米約", 52: "古爾戈", 77: "薩默塞特", 104: "烏瓦羅夫", 109: "戈爾恰科夫", 121: "沃龍佐夫", 138: "烏迪諾",
+    150: "奧特", 160: "普羅韋拉", 165: "呂西尼昂", 175: "貝爾格",
 }
 # face numbers past the person byte, passed to the face routine by MAIN.EXE (see notes/lempe.md)
 LEMPE_PORTRAIT_GROUPS = {257: "事件人物", 258: "事件人物", 259: "事件人物"}

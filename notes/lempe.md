@@ -17,14 +17,35 @@
 
 - `NPDATA.CIM`，沿用 `lempe person` 的讀法（`koei_games.load_lempe_persons`）：五個劇本各 255 筆，每筆由兩段（17＋15 bytes）拼成 32 bytes，第 14 byte 是頭像碼。
 - 五個劇本是同樣 255 人、同樣順序，頭像碼是 0–254 的排列，所以匯出只讀劇本 1，`id` 就是記錄順序。
-- 姓名照中文版。中文版有 7 人寫成了別人的譯名（例如 id 25 英文版是 Milhaud，中文版寫成 Moreau 的「莫羅」，和 id 41 重名），依英文版、日文版人名改正在 `kaodata_export.LEMPE_NAME_HISTORICAL`，譯名取自 koei-wiki 的人物對照表（`assets/data/lempereur/lempe-persons-mapping.csv`）。
-- 還沒定論、沒有填 `nameHistorical` 的：
-  - 14 儒爾當（英文版 La Mette）
-  - 84 昂吉迪（Wade）
-  - 101 布霍布登（Bagavout）
-  - 161 路易斯（Luveck）
-  - 175 貝利加德（Berg，與 155 重名）
-  - 176 科魯華特（Cleves）
+- 姓名照中文版。網站的目標是用遊戲自己的名字顯示每張臉，人物身分的考證之後放在 koei.wiki。
+- 中文版明顯寫成別人、或寫錯的 11 人，在 `kaodata_export.LEMPE_NAME_HISTORICAL` 填 `nameHistorical`。判斷依據是英文版和日文版的人名，日文名取自 koei-wiki 的人物對照表（`assets/data/lempereur/lempe-persons-mapping.csv`）。前 7 人是首次匯出時填的；138、150、165、175 是使用者對照 `lempe-fc` 後決定的。
+
+| id | 中文版 | 英文版 | 日文版 | `nameHistorical` | 理由 |
+|---|---|---|---|---|---|
+| 25 | 莫羅 | Milhaud | ミロー | 米約 | 誤用 Moreau 的譯名，和 id 41 重名 |
+| 52 | 格魯希 | Gourgaud | グールゴ | 古爾戈 | 誤用 Grouchy 的譯名，和 id 23 重名 |
+| 77 | 塞納爾蒙 | Somerset | サマセット | 薩默塞特 | 誤用 Sénarmont 的譯名 |
+| 104 | 洛巴諾夫 | Ubarov | ウバロフ | 烏瓦羅夫 | 誤用 Lobanov 的譯名 |
+| 109 | 奇恰可夫 | Gortschakow | ゴルチャコフ | 戈爾恰科夫 | 誤用 Chichagov 的譯名 |
+| 121 | 巴拉肖夫 | Woronsov | ヴォロンツォーフ | 沃龍佐夫 | 誤用 Balashov 的譯名 |
+| 138 | 馬迪諾 | Oudinot | ウディノ | 烏迪諾 | 譯名錯字 |
+| 150 | 歐圖一世 | Otto I | オット | 奧特 | 是奧地利將軍 Ott，不是君主 |
+| 160 | 博利厄 | Gruber | プロヴェラ | 普羅韋拉 | 誤用 Beaulieu（id 230）的譯名；依日文版判定為 Provera |
+| 165 | 儒瑾 | Rujean | ルジヒナン | 呂西尼昂 | 是 Lusignan |
+| 175 | 貝利加德 | Berg | ベルク | 貝爾格 | 和 id 155 Bellegarde（ベレガルデ）重名，是筆誤 |
+
+- 決定不填 `nameHistorical` 的：
+
+| id | 中文版 | 英文版 | 日文版 | 理由 |
+|---|---|---|---|---|
+| 14 | 儒爾當 | La Mette | ラメット | 有爭議，維持原樣 |
+| 97 | 霍夫頓 | Buxhowden | ビグソーデン | 有爭議，維持原樣 |
+| 142 | 希爾曼 | Thielmann | ティーデマン | 有爭議，維持原樣 |
+| 169 | 邦哈美 | BonHomme | ボーム | 有爭議，維持原樣 |
+| 122 | 威廉三世 | Wilhelm III | ヴィルヘルム | 簡稱或後來的稱號，不算錯 |
+| 147 | 法蘭一世 | Franz I | フランツ | 簡稱或後來的稱號，不算錯 |
+
+- 身分仍待考、也沒填的：84 昂吉迪（Wade／アーチディーケ）、101 布霍布登（Bagavout／バゴブート）、161 路易斯（Luveck／ルイス）、176 科魯華特（Cleves／クレーヴェ）。
 
 ## 頭像碼 0xFF–0x103
 
