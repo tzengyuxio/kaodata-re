@@ -34,7 +34,7 @@ Early KOEI Games Data Research
 | NOBU4     | 信長之野望 武將風雲錄       | 1990 |       DOS        |       |        |                     |
 | NOBU5     | 信長之野望 霸王傳           | 1992 |                  |       |        |                     |
 | NOBU6     | 信長之野望 天翔記           | 1994 |                  |       |        |                     |
-| NOBU7     | 信長之野望 將星錄           | 1997 |                  |       |        |                     |
+| NOBU7     | 信長之野望 將星錄           | 1997 |       WIN        |       |        |                     |
 | NOBU8     | 信長之野望 烈風傳           | 1999 |                  |       |        |                     |
 | NOBU9     | 信長之野望 嵐世紀           | 2001 |                  |       |        |                     |
 | NOBU10    | 信長之野望 蒼天錄           | 2002 |                  |       |        |                     |
@@ -74,7 +74,7 @@ Early KOEI Games Data Research
 | LIBERTY   | 獨立戰爭                    | 1993 |       DOS        |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 33 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
+* 目前支援 34 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -119,6 +119,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `nobu3-dos`  | 信長之野望・戰國群雄傳         | DOS 中文版 |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
 | `nobu4-dos`  | 信長之野望・武將風雲錄         | DOS 中文版 |  507 |  311 |   ○    | [notes/nobu4.md](notes/nobu4.md)   |
+| `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 

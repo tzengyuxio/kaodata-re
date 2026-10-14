@@ -714,6 +714,30 @@ def load_koukai3_win_face_palette(exe) -> list[tuple[int, int, int]]:
     o = koukai3_win_offset(KOUKAI3_WIN_FACE_PALETTE)
     return [(data[i + 1], data[i + 2], data[i]) for i in range(o, o + 64 * 3, 3)]
 
+# NOBU7 (Win, Chinese): Sndata01-05.nb7 hold 744 person records of 0x5C bytes from 0x53D0;
+# +0 surname, +8 given name (8-byte Big5 each), +0x1C u16 face, +0x50 u16 person id
+NOBU7_WIN_PERSONS = (0x53D0, 744, 0x5C)
+# surnames written with Gaiji.nb7 glyphs (EB9F-EBA2)
+NOBU7_WIN_GAIJI = {bytes.fromhex("eb9feba0eba1"): "長宗我部", bytes.fromhex("eba2eba0eba1"): "香宗我部"}
+
+
+def load_nobu7_win_persons(path) -> list[tuple[int, str, str, int]]:
+    """(person id, surname, given name, face) of one Sndata*.nb7 scenario."""
+    with open(path, "rb") as f:
+        data = f.read()
+
+    def text(b):
+        b = b.split(b"\0")[0]
+        return NOBU7_WIN_GAIJI.get(b) or b.decode("big5")
+
+    start, count, size = NOBU7_WIN_PERSONS
+    persons = []
+    for o in range(start, start + count * size, size):
+        face, = struct.unpack_from("<H", data, o + 0x1C)
+        pid, = struct.unpack_from("<H", data, o + 0x50)
+        persons.append((pid, text(data[o:o + 8]), text(data[o + 8:o + 16]), face))
+    return persons
+
 ##############################################################################
 
 

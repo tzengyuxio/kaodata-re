@@ -8,6 +8,7 @@ come from the reference renderer below, which implements spec §6.
 import hashlib
 import json
 import os
+import struct
 import subprocess
 import unicodedata
 import zlib
@@ -1927,6 +1928,64 @@ def build_koukai3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+
+# ---------------------------------------------------------------- NOBU7 (Win, Chinese)
+
+NOBU7_WIN_INPUTS = ["Kaodata.nb7", "Grppal.nb7", "Sndata05.nb7"]
+# Kaodata.nb7: u32 count, then count x (u32 offset, u32 size, u32 width, u32 height); raw 8-bit pixels,
+# offsets counted from the end of the table
+NOBU7_WIN_PEOPLE = 716  # person ids 1-716; 717-732 are the unnamed 姬一-十六, 733-744 share the generic face 740
+NOBU7_WIN_PRINCESSES = range(716, 740)
+NOBU7_WIN_FOLK = 740
+NOBU7_WIN_BLOBS = ["portraits.bin", "portraits2.bin"]
+
+
+def build_nobu7_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU7_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(NOBU7_WIN_BLOBS)
+
+    kao = files["Kaodata.nb7"]
+    count, = struct.unpack_from("<I", kao)
+    base = 4 + count * 16
+    portraits = []
+    for i in range(count):
+        offset, size, w, h = struct.unpack_from("<4I", kao, 4 + i * 16)
+        portraits.append({"img": store.add(w, h, kao[base + offset:base + offset + size], blob=i * len(NOBU7_WIN_BLOBS) // count),
+                          "code": f"{i:04X}"})
+
+    # scenario 5 names (德川家康, 上杉謙信 rather than scenario 1's 松平元康, 長尾景虎)
+    persons = sorted(koei_games.load_nobu7_win_persons(os.path.join(game_dir, "Sndata05.nb7")))
+    characters = [{"id": i, "name": surname + given, "face": {"portrait": face}}
+                  for i, (_, surname, given, face) in enumerate(persons[:NOBU7_WIN_PEOPLE])]
+    used = {face for *_, face in persons[:NOBU7_WIN_PEOPLE]}
+    for i in NOBU7_WIN_PRINCESSES:
+        portraits[i]["group"] = "公主"
+    portraits[NOBU7_WIN_FOLK].update(name="農民", group="其他頭像")
+    for i, p in enumerate(portraits):
+        if i not in used and "group" not in p:
+            p["group"] = "其他頭像"
+
+    # Grppal.nb7 part 0: B, R, G triplets; faces use colours 10-245, 0-9 are filler
+    pal = ls11.ls11_decode_parts(files["Grppal.nb7"])[0]
+    colours = ["#000000"] * 10 + [f"#{pal[i + 1]:02X}{pal[i + 2]:02X}{pal[i]:02X}" for i in range(30, 768, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "nobu7-win", "game": "NOBU7", "platform": "WIN",
+        "title": {"ja": "信長の野望・将星録", "zh": "信長之野望・將星錄"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU7_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1940,10 +1999,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
-            "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win}
+            "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
+            "nobu7-win": build_nobu7_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, eiketsu-dos, koukaigd-win, koukai3-win, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, koukaigd-win, koukai3-win, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
