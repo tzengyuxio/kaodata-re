@@ -15,6 +15,7 @@ import zlib
 import click
 
 import genpei
+import koei_games
 import san2
 import utils
 
@@ -323,10 +324,60 @@ def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2}
+LEMPE_INPUTS = ["KAODATA.DAT", "NPDATA.CIM"]
+# correct name where the Chinese release names a different person than the English one
+# (identity from the English and Japanese names, see koei-wiki 拿破崙/人物資料 mapping)
+LEMPE_NAME_HISTORICAL = {
+    25: "米約", 52: "古爾戈", 77: "薩默塞特", 104: "烏瓦羅夫", 109: "戈爾恰科夫", 121: "沃龍佐夫", 160: "普羅韋拉",
+}
+# face numbers past the person byte, passed to the face routine by MAIN.EXE (see notes/lempe.md)
+LEMPE_PORTRAIT_GROUPS = {255: "拿破崙", 256: "拿破崙", 257: "事件人物", 258: "事件人物", 259: "事件人物"}
+LEMPE_PORTRAIT_NAMES = {255: "拿破崙（第一執政）", 256: "拿破崙（皇帝）", 257: "約瑟芬", 258: "瑪麗路易斯", 259: "尼爾森"}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos)")
+def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in LEMPE_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    kao = files["KAODATA.DAT"]
+    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True)), "code": f"{i // SAN2_FACE:04X}"}
+                 for i in range(0, len(kao), SAN2_FACE)]
+    for i, group in LEMPE_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in LEMPE_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    characters = []
+    # the five scenarios list the same 255 people in the same order
+    for p in koei_games.load_lempe_persons(os.path.join(game_dir, "NPDATA.CIM")):
+        ch = {"id": p.id, "name": p["name"]}
+        if p.id in LEMPE_NAME_HISTORICAL:
+            ch["nameHistorical"] = LEMPE_NAME_HISTORICAL[p.id]
+        ch["face"] = {"portrait": p.face}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "lempe-dos", "game": "LEMPE", "platform": "DOS",
+        "title": {"ja": "ランペルール", "zh": "拿破崙"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in LEMPE_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
+DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2, "lempe-dos": build_lempe}
+
+
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
