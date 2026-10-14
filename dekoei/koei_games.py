@@ -672,6 +672,48 @@ def koukai3_face(face_file, palette_file, out_dir, prefix):
 
 koukai3.add_command(koukai3_face, 'face')
 
+# CDS95.EXE (the unpacked exe, CDS95.EXE.pec2bac): .rdata VA 0x4C2000 = file 0xC0600, .data VA 0x51E000 = file 0x11C400
+KOUKAI3_WIN_SECTIONS = [(0x4C2000, 0x51E000, 0xC0600), (0x51E000, 0x608000, 0x11C400)]
+# person table (VA 0x4FB618, 281 records of 0xCC bytes, read by 0x47EEE0):
+# +0 given-name pointer, +4 surname pointer, +8 face, +0xC sex (1 = FEMALE.CDS), +0x10 age offset
+KOUKAI3_WIN_PERSONS = (0x4FB618, 281, 0xCC)
+# faces use colours 10-73, set by 0x4B43F3(10, 64, VA 0x50C160) from B, R, G triplets
+KOUKAI3_WIN_FACE_PALETTE = 0x50C160
+
+
+def koukai3_win_offset(va: int) -> int:
+    for lo, hi, base in KOUKAI3_WIN_SECTIONS:
+        if lo <= va < hi:
+            return va - lo + base
+    raise ValueError(hex(va))
+
+
+def load_koukai3_win_persons(exe) -> list[tuple[str, int, int]]:
+    """(name, face, sex) of every CDS95.EXE person record; name is 名•姓, or just 名 without a surname."""
+    with open(exe, "rb") as f:
+        data = f.read()
+
+    def string(va):
+        o = koukai3_win_offset(va)
+        return data[o:data.index(b"\0", o)].decode("big5")
+
+    start, count, size = KOUKAI3_WIN_PERSONS
+    base = koukai3_win_offset(start)
+    persons = []
+    for o in range(base, base + count * size, size):
+        given, surname, face, sex = struct.unpack("<IIii", data[o:o + 16])
+        names = [string(given), string(surname) if surname else ""]
+        persons.append(("•".join(n for n in names if n), face, sex))
+    return persons
+
+
+def load_koukai3_win_face_palette(exe) -> list[tuple[int, int, int]]:
+    """RGB of colours 10-73."""
+    with open(exe, "rb") as f:
+        data = f.read()
+    o = koukai3_win_offset(KOUKAI3_WIN_FACE_PALETTE)
+    return [(data[i + 1], data[i + 2], data[i]) for i in range(o, o + 64 * 3, 3)]
+
 ##############################################################################
 
 

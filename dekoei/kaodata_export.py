@@ -1866,6 +1866,67 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOUKAI3 (Win, Chinese)
+
+KOUKAI3_WIN_INPUTS = ["MALE.CDS", "FEMALE.CDS", "CDS95.EXE.pec2bac", "OCEAN.CDS"]
+# person records 0-245 are people; 246-270 are troops, tribes and fleets (not characters, their faces are
+# named after them), 271-274 sea monsters without a face, 275-280 placeholders
+KOUKAI3_WIN_PEOPLE = 246
+KOUKAI3_WIN_GROUPS = 271
+# blob per face set: male faces some character uses are split over two blobs, the other male faces go last
+KOUKAI3_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "female.bin", "extra.bin"]
+
+
+def build_koukai3_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOUKAI3_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(KOUKAI3_WIN_BLOBS)
+    exe = os.path.join(game_dir, "CDS95.EXE.pec2bac")
+    persons = koei_games.load_koukai3_win_persons(exe)
+
+    # colours 10-73 are the face palette; a few female faces also use 74, the first colour of the sea
+    # scene palette (OCEAN.CDS part 1, loaded from colour 74), as in the old koukai3 face output
+    colours = [(0, 0, 0)] * 10 + koei_games.load_koukai3_win_face_palette(exe)
+    b, r, g = ls11.ls11_decode_parts(files["OCEAN.CDS"])[1][:3]
+    colours.append((r, g, b))
+
+    # face code as the game builds it (0x46C350): sex << 12 | face
+    used = sorted({sex << 12 | face for _, face, sex in persons[:KOUKAI3_WIN_PEOPLE]})
+    portraits, index = [], {}
+    for sex, name in enumerate(("MALE.CDS", "FEMALE.CDS")):
+        for face, px in enumerate(ls11.ls11_decode_parts(files[name])):
+            code = sex << 12 | face
+            blob = 2 if sex else used.index(code) * 2 // len(used) if code in used else 3
+            index[code] = len(portraits)
+            portraits.append({"img": store.add(80, 96, px, blob=blob), "code": f"{code:04X}"})
+
+    characters = [{"id": i, "name": name, "face": {"portrait": index[sex << 12 | face]}}
+                  for i, (name, face, sex) in enumerate(persons[:KOUKAI3_WIN_PEOPLE])]
+    for name, face, sex in persons[KOUKAI3_WIN_PEOPLE:KOUKAI3_WIN_GROUPS]:
+        p = portraits[index[sex << 12 | face]]
+        if sex << 12 | face not in used and "name" not in p:
+            p.update(name=name, group="部隊")
+    for code, i in index.items():
+        if code not in used and "group" not in portraits[i]:
+            portraits[i]["group"] = "其他頭像（女）" if code >> 12 else "其他頭像（男）"
+
+    meta = {
+        "format": FORMAT, "id": "koukai3-win", "game": "KOUKAI3", "platform": "WIN",
+        "title": {"ja": "大航海時代III Costa del Sol", "zh": "大航海時代III"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI3_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": [f"#{r:02X}{g:02X}{b:02X}" for r, g, b in colours]}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1879,10 +1940,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
-            "koukaigd-win": build_koukaigd_win}
+            "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, eiketsu-dos, koukaigd-win, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, eiketsu-dos, koukaigd-win, koukai3-win, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
