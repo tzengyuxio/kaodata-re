@@ -215,6 +215,18 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 沒有人物使用的頭像（對照 FC 的特殊頭像）：255 造船所、256 雑貨屋、257 武器屋（施設），258 徽宗皇帝、259 金国太宗（特殊人物）。
 - 發行年份：ja.wikipedia 只寫 PC-9801 版 1991 年，沒有月日，待查。
 
+## 水滸傳・天命之誓（SUIKODEN, DOS 中文版）
+
+`dekoei.py export suikoden-dos` 用到的格式。來源是 `games/水滸傳_中文版_water.zip` 的 `water/`，解開放在 `games/suikoden-dos/`。
+
+- 版本：英文 DOS 版 Bandit Kings of Ancient China（1989，[Wikipedia](https://en.wikipedia.org/wiki/Bandit_Kings_of_Ancient_China)）的中文化。`KAOIBM.DAT` 等和英文版逐 byte 相同，`SUIDATA?.CIM` 只有 7124–19899 的人名、綽號不同。中文版檔案日期都是 1993-05-06，執行檔只寫「(C)1989 KOEI」。
+- `MAIN.EXE` 兩層壓縮（LZEXE 0.91 外層、MS EXEPACK 內層），解開後 DGROUP 段 0x28DE。下文是解開後的映像位址。
+- 頭像 `KAOIBM.DAT`：260 張 × 960 bytes，64×40 半高、3bpp，格式同三國志II DOS（`san2_pixels`），沒有組合臉。0x71C3 seek `face × 0x3C0`，0x720E 畫臉，byte 0／1／2 寫到 plane 0／2／1。
+- 色盤：EGA mode 0x0E（0x8C7B），int 10h AX=1002 載入 DS:0x665A `00 11 12 … 17`，結果是 `SAN2_PALETTE`。
+- 人物 `SUIDATA1–4.CIM`：7124 起 255 筆 × 45 bytes，+0 姓名 7 bytes（光榮台灣內碼），+7 綽號，+42 頭像碼（`koei_games.load_suikoden_dos_persons`）。4 個劇本的姓名和頭像碼相同。`id` 從 0 起算，和 `suikoden-fc`、`suikoden-pc98` 逐筆對齊，頭像碼也和 PC-98 相同（PC-98 是全高重畫）。
+- 沒有人物使用的頭像都由 MAIN.EXE 用常數頭像碼畫出：255 造船所（0x11BDB）、256 雜貨店（0x11874）、257 兵工廠（0x11946）、258 徽宗皇帝（0x194E7 等）、259 金國君主（0x19273，遊戲沒有名字，照 FC 寫金國太宗）。設施名用中文版 DS:0x7C9E–0x7CB3 的寫法。
+- `nameHistorical`（依小說）：115 黃文譁→黃文燁、127 彭汜→彭玘、133 縻勝→縻貹、154 黨士英→党世英、185 黨士雄→党世雄、180 湯窿→湯隆、217 石遷→時遷、227 梁士傑→梁世傑。不填：65 方腊、66 李云（字形差異）。中文版對、日文版錯：35 盧俊義、128 馬麟、210 成貴、254 潘巧雲。待考：56 諸享（褚享？）、191 寇威（英文版 Kou Min，日文版寇烕）。
+
 ## 維新の嵐（ISHIN, PC-98 日文版，未匯出）
 
 只有 A 片（`games/pc98/ISHIN_維新の嵐A.fdi`，其實是沒有檔頭的原始映像），解出放在 `games/ishin-pc98/`。人物→頭像的對照在 B 片的 `SHINARIO.DAT`，所以還不能匯出。ISIN.EXE 的 load image 從檔案 0x3800 起，DGROUP（段 0x3FE4）在 image 0x371C0；下文是 image 位址。

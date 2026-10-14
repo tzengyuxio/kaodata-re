@@ -927,6 +927,56 @@ def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SUIKODEN (DOS, Chinese)
+
+SUIKODEN_DOS_INPUTS = ["KAOIBM.DAT", "SUIDATA1.CIM"]
+# faces 255-259 have no person; MAIN.EXE draws them with constant face numbers (see notes/koei-games.md)
+SUIKODEN_DOS_PORTRAIT_GROUPS = {255: "設施", 256: "設施", 257: "設施", 258: "特殊人物", 259: "特殊人物"}
+SUIKODEN_DOS_PORTRAIT_NAMES = {255: "造船所", 256: "雜貨店", 257: "兵工廠", 258: "徽宗皇帝", 259: "金國太宗"}
+# misspelt names, against the novel, by character id
+SUIKODEN_DOS_NAME_HISTORICAL = {115: "黃文燁", 127: "彭玘", 133: "縻貹", 154: "党世英", 180: "湯隆", 185: "党世雄",
+                                217: "時遷", 227: "梁世傑"}
+
+
+def build_suikoden_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SUIKODEN_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    kao = files["KAOIBM.DAT"]
+    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True)), "code": f"{i // SAN2_FACE:04X}"}
+                 for i in range(0, len(kao), SAN2_FACE)]
+    for i, group in SUIKODEN_DOS_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in SUIKODEN_DOS_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    characters = []
+    # the four scenarios have the same names and faces
+    for cid, (code, name) in enumerate(koei_games.load_suikoden_dos_persons(os.path.join(game_dir, "SUIDATA1.CIM"))):
+        ch = {"id": cid, "name": name}
+        if cid in SUIKODEN_DOS_NAME_HISTORICAL:
+            ch["nameHistorical"] = SUIKODEN_DOS_NAME_HISTORICAL[cid]
+        ch["face"] = {"portrait": code}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "suikoden-dos", "game": "SUIKODEN", "platform": "DOS",
+        "title": {"ja": "水滸伝・天命の誓い", "zh": "水滸傳・天命之誓"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SUIKODEN_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -935,10 +985,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
-            "suikoden-pc98": build_suikoden_pc98}
+            "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

@@ -196,6 +196,7 @@ def kohryuki_person(game_dir, to, scenario):
 kohryuki.add_command(kohryuki_face, 'face')
 kohryuki.add_command(kohryuki_person, 'person')
 
+
 ##############################################################################
 
 
@@ -284,6 +285,7 @@ def koukai_face(face_file, out_dir, prefix):
 
 
 koukai.add_command(koukai_face, 'face')
+
 
 ##############################################################################
 
@@ -612,6 +614,21 @@ def load_suikoden_pc98_persons(sndata) -> list[tuple[int, str]]:
 
 suikoden.add_command(suikoden_face, 'face')
 suikoden.add_command(suikoden_person, 'person')
+
+
+def koei_tw_name(raw: bytes) -> str:
+    """KOEI Taiwan internal code name, cut at the first zero word."""
+    words = [raw[i:i + 2] for i in range(0, len(raw) - 1, 2)]
+    if b'\0\0' in words:
+        words = words[:words.index(b'\0\0')]
+    return to_unicode_name(b''.join(words)) if words else ''
+
+
+def load_suikoden_dos_persons(suidata) -> list[tuple[int, str]]:
+    """(face, name) per person: 255 x 45 bytes at 7124, name (KOEI TW code, 3 characters) at +0, face at +42."""
+    with open(suidata, 'rb') as f:
+        data = f.read()
+    return [(data[7124 + i * 45 + 42], koei_tw_name(data[7124 + i * 45:7124 + i * 45 + 6])) for i in range(255)]
 
 ##############################################################################
 
