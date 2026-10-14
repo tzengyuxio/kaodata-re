@@ -161,3 +161,21 @@ def load_san1_pc98_persons(savedata):
         rec = data[PC98_PERSONS + i * PC98_PERSON_SIZE:PC98_PERSONS + (i + 1) * PC98_PERSON_SIZE]
         persons.append((int.from_bytes(rec[22:24], "little"), pc98_name(rec[8:14])))
     return persons
+
+
+# ---------------------------------------------------------------- DOS (English), see notes/san1.md
+# PICDATA.DAT: 48x40 half-height 2bpp faces (to_2bpp_indexes order), same face order and composite rule as PC-98
+DOS_FACE = 480
+# SINADATA.DAT: 5 scenarios of 255 x 32-byte records (s1_format); face codes are the same in every scenario
+DOS_PERSONS = 4326
+
+
+def load_san1_dos_persons(sinadata):
+    """(face code, name) of the 255 persons in scenario 1."""
+    with open(sinadata, "rb") as f:
+        data = f.read()
+    persons = []
+    for i in range(255):
+        rec = data[DOS_PERSONS + i * 32:DOS_PERSONS + (i + 1) * 32]
+        persons.append((int.from_bytes(rec[20:22], "little"), rec[:12].split(b"\0", 1)[0].decode("ascii")))
+    return persons

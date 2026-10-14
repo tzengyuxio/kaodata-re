@@ -92,6 +92,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | DATASET      | 遊戲                           | 來源版本   | 人物 | 頭像 | 組合臉 | 格式筆記                         |
 | ------------ | ------------------------------ | ---------- | ---: | ---: | :----: | -------------------------------- |
 | `genpei-dos` | 源平合戰                       | DOS        |  400 |   90 |   ○    | [notes/genpei.md](notes/genpei.md) |
+| `san1-dos`   | 三國志                         | DOS 英文版 |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san1-pc98`  | 三國志                         | PC-98      |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san2-dos`   | 三國志II                       | DOS 中文版 |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san2-pc98`  | 三國志II                       | PC-98      |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |

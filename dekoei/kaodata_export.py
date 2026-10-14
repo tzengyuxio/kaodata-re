@@ -717,29 +717,56 @@ def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-# ---------------------------------------------------------------- SAN1 (PC-98)
+# ---------------------------------------------------------------- SAN1 (PC-98, DOS)
 
 SAN1_PC98_INPUTS = ["PICDATA.DAT", "SAVEDATA"]
+SAN1_DOS_INPUTS = ["PICDATA.DAT", "SINADATA.DAT"]
 # misspelt names (checked against san1-fc), by character id
 SAN1_PC98_NAME_HISTORICAL = {18: "于禁", 22: "荀攸", 62: "許攸", 89: "蔡中", 119: "雷銅", 127: "李堪", 155: "諸葛瑾",
                              205: "邢道栄", 206: "鮑隆", 229: "沙摩柯", 239: "向寵"}
+# DOS (English): Chinese names by character id (the PC-98 names with SAN1_PC98_NAME_HISTORICAL, in traditional glyphs)
+SAN1_DOS_NAME_ZH = """
+曹操 孫堅 劉備 袁紹 袁術 劉表 董卓 劉焉 馬騰 公孫瓚 夏侯惇 夏侯淵 曹仁 曹洪 曹昂
+荀彧 程昱 于禁 典韋 陳宮 劉曄 荀攸 樂進 李典 曹丕 曹植 曹叡 曹休 曹真 曹純
+黃蓋 孫策 周瑜 孫權 韓當 程普 朱治 蔣欽 周泰 孫翊 孫瑜 孫桓 關羽 張飛 曹豹
+劉禪 孫乾 關平 關興 劉永 劉理 張苞 劉封 關索 陳琳 顏良 文醜 田豐 審配 沮授
+郭圖 許攸 高覽 張郃 袁譚 袁熙 袁尚 袁胤 呂範 張勳 紀靈 雷薄 陳紀 梁紀 李豐
+梁剛 陳蘭 黃祖 韓遂 蒯越 蔡瑁 呂公 劉琦 劉琮 甘寧 王粲 張允 蔡和 蔡中 李儒
+呂布 李肅 李傕 蔡邕 郭汜 張濟 賈詡 華雄 樊稠 徐榮 胡軫 趙岑 董旻 張松 法正
+孟達 黃權 王累 鄧賢 張任 劉璋 楊懷 高沛 劉巴 劉璝 劉循 吳懿 吳蘭 雷銅 嚴顏
+馬超 馬休 馬鐵 馬岱 侯選 程銀 李堪 張橫 梁興 成宜 馬玩 楊秋 龐德 許褚 劉繇
+陶謙 陳登 陳珪 糜竺 徐晃 孔融 劉岱 張邈 鮑信 趙雲 韓暹 楊奉 太史慈 張昭 張紘
+陳武 虞翻 王朗 魯肅 諸葛瑾 呂蒙 陸遜 陳群 朱儁 楊彪 宋憲 魏續 侯成 張遼 張繡
+周倉 廖化 顧雍 呂曠 呂翔 郭嘉 伊籍 徐庶 諸葛亮 司馬懿 糜芳 魏延 簡雍 蔣幹 步騭
+薛綜 陸績 嚴畯 闞澤 傅幹 丁奉 潘璋 毛玠 龐統 呂虔 徐盛 凌統 馬延 張顗 陳矯
+牛金 陳嬉 馬良 馬謖 金旋 韓玄 趙範 劉度 劉延 邢道榮 鮑隆 陳應 鞏志 黃忠 宋謙
+朱靈 文聘 華歆 張既 張魯 閻圃 張衛 鍾繇 鍾進 楊修 楊松 夏侯德 夏侯尚 滿寵 傅士仁
+賈逵 許靖 吳班 沙摩柯 孟獲 雍闓 高定 朱褒 呂凱 孟優 郭攸之 費禕 董允 向寵 譙周
+鄧芝 夏侯楙 姜維 郭淮 辛毗 司馬昭 司馬師 蔣琬 郝昭 朱桓 全琮 王雙 王平 李嚴 楊儀
+""".split()
 SAN1_PC98_SLOTS = [("top", "上"), ("middle", "中"), ("bottom", "下")]
 # PICDATA faces 0-64 are the characters; 65 repeats 64, 66-83 are daughters (marriage diplomacy)
 SAN1_PC98_PORTRAITS = 84
 SAN1_PC98_PORTRAIT_GROUPS = {65: "未使用", **{i: "姫" for i in range(66, 84)}}
+# DOS: daughters are 0x42 + (faction mod 16); 82 and 83 repeat 81
+SAN1_DOS_PORTRAIT_GROUPS = {65: "未使用", **{i: "女兒" for i in range(66, 82)}, 82: "未使用", 83: "未使用"}
+# EGA: the faces' two planes are colour bits 1 and 2, palette registers 2, 4, 6 = 0x12, 0x14, 0x16 (MAIN.EXE DGROUP 0x1BC)
+SAN1_DOS_PALETTE = ["#000000", "#55ff55", "#ff5555", "#ffff55"]
 
 
-def san1_pc98_rows(pic: bytes, face: int, rows: tuple[int, int]) -> tuple[int, int, bytes]:
+def san1_rows(pic: bytes, face: int, rows: tuple[int, int], dos: bool) -> tuple[int, int, bytes]:
     """Half-height rows [a, b) of a PICDATA face, line-doubled."""
     a, b = rows
-    raw = pic[face * san1.PC98_FACE + a * 18:face * san1.PC98_FACE + b * 18]
-    px = bytes(utils.to_3bpp_indexes(raw))
+    size, row = (san1.DOS_FACE, 12) if dos else (san1.PC98_FACE, 18)
+    raw = pic[face * size + a * row:face * size + b * row]
+    px = bytes((utils.to_2bpp_indexes if dos else utils.to_3bpp_indexes)(raw))
     return 48, 2 * (b - a), b"".join(px[i:i + 48] * 2 for i in range(0, len(px), 48))
 
 
-def build_san1_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_san1(game_dir: str, dos: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = SAN1_DOS_INPUTS if dos else SAN1_PC98_INPUTS
     files = {}
-    for name in SAN1_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     pic = files["PICDATA.DAT"]
@@ -750,20 +777,24 @@ def build_san1_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
         first = san1.pc98_composite_group(group << 12)
         parts = {}
         for (slot, _), rows in zip(SAN1_PC98_SLOTS, san1.PC98_BANDS):
-            parts[slot] = {"at": [0, 2 * rows[0]], "items": [store.add(*san1_pc98_rows(pic, first + i, rows))
+            parts[slot] = {"at": [0, 2 * rows[0]], "items": [store.add(*san1_rows(pic, first + i, rows, dos))
                                                              for i in range(5)]}
         variants.append({"id": str(group), "label": f"類型 {group - 6}", "parts": parts})
 
-    portraits = [{"img": store.add(*san1_pc98_rows(pic, i, (0, san1.PC98_FACE_ROWS)), blob=1), "code": f"{i:04X}"}
+    portraits = [{"img": store.add(*san1_rows(pic, i, (0, san1.PC98_FACE_ROWS), dos), blob=1), "code": f"{i:04X}"}
                  for i in range(SAN1_PC98_PORTRAITS)]
-    for i, group in SAN1_PC98_PORTRAIT_GROUPS.items():
+    for i, group in (SAN1_DOS_PORTRAIT_GROUPS if dos else SAN1_PC98_PORTRAIT_GROUPS).items():
         portraits[i]["group"] = group
 
     characters = []
+    persons = (san1.load_san1_dos_persons(os.path.join(game_dir, "SINADATA.DAT")) if dos else
+               san1.load_san1_pc98_persons(os.path.join(game_dir, "SAVEDATA")))
     # 1-based like san1-fc (same order)
-    for cid, (code, name) in enumerate(san1.load_san1_pc98_persons(os.path.join(game_dir, "SAVEDATA")), 1):
+    for cid, (code, name) in enumerate(persons, 1):
         ch = {"id": cid, "name": name}
-        if cid in SAN1_PC98_NAME_HISTORICAL:
+        if dos:
+            ch["nameZh"] = SAN1_DOS_NAME_ZH[cid - 1]
+        elif cid in SAN1_PC98_NAME_HISTORICAL:
             ch["nameHistorical"] = SAN1_PC98_NAME_HISTORICAL[cid]
         if san1.is_pc98_composite(code):
             ch["face"] = {"variant": (code >> 12) - 6, "parts": san1.pc98_composite_parts(code), "code": f"{code:04X}"}
@@ -772,12 +803,13 @@ def build_san1_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "san1-pc98", "game": "SAN1", "platform": "PC98",
+        "format": FORMAT, "id": "san1-dos" if dos else "san1-pc98", "game": "SAN1", "platform": "DOS" if dos else "PC98",
         "title": {"ja": "三國志", "zh": "三國志"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN1_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN1_DOS_PALETTE} if dos else
+                     {"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -899,10 +931,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san4-dos": build_san4, "san4-pc98": lambda game_dir: build_san4(game_dir, pc98=True),
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
-            "san1-pc98": build_san1_pc98, "suikoden-pc98": build_suikoden_pc98}
+            "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
+            "suikoden-pc98": build_suikoden_pc98}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

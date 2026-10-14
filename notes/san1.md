@@ -34,3 +34,42 @@
 ## 發行年份
 
 PC-9801 版 1986-04-30（ja.wikipedia〈三國志 (ゲーム)〉，和 FM-16β 同日）。另有 1995 年 3 月的 PC-9801 復刻版。
+
+## DOS 英文版（`san1-dos`）
+
+`dekoei.py export san1-dos` 用到的差異。來源是 `games/三國志_英文版_romance-of-the-three-kingdoms.zip`，解開放在 `games/san1-dos/`（檔案日期 1996-06-06，應是重新包裝的日期）。`MAIN.EXE` 標題字串「(C)1988 KOEI CORPORATION」「Ver.2.4(87/4/20)」，和 PC-98 版號相同。
+
+- `MAIN.EXE` 用 PLINK86 overlay（`SAN.OVL`），C 程式庫是 MSC 1986，DGROUP 在檔案 0x13830。
+- PICDATA.DAT：
+  - 每張 480 bytes：48×40 半高、2bpp，每列 12 bytes，順序同 `utils.to_2bpp_indexes`（第一個 byte 是高位）。
+  - 臉的順序、組合臉規則（0x467B，`((si >> 12) + 8) * 0xB40`）和 PC-98 相同，匯出共用 `build_san1`。
+  - 和 PC-98 不同處：
+    - 82、83 和 81 逐 byte 相同。女兒公式 `0x42 + (… mod 16)` 只用到 66–81，所以 82、83 標「未使用」。
+    - 組合臉第 8 組（96–100）的第 3、4 張和第 0、1 張相同；各組後面的空位（89、95、101、107、113）是同組某一張的複本，不是全黑。
+    - 顏良（頭像 40）的頭盔不同。
+- 色盤：
+  - 遊戲有 CGA（0xB800）和 EGA（0xA000）兩種畫面。
+  - EGA 用 int 10h AX=1002 設調色盤，表在 DGROUP 0x1BC：暫存器 1–7 是 0x11–0x17（亮色）。
+  - 頭像的兩個 plane 寫到色號 bit 1、2，所以 4 色是 0、2、4、6：`#000000 #55FF55 #FF5555 #FFFF55`。這和 CGA 調色盤 0（高亮度）相同，也和舊 `san1 face` 的色碼一致。
+- 人物：
+  - `SINADATA.DAT` 有 5 個劇本，從 4326 起每劇本 12490 bytes。
+  - 每劇本 255 筆 × 32 bytes（`s1_format`），姓名 12 bytes ASCII，+20 是 u16 頭像碼。
+  - 5 個劇本的姓名、頭像碼都相同，匯出取劇本 1（`san1.load_san1_dos_persons`）。
+  - 255 個頭像碼和 PC-98 逐筆相同，能力值也一致（PC-98 是存檔，年齡多 5），所以順序同 PC-98／FC，`id` 從 1 起算。
+- 姓名：
+  - `name` 照遊戲的英文，錯字照錄。拼音是不標聲調的漢語拼音（Cao Cao、Liu Bei、Zhuge Liang、Xiahou Dun），「呂」寫 Lu。
+  - 有不少錯拼，例如：
+    - Gou Yu（荀彧）、Wei Yang（魏延）、Fan Zhang（潘璋）
+    - Deng Lan（鄧賢）、Ma Lin（馬休）、Wei Pin（文聘）
+    - Xiahou Xi（夏侯尚）、Liu Coing（劉琮）
+    - Xiong Rong（邢道榮）、Gou Zhi（郭攸之）
+  - 有三組英文名對調。頭像和能力值都是 PC-98／FC 的同一人，只有英文名掉換：
+    - 14 Cao Ang／15 Cao Hong 是曹洪／曹昂
+    - 76 Liang Xing／129 Liang Gang 是梁剛／梁興
+    - 161 Song Qian／210 Song Xian 是宋憲／宋謙
+  - `nameZh` 依 `id` 取 PC-98 姓名，套用 `SAN1_PC98_NAME_HISTORICAL`，再轉成繁體字形（`SAN1_DOS_NAME_ZH`），所以已經是史書寫法，不另填 `nameHistorical`。
+- 發行年份：
+  - Wikipedia 沒列 DOS 版日期。
+  - Home of the Underdogs、oldgames.sk 寫 1989。
+  - 遊戲內版權年是 1988。
+  - 沒有日文 DOS 版，英文 DOS 版就是該平台首發。
