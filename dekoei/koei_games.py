@@ -323,6 +323,22 @@ def koukai_face(face_file, out_dir, prefix):
 
 koukai.add_command(koukai_face, 'face')
 
+# DOS (Chinese) SHINARIO.CIM: 21 women x 16 bytes at 0x7D0, then 41 men x 20 bytes at 0x920 (see notes/koukai.md)
+KOUKAI_WOMEN = (0x7D0, 16, 21)
+KOUKAI_MEN = (0x920, 20, 41)
+
+
+def load_koukai_dos_people(shinario) -> tuple[list[tuple[str, int, int, int]], list[str]]:
+    """Men as (name, face byte 0x11, face byte 0x12, nation), women as names."""
+    with open(shinario, 'rb') as f:
+        data = f.read()
+    off, size, n = KOUKAI_MEN
+    men = []
+    for i in range(n):
+        r = data[off + i * size:off + (i + 1) * size]
+        men.append((koei_tw_name(r[:15]), r[0x11], r[0x12], r[0x13] >> 4))
+    off, size, n = KOUKAI_WOMEN
+    return men, [koei_tw_name(data[off + i * size:off + i * size + 15]) for i in range(n)]
 
 ##############################################################################
 

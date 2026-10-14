@@ -1131,6 +1131,91 @@ def build_liberty_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOUKAI (DOS, Chinese)
+
+KOUKAI_DOS_INPUTS = ["KAO.PUT", "SHINARIO.CIM"]
+# KAO.PUT: four composite part sets (one per nation, 0x2E80 bytes each), then 34 portraits from 0xBA00;
+# all 64x40 half-height, 3bpp as SAN2 DOS
+KOUKAI_DOS_NATION = 0x2E80
+KOUKAI_DOS_PORTRAITS = 0xBA00
+# (slot, label, offset in the set, record size, count, half-height row); MAIN.EXE 0x9CD6 copies top and
+# bottom, then ORs in eyes, nose and mouth (they never overlap set pixels, so 0 = transparent is exact)
+KOUKAI_DOS_SLOTS = [("top", "上", 0x0000, 0x1F8, 8, 0), ("bottom", "下", 0x2040, 0x1C8, 8, 21),
+                    ("eyes", "眼", 0x0FC0, 0x0C0, 8, 10), ("nose", "鼻", 0x15C0, 0x0C0, 4, 16),
+                    ("mouth", "口", 0x18C0, 0x0F0, 8, 22)]
+KOUKAI_DOS_NATIONS = ["葡萄牙", "西班牙", "土耳其", "海盜"]
+KOUKAI_DOS_WOMEN_PORTRAIT = 13  # woman i -> portrait 13 + i (MAIN.EXE 0x9F7E)
+# portraits 1-12 have no character; named by appearance against koukai-fc
+KOUKAI_DOS_PORTRAIT_GROUPS = {1: "國王", 2: "國王", 3: "國王", 8: "特殊人物",
+                              **{i: "設施" for i in (4, 5, 6, 7, 9, 10, 11, 12)}}
+KOUKAI_DOS_PORTRAIT_NAMES = {1: "葡萄牙國王", 2: "西班牙國王", 3: "土耳其國王", 4: "道具店", 5: "造船廠", 6: "交易所",
+                             7: "酒館", 8: "老航海士", 9: "港口", 10: "王宮", 11: "教會", 12: "旅館"}
+
+
+def koukai_dos_parts(b0: int, b1: int) -> list[int]:
+    """Face bytes 0x11, 0x12 of a man -> part per slot (MAIN.EXE 0x9ED9)."""
+    return [b1 & 7, b1 >> 3 & 7, b0 & 7, b1 >> 6, b0 >> 4 & 7]
+
+
+def build_koukai_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOUKAI_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAO.PUT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for nation, label in enumerate(KOUKAI_DOS_NATIONS):
+        base = nation * KOUKAI_DOS_NATION
+        parts = {}
+        for slot, _, offset, size, count, row in KOUKAI_DOS_SLOTS:
+            items = [store.add(*san2_pixels(kao[base + offset + i * size:base + offset + (i + 1) * size],
+                                            slot in ("top", "bottom"))) for i in range(count)]
+            parts[slot] = {"at": [0, 2 * row], "items": items}
+        variants.append({"id": str(nation), "label": label, "parts": parts})
+
+    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True), blob=1),
+                  "code": f"{(i - KOUKAI_DOS_PORTRAITS) // SAN2_FACE:04X}"}
+                 for i in range(KOUKAI_DOS_PORTRAITS, len(kao), SAN2_FACE)]
+    for i, group in KOUKAI_DOS_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in KOUKAI_DOS_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    men, women = koei_games.load_koukai_dos_people(os.path.join(game_dir, "SHINARIO.CIM"))
+    characters = []
+    # men 0-40, then the women from 41 (as koukai-fc, which has no character for the last woman)
+    for cid, (name, b0, b1, nation) in enumerate(men):
+        if b0 == 0xFF:
+            face = {"portrait": b1}
+        else:
+            face = {"variant": nation, "parts": koukai_dos_parts(b0, b1), "code": f"{b1 << 8 | b0:04X}"}
+        characters.append({"id": cid, "name": name, "face": face})
+    characters += [{"id": len(men) + i, "name": name, "face": {"portrait": KOUKAI_DOS_WOMEN_PORTRAIT + i}}
+                   for i, name in enumerate(women)]
+
+    meta = {
+        "format": FORMAT, "id": "koukai-dos", "game": "KOUKAI", "platform": "DOS",
+        "title": {"ja": "大航海時代", "zh": "大航海時代"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot[0], "label": slot[1]} for slot in KOUKAI_DOS_SLOTS],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1140,10 +1225,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
-            "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos}
+            "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
+            "koukai-dos": build_koukai_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
