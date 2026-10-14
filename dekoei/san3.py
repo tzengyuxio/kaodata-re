@@ -17,6 +17,50 @@ from san_person import (
 )
 
 
+def person_loader(file):
+    read_count, read_size = 600, struct.calcsize(s3_format)
+    person_data = []
+    with open(file, "rb") as f:
+        for _ in range(read_count):
+            pd = f.read(read_size)
+            if pd[43:] == b"\x00\x00\x00\x00\x00\x00":
+                continue
+            person_data.append(pd)
+    return person_data
+
+
+def load_san3_persons(file) -> list[S3Person]:
+    return load_person(person_loader(file), s3_format, S3Person)
+
+
+# MONTAGE.DAT (DOS): 11 heads x 0x3180 bytes; tables from MAIN.EXE (see notes/san3.md)
+MONTAGE_HEAD_SIZE = 0x3180
+# (offset in head block, bytes per record, offset in the 1920-byte face buffer) per area
+MONTAGE_AREAS = [(0, 864, 0), (3456, 1056, 864), (7680, 384, 504), (9984, 384, 792), (10752, 480, 1080)]
+MONTAGE_RECORDS = [4, 4, 6, 2, 4]
+MONTAGE_FIELDS = [(3, 3), (5, 3), (7, 7), (10, 1), (11, 3)]  # (shift, mask) of each area in the face code
+
+
+def is_montage_code(code):
+    return bool(code & 0x8000)
+
+
+def montage_head(code):
+    """Head block index: bits 0-2, plus 7 when bit 14 is set (the second bank starts at 7 heads)."""
+    return (7 if code & 0x4000 else 0) + (code & 7)
+
+
+def montage_parts(code):
+    return [code >> s & m for s, m in MONTAGE_FIELDS]
+
+
+def montage_record(data, head, area, record):
+    offset, size, _ = MONTAGE_AREAS[area]
+    start = head * MONTAGE_HEAD_SIZE + offset + record * size
+    return data[start:start + size]
+
+
+
 @click.group()
 def san3():
     """三國志III
@@ -99,20 +143,7 @@ def san3_person(file, to):
     ./dekoei.py san3 person -f ~/dosbox/SAN3/SNDATA6B.CIM --to csv > PERSONS_TABLE/san3_persons_s6.csv
     """
 
-    def person_loader(file):
-        read_count, read_size = 600, struct.calcsize(s3_format)
-        person_data = []
-        with open(file, "rb") as f:
-            for _ in range(read_count):
-                pd = f.read(read_size)
-                if pd[43:] == b"\x00\x00\x00\x00\x00\x00":
-                    continue
-                person_data.append(pd)
-        return person_data
-
-    person_data = person_loader(file)
-
-    persons = load_person(person_data, s3_format, S3Person)
+    persons = load_san3_persons(file)
     print_table(s3_table_title, s3_headers, persons, to)
 
 
