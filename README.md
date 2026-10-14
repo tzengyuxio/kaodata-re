@@ -72,7 +72,7 @@ Early KOEI Games Data Research
 | LIBERTY   | 獨立戰爭                    | 1993 |       DOS        |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 30 款作品的顏ＣＧ匯出，以及 6 款作品的人物資料匯出
+* 目前支援 30 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -87,4 +87,15 @@ cd dekoei
 python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaodata>/data-local/genpei-dos
 ```
 
-輸出 `dataset.json`、`pixels.bin`、`checksums.json`，格式見 kaodata 網站 repo 的 `docs/data-format.md`。目前支援 `genpei-dos`（源平合戰 DOS，格式見 [notes/genpei.md](notes/genpei.md)）、`san2-dos`（三國志II DOS 中文版，格式見 [notes/san2.md](notes/san2.md)）、`san3-dos`（三國志III DOS 中文版，格式見 [notes/san3.md](notes/san3.md)）、`san4-dos`（三國志IV DOS 中文版，格式見 [notes/san4.md](notes/san4.md)）、`san5pk-dos`（三國志V 威力加強版 DOS 中文版，格式見 [notes/san5.md](notes/san5.md)）與 `lempe-dos`（拿破崙 DOS 中文版，格式見 [notes/lempe.md](notes/lempe.md)）。
+輸出 `dataset.json`、像素檔（`pixels.bin`、`portraits.bin`）與 `checksums.json`，格式見 kaodata 網站 repo 的 `docs/data-format.md`。目前支援的資料集：
+
+| DATASET      | 遊戲                           | 來源版本   | 人物 | 頭像 | 組合臉 | 格式筆記                         |
+| ------------ | ------------------------------ | ---------- | ---: | ---: | :----: | -------------------------------- |
+| `genpei-dos` | 源平合戰                       | DOS        |  400 |   90 |   ○    | [notes/genpei.md](notes/genpei.md) |
+| `san2-dos`   | 三國志II                       | DOS 中文版 |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
+| `san3-dos`   | 三國志III                      | DOS 中文版 |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
+| `san4-dos`   | 三國志IV                       | DOS 中文版 |  462 |  340 |   ○    | [notes/san4.md](notes/san4.md)     |
+| `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 |  783 |        | [notes/san5.md](notes/san5.md)     |
+| `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
+
+原版遊戲檔放在 `games/<DATASET>/`（不進版控），`--game-dir` 指向該目錄即可。
