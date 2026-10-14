@@ -69,5 +69,8 @@ Python 端沒有 linter／formatter 設定。
     - `build_san5pk` 只有逐人頭像（KAODATA.S5 未壓縮，byte k＝bit k，後面接 KAOEX.S5 的追加頭像），`san5pk-pc98` 用同一個 builder（`pc98=True`），人物用 `sango.load_san5_persons`；DOS 版的 MAIN.EXE 是破解過的，只當程式碼參考，見 `notes/san5.md`。
     - `build_san1_pc98`：PICDATA 半高頭像，組合臉是三段橫條（`san1.PC98_BANDS`），人物從 SAVEDATA 的存檔槽 0 讀（劇本檔有編碼），見 `notes/san1.md`。`build_suikoden_pc98` 只有逐人頭像，見 `notes/koei-games.md`。
     - `build_lempe` 只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`，見 `notes/lempe.md`。
+  - `nameHistorical`（史書寫法）的規則：遊戲寫法讓人認不出或搜不到史書（或《三國演義》）的寫法時才填，用該資料集的字形（日文版用新字體）。
+    - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
+    - 不填：同一字的不同字形（関／關、羣／群、彝／彞、万／萬、胄／冑、瞱／曄、毘／毗）、《三國演義》本身的寫法（喬瑁、范疆）、史書就有兩種寫法的（干吉／于吉、朱儁／朱雋、梁綱／梁剛）。
   - `source.revision` 會呼叫 `git rev-parse HEAD`，所以必須在 git 工作目錄下執行。
 - **舊 vs 新程式碼**：`genpei.py` 前段的舊命令（`genpei face`、`genpei montage`、舊色表 `genpei_face_colors`）已知有錯，見 `BACKLOG.md`；新匯出以 `load_mainpal` 等新函式為準，不要拿舊函式來用。

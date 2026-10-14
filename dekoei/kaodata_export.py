@@ -254,7 +254,7 @@ SAN2_NAME_HISTORICAL = {
     31: "張顗", 61: "蔡瑁", 67: "張咨", 98: "趙範", 121: "劉璝", 122: "雷銅", 157: "于禁", 164: "夏侯楙",
     167: "桓階", 181: "陳紀", 218: "李堪", 220: "廖化", 249: "嚴畯", 258: "步騭", 260: "蔡中", 264: "向舉",
     284: "向寵", 297: "鮑隆", 306: "朵思大王", 308: "阿會喃", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
-    332: "毌丘儉",
+    317: "龐羲", 332: "毌丘儉",
 }
 # KAODATA portraits no character uses (0-based), per koei-wiki 遊戲/三國志II/人物顏
 SAN2_PORTRAIT_GROUPS = {
@@ -269,6 +269,12 @@ SAN2_JP_INPUTS = ["KAODATA1.DAT", "KAODATA2.DAT", "KAODATA3.DAT"] + [f"SNDATA{i}
 SAN2_JP_PALETTE = ["#000000", "#00ff00", "#ff0000", "#ffff00", "#0000ff", "#00ffff", "#ff00ff", "#ffffff"]
 SAN2_JP_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("nose", "鼻"), ("mouth", "口")]
 SAN2_JP_PORTRAIT_NAMES = {27: "華陀", 177: "司馬徽", 190: "許子将"}
+# misspelt names in the Japanese release (the SAN2_NAME_HISTORICAL ones it shares, plus 粱剛), by character id
+SAN2_JP_NAME_HISTORICAL = {
+    67: "張咨", 122: "雷銅", 167: "桓階", 181: "陳紀", 218: "李堪", 258: "歩騭", 260: "蔡中", 264: "向挙", 284: "向寵",
+    297: "鮑隆", 306: "朶思大王", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
+    125: "梁剛", 317: "龐羲", 332: "毌丘倹",
+}
 
 
 def san2_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
@@ -310,6 +316,8 @@ def build_san2_jp(game_dir: str, platform: str) -> tuple[dict, list[bytes]]:
     characters = []
     for cid, (code, name) in enumerate(san2.load_san2_jp_persons(game_dir, platform == "X68")):
         ch = {"id": cid, "name": name}
+        if cid in SAN2_JP_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN2_JP_NAME_HISTORICAL[cid]
         if san2.is_montage_code(code):
             ch["face"] = {"variant": code & 7, "parts": [code >> s & 3 for s in san2.MONTAGE_SHIFTS],
                           "code": f"{code:04X}"}
@@ -405,8 +413,17 @@ SAN3_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("nose", "鼻"
 SAN3_FACE = 1920  # 64x80, 3bpp
 # spelling when the scenarios tie (陳群 3 times, 陳韋 3 times)
 SAN3_NAME_PICK = {0x7E: "陳群"}
-# the game uses another person's name for these, by face code (identity from city, see notes/san3.md)
-SAN3_NAME_HISTORICAL = {0xC1: "孔伷", 0xC02B: "蔡邕", 0x96D9: "張顗", 0x9C95: "張闓"}
+# historical spelling by face code: another person's name (identity from city) or a misspelling,
+# per koei-wiki 遊戲/三國志III/人名勘誤 (see notes/san3.md)
+SAN3_NAME_HISTORICAL = {
+    0xC1: "孔伷", 0xC02B: "蔡邕", 0x96D9: "張顗", 0x9C95: "張闓", 0xC4E8: "桓階", 0xDCB3: "劉璝", 0x8AA8: "于糜",
+    0xC860: "閻象", 0xCCF9: "笮融", 0xCC33: "向舉", 0x8699: "全琮", 0xCE79: "龐羲", 7: "王粲", 72: "沙摩柯",
+    38: "毌丘儉", 49: "金環三結", 135: "董荼那", 112: "朵思大王", 0x8284: "曹羲", 0x8EBB: "孫冀",
+}
+SAN3_PC98_NAME_HISTORICAL = {
+    0xC4E8: "桓階", 0x8AA8: "于糜", 86: "鍾繇", 0x96A5: "鍾進", 53: "鍾会", 0x9512: "梁剛", 76: "諸葛瑾",
+    0xCC33: "向挙", 0xCE79: "龐羲", 72: "沙摩柯", 38: "毌丘倹", 49: "金環三結", 135: "董荼那", 112: "朶思大王",
+}
 # event characters (MAIN.EXE DGROUP 0x2FB6 names / 0x2FCA codes) and 貂蟬 (連環計 sets face 307)
 SAN3_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子將", 223: "獻帝", 224: "吉平", 225: "于吉", 226: "左慈",
                        227: "管輅", 228: "紫虛上人", 229: "李意", 306: "貂蟬"}
@@ -471,8 +488,9 @@ def build_san3(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     characters = []
     for cid, (code, name) in enumerate(san3_characters(game_dir, pc98)):
         ch = {"id": cid, "name": name}
-        if not pc98 and code in SAN3_NAME_HISTORICAL:
-            ch["nameHistorical"] = SAN3_NAME_HISTORICAL[code]
+        historical = SAN3_PC98_NAME_HISTORICAL if pc98 else SAN3_NAME_HISTORICAL
+        if code in historical:
+            ch["nameHistorical"] = historical[code]
         if san3.is_montage_code(code):
             ch["face"] = {"variant": san3.montage_head(code), "parts": san3.montage_parts(code), "code": f"{code:04X}"}
         else:
@@ -517,8 +535,9 @@ SAN4_PORTRAIT_GROUPS = {
     **{i: "新武將（女）" for i in range(300, 330)},
     **{i: "舉兵事件" for i in (330, 331, 332, 336, 337)},
 }
-# the DOS release writes 孔秀 (another person) for 孔伷; the PC-98 release has 孔伷
-SAN4_NAME_HISTORICAL = {0x38: "孔伷"}
+# historical spelling by face code; the DOS release also writes 孔秀 (another person) for 孔伷
+SAN4_NAME_HISTORICAL = {0x38: "孔伷", 199: "盧植", 0xE85A: "龐羲", 135: "沙摩柯", 0xE56A: "吳綱"}
+SAN4_PC98_NAME_HISTORICAL = {199: "盧植", 0xE85A: "龐羲", 135: "沙摩柯", 0xE56A: "呉綱"}
 # PC-98: the same palette bytes as DOS (DGROUP 0xF70), widened as v * 17; names as the game spells them.
 # 1.0 speaks as 童子 with 336 and picks 335 for 舉兵 (swapped, PK fixed it); labelled by the pictures here
 SAN4_PC98_PALETTE = ["#332200", "#224488", "#BB4422", "#CC8855", "#447722", "#448899", "#DDBB88", "#DDDDBB"]
@@ -586,8 +605,9 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
             continue
         seen.add((code, name))
         ch = {"id": len(characters), "name": name}
-        if not pc98 and code in SAN4_NAME_HISTORICAL:
-            ch["nameHistorical"] = SAN4_NAME_HISTORICAL[code]
+        historical = SAN4_PC98_NAME_HISTORICAL if pc98 else SAN4_NAME_HISTORICAL
+        if code in historical:
+            ch["nameHistorical"] = historical[code]
         if code & 0x8000:
             ch["face"] = {"variant": code & 15, "parts": sango.san4_montage_parts(code), "code": f"{code:04X}"}
         else:
@@ -642,6 +662,9 @@ SAN5PK_PC98_PORTRAIT_NAMES = {500: "献帝", 501: "貂蝉", 502: "民衆", 503: 
                               506: "使者", 507: "兵士"}
 # 盧植 is 蘆植 in scenarios 1-2 and 盧植 in 8, 9, 12
 SAN5PK_PC98_NAME_PICK = {199: "盧植"}
+# historical spelling by face code
+SAN5PK_NAME_HISTORICAL = {56: "孔伷", 467: "龐羲"}
+SAN5PK_PC98_NAME_HISTORICAL = {467: "龐羲"}
 
 
 def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
@@ -670,7 +693,12 @@ def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
         if code in seen:
             continue
         seen.add(code)
-        characters.append({"id": len(characters), "name": pick.get(code, name), "face": {"portrait": code}})
+        ch = {"id": len(characters), "name": pick.get(code, name)}
+        historical = SAN5PK_PC98_NAME_HISTORICAL if pc98 else SAN5PK_NAME_HISTORICAL
+        if code in historical:
+            ch["nameHistorical"] = historical[code]
+        ch["face"] = {"portrait": code}
+        characters.append(ch)
 
     meta = {
         "format": FORMAT, "id": "san5pk-pc98" if pc98 else "san5pk-dos", "game": "SAN5PK",
@@ -692,6 +720,9 @@ def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
 # ---------------------------------------------------------------- SAN1 (PC-98)
 
 SAN1_PC98_INPUTS = ["PICDATA.DAT", "SAVEDATA"]
+# misspelt names (checked against san1-fc), by character id
+SAN1_PC98_NAME_HISTORICAL = {18: "于禁", 22: "荀攸", 62: "許攸", 89: "蔡中", 119: "雷銅", 127: "李堪", 155: "諸葛瑾",
+                             205: "邢道栄", 206: "鮑隆", 229: "沙摩柯", 239: "向寵"}
 SAN1_PC98_SLOTS = [("top", "上"), ("middle", "中"), ("bottom", "下")]
 # PICDATA faces 0-64 are the characters; 65 repeats 64, 66-83 are daughters (marriage diplomacy)
 SAN1_PC98_PORTRAITS = 84
@@ -732,6 +763,8 @@ def build_san1_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     # 1-based like san1-fc (same order)
     for cid, (code, name) in enumerate(san1.load_san1_pc98_persons(os.path.join(game_dir, "SAVEDATA")), 1):
         ch = {"id": cid, "name": name}
+        if cid in SAN1_PC98_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN1_PC98_NAME_HISTORICAL[cid]
         if san1.is_pc98_composite(code):
             ch["face"] = {"variant": (code >> 12) - 6, "parts": san1.pc98_composite_parts(code), "code": f"{code:04X}"}
         else:
