@@ -1572,6 +1572,77 @@ def build_air2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN6 PK (Windows, Chinese)
+
+SAN6PK_WIN_INPUTS = ["KAODATA.S6", "PALETTE.S6"] + [f"SNDATA{n:02}.S6" for n in range(1, 24)]
+# face 0 is a blank placeholder (new-officer slots); 521-538 are byte copies of the tribe faces 541-550
+SAN6PK_WIN_SKIP = {0, *range(521, 539)}
+# speakers without a person slot: SAN6.EXE event calls push (face, given, surname) — see notes/san6.md
+SAN6PK_WIN_PORTRAIT_NAMES = {
+    651: "華佗", 652: "司馬徽", 653: "許劭", 654: "于吉", 655: "左慈", 656: "管輅", 657: "紫虛上人", 658: "南華老仙",
+    659: "獻帝", 660: "貂蟬", 661: "百姓", 662: "士兵", 663: "童子", 664: "靈帝", 665: "少帝", 666: "百姓", 667: "老人",
+    668: "徐庶之母", 669: "使者", 670: "士兵", 671: "武將", 672: "武將", 673: "侍女", 674: "蔡夫人",
+}
+# no person or event uses these; grouped by the pictures
+SAN6PK_WIN_PORTRAIT_GROUPS = {
+    **{i: "事件人物" for i in SAN6PK_WIN_PORTRAIT_NAMES},
+    **{i: "其他頭像（男）" for i in [*range(551, 621), *range(675, 684)]},
+    **{i: "其他頭像（女）" for i in [*range(621, 651), 684]},
+}
+SAN6PK_WIN_NAME_HISTORICAL = {"孔冑": "孔伷", "士變": "士燮"}
+# faces used by characters are split over 4 blobs (about 1 MB each); the grouped, unused ones go last in extra.bin
+SAN6PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "portraits4.bin", "extra.bin"]
+
+
+def build_san6pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN6PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(SAN6PK_WIN_BLOBS)
+
+    persons = sango.load_san6_persons(game_dir)
+    used = sorted({code for _, _, code in persons})
+    faces = sango.load_san6_faces(os.path.join(game_dir, "KAODATA.S6"))
+    portraits, index = [], {}
+    for code, px in enumerate(faces):
+        if code in SAN6PK_WIN_SKIP:
+            continue
+        index[code] = len(portraits)
+        blob = used.index(code) * 4 // len(used) if code in used else 4
+        p = {"img": store.add(96, 120, px, blob=blob), "code": f"{code:04X}"}
+        if code in SAN6PK_WIN_PORTRAIT_GROUPS:
+            p["group"] = SAN6PK_WIN_PORTRAIT_GROUPS[code]
+        if code in SAN6PK_WIN_PORTRAIT_NAMES:
+            p["name"] = SAN6PK_WIN_PORTRAIT_NAMES[code]
+        portraits.append(p)
+
+    # person slots in game order; the four 武將 slots of each tribe share one name and face
+    characters, seen = [], set()
+    for _, name, code in persons:
+        if (name, code) in seen:
+            continue
+        seen.add((name, code))
+        ch = {"id": len(characters), "name": name, "face": {"portrait": index[code]}}
+        if name in SAN6PK_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN6PK_WIN_NAME_HISTORICAL[name]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san6pk-win", "game": "SAN6PK", "platform": "WIN",
+        "title": {"ja": "三國志VI with パワーアップキット", "zh": "三國志VI 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN6PK_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": sango.load_san6_palette(os.path.join(game_dir, "PALETTE.S6"))}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1583,10 +1654,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
-            "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos}
+            "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
+            "san6pk-win": build_san6pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

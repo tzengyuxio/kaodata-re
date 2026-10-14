@@ -344,6 +344,50 @@ def san6_face(game_dir, face_file, palette_file, out_dir, prefix):
 
 san6.add_command(san6_face, 'face')
 
+
+def load_san6_faces(kaodata) -> list[bytes]:
+    """KAODATA.S6: u32 count, count x (offset, size, w, h) u32, then 96x120 8-bit images."""
+    with open(kaodata, "rb") as f:
+        data = f.read()
+    count = int.from_bytes(data[:4], "little")
+    base = 4 + 16 * count
+    return [data[base + o:base + o + size] for o, size, w, h in
+            (struct.unpack_from("<4I", data, 4 + 16 * i) for i in range(count))]
+
+
+def load_san6_palette(palette) -> list[str]:
+    """PALETTE.S6: three identical Windows LOGPALETTEs (0x300, 256 x RGBX); faces use colours 0-245."""
+    with open(palette, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"\x00\x03\x00\x01"
+    return [f"#{data[4 + i * 4]:02x}{data[5 + i * 4]:02x}{data[6 + i * 4]:02x}" for i in range(246)]
+
+
+# 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
+# +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
+# SNDATAnn.S6: 650 person records of 650 bytes from 0x17D04 (550 persons, then 100 new-officer slots);
+# +0 surname 6 bytes, +6 given name 6 bytes (Big5, NUL then spaces), +12 style name, +30 u16 face code
+SAN6_PERSONS = 0x17D04
+SAN6_PERSON_SIZE = 650
+
+
+def load_san6_persons(game_dir, scenarios=23) -> list[tuple[int, str, int]]:
+    """(slot, name, face code) of every person slot with a face, first seen over SNDATA01-23."""
+    def text(b):
+        return b.split(b"\0")[0].strip().decode("big5")
+
+    persons = {}
+    for n in range(1, scenarios + 1):
+        with open(os.path.join(game_dir, f"SNDATA{n:02}.S6"), "rb") as f:
+            data = f.read()
+        for slot in range(SAN6_PERSON_SIZE):
+            r = SAN6_PERSONS + slot * SAN6_PERSON_SIZE
+            face = int.from_bytes(data[r + 30:r + 32], "little")
+            if face:
+                persons.setdefault(slot, (text(data[r:r + 6]) + text(data[r + 6:r + 12]), face))
+                assert persons[slot][1] == face
+    return [(slot, name, face) for slot, (name, face) in sorted(persons.items())]
+
 ##############################################################################
 
 
