@@ -65,7 +65,7 @@ Early KOEI Games Data Research
 | WINNING   | 光榮賽馬／賽馬大亨          | 1993 |       DOS        |       |        |                     |
 | AIR2      | 航空霸業II                  | 1993 |       DOS        |       |        |                     |
 | EIKETSU   | 三國志英傑傳                | 1995 |       WIN        |       |        |                     |
-|           | 三國志孔明傳                | 1995 |                  |       |        |                     |
+| KOUMEI    | 三國志孔明傳                | 1996 |       WIN        |       |        |                     |
 |           | 毛利元就 三矢之誓           | 1996 |                  |       |        |                     |
 |           | 織田信長傳                  | 1998 |                  |       |        |                     |
 |           | 三國志曹操傳                | 1998 |                  |       |        |                     |
@@ -73,7 +73,7 @@ Early KOEI Games Data Research
 | LIBERTY   | 獨立戰爭                    | 1993 |       DOS        |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 31 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
+* 目前支援 32 款作品的顏ＣＧ匯出，以及 8 款作品的人物資料匯出
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -104,6 +104,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `san4pk-pc98` | 三國志IV 威力加強版           | PC-98      |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
+| `koumei-win` | 三國志孔明傳                   | Win 中文版 |  240 |  288 |        | [notes/koumei.md](notes/koumei.md) |
 | `san6pk-win` | 三國志VI 威力加強版            | Win 中文版 |  532 |  666 |        | [notes/san6.md](notes/san6.md)     |
 | `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-dos` | 水滸傳・天命之誓             | DOS 中文版 |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |

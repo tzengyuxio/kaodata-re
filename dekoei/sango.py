@@ -365,6 +365,25 @@ def load_san6_palette(palette) -> list[str]:
 
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
 # +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
+KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)
+
+
+def load_koumei_persons(bakdata) -> list[tuple[str, int]]:
+    """(name, face code) of every BAKDATA.E2 person record, in file order."""
+    with open(bakdata, "rb") as f:
+        data = f.read()
+    start, end, size = KOUMEI_PERSONS
+    return [(data[o:o + 12].split(b"\0")[0].decode("big5"), int.from_bytes(data[o + 14:o + 16], "little"))
+            for o in range(start, end, size)]
+
+
+def load_koumei_palette(palet) -> list[str]:
+    """PALET.E2: 256 x (B, R, G), 8 bits each; faces use 0 and 16-239."""
+    with open(palet, "rb") as f:
+        data = f.read()
+    return [f"#{data[i * 3 + 1]:02x}{data[i * 3 + 2]:02x}{data[i * 3]:02x}" for i in range(240)]
+
+
 # SNDATAnn.S6: 650 person records of 650 bytes from 0x17D04 (550 persons, then 100 new-officer slots);
 # +0 surname 6 bytes, +6 given name 6 bytes (Big5, NUL then spaces), +12 style name, +30 u16 face code
 SAN6_PERSONS = 0x17D04

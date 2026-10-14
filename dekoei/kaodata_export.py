@@ -1643,6 +1643,75 @@ def build_san6pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOUMEI (Windows, Chinese)
+
+KOUMEI_WIN_INPUTS = ["KAO.E2", "PALET.E2", "BAKDATA.E2"]
+# BAKDATA names that are troops or unnamed townsfolk, not characters
+KOUMEI_WIN_TROOPS = {"運糧隊", "軍樂隊", "物資隊", "步兵隊", "弓兵隊", "騎兵隊", "戰車隊", "砲車隊", "弓騎兵", "虎兵團",
+                     "象兵團", "蛇兵團", "南蠻兵", "藤甲兵", "北狄兵", "羌族兵", "士兵", "賊"}
+KOUMEI_WIN_FOLK = {"首", "武術家", "老婦", "民", "旅客", "男孩", "童子", "女孩", "美人", "商人", "道具屋", "武器屋", "宮吏",
+                   "老翁", "仙人", "文官", "武官", "使者", "幻術師", "官差"}
+# ages shown by the faces of people with several (the ending shows them young), by face code
+KOUMEI_WIN_AGES = {4: "壯年", 261: "少年", 262: "青年", 165: "壯年", 266: "嬰兒", 267: "幼年", 268: "少年",
+                   72: "壯年", 263: "青年", 115: "壯年", 264: "少年", 265: "青年", 5: "壯年", 269: "青年",
+                   270: "青年", 271: "壯年", 134: "少女"}
+KOUMEI_WIN_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "劉貴": "劉璝", "粱緒": "梁緒", "秦郎": "秦朗", "金環結": "金環三結",
+                              "董茶那": "董荼那", "朵思王": "朵思大王", "木鹿王": "木鹿大王", "帶來": "帶來洞主"}
+
+
+def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOUMEI_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+    import ls11
+    faces = ls11.ls11_decode_parts(files["KAO.E2"])
+    portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
+
+    records = sango.load_koumei_persons(os.path.join(game_dir, "BAKDATA.E2"))
+    generic = KOUMEI_WIN_TROOPS | KOUMEI_WIN_FOLK
+    users = {}  # face code -> names, in file order
+    for name, code in records:
+        if name not in users.setdefault(code, []):
+            users[code].append(name)
+    faces_of = {}
+    for name, code in records:
+        if name not in generic and code not in faces_of.setdefault(name, []):
+            faces_of[name].append(code)
+    # face = the first one in game order; later ages (the ending) follow as expressions
+    characters = []
+    for name, codes in faces_of.items():
+        looks = [{"portrait": c, **({"label": KOUMEI_WIN_AGES[c]} if len(codes) > 1 else {})} for c in codes]
+        ch = {"id": len(characters), "name": name, "face": looks[0]}
+        if len(looks) > 1:
+            ch["expressions"] = looks[1:]
+        if name in KOUMEI_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = KOUMEI_WIN_NAME_HISTORICAL[name]
+        characters.append(ch)
+    person_faces = {c for codes in faces_of.values() for c in codes}
+    for code, names in users.items():
+        if code not in person_faces and "name" not in portraits[code]:
+            portraits[code].update(name=names[0], group="部隊" if names[0] in KOUMEI_WIN_TROOPS else "一般人物")
+    for i, p in enumerate(portraits):
+        if i not in users:
+            p["group"] = "未使用"
+
+    meta = {
+        "format": FORMAT, "id": "koumei-win", "game": "KOUMEI", "platform": "WIN",
+        "title": {"ja": "三國志孔明伝", "zh": "三國志孔明傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUMEI_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": sango.load_koumei_palette(os.path.join(game_dir, "PALET.E2"))}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1655,10 +1724,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
-            "san6pk-win": build_san6pk_win}
+            "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, koumei-win, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
