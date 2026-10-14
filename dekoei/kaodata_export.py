@@ -1028,6 +1028,52 @@ def build_kouryuuki_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- EUROPE (DOS, Chinese)
+
+EUROPE_DOS_INPUTS = ["FACE.DAT", "SCEDATA", "MAIN.EXE"]
+EUROPE_DOS_FACE = 1920  # 64x80 full height, byte k = bit k
+# MAIN.EXE DGROUP 0x56B6: colours 0-7, 4-bit B, R, G, written to the DAC as v << 2
+EUROPE_DOS_PALETTE = ["#000000", "#104192", "#d33030", "#d371b2", "#419241", "#71b2b2", "#f3c361", "#f3f3f3"]
+# faces 106-117 are the generic replacement commanders (MAIN.EXE DGROUP 0x57BA), 118-119 event characters
+EUROPE_DOS_PORTRAIT_GROUPS = {**{i: "替補指揮官（軸心國）" for i in range(106, 112)},
+                              **{i: "替補指揮官（聯合軍）" for i in range(112, 118)}, 118: "事件人物", 119: "事件人物"}
+EUROPE_DOS_PORTRAIT_NAMES = {118: "村姑", 119: "修女"}
+
+
+def build_europe_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in EUROPE_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    face = files["FACE.DAT"]
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+                  "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
+    for i, group in EUROPE_DOS_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in EUROPE_DOS_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    # face = person number: commanders 0-93 from the scenarios, leaders 94-105 from MAIN.EXE
+    names = koei_games.load_europe_dos_names(os.path.join(game_dir, "SCEDATA"), os.path.join(game_dir, "MAIN.EXE"))
+    characters = [{"id": cid, "name": names[cid], "face": {"portrait": cid}} for cid in sorted(names)]
+
+    meta = {
+        "format": FORMAT, "id": "europe-dos", "game": "EUROPE", "platform": "DOS",
+        "title": {"ja": "ヨーロッパ戦線", "zh": "歐陸戰線"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EUROPE_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": EUROPE_DOS_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1037,10 +1083,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
-            "kouryuuki-dos": build_kouryuuki_dos}
+            "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

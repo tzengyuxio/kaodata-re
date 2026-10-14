@@ -124,6 +124,34 @@ def europe_face(face_file, out_dir, prefix):
 
 europe.add_command(europe_face, 'face')
 
+# DOS (Chinese): 22-byte commander records, name (KOEI TW code) at +0, nation bits at +9 (0xFF = empty), face at +20.
+# SCEDATA has 7 scenarios of 40 records; MAIN.EXE (DGROUP = file 0x46B00) holds the 12 leaders at DGROUP 0x2D98.
+EUROPE_SCENARIOS = (0x1772, 0x1D95, 7)
+EUROPE_LEADERS = (0x46B00 + 0x2D98, 12)
+
+
+def load_europe_dos_names(scedata, main_exe) -> dict[int, str]:
+    """Name per face/person number; a few commanders are spelt differently between scenarios, the most
+    frequent spelling wins (the first seen on ties)."""
+    from collections import Counter
+    with open(scedata, 'rb') as f:
+        sce = f.read()
+    with open(main_exe, 'rb') as f:
+        main = f.read()
+    first, stride, count = EUROPE_SCENARIOS
+    spellings = {}
+    for s in range(count):
+        for r in range(40):
+            rec = sce[first + s * stride + r * 22:first + s * stride + (r + 1) * 22]
+            if rec[9] != 0xFF:
+                spellings.setdefault(rec[20], Counter())[koei_tw_name(rec[:8])] += 1
+    names = {face: c.most_common(1)[0][0] for face, c in spellings.items()}
+    offset, count = EUROPE_LEADERS
+    for r in range(count):
+        rec = main[offset + r * 22:offset + (r + 1) * 22]
+        names[rec[20]] = koei_tw_name(rec[:8])
+    return names
+
 
 ##############################################################################
 

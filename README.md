@@ -107,6 +107,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-dos` | 水滸傳・天命之誓             | DOS 中文版 |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `kouryuuki-dos` | 項劉記                      | DOS 中文版 |   92 |   97 |        | [notes/kouryuuki.md](notes/kouryuuki.md) |
+| `europe-dos` | 歐陸戰線                       | DOS 中文版 |  106 |  120 |        | [notes/europe.md](notes/europe.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 
 原版遊戲檔放在 `games/<DATASET>/`（不進版控），`--game-dir` 指向該目錄即可。
