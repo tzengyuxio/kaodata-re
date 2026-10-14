@@ -738,6 +738,21 @@ def load_nobu7_win_persons(path) -> list[tuple[int, str, str, int]]:
         persons.append((pid, text(data[o:o + 8]), text(data[o + 8:o + 16]), face))
     return persons
 
+# EIKETSU4 (織田信長傳, Win, Chinese): DATA.E4 part 0 holds 645 person records of 77 bytes;
+# +0 name (12-byte Big5), +28 u16 face (also written as ASCII at +13)
+EIKETSU4_WIN_PERSON = 77
+
+
+def load_eiketsu4_win_persons(path) -> list[tuple[str, int]]:
+    """(name, face) of every DATA.E4 person record."""
+    with open(path, "rb") as f:
+        data = ls11_decode_parts(f.read())[0]
+    persons = []
+    for o in range(0, len(data), EIKETSU4_WIN_PERSON):
+        face, = struct.unpack_from("<H", data, o + 28)
+        persons.append((data[o:o + 12].split(b"\0")[0].decode("big5"), face))
+    return persons
+
 ##############################################################################
 
 
