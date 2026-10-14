@@ -1142,6 +1142,59 @@ def load_taikoh_dos_women(main_exe) -> list[tuple[str, int]]:
         main = f.read()
     o = TAIKOH_DOS_DGROUP + 0x776
     return [(koei_tw_name(main[o + i * 12:o + i * 12 + 6]), main[o + i * 12 + 7]) for i in range(30)]
+
+
+TAIKOH2_WIN_PERSON = 59  # BSDATA*.TR2 record: surname, given name, ..., u16 person number at +16
+TAIKOH2_WIN_DATA = 0x500000 - 0xFE800  # Taik2w95.exe .data: VA - this = file offset
+
+
+# GAIJI.TR2 glyphs (0xFA70-) squeeze a four-character surname into three cells
+TAIKOH2_WIN_GAIJI = {b"\xfa\x71\xfa\x73\xfa\x74": "長宗我部", b"\xfa\x72\xfa\x73\xfa\x74": "香宗我部"}
+
+
+def _big5(b: bytes) -> str:
+    b = b.split(b"\0")[0]
+    return TAIKOH2_WIN_GAIJI.get(b) or b.decode("big5")
+
+
+def load_taikoh2_win_persons(bsdata) -> list[tuple[int, str]]:
+    """(person number, name) of BSDATA1.TR2; the number is also the FACE.LZW face."""
+    with open(bsdata, "rb") as f:
+        data = f.read()
+    persons = []
+    for o in range(0, len(data), TAIKOH2_WIN_PERSON):
+        number = int.from_bytes(data[o + 16:o + 18], "little")
+        name = _big5(data[o:o + 7]) + _big5(data[o + 7:o + 14])
+        persons.append((number, name))
+    return persons
+
+
+def load_taikoh2_win_others(exe, sndata) -> list[tuple[int, str, int]]:
+    """(person number, name, face) of the 30 masters (1000-) and the named women (2000-).
+
+    Names are in Taik2w95.exe; the faces are (number, face) pairs in SNDATA1.TR2, which is XORed with 0x26."""
+    with open(exe, "rb") as f:
+        exe = f.read()
+    with open(sndata, "rb") as f:
+        sn = bytes(b ^ 0x26 for b in f.read())
+    faces = {}
+    for first, step in ((1000, 12), (2000, 4)):  # (number, face, ...) records
+        o = 0
+        while True:
+            o = sn.find(first.to_bytes(2, "little"), o)
+            if int.from_bytes(sn[o + step:o + step + 2], "little") == first + 1:
+                break
+            o += 1
+        while (n := int.from_bytes(sn[o:o + 2], "little")) // 1000 == first // 1000:
+            faces[n] = int.from_bytes(sn[o + 2:o + 4], "little")
+            o += step
+    surname, given, women = (exe[va - TAIKOH2_WIN_DATA:] for va in (0x5067D8, 0x5068B0, 0x506988))
+    others = [(1000 + i, _big5(surname[i * 7:i * 7 + 7]) + _big5(given[i * 7:i * 7 + 7]), faces[1000 + i])
+              for i in range(30)]
+    others += [(2000 + i, _big5(women[i * 5:i * 5 + 5]), faces[2000 + i]) for i in range(4)]
+    return others
+
+
 ##############################################################################
 
 

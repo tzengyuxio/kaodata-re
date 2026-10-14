@@ -1639,6 +1639,87 @@ def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+
+# ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
+
+TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
+TAIKOH2_WIN_PALETTE = 0x5003D8 + 4 * 48  # Taik2w95.exe palette 4: 16 x (B, R, G), 4 bits each, set as v << 4
+TAIKOH2_WIN_EXTFACE = 451  # 0x492A10 loads EXTFACE.PK8 instead of this FACE.LZW face
+TAIKOH2_WIN_PEOPLE = 695  # BSDATA 695-699 are 姓0695名0695 etc.
+TAIKOH2_WIN_DELETED = "這個人削除"  # BSDATA1 466; BSDATA2 has 黑田職高 there
+# 0x4A0AC0: when the protagonist (木下藤吉郎, 明智光秀 or 柴田勝家) takes a new name, the face changes
+TAIKOH2_WIN_LATER = {16: 695, 364: 743, 1: 744}
+# faces with no person record (0x502A30 主角相貌 choices; 0x4A108D, 0x46B4E8, 0x4482E5, 0x4915F3)
+TAIKOH2_WIN_PORTRAIT_NAMES = {739: "城守備", 740: "士兵", 741: "弟子", 742: "山賊"}
+TAIKOH2_WIN_PICKER = range(729, 739)
+TAIKOH2_WIN_NAME_HISTORICAL = {
+    "田山義續": "畠山義續", "田山義綱": "畠山義綱", "北田具教": "北畠具教", "北田具房": "北畠具房",
+    "北田政成": "北畠政成", "神原康政": "榊原康政", "坪和氏續": "垪和氏續", "脅阪安治": "脇坂安治",
+    "木脅祐昌": "木脇祐昌", "稻井教業": "籾井教業",  # 畠, 榊, 垪, 脇, 籾 are not in Big5
+    "排鄉家嘉": "拜鄉家嘉", "穴戶隆家": "宍戶隆家", "六角承偵": "六角承禎", "稻留祐直": "稻富祐直",
+    "鯰貝宗重": "鮎貝宗重", "鯰川盛長": "鮎川盛長", "門註所鑑豐": "問註所鑑豐", "蒲地鑑盛": "蒲池鑑盛",
+}
+
+
+def build_taikoh2_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in TAIKOH2_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    def face(data: bytes) -> int:  # u16 width, u16 height, then 3-bit NPK
+        return store.add(64, 80, utils.unpack_npk_3bits(data[4:], 64, 80))
+
+    faces = ls11.ls11_decode_parts(files["FACE.LZW"])
+    portraits = [{"img": face(files["EXTFACE.PK8"] if i == TAIKOH2_WIN_EXTFACE else data), "code": f"{i:04X}"}
+                 for i, data in enumerate(faces)]
+    portraits.append({"img": face(faces[TAIKOH2_WIN_EXTFACE]), "group": "未使用"})  # never shown
+
+    characters = []
+    second = koei_games.load_taikoh2_win_persons(os.path.join(game_dir, "BSDATA2.TR2"))
+    for number, name in koei_games.load_taikoh2_win_persons(os.path.join(game_dir, "BSDATA1.TR2")):
+        if number >= TAIKOH2_WIN_PEOPLE:
+            continue
+        if name == TAIKOH2_WIN_DELETED:
+            name = second[number][1]
+        ch = {"id": len(characters), "name": name, "face": {"portrait": number}}
+        if number in TAIKOH2_WIN_LATER:
+            ch["face"]["label"] = "前期"
+            ch["expressions"] = [{"portrait": TAIKOH2_WIN_LATER[number], "label": "後期"}]
+        if name in TAIKOH2_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = TAIKOH2_WIN_NAME_HISTORICAL[name]
+        characters.append(ch)
+    others = koei_games.load_taikoh2_win_others(os.path.join(game_dir, "Taik2w95.exe"),
+                                                os.path.join(game_dir, "SNDATA1.TR2"))
+    characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": code}}
+                   for i, (_, name, code) in enumerate(c for c in others if c[2] != 0xFFFF)]
+
+    for i in TAIKOH2_WIN_PICKER:
+        portraits[i]["group"] = "主角相貌"
+    for i, name in TAIKOH2_WIN_PORTRAIT_NAMES.items():
+        portraits[i].update(name=name, group="一般人物")
+    used = {look["portrait"] for ch in characters for look in [ch["face"]] + ch.get("expressions", [])}
+    assert all(i in used or "group" in p for i, p in enumerate(portraits))
+
+    pal = files["Taik2w95.exe"][TAIKOH2_WIN_PALETTE - koei_games.TAIKOH2_WIN_DATA:][:24]
+    colours = ["#" + "".join(f"{v << 4:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "taikoh2-win", "game": "TAIKOH2", "platform": "WIN",
+        "title": {"ja": "太閤立志伝II", "zh": "太閤立志傳II"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH2_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- AIR2 (DOS, Chinese)
 
 # face sheets in resource order; group names from the Chinese AM2IBM.EXE (幹部職員一覽, 秘書, 廠商名)
@@ -2435,6 +2516,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos,
+            "taikoh2-win": build_taikoh2_win,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
