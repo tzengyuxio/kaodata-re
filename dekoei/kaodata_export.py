@@ -1509,6 +1509,45 @@ def build_nobu4_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- AIR2 (DOS, Chinese)
+
+# face sheets in resource order; group names from the Chinese AM2IBM.EXE (幹部職員一覽, 秘書, 廠商名)
+AIR2_DOS_FACES = [("SEC1.GDT", "秘書"), ("SEC2.GDT", "秘書"), ("STAFF1.GDT", "幹部職員"), ("STAFF2.GDT", "幹部職員"),
+                  ("STAFF3.GDT", "幹部職員"), ("STAFF4.GDT", "幹部職員"), ("STAFF5.GDT", "幹部職員"),
+                  ("MAKFACE.GDT", "廠商"), ("CITYFACE.GDT", "城市")]
+AIR2_DOS_FACE = 16 + 64 * 80 // 2  # 16-byte GDT header, then 4 byte-interleaved planes
+# AM2IBM.EXE DGROUP 0x7FA0: 16 colours, 4-bit G, R, B, written to the DAC as v << 2
+AIR2_DOS_PALETTE = ["#000000", "#6182b2", "#f3d300", "#30a261", "#d3a282", "#c37151", "#b2b2b2", "#f3f330",
+                    "#000000", "#204182", "#f35100", "#107141", "#f3c3a2", "#82a2d3", "#828282", "#f3f3f3"]
+
+
+def build_air2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name, _ in AIR2_DOS_FACES:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    # no face codes or person names: each sheet is loaded by file
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(files[name], i + 16, 64, 80, 4))),
+                  "group": group}
+                 for name, group in AIR2_DOS_FACES for i in range(0, len(files[name]), AIR2_DOS_FACE)]
+
+    meta = {
+        "format": FORMAT, "id": "air2-dos", "game": "AIR2", "platform": "DOS",
+        "title": {"ja": "エアーマネジメントII 航空王をめざせ", "zh": "航空霸業II"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n, _ in AIR2_DOS_FACES]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": AIR2_DOS_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": [],
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1520,10 +1559,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
-            "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos}
+            "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
