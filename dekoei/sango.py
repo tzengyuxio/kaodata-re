@@ -44,6 +44,120 @@ def san4_face(face_file, out_dir, prefix):
 
 san4.add_command(san4_face, 'face')
 
+
+# DOS release (see notes/san4.md)
+
+def decode_san4_face(src: bytes) -> tuple[int, int, bytes]:
+    """One KAODATA.S4 entry -> (w, h, colour indexes). Decompressor at MAIN.EXE 0x24E54."""
+    pos = 4
+    w, h = int.from_bytes(src[0:2], 'little'), int.from_bytes(src[2:4], 'little')
+    count = last = 0
+    half = None
+
+    def byte():  # byte stream with RLE: 0xFE n repeats the last byte n times (0 = 256), 0xFE 0x01 = 0xFE
+        nonlocal pos, count, last
+        if count == 0:
+            b = src[pos]
+            pos += 1
+            if b != 0xFE:
+                last = b
+                return b
+            n = src[pos]
+            pos += 1
+            if n == 1:
+                last = 0xFE
+                return 0xFE
+            count = n or 256
+        count -= 1
+        return last
+
+    def nibble():  # high nibble first
+        nonlocal half
+        if half is None:
+            half = byte()
+            return half >> 4
+        b, half = half, None
+        return b & 15
+
+    px = bytearray(w * h)
+    for y in range(h):
+        ref = nibble()  # what a run copies: 8+n = the pixel n-7 rows up, else the pixel n+1 to the left
+        dy, dx = (ref - 7, 0) if ref & 8 else (0, ref + 1)
+        run = 0
+        for x in range(w):
+            if run == 0:
+                c = nibble()
+                if c & 8:
+                    run = ((c & 3) << 4) + nibble() + 6 if c & 4 else (c & 3) + 2
+                else:
+                    px[y * w + x] = c
+            if run:
+                px[y * w + x] = px[(y - dy) * w + x - dx]
+                run -= 1
+    return w, h, bytes(px)
+
+
+def load_san4_faces(file) -> list[tuple[int, int, bytes]]:
+    """KAODATA.S4: 340 (u32 offset, u16 size) entries; offsets count from the end of the index."""
+    with open(file, 'rb') as f:
+        data = f.read()
+    count = 340
+    faces = []
+    for i in range(count):
+        offset = int.from_bytes(data[i * 6:i * 6 + 4], 'little') + count * 6
+        size = int.from_bytes(data[i * 6 + 4:i * 6 + 6], 'little')
+        faces.append(decode_san4_face(data[offset:offset + size]))
+    return faces
+
+
+def load_san4_persons(sndata, taiki) -> list[tuple[int, str, int]]:
+    """(scenario, name, face code) of every person record: SNDATA.S4 then TAIKI.S4 for scenarios 1-6.
+
+    Both files are LS11 with one part per scenario. SNDATA's person table runs to the end of the part,
+    30 bytes each (name 20 bytes, face u16); TAIKI is 50-byte records with the same 30 bytes at +20.
+    """
+    import ls11
+    with open(sndata, 'rb') as f:
+        sn = ls11.ls11_decode_parts(f.read())
+    with open(taiki, 'rb') as f:
+        tk = ls11.ls11_decode_parts(f.read())
+
+    def person(scenario, b):
+        return scenario, to_unicode_name(b[:20].split(b'\0')[0]), int.from_bytes(b[20:22], 'little')
+
+    persons = []
+    for scenario, (part, extra) in enumerate(zip(sn, tk), 1):
+        start = len(part)
+        while start >= 30 and part[start - 30] >= 0x80 and part[start - 10:start - 8] != b'\xff\xff':
+            start -= 30
+        persons += [person(scenario, part[o:o + 30]) for o in range(start, len(part), 30)]
+        persons += [person(scenario, extra[o + 20:o + 50]) for o in range(0, len(extra), 50)]
+    return persons
+
+
+# MONDATA.S4: 16 heads x 0x2E80 bytes, 3bpp planar rows of 24 bytes (to_3bpp_indexes order).
+# Composer at MAIN.EXE 0x24FB8; face code bit 15 = composite, bits 0-3 head.
+SAN4_MONTAGE_HEAD_SIZE = 0x2E80
+# (offset in head block, rows per record, records, (shift, mask) in the face code) per area
+SAN4_MONTAGE_AREAS = [(0, 36, 4, (4, 3)), (3456, 44, 4, (6, 3)), (7680, 16, 6, (8, 7)), (9984, 20, 4, (11, 3))]
+# first face row of each area per head: top and bottom are fixed, eyes and mouth from DGROUP 0x395A / 0x396A
+SAN4_MONTAGE_ROWS = [
+    [0] * 16,
+    [36] * 16,
+    [20, 26, 20, 22, 26, 21, 25, 26, 23, 25, 25, 24, 21, 20, 21, 20],
+    [41, 46, 38, 43, 47, 40, 46, 43, 41, 45, 45, 43, 44, 41, 43, 42],
+]
+
+
+def san4_montage_parts(code):
+    return [code >> s & m for *_, (s, m) in SAN4_MONTAGE_AREAS]
+
+
+def san4_montage_record(data, head, area, record) -> tuple[int, int, bytes]:
+    offset, rows, _, _ = SAN4_MONTAGE_AREAS[area]
+    start = head * SAN4_MONTAGE_HEAD_SIZE + offset + record * rows * 24
+    return 64, rows, bytes(to_3bpp_indexes(data[start:start + rows * 24]))
+
 ##############################################################################
 
 
