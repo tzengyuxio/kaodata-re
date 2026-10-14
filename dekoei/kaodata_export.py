@@ -1999,7 +1999,7 @@ EIKETSU4_WIN_NOT_PEOPLE = {"沒有", "居民3", "居民4", "農民3", "農民4",
 EIKETSU4_WIN_ALIASES = {"織田信長2": "織田信長", "織田信長3": "織田信長", "織田信長4": "織田信長", "織田信長5": "織田信長",
                         "織田信長6": "織田信長", "織田信長7": "織田信長", "木下藤吉郎": "羽柴秀吉", "松平元康": "德川家康",
                         "長尾景虎": "上杉謙信", "阿濃": "歸蝶", "打大鼓的濃姬": "歸蝶", "千宗易": "千利休"}
-EIKETSU4_WIN_AGES = {0: "青年", 1: "壯年", 4: "青年", 5: "壯年"}
+EIKETSU4_WIN_LOOKS = {0: "青年", 1: "壯年", 5: "羽柴秀吉", 4: "木下藤吉郎"}
 # 榊 and 畠 are not in Big5
 EIKETSU4_WIN_NAME_HISTORICAL = {"神原康政": "榊原康政", "北田具教": "北畠具教", "田山義慶": "畠山義慶"}
 
@@ -2023,8 +2023,7 @@ def build_eiketsu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
             codes.append(code)
     characters = []
     for name, codes in faces_of.items():
-        codes.sort()  # the younger face first
-        looks = [{"portrait": c, **({"label": EIKETSU4_WIN_AGES[c]} if len(codes) > 1 else {})} for c in codes]
+        looks = [{"portrait": c, **({"label": EIKETSU4_WIN_LOOKS[c]} if len(codes) > 1 else {})} for c in codes]
         ch = {"id": len(characters), "name": name, "face": looks[0]}
         if len(looks) > 1:
             ch["expressions"] = looks[1:]
