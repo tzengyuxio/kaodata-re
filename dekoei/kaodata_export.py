@@ -510,7 +510,7 @@ def build_san4(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-SAN5PK_INPUTS = ["KAODATA.S5", "SNDATA.S5", "TAIKI.S5"]
+SAN5PK_INPUTS = ["KAODATA.S5", "KAOEX.S5", "SNDATA.S5", "TAIKI.S5"]
 # DGROUP 0x5C94 of MAIN.EXE (B, R, G, 4 bits each), colours 8-15 are the faces; widened as (v << 4) | (v >> 2)
 SAN5PK_PALETTE = ["#202010", "#104171", "#B23000", "#B27141", "#206110", "#618292", "#E3A282", "#E3D3C3"]
 # speakers without a person record; names from the MAIN.EXE list at DGROUP 0x8E7A (see notes/san5.md)
@@ -522,6 +522,8 @@ SAN5PK_PORTRAIT_GROUPS = {
     **{i: "新武將（男）" for i in [*range(508, 625), *range(733, 758)]},
     **{i: "新武將（女）" for i in [*range(625, 733), *range(758, 783)]},
 }
+# KAOEX.S5: extra faces offered by the PK face picker as codes 783-1164 (0-159 are 三國志IV faces)
+SAN5PK_EXTRA_GROUP = "追加頭像"
 
 
 def build_san5pk(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -531,11 +533,13 @@ def build_san5pk(game_dir: str) -> tuple[dict, list[bytes]]:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
-    kao = files["KAODATA.S5"]
+    kao = files["KAODATA.S5"] + files["KAOEX.S5"]
     portraits = [{"img": store.add(*san3_pixels(kao[i:i + sango.SAN5_FACE], True)),
                   "code": f"{i // sango.SAN5_FACE:04X}"} for i in range(0, len(kao), sango.SAN5_FACE)]
     for i, group in SAN5PK_PORTRAIT_GROUPS.items():
         portraits[i]["group"] = group
+    for p in portraits[len(files["KAODATA.S5"]) // sango.SAN5_FACE:]:
+        p["group"] = SAN5PK_EXTRA_GROUP
     for i, name in SAN5PK_PORTRAIT_NAMES.items():
         portraits[i]["name"] = name
 

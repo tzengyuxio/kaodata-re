@@ -95,7 +95,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `san2-dos`   | 三國志II                       | DOS 中文版 |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san3-dos`   | 三國志III                      | DOS 中文版 |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
 | `san4-dos`   | 三國志IV                       | DOS 中文版 |  462 |  340 |   ○    | [notes/san4.md](notes/san4.md)     |
-| `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 |  783 |        | [notes/san5.md](notes/san5.md)     |
+| `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 
 原版遊戲檔放在 `games/<DATASET>/`（不進版控），`--game-dir` 指向該目錄即可。
