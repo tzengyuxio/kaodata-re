@@ -1,4 +1,5 @@
 import os
+import struct
 import click
 from PIL import Image
 from utils import (
@@ -7,6 +8,7 @@ from utils import (
     color_codes_to_palette,
     save_index_image,
     save_single_images,
+    to_unicode_name,
     unpack_npk,
     unpack_npk_3bits,
 )
@@ -180,3 +182,41 @@ def liberty_face(face_file, out_dir, prefix):
 
 liberty.add_command(liberty_cg, "cg")
 liberty.add_command(liberty_face, "face")
+
+
+# ---------------------------------------------------------------- DOS (Chinese, port of the Japanese DOS/V release)
+# see notes/liberty.md; MAIN.EXE offsets are DGROUP (load image 0x357F0, file + 0x5000) offsets
+LIBERTY_FACES = 299  # FACE.IDX stores the count as a byte (0x2B)
+LIBERTY_DGROUP = 0x5000 + 0x357F0
+LIBERTY_PERSONS = (0x3A0A, 58, 250)  # given name at +18, surname at +35 (17 bytes each); face = person number
+LIBERTY_OFFICIALS = (0x33D2, 34, 44)  # 2 sides x 22 slots; given name at +4 (13 bytes), surname at +17
+
+
+def load_liberty_faces(face_idx) -> list[bytes]:
+    """FACE.IDX: "IDX", count byte, dword offsets; each face is u16 w, u16 h and NPK 3-bit data."""
+    with open(face_idx, "rb") as f:
+        data = f.read()
+    offsets = list(struct.unpack_from(f"<{LIBERTY_FACES}I", data, 4)) + [len(data)]
+    faces = []
+    for a, b in zip(offsets, offsets[1:]):
+        w, h = struct.unpack_from("<HH", data, a)
+        faces.append(bytes(unpack_npk_3bits(data[a + 4:b], w, h)))
+    return faces
+
+
+def liberty_name(given: bytes, surname: bytes) -> str:
+    def part(raw):
+        raw = raw.split(b"\0")[0]
+        return to_unicode_name(raw) if raw else ""
+    return part(given) + "・" + part(surname)
+
+
+def load_liberty_dos_names(main_exe) -> tuple[list[str], list[str]]:
+    """Person names (250) and the initial names of the 44 official slots, from MAIN.EXE."""
+    with open(main_exe, "rb") as f:
+        ds = f.read()[LIBERTY_DGROUP:]
+    offset, size, count = LIBERTY_PERSONS
+    persons = [liberty_name(ds[offset + i * size + 18:][:17], ds[offset + i * size + 35:][:17]) for i in range(count)]
+    offset, size, count = LIBERTY_OFFICIALS
+    officials = [liberty_name(ds[offset + i * size + 4:][:13], ds[offset + i * size + 17:][:17]) for i in range(count)]
+    return persons, officials

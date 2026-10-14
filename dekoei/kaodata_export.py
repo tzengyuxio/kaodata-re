@@ -17,6 +17,7 @@ import click
 
 import genpei
 import koei_games
+import liberty
 import san1
 import san2
 import san3
@@ -1074,6 +1075,62 @@ def build_europe_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- LIBERTY (DOS, Chinese)
+
+LIBERTY_DOS_INPUTS = ["FACE.IDX", "MAIN.EXE"]
+# MAIN.EXE DGROUP 0x1E12: colours 0-7 (same in all four palettes), 4-bit B, R, G, written to the DAC as v << 2
+LIBERTY_DOS_PALETTE = ["#000000", "#104192", "#b25110", "#a27171", "#417100", "#82a2b2", "#e3b292", "#f3e3d3"]
+# faces 250-293 = 250 + side * 22 + slot (MAIN.EXE 0x9101): slots 0-19 state delegates / governors and
+# ministers (named after the initial office holders), 20-21 supply officers
+LIBERTY_DOS_SIDES = ["大陸會議", "英國"]
+LIBERTY_DOS_SUPPLY = {20: "彈藥補給官", 21: "糧食補給官"}
+LIBERTY_DOS_PORTRAITS = {294: ("傳令", "大陸會議傳令"), 295: ("傳令", "英國傳令"), 296: ("海軍", "同盟國海軍軍官"),
+                         297: ("海軍", "同盟國海軍軍官"), 298: ("傭兵", "雇傭兵隊長")}
+# the Chinese name is another person's, by character id
+LIBERTY_DOS_NAME_HISTORICAL = {82: "托馬斯・蓋奇", 191: "伊斯雷爾・帕特南"}
+
+
+def build_liberty_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in LIBERTY_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"}
+                 for i, px in enumerate(liberty.load_liberty_faces(os.path.join(game_dir, "FACE.IDX")))]
+    persons, officials = liberty.load_liberty_dos_names(os.path.join(game_dir, "MAIN.EXE"))
+    for side, label in enumerate(LIBERTY_DOS_SIDES):
+        for slot in range(22):
+            portraits[250 + side * 22 + slot].update(
+                group=label, name=LIBERTY_DOS_SUPPLY.get(slot) or officials[side * 22 + slot])
+    for i, (group, name) in LIBERTY_DOS_PORTRAITS.items():
+        portraits[i].update(group=group, name=name)
+
+    characters = []
+    # face = person number (MAIN.EXE 0x78A9)
+    for cid, name in enumerate(persons):
+        ch = {"id": cid, "name": name}
+        if cid in LIBERTY_DOS_NAME_HISTORICAL:
+            ch["nameHistorical"] = LIBERTY_DOS_NAME_HISTORICAL[cid]
+        ch["face"] = {"portrait": cid}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "liberty-dos", "game": "LIBERTY", "platform": "DOS",
+        "title": {"ja": "独立戦争 Liberty or Death", "zh": "獨立戰爭"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in LIBERTY_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": LIBERTY_DOS_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1083,10 +1140,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
-            "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos}
+            "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
