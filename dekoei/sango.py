@@ -191,6 +191,45 @@ def san5_face(face_file, out_dir, prefix):
 
 san5.add_command(san5_face, 'face')
 
+
+# DOS release (see notes/san5.md)
+
+SAN5_FACE = 1920  # 64x80, 3bpp planar rows of 24 bytes, byte k = bit k
+
+
+def san5_parts(file) -> list[bytes]:
+    """SNDATA.S5 / TAIKI.S5: u16 count, then (u32 offset, u16 size) per scenario; offsets count from the index end."""
+    with open(file, 'rb') as f:
+        data = f.read()
+    count = int.from_bytes(data[:2], 'little')
+    base = 2 + count * 6
+    parts = []
+    for i in range(count):
+        offset = base + int.from_bytes(data[2 + i * 6:6 + i * 6], 'little')
+        size = int.from_bytes(data[6 + i * 6:8 + i * 6], 'little')
+        parts.append(data[offset:offset + size])
+    return parts
+
+
+def load_san5_persons(sndata, taiki) -> list[tuple[int, str, int]]:
+    """(scenario, name, face code) of every person record: SNDATA.S5 then TAIKI.S5 for scenarios 1-12.
+
+    SNDATA's person table ends 1100 bytes before the end of each scenario, 38 bytes per person
+    (name 10 bytes, face u16 at +30); TAIKI is 69-byte records with the same 38 bytes at +31.
+    """
+    def person(scenario, b):
+        return scenario, to_unicode_name(b[:10].split(b'\0')[0]), int.from_bytes(b[30:32], 'little')
+
+    persons = []
+    for scenario, part in enumerate(san5_parts(sndata), 1):
+        end = start = len(part) - 1100
+        while start >= 38 and part[start - 38] >= 0x80 and not any(part[start - 28:start - 18]):
+            start -= 38
+        persons += [person(scenario, part[o:o + 38]) for o in range(start, end, 38)]
+    for scenario, part in enumerate(san5_parts(taiki), 1):
+        persons += [person(scenario, part[o + 31:o + 69]) for o in range(0, len(part), 69)]
+    return persons
+
 ##############################################################################
 
 
