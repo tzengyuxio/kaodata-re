@@ -2262,42 +2262,44 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
             files[name] = f.read()
     store = ImageStore(GENGHIS4PK_WIN_BLOBS)
 
-    portraits, sheets, blank = [], [], set()
+    sheets, cells, blank = [], [], set()  # cells: (sex, face, pixels)
     for sex, (name, cols, _) in enumerate(GENGHIS4PK_WIN_SHEETS):
         im = Image.open(os.path.join(game_dir, name))
         sheets.append(im.getpalette())
         w, h = im.size
         px = im.tobytes().replace(b"\xff", bytes([GENGHIS4PK_WIN_WHITE]))
-        count, cells = w // 64 * (h // 80), []
+        count = w // 64 * (h // 80)
         for i in range(count):
             x, y = i % cols * 64, i // cols * 80
-            cell = b"".join(px[(y + r) * w + x:(y + r) * w + x + 64] for r in range(80))
-            blob = 2 if sex else i * 2 // count
-            portraits.append({"img": store.add(64, 80, cell, blob=blob), "code": f"{sex << 12 | i:04X}"})
-            cells.append(cell)
+            cells.append((sex, i, b"".join(px[(y + r) * w + x:(y + r) * w + x + 64] for r in range(80))))
         # the patterned filler cells all equal the last one (men 616-617, 664-679; women 159, 175-181)
-        blank |= {len(portraits) - count + i for i, cell in enumerate(cells) if cell == cells[-1]}
+        blank |= {(sex, i) for _, i, cell in cells[-count:] if cell == cells[-1][2]}
     assert sheets[0] == sheets[1]
-    first_female = len(portraits) - count
 
     # scenarios 1-4, men then women; one character per (sex, name, face)
-    characters, seen = [], set()
+    people, seen = [], set()
     for k in range(1, 5):
-        people = koei_games.load_genghis4_win_persons(os.path.join(game_dir, f"SCEDAT{k}.CK"))
-        for sex, persons in enumerate(people):
+        for sex, persons in enumerate(koei_games.load_genghis4_win_persons(os.path.join(game_dir, f"SCEDAT{k}.CK"))):
             for name, face in persons:
                 face = min(face, GENGHIS4PK_WIN_SHEETS[sex][2])
-                if (sex, name, face) in seen:
-                    continue
-                seen.add((sex, name, face))
-                characters.append({"id": len(characters), "name": name,
-                                   "face": {"portrait": first_female + face if sex else face}})
-    used = {c["face"]["portrait"] for c in characters}
-    for i, p in enumerate(portraits):
-        if i in blank and i not in used:
-            p["group"] = "空白"
-        elif i not in used:
-            p["group"] = "其他頭像（女）" if i >= first_female else "其他頭像（男）"
+                if (sex, name, face) not in seen:
+                    seen.add((sex, name, face))
+                    people.append((name, (sex, face)))
+    used = {key for _, key in people}
+
+    # blank filler cells nobody uses are left out
+    store = ImageStore(GENGHIS4PK_WIN_BLOBS)
+    portraits, index = [], {}
+    men = sum(1 for sex, _, _ in cells if sex == 0)
+    for sex, i, cell in cells:
+        if (sex, i) in blank and (sex, i) not in used:
+            continue
+        index[sex, i] = len(portraits)
+        p = {"img": store.add(64, 80, cell, blob=2 if sex else i * 2 // men), "code": f"{sex << 12 | i:04X}"}
+        if (sex, i) not in used:
+            p["group"] = "其他頭像（女）" if sex else "其他頭像（男）"
+        portraits.append(p)
+    characters = [{"id": k, "name": name, "face": {"portrait": index[key]}} for k, (name, key) in enumerate(people)]
 
     pal = sheets[0]
     colours = [GENGHIS4PK_WIN_STATIC.get(i, tuple(pal[i * 3:i * 3 + 3])) for i in range(255)]

@@ -120,7 +120,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `koukaigd-win` | 大航海時代外傳               | Win 中文版 |  169 |  157 |   ○    | [notes/koukaigd.md](notes/koukaigd.md) |
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
-| `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  862 |        | [notes/genghis4.md](notes/genghis4.md) |
+| `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  836 |        | [notes/genghis4.md](notes/genghis4.md) |
 | `nobu3-dos`  | 信長之野望・戰國群雄傳         | DOS 中文版 |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
 | `nobu4-dos`  | 信長之野望・武將風雲錄         | DOS 中文版 |  507 |  311 |   ○    | [notes/nobu4.md](notes/nobu4.md)   |
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
