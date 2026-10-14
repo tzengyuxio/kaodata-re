@@ -1328,6 +1328,90 @@ def build_genghis_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+NOBU3_DOS_INPUTS = ["KAODATA.DAT", "SNDATA1.CIM", "SNDATA2.CIM"]
+NOBU3_DOS_PORTRAITS = 177  # then the composite parts at 0x297C0
+NOBU3_DOS_PARTS = 0x297C0
+# slot -> (label, offset from NOBU3_DOS_PARTS, first half-height row, rows); 4 items each (MAIN.EXE 0x588C)
+NOBU3_DOS_SLOTS = {"top": ("上", 0, 0, 18), "bottom": ("下", 0x6C0, 18, 22), "eyes": ("眼", 0xF00, 13, 5),
+                   "nose": ("鼻", 0x10E0, 18, 6), "mouth": ("口", 0x1320, 24, 9)}
+NOBU3_DOS_XOR = ("eyes", "nose", "mouth")
+NOBU3_DOS_NAME_FIX = {"齊籐朝信": "齊藤朝信", "羽祡秀吉": "羽柴秀吉"}  # typos where another scenario has it right
+NOBU3_DOS_NAME_HISTORICAL = {
+    "田山義綱": "畠山義綱", "田山義慶": "畠山義慶", "北田具教": "北畠具教", "北田具房": "北畠具房",
+    "北田政成": "北畠政成", "高田定吉": "高畠定吉",  # 畠 missing from the font
+    "神原康政": "榊原康政", "並和康忠": "垪和康忠",  # 榊, 垪 missing from the font
+    "今川氏貞": "今川氏真", "北庄秀綱": "本庄秀綱", "溫井景龍": "溫井景隆", "森下通興": "森下通與",
+    "溥生氏鄉": "蒲生氏鄉", "著尾高春": "箸尾高春", "肉戶隆家": "宍戶隆家", "九鬼嘉窿": "九鬼嘉隆",
+    "小早川窿景": "小早川隆景", "羽祡秀長": "羽柴秀長",
+}
+NOBU3_DOS_PRINCESSES = range(157, 177)  # marriage: 0x9D + rand(20)
+
+
+def build_nobu3_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU3_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAODATA.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    # KAODATA has four part sets, but MAIN.EXE always reads the first (code bits 0-1 are unused)
+    parts = {}
+    for slot, (_, offset, row, rows) in NOBU3_DOS_SLOTS.items():
+        size = rows * 24
+        o = NOBU3_DOS_PARTS + offset
+        parts[slot] = {"at": [0, 2 * row],
+                       "items": [store.add(*san2_pixels(kao[o + i * size:o + (i + 1) * size], True)) for i in range(4)]}
+
+    portraits = [{"img": store.add(*san2_pixels(kao[i * SAN2_FACE:(i + 1) * SAN2_FACE], True), blob=1),
+                  "code": f"{i:04X}"} for i in range(NOBU3_DOS_PORTRAITS)]
+    for i in NOBU3_DOS_PRINCESSES:
+        portraits[i]["group"] = "公主"
+
+    # scenario 1 then 2 (ids 0-239 as nobu3-fc); one character per name and face code, as nobu3-fc
+    characters, seen = [], set()
+    for table in koei_games.load_nobu3_dos_people(game_dir):
+        for name, code in table:
+            name = NOBU3_DOS_NAME_FIX.get(name, name)
+            if (name, code) in seen:
+                continue
+            seen.add((name, code))
+            ch = {"id": len(characters), "name": name}
+            if name in NOBU3_DOS_NAME_HISTORICAL:
+                ch["nameHistorical"] = NOBU3_DOS_NAME_HISTORICAL[name]
+            if code & 0x8000:
+                ch["face"] = {"variant": 0, "parts": [code >> 2 & 3, code >> 4 & 3, code >> 6 & 3, code >> 8 & 3,
+                                                      code >> 10 & 3], "code": f"{code:04X}"}
+            else:
+                ch["face"] = {"portrait": code}
+            characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "nobu3-dos", "game": "NOBU3", "platform": "DOS",
+        "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "xor"} if slot in NOBU3_DOS_XOR else {})}
+                      for slot, (label, *_) in NOBU3_DOS_SLOTS.items()],
+            "variants": [{"id": "0", "label": "組合臉", "parts": parts}],
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "$variant", "hi": 15, "lo": 15, "base": 1},  # bit 15 marks a composite
+                {"of": "mouth", "hi": 11, "lo": 10}, {"of": "nose", "hi": 9, "lo": 8},
+                {"of": "eyes", "hi": 7, "lo": 6}, {"of": "bottom", "hi": 5, "lo": 4},
+                {"of": "top", "hi": 3, "lo": 2}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1338,10 +1422,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
-            "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos}
+            "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
+            "nobu3-dos": build_nobu3_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

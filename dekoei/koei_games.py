@@ -363,6 +363,19 @@ def load_genghis_dos_people(cim) -> dict[str, list[tuple[str, list[int]]]]:
                                        for j in range(faces)]))
     return out
 
+def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
+    """(name, face code) per scenario (SNDATA1, SNDATA2): 44-byte records from 0xD38, surname 11 bytes,
+    given name 11 bytes, +0x21 face code."""
+    tables = []
+    for n in (1, 2):
+        with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+            data = f.read()
+        tables.append([(koei_tw_name(data[o:o + 11].split(b'\0')[0]) + koei_tw_name(data[o + 11:o + 22].split(b'\0')[0]),
+                         int.from_bytes(data[o + 0x21:o + 0x23], 'little'))
+                        for o in range(0xD38, len(data) - 43, 44) if data[o]])
+    return tables
+
+
 ##############################################################################
 
 
