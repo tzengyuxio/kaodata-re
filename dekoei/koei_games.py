@@ -422,6 +422,25 @@ def lempe_face(face_file, out_dir, prefix):
     extract_images(face_file, face_w, face_h, palette, out_dir, prefix, hh=True)
 
 
+def lempe_person_loader(file, scenario):
+    offsets1 = [8934, 22204, 35474, 48744, 62014]
+    offsets2 = [x-8930 for x in offsets1]  # offsets2 = [4, 13274, 26544, 39814, 53084]
+    read_count, read_size1, read_size2 = 255, 17, 15
+    person_data = []
+    with open(file, 'rb') as f:
+        for i in range(read_count):
+            f.seek(offsets1[scenario]+read_size1*i)
+            d1 = f.read(read_size1)
+            f.seek(offsets2[scenario]+read_size2*i)
+            d2 = f.read(read_size2)
+            person_data.append(b''.join([d1, d2]))
+    return person_data
+
+
+def load_lempe_persons(file, scenario=0) -> list[LEMPEPerson]:
+    return load_person(lempe_person_loader(file, scenario), lempe_format, LEMPEPerson)
+
+
 @click.command(help='人物資料解析')
 @click.option('-f', '--file', 'file', help="劇本檔案", required=True)
 @click.option('-t', '--to', 'to', help="Specify output format", default='rich', type=click.Choice(['rich', 'csv', 'json', 'markdown', 'md']))
@@ -439,22 +458,7 @@ def lempe_person(file, to, scenario):
     ./dekoei.py lempe person -f ~/DOSBox/empereur/NPDATA.CIM --to csv --scenario 2 > lempe-persons-s2-en.csv
     ./dekoei.py lempe person -f ~/DOSBox/lempereur/NPDATA.CIM --to csv --scenario 4 > lempe-persons-s4-zh.csv
     """
-    def person_loader(file, scenario=scenario-1):
-        offsets1 = [8934, 22204, 35474, 48744, 62014]
-        offsets2 = [x-8930 for x in offsets1]  # offsets2 = [4, 13274, 26544, 39814, 53084]
-        read_count, read_size1, read_size2 = 255, 17, 15
-        person_data = []
-        with open(file, 'rb') as f:
-            for i in range(read_count):
-                f.seek(offsets1[scenario]+read_size1*i)
-                d1 = f.read(read_size1)
-                f.seek(offsets2[scenario]+read_size2*i)
-                d2 = f.read(read_size2)
-                person_data.append(b''.join([d1, d2]))
-        return person_data
-    person_data = person_loader(file, scenario=0)
-
-    persons = load_person(person_data, lempe_format, LEMPEPerson)
+    persons = load_lempe_persons(file, scenario=0)
     print_table(lempe_table_title, lempe_headers, persons, to)
 
 
