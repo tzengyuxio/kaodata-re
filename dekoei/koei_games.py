@@ -753,6 +753,21 @@ def load_eiketsu4_win_persons(path) -> list[tuple[str, int]]:
         persons.append((data[o:o + 12].split(b"\0")[0].decode("big5"), face))
     return persons
 
+# EIKETSU5 (三國志曹操傳, Win, Chinese): DATA.E5 part 0 holds 512 person records of 32 bytes;
+# +0 name (13-byte Big5), +13 u16 face code (FACE.E5 part = code + 7, see notes/eiketsu5.md)
+EIKETSU5_WIN_PERSON = 32
+
+
+def load_eiketsu5_win_persons(path) -> list[tuple[str, int]]:
+    """(name, face code) of every DATA.E5 person record."""
+    with open(path, "rb") as f:
+        data = ls11_decode_parts(f.read())[0]
+    persons = []
+    for o in range(0, len(data), EIKETSU5_WIN_PERSON):
+        code, = struct.unpack_from("<H", data, o + 13)
+        persons.append((data[o:o + 13].split(b"\0")[0].decode("big5"), code))
+    return persons
+
 ##############################################################################
 
 

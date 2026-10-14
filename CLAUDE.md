@@ -40,6 +40,7 @@ cd dekoei
 ../.venv/bin/python dekoei.py export koumei-win --game-dir ../games/koumei-win --out ~/works/kaodata/data-local/koumei-win
 ../.venv/bin/python dekoei.py export eiketsu-dos --game-dir ../games/eiketsu-dos --out ~/works/kaodata/data-local/eiketsu-dos
 ../.venv/bin/python dekoei.py export eiketsu4-win --game-dir ../games/eiketsu4-win --out ~/works/kaodata/data-local/eiketsu4-win
+../.venv/bin/python dekoei.py export eiketsu5-win --game-dir ../games/eiketsu5-win --out ~/works/kaodata/data-local/eiketsu5-win
 ../.venv/bin/python dekoei.py export suikoden-pc98 --game-dir ../games/suikoden-pc98 --out ~/works/kaodata/data-local/suikoden-pc98
 ../.venv/bin/python dekoei.py export lempe-dos --game-dir ../games/lempe-dos --out ~/works/kaodata/data-local/lempe-dos
 ../.venv/bin/python dekoei.py export suikoden-dos --game-dir ../games/suikoden-dos --out ~/works/kaodata/data-local/suikoden-dos
@@ -77,7 +78,7 @@ Python 端沒有 linter／formatter 設定。
 - **kaodata 統一格式匯出**（`kaodata_export.py`，目前開發中的 `feat/kaodata-export`）：
   - 產出給 kaodata 網站 repo 用的 `kaodata/1` 格式：`dataset.json`＋raw-deflate 的 pixel blobs（`pixels.bin`、`portraits.bin`）＋`checksums.json`。規格在**網站 repo** 的 `docs/data-format.md`，不在本 repo。
   - 檔內有一份依規格 §6 實作的 reference renderer（`compose_display`、`portrait_display` 等），`checksums.json` 由它算出；改資料結構時要同步讓 renderer 結果正確。
-  - `DATASETS` dict 對應 dataset id → builder 函式：`genpei-dos` → `build_genpei`、`san2-dos` → `build_san2`、`san2-pc98`／`san2-x68` → `build_san2_jp`、`san3-dos`／`san3-pc98` → `build_san3`、`san4pk-dos`／`san4pk-pc98` → `build_san4`、`san5pk-dos`／`san5pk-pc98` → `build_san5pk`、`san6pk-win` → `build_san6pk_win`、`koumei-win` → `build_koumei_win`、`eiketsu-dos` → `build_eiketsu_dos`、`lempe-dos` → `build_lempe`、`san1-pc98`／`san1-dos` → `build_san1`、`suikoden-pc98` → `build_suikoden_pc98`；DOS 中文版 `suikoden-dos`、`kouryuuki-dos`、`europe-dos`、`liberty-dos`、`koukai-dos`、`genghis-dos`、`nobu3-dos`、`nobu4-dos`、`air2-dos` → `build_<game>_dos`；`koukaigd-win` → `build_koukaigd_win`；`koukai3-win` → `build_koukai3_win`；`nobu7-win` → `build_nobu7_win`；`eiketsu4-win` → `build_eiketsu4_win`。
+  - `DATASETS` dict 對應 dataset id → builder 函式：`genpei-dos` → `build_genpei`、`san2-dos` → `build_san2`、`san2-pc98`／`san2-x68` → `build_san2_jp`、`san3-dos`／`san3-pc98` → `build_san3`、`san4pk-dos`／`san4pk-pc98` → `build_san4`、`san5pk-dos`／`san5pk-pc98` → `build_san5pk`、`san6pk-win` → `build_san6pk_win`、`koumei-win` → `build_koumei_win`、`eiketsu-dos` → `build_eiketsu_dos`、`lempe-dos` → `build_lempe`、`san1-pc98`／`san1-dos` → `build_san1`、`suikoden-pc98` → `build_suikoden_pc98`；DOS 中文版 `suikoden-dos`、`kouryuuki-dos`、`europe-dos`、`liberty-dos`、`koukai-dos`、`genghis-dos`、`nobu3-dos`、`nobu4-dos`、`air2-dos` → `build_<game>_dos`；`koukaigd-win` → `build_koukaigd_win`；`koukai3-win` → `build_koukai3_win`；`nobu7-win` → `build_nobu7_win`；`eiketsu4-win` → `build_eiketsu4_win`；`eiketsu5-win` → `build_eiketsu5_win`。
     - `build_genpei` 只用 `genpei.py` 後段的新函式（`load_mainpal`、`montage_types`、`load_kaodata`、`unpack_main_exe` 等），組合表 offset 從展開後的 Main.exe 讀，不寫死。
     - `build_san2` 用 `san2.py` 的 `MONTAGE_AREAS`／`compose_montage`（表格讀自 MAIN.EXE，見 `notes/san2.md`）與 `load_san2_persons`。`san2-pc98`／`san2-x68` 用 `build_san2_jp`：全高頭像在 KAODATA1–3，組合臉零件在 KAODATA3 後段（`san2.JP_MONTAGE_*`，鼻口順序和 DOS 相反），人物用 `load_san2_jp_persons`。
     - `build_san3` 用 `san3.py` 的 `MONTAGE_AREAS` 等（表格讀自 MAIN.EXE，見 `notes/san3.md`）與 `load_san3_persons`；像素是 byte k＝bit k（`genpei.decode_planar`），不是 `to_3bpp_indexes`。`san3-pc98` 也用 `build_san3`（`pc98=True`）：頭像檔相同，人物改用 `load_san3_pc98_persons`（Shift-JIS＋外字），色盤與事件人物名換成日文版的。
@@ -90,6 +91,7 @@ Python 端沒有 linter／formatter 設定。
     - `build_koukai3_win`（大航海時代III Win 中文版）只有逐人頭像：MALE.CDS／FEMALE.CDS（LS11，80×96 8 bit），色盤和人物表（含性別）都在未壓縮的 `CDS95.EXE.pec2bac`（`koei_games.load_koukai3_win_persons`），頭像碼是「性別 << 12 | 頭像」，見 `notes/koukai3.md`。
     - `build_nobu7_win`（信長之野望 將星錄 Win 中文版）只有逐人頭像：Kaodata.nb7 是有索引表的 64×80 8 bit 未壓縮頭像，色盤是 Grppal.nb7（LS11）第 0 段的 B、R、G，人物用劇本 5 的 Sndata05.nb7（`koei_games.load_nobu7_win_persons`，長宗我部等外字姓氏查表），見 `notes/nobu7.md`。
     - `build_eiketsu4_win`（織田信長傳 Win 中文版）只有逐人頭像：KAO.E4 是 LS11（64×80 8 bit），色盤是 PMPALET.E4 第 0 段的 B、R、G，人物表在 DATA.E4 第 0 段（`koei_games.load_eiketsu4_win_persons`），同一人的別名與不同年齡的臉合併（`EIKETSU4_WIN_ALIASES`），見 `notes/eiketsu4.md`。
+    - `build_eiketsu5_win`（三國志曹操傳 Win 中文版）格式同織田信長傳（FACE.E5、PMPALET.E5 第 40 段、DATA.E5 第 0 段，`koei_games.load_eiketsu5_win_persons`），但段號是「頭像碼＋7」，曹操、夏侯惇等幾人依劇情旗標換臉（`EIKETSU5_WIN_LOOKS`，EKD5.EXE 0x407597），見 `notes/eiketsu5.md`。
     - `build_lempe` 只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`，見 `notes/lempe.md`。
   - `nameHistorical`（史書寫法）的規則：遊戲寫法讓人認不出或搜不到史書（或《三國演義》）的寫法時才填，用該資料集的字形（日文版用新字體）。
     - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
