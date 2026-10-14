@@ -100,7 +100,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `san2-x68`   | 三國志II                       | X68000     |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san3-dos`   | 三國志III                      | DOS 中文版 |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
 | `san3-pc98`  | 三國志III                      | PC-98      |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
-| `san4-dos`   | 三國志IV                       | DOS 中文版 |  462 |  340 |   ○    | [notes/san4.md](notes/san4.md)     |
+| `san4pk-dos` | 三國志IV 威力加強版            | DOS 中文版 |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san4pk-pc98` | 三國志IV 威力加強版           | PC-98      |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |

@@ -1,6 +1,6 @@
 # 三國志IV（SAN4, DOS 中文版）頭像相關格式
 
-`dekoei.py export san4-dos` 用到的格式。MAIN.EXE 沒有壓縮，MZ 檔頭 0x5000 bytes，DGROUP 段值 0x417E（檔案 0x467E0）。下文的位址都是**檔案 offset**。程式碼有 MS-LINK overlay（`int 3Fh` stub 在 0x14616 起），overlay 1 在檔案 0x51000、overlay 2 在 0x59C00（各自有 MZ 檔頭）。
+DOS 本體的格式。本體的頭像在 `san4pk-dos` 裡全部沒變，網站只收威力加強版，`san4-dos` 不再匯出；PK 共用這裡的解碼與表格（`build_san4`）。MAIN.EXE 沒有壓縮，MZ 檔頭 0x5000 bytes，DGROUP 段值 0x417E（檔案 0x467E0）。下文的位址都是**檔案 offset**。程式碼有 MS-LINK overlay（`int 3Fh` stub 在 0x14616 起），overlay 1 在檔案 0x51000、overlay 2 在 0x59C00（各自有 MZ 檔頭）。
 
 ## 色盤
 
@@ -111,3 +111,22 @@ PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網�
   - characters：462 名劇本人物（id 0–461，同 `san4-pc98`），接著 NBDATA.SUI 的 117 名水滸伝武將（id 462–578）：梁山 108 人，加上高俅、晁蓋、李師師、史文恭、高廉、羅真人、馬万里、王進、瓊英。
 - 事件人物和範圍表同 base（PK 在 0x3F256、DGROUP 0x1306），但童子是 335、舉兵是 [330, 331, 332, 336, 337]，和 DOS 相同。
 - 發行年份：ja.wikipedia 沒列 PC-98 PK 的日期。`PKSAN4.VER` 寫 Version 1.1 1994/06/23，`README.DOC` 寫 1994.06.20，所以是 1994 年。硬碟上的 MAIN.EXE 等是 1995-09-01，可能是後來的更新版。
+
+## DOS 中文版 PK（`san4pk-dos`）
+
+`dekoei.py export san4pk-dos` 用到的差異（`build_san4(..., pk=True)`）。來源是 `games/6.10_三國志四加強版_killpeople.rar`（killpeople 是上傳者標記），解開放在 `games/san4pk-dos/`。
+
+- 版本：
+  - PK 的檔案日期多是 1995-06-23，`PKSAN4.VER` 署名光榮軟體有限公司。
+  - `MAIN.EXE`（1995-06-10）是破解版：`PASS.DAT` 記的修改（`e8 b8 ff 0b c0 74 08` 改成 `… eb 08`，跳過密碼查詢）已經套用在檔案 0x27A79。
+  - 匯出不讀 `MAIN.EXE`。`2222` 是一個無關的 ARJ 壓縮檔。
+- 頭像：`KAODATA.S4`、`KAODATA2.S4`、`KAODATAP.S4`、`MONDATA.S4` 和 PC-98 PK 逐 byte 相同，所以頭像、組合臉零件、portraits 的順序與 group 都和 `san4pk-pc98` 相同。
+- 色盤：`MAIN.EXE` 裡和 DOS 本體同樣的 48 bytes（檔案 0x4D2A6），所以用 `SAN4_PALETTE`。
+- 人物：
+  - SNDATA／TAIKI 是 PK 的未壓縮容器（10 個劇本），姓名是光榮台灣內碼（`to_unicode_name`）。
+  - 每個人物的頭像碼和 PC-98 PK 相同，id 一一對應，共 579 人。
+  - 本體 DOS 版的錯字劉瞱、蘆植、沙摩可、吳鋼，PK 已改成劉曄、盧植、沙摩柯、吳綱；孔秀（孔伷）、龐義（龐羲）沒改，仍填 `nameHistorical`。
+  - 劇本 10 把淳于瓊、鍾會、鍾繇寫成惇于瓊、鐘會、鐘繇，劇本 1–9 是對的，匯出取正確寫法（`SAN4PK_DOS_NAME_FIX`），否則會多算 3 人。
+  - `NBDATA.SUI` 的 117 名水滸傳武將也是光榮台灣內碼，頭像碼同 PC-98 PK。彭玘寫成彭汜（PC-98 PK 的玘是外字），填 `nameHistorical`。
+- 挑臉追加頭像的 `name`：用三國志III DOS、水滸傳 DOS 的寫法，依頭像編號從 `san3-pc98`→`san3-dos`、`suikoden-pc98`→`suikoden-dos` 對應，203 張都對得上（`SAN4PK_DOS_EXTRA_NAMES`）。
+- 事件人物名、新君主／新武將範圍沿用 DOS 本體的表（`SAN4_PORTRAIT_NAMES`），沒有在 PK `MAIN.EXE` 重新確認。

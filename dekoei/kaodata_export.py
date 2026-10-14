@@ -557,6 +557,21 @@ SAN4PK_EXTRA_NAMES = (
     "張文遠 田虎 鄧元覚 童貫 裴如海 白秀英 潘金蓮 潘功雲 馬霊 費保 聞煥章 卞祥 方杰 包道乙 龐万春 方臘 楊戩 欒廷玉 李鬼 李瑞蘭 "
     "葉清 祝彪 褚享 方瓊 呂師嚢 孫安 張開 山士奇 銭振鵬 徽宗皇帝 金国太宗").split()
 SAN4PK_EXTRA_GROUPS = ["挑臉追加（三國志III）"] * 150 + ["挑臉追加（水滸傳）"] * 53
+# DOS PK (Chinese): the same faces, named as in 三國志III DOS / 水滸傳 DOS (matched by face number)
+SAN4PK_DOS_EXTRA_NAMES = (
+    "伊籍 袁紹 袁譚 諸葛誕 華歆 賈詡 郭嘉 郝昭 郭圖 夏侯淵 夏侯惇 夏侯霸 華佗 華雄 關羽 甘寧 關平 顏良 姜維 許褚 魏延 鍾會 虞翻 "
+    "嚴顏 黃蓋 公孫瓚 黃忠 周倉 周瑜 諸葛瑾 諸葛亮 審配 司馬懿 司馬師 司馬昭 周泰 荀彧 荀攸 徐晃 徐庶 曹叡 曹昂 曹彰 曹植 曹操 "
+    "曹丕 沮授 孫堅 孫乾 孫權 孫策 太史慈 趙雲 張紘 張郃 張昭 張飛 張遼 陳宮 陳群 程昱 程普 田豐 鄧芝 董卓 馬超 馬騰 馬良 鄧艾 "
+    "文醜 龐統 龐德 孟獲 劉表 劉備 呂布 陸遜 李儒 徐盛 馬岱 王允 辛評 劉封 王平 獻帝" + " -" * 64 + " 貂蟬 "
+    "朱貴 袁朗 王煥 王慶 王倫 丘岳 喬冽 許貫忠 寇威 扈成 蔡京 崔道成 宿元景 祝龍 蕭嘉穗 蔣忠 任原 西門慶 石寶 曾塗 段三娘 張叔夜 "
+    "張文遠 田虎 鄧元覺 童貫 裴如海 白秀英 潘金蓮 潘巧雲 馬靈 費保 聞煥章 卞祥 方杰 包道乙 龐萬春 方腊 楊戩 欒廷玉 李鬼 李瑞蘭 "
+    "葉清 祝彪 諸享 方瓊 呂師囊 孫安 張開 山士奇 錢振鵬 徽宗皇帝 金國太宗").split()
+# DOS PK: scenario 10 misspells three names that scenarios 1-9 have right
+SAN4PK_DOS_NAME_FIX = {"惇于瓊": "淳于瓊", "鐘會": "鍾會", "鐘繇": "鍾繇"}
+# DOS PK fixed 劉瞱, 蘆植, 沙摩可, 吳鋼; 孔秀 and 龐義 remain
+SAN4PK_DOS_NAME_HISTORICAL = {0x38: "孔伷", 0xE85A: "龐羲"}
+# NBDATA.SUI: DOS writes 彭汜 for 彭玘 (玘 is a PC-98 PK gaiji)
+SAN4PK_DOS_SUIKODEN_HISTORICAL = {"彭汜": "彭玘"}
 SAN4_PC98_PORTRAIT_NAMES = {250: "華佗", 251: "馬鈞", 252: "司馬徽", 253: "許子将", 254: "干吉", 255: "左慈",
                             256: "管輅", 257: "普浄", 333: "密偵", 334: "兵士", 335: "童子", 338: "貂蝉", 339: "献帝"}
 
@@ -596,7 +611,8 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
         picker = [bytes(genpei.decode_planar(files["KAODATA2.S4"], i * 1920, 64, 80, 3))
                   for i in range(len(files["KAODATA2.S4"]) // 1920)]
         extra = [px for px in picker if px not in shown[len(faces):]]
-        extra = list(zip(extra, SAN4PK_EXTRA_NAMES, SAN4PK_EXTRA_GROUPS, strict=True))
+        extra = list(zip(extra, SAN4PK_EXTRA_NAMES if pc98 else SAN4PK_DOS_EXTRA_NAMES, SAN4PK_EXTRA_GROUPS,
+                         strict=True))
         # 水滸伝 extras first, next to the 水滸伝 officers 340-456
         for px, name, group in extra[150:] + extra[:150]:
             portraits.append({"img": store.add(64, 80, px, blob=2), "group": group, **({} if name == "-" else {"name": name})})
@@ -606,11 +622,14 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
     seen = set()
     for _, name, code in sango.load_san4_persons(os.path.join(game_dir, "SNDATA.S4"),
                                                   os.path.join(game_dir, "TAIKI.S4"), pc98):
+        if pk and not pc98:
+            name = SAN4PK_DOS_NAME_FIX.get(name, name)
         if (code, name) in seen:
             continue
         seen.add((code, name))
         ch = {"id": len(characters), "name": name}
-        historical = SAN4_PC98_NAME_HISTORICAL if pc98 else SAN4_NAME_HISTORICAL
+        historical = (SAN4_PC98_NAME_HISTORICAL if pc98 else
+                      SAN4PK_DOS_NAME_HISTORICAL if pk else SAN4_NAME_HISTORICAL)
         if code in historical:
             ch["nameHistorical"] = historical[code]
         if code & 0x8000:
@@ -620,8 +639,11 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
         characters.append(ch)
     if pk:
         # the 水滸伝 officers registered from NBDATA.SUI follow the scenario persons
-        characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": code}} for i, (name, code) in
-                       enumerate(sango.load_san4pk_suikoden(os.path.join(game_dir, "NBDATA.SUI")))]
+        characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": code},
+                        **({"nameHistorical": SAN4PK_DOS_SUIKODEN_HISTORICAL[name]}
+                           if not pc98 and name in SAN4PK_DOS_SUIKODEN_HISTORICAL else {})}
+                       for i, (name, code) in
+                       enumerate(sango.load_san4pk_suikoden(os.path.join(game_dir, "NBDATA.SUI"), pc98))]
 
     meta = {
         "format": FORMAT, "id": ("san4pk-" if pk else "san4-") + ("pc98" if pc98 else "dos"),
@@ -1554,7 +1576,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
             "san3-pc98": lambda game_dir: build_san3(game_dir, pc98=True), "lempe-dos": build_lempe,
-            "san4-dos": build_san4,
+            "san4pk-dos": lambda game_dir: build_san4(game_dir, pk=True),
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
@@ -1564,7 +1586,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, nobu3-dos, nobu4-dos, air2-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

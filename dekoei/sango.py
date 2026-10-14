@@ -173,18 +173,18 @@ def load_san4_persons(sndata, taiki, pc98=False) -> list[tuple[int, str, int]]:
     return persons
 
 
-# PC-98 PK: NBDATA.SUI holds 117 水滸伝 officers (117 x 20-byte blocks, then 117 x 30-byte person records,
-# face codes 340-456); PK's FONT.S4 adds the gaiji they need
+# PK: NBDATA.SUI holds 117 水滸伝 officers (117 x 20-byte blocks, then 117 x 30-byte person records,
+# face codes 340-456); the PC-98 PK's FONT.S4 adds the gaiji they need
 SAN4PK_SUIKODEN_GAIJI = {**SAN4_PC98_GAIJI, 0xEBE2: "龔", 0xEBF9: "玘", 0xEBFA: "俅"}
 
 
-def load_san4pk_suikoden(nbdata_sui) -> list[tuple[str, int]]:
-    """(name, face code) of the NBDATA.SUI officers."""
+def load_san4pk_suikoden(nbdata_sui, pc98=True) -> list[tuple[str, int]]:
+    """(name, face code) of the NBDATA.SUI officers; names as in SNDATA.S4."""
     with open(nbdata_sui, "rb") as f:
         data = f.read()
     records = [data[117 * 20 + i * 30:117 * 20 + (i + 1) * 30] for i in range(117)]
-    return [(san4_pc98_name(r[:9].split(b"\0")[0], SAN4PK_SUIKODEN_GAIJI), int.from_bytes(r[20:22], "little"))
-            for r in records]
+    return [(san4_pc98_name(r[:9].split(b"\0")[0], SAN4PK_SUIKODEN_GAIJI) if pc98 else
+             to_unicode_name(r[:20].split(b"\0")[0]), int.from_bytes(r[20:22], "little")) for r in records]
 
 
 # MONDATA.S4: 16 heads x 0x2E80 bytes, 3bpp planar rows of 24 bytes (byte k = bit k, as genpei.decode_planar).
