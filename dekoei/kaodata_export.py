@@ -11,12 +11,14 @@ import os
 import subprocess
 import unicodedata
 import zlib
+from collections import Counter
 
 import click
 
 import genpei
 import koei_games
 import san2
+import san3
 import utils
 
 FORMAT = "kaodata/1"
@@ -328,6 +330,100 @@ def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+SAN3_INPUTS = ["KAODATA.DAT", "MONTAGE.DAT"] + [f"SNDATA{i}B.CIM" for i in range(1, 7)]
+# DAC palette at DGROUP 0x322E of MAIN.EXE, colours 0-7, 6-bit values widened as (v << 2) | (v >> 4)
+SAN3_PALETTE = ["#000000", "#0041F3", "#F35100", "#F351D3", "#10B251", "#00C3F3", "#F3E300", "#F3F3F3"]
+SAN3_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("nose", "鼻"), ("mouth", "口")]
+SAN3_FACE = 1920  # 64x80, 3bpp
+# spelling when the scenarios tie (陳群 3 times, 陳韋 3 times)
+SAN3_NAME_PICK = {0x7E: "陳群"}
+# the game uses another person's name for these, by face code (identity from city, see notes/san3.md)
+SAN3_NAME_HISTORICAL = {0xC1: "孔伷", 0xC02B: "蔡邕", 0x96D9: "張顗", 0x9C95: "張闓"}
+# event characters (MAIN.EXE DGROUP 0x2FB6 names / 0x2FCA codes) and 貂蟬 (連環計 sets face 307)
+SAN3_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子將", 223: "獻帝", 224: "吉平", 225: "于吉", 226: "左慈",
+                       227: "管輅", 228: "紫虛上人", 229: "李意", 306: "貂蟬"}
+# new rulers / new officers offered by the face picker at 0x116E3, by sex
+SAN3_PORTRAIT_GROUPS = {
+    **{i: "事件人物" for i in SAN3_PORTRAIT_NAMES},
+    **{i: "新君主（男）" for i in range(230, 238)},
+    **{i: "新君主（女）" for i in range(238, 246)},
+    **{i: "新武將（男）" for i in range(246, 276)},
+    **{i: "新武將（女）" for i in range(276, 306)},
+}
+
+
+def san3_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
+    """3bpp planar rows (24 bytes each, byte k = bit k); 0 -> 255 unless opaque."""
+    h = len(raw) // 24
+    px = genpei.decode_planar(raw, 0, 64, h, 3)
+    return 64, h, bytes(c if opaque or c else TRANSPARENT for c in px)
+
+
+def san3_characters(game_dir: str) -> list[tuple[int, str]]:
+    """(face code, name) per person: scenarios 1-6 in order, deduplicated by face code."""
+    spellings: dict[int, Counter] = {}
+    for name in SAN3_INPUTS[2:]:
+        for p in san3.load_san3_persons(os.path.join(game_dir, name)):
+            spellings.setdefault(p.face, Counter())[p["name"].strip()] += 1
+    return [(code, SAN3_NAME_PICK.get(code) or names.most_common(1)[0][0]) for code, names in spellings.items()]
+
+
+def build_san3(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN3_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for head in range(len(files["MONTAGE.DAT"]) // san3.MONTAGE_HEAD_SIZE):
+        parts = {}
+        for area, (slot, _) in enumerate(SAN3_SLOTS):
+            items = [store.add(*san3_pixels(san3.montage_record(files["MONTAGE.DAT"], head, area, rec), area < 2))
+                     for rec in range(san3.MONTAGE_RECORDS[area])]
+            parts[slot] = {"at": [0, san3.MONTAGE_AREAS[area][2] // 24], "items": items}
+        variants.append({"id": str(head), "label": f"類型 {head}", "parts": parts})
+
+    kao = files["KAODATA.DAT"]
+    portraits = [{"img": store.add(*san3_pixels(kao[i:i + SAN3_FACE], True), blob=1), "code": f"{i // SAN3_FACE + 1:04X}"}
+                 for i in range(0, len(kao), SAN3_FACE)]
+    for i, group in SAN3_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in SAN3_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    characters = []
+    for cid, (code, name) in enumerate(san3_characters(game_dir)):
+        ch = {"id": cid, "name": name}
+        if code in SAN3_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN3_NAME_HISTORICAL[code]
+        if san3.is_montage_code(code):
+            ch["face"] = {"variant": san3.montage_head(code), "parts": san3.montage_parts(code), "code": f"{code:04X}"}
+        else:
+            ch["face"] = {"portrait": code - 1}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san3-dos", "game": "SAN3", "platform": "DOS",
+        "title": {"ja": "三國志III", "zh": "三國志III"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN3_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": SAN3_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": i, "label": label} for i, label in SAN3_SLOTS],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 LEMPE_INPUTS = ["KAODATA.DAT", "NPDATA.CIM"]
 # correct name where the Chinese release names a different person than the English one
 # (identity from the English and Japanese names, see koei-wiki 拿破崙/人物資料 mapping)
@@ -385,10 +481,10 @@ def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2, "lempe-dos": build_lempe}
+DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2, "san3-dos": build_san3, "lempe-dos": build_lempe}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, san3-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
