@@ -16,9 +16,9 @@ Early KOEI Games Data Research
 | --------- | --------------------------- | ---: | :--------------: | :---: | ------ | ------------------- |
 | SAN1      | 三國志                      | 1985 |     DOS,PC98     |   ○   |        |                     |
 | SAN2      | 三國志II                    | 1989 | DOS,PC98,X68,WIN |   ○   |        |                     |
-| SAN3      | 三國志III                   | 1992 |     DOS,WIN      |   ○   |        |                     |
-| SAN4      | 三國志IV                    | 1994 |       DOS        |   ○   |        |                     |
-| SAN5      | 三國志V                     | 1995 |       DOS        |   ○   |        |                     |
+| SAN3      | 三國志III                   | 1992 |   DOS,PC98,WIN   |   ○   |        |                     |
+| SAN4      | 三國志IV                    | 1994 |     DOS,PC98     |   ○   |        |                     |
+| SAN5      | 三國志V                     | 1995 |     DOS,PC98     |   ○   |        |                     |
 | SAN6      | 三國志VI                    | 1998 |       WIN        |       |        |                     |
 | SAN7      | 三國志VII                   | 2000 |       WIN        |       |        |                     |
 | SAN8      | 三國志VIII                  | 2001 |       WIN        |       |        |                     |
@@ -92,10 +92,17 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | DATASET      | 遊戲                           | 來源版本   | 人物 | 頭像 | 組合臉 | 格式筆記                         |
 | ------------ | ------------------------------ | ---------- | ---: | ---: | :----: | -------------------------------- |
 | `genpei-dos` | 源平合戰                       | DOS        |  400 |   90 |   ○    | [notes/genpei.md](notes/genpei.md) |
+| `san1-pc98`  | 三國志                         | PC-98      |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san2-dos`   | 三國志II                       | DOS 中文版 |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
+| `san2-pc98`  | 三國志II                       | PC-98      |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
+| `san2-x68`   | 三國志II                       | X68000     |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san3-dos`   | 三國志III                      | DOS 中文版 |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
+| `san3-pc98`  | 三國志III                      | PC-98      |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
 | `san4-dos`   | 三國志IV                       | DOS 中文版 |  462 |  340 |   ○    | [notes/san4.md](notes/san4.md)     |
+| `san4-pc98`  | 三國志IV                       | PC-98      |  462 |  340 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
+| `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
+| `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 
 原版遊戲檔放在 `games/<DATASET>/`（不進版控），`--game-dir` 指向該目錄即可。

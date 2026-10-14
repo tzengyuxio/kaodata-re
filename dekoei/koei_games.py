@@ -589,6 +589,27 @@ def suikoden_person(game_dir, to, scenario, file):
     print_table(suikoden_table_title, suikoden_headers, persons, to)
 
 
+# PC-98 (Japanese) SUIDATA?.CIM: 255 x 20 bytes at 7124: Shift-JIS name (7), half-width kana (9), 0, face, ?, flags.
+# The gaiji glyphs are on disk 1 (not available); characters inferred from the FC names and the kana readings
+SUIKODEN_PC98_GAIJI = dict(zip(range(0xEBA0, 0xEBAE), "鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩"))
+
+
+def load_suikoden_pc98_persons(sndata) -> list[tuple[int, str]]:
+    """(face, name) per person."""
+    with open(sndata, 'rb') as f:
+        data = f.read()
+    persons = []
+    for i in range(255):
+        rec = data[7124 + i * 20:7124 + (i + 1) * 20]
+        raw, name, j = rec[:7].split(b'\0')[0], [], 0
+        while j < len(raw):
+            n = 2 if 0x81 <= raw[j] <= 0x9F or 0xE0 <= raw[j] <= 0xFC else 1
+            name.append(SUIKODEN_PC98_GAIJI.get(int.from_bytes(raw[j:j + n], 'big')) or raw[j:j + n].decode('cp932'))
+            j += n
+        persons.append((rec[17], ''.join(name)))
+    return persons
+
+
 suikoden.add_command(suikoden_face, 'face')
 suikoden.add_command(suikoden_person, 'person')
 

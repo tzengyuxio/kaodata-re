@@ -73,3 +73,19 @@
 ## 發行年份
 
 - 原版 PC-98：1994 年 2 月（Wikipedia〈Romance of the Three Kingdoms IV: Wall of Fire〉）。Wikipedia 沒有列 DOS 版的日期；本中文版的檔案日期是 1994 年 11 月。
+
+## PC-98 日文版（`san4-pc98`）
+
+`dekoei.py export san4-pc98` 用到的差異。來源是 `games/pc98/【PC98】三國志４.rar` 的 FDI 磁碟映像，解出放在 `games/san4-pc98/`。
+
+- `KAODATA.S4`、`MONDATA.S4` 和 DOS 中文版逐 byte 相同。
+- `MAIN.EXE`：MZ 檔頭 0x4E00，DGROUP 段 0x400E（檔案 0x44EE0）。
+- 色盤：DGROUP 0xF70（檔案 0x45E50）16 色，內容和 DOS 相同。寫 port 順序（0x10090）是 B→0xAE、R→0xAC、G→0xAA。色 8–15 用 v × 17：`#332200 #224488 #BB4422 #CC8855 #447722 #448899 #DDBB88 #DDDDBB`。
+- 人物：SNDATA／TAIKI 同樣是 LS11、6 個 part，記錄 30 bytes。姓名欄 20 bytes 改成 9 bytes Shift-JIS＋11 bytes 半形片假名讀音（`sango.load_san4_persons(..., pc98=True)`）。
+  - 外字：SJIS 0xEB9F 起，字形在 `FONT.S4`（16×16，第 n 字＝0xEB9F＋n）。人名用到 40 個，看字形判讀，見 `sango.SAN4_PC98_GAIJI`。
+  - 去重後 462 人，順序、頭像碼和 DOS 逐筆一致。
+  - 讀音 11 個半形字，長的會被截斷，所以不匯出 `reading`。
+  - 姓名差異多是新舊字形。DOS 的錯字（蘆植、沙摩可、呉鋼、万彧、龐義、関彜）日文版也有，是原版就這樣寫。沒有 `nameHistorical`。
+- 事件人物照遊戲寫法：250 華佗、251 馬鈞、252 司馬徽、253 許子将、254 干吉、255 左慈、256 管輅、257 普浄、333 密偵、334 兵士、338 貂蝉、339 献帝。
+  - 1.0 版的童子台詞用 336（老人），舉兵表是 [330, 331, 332, 335, 337]（335 是少年）。PK 和 DOS 版是童子 335、舉兵 336，所以 1.0 是把兩張弄反了。匯出依圖片：335 童子，336 舉兵事件。
+- 發行年份：PC-9801 版 1994-02-13（ja.wikipedia〈三國志IV〉）；`SAN4.VER` 寫 Feb.14,1994 Ver 1.0。

@@ -111,20 +111,57 @@ def load_san4_faces(file) -> list[tuple[int, int, bytes]]:
     return faces
 
 
-def load_san4_persons(sndata, taiki) -> list[tuple[int, str, int]]:
-    """(scenario, name, face code) of every person record: SNDATA.S4 then TAIKI.S4 for scenarios 1-6.
+# PC-98 KOEI gaiji (SJIS 0xEB9F + glyph index of FONT.S4); only the codes used by person names,
+# read off the FONT.S4 glyphs
+SAN4_PC98_GAIJI = {
+    0xEB9F: "瓚", 0xEBA0: "昱", 0xEBA1: "彧", 0xEBA2: "郃", 0xEBA3: "蒯", 0xEBA5: "傕", 0xEBA6: "邕",
+    0xEBA7: "汜", 0xEBA8: "詡", 0xEBA9: "鄧", 0xEBAB: "龐", 0xEBAC: "繇", 0xEBAD: "邈", 0xEBAE: "騭",
+    0xEBB0: "闞", 0xEBB1: "玠", 0xEBB3: "邢", 0xEBB4: "歆", 0xEBB5: "闓", 0xEBB6: "禕", 0xEBB7: "譙",
+    0xEBB8: "琬", 0xEBB9: "郝", 0xEBBA: "琮", 0xEBBB: "伷", 0xEBBC: "褚", 0xEBBD: "璜", 0xEBC0: "琦",
+    0xEBC6: "彤", 0xEBD1: "綝", 0xEBD2: "諶", 0xEBD4: "昕", 0xEBD6: "笮", 0xEBD7: "祜", 0xEBDA: "毌",
+    0xEBDD: "靚", 0xEBDF: "頎", 0xEBEC: "毗", 0xEBEE: "宓", 0xEBF5: "蹋",
+}
 
-    Both files are LS11 with one part per scenario. SNDATA's person table runs to the end of the part,
-    30 bytes each (name 20 bytes, face u16); TAIKI is 50-byte records with the same 30 bytes at +20.
+
+def san4_pc98_name(b: bytes, gaiji=SAN4_PC98_GAIJI) -> str:
+    out, i = [], 0
+    while i < len(b):
+        if 0x81 <= b[i] <= 0x9F or 0xE0 <= b[i] <= 0xFC:
+            code = b[i] << 8 | b[i + 1]
+            out.append(gaiji[code] if code >= 0xEB9F else b[i:i + 2].decode("cp932"))
+            i += 2
+        else:
+            out.append(b[i:i + 1].decode("cp932"))
+            i += 1
+    return "".join(out)
+
+
+def san4_parts(data: bytes) -> list[bytes]:
+    """LS11 (DOS, PC-98), or uncompressed (PC-98 PK): u16 count, count x (u32 offset, u16 size) from the table end."""
+    if data[:4] == b"LS11":
+        import ls11
+        return ls11.ls11_decode_parts(data)
+    n = int.from_bytes(data[:2], "little")
+    base = 2 + n * 6
+    return [data[base + o:base + o + size] for o, size in
+            (struct.unpack_from("<IH", data, 2 + i * 6) for i in range(n))]
+
+
+def load_san4_persons(sndata, taiki, pc98=False) -> list[tuple[int, str, int]]:
+    """(scenario, name, face code) of every person record: SNDATA.S4 then TAIKI.S4 per scenario.
+
+    One part per scenario. SNDATA's person table runs to the end of the part, 30 bytes each (name 20 bytes,
+    face u16); TAIKI is 50-byte records with the same 30 bytes at +20. PC-98: the name is 9 bytes Shift-JIS
+    followed by 11 bytes of half-width kana.
     """
-    import ls11
     with open(sndata, 'rb') as f:
-        sn = ls11.ls11_decode_parts(f.read())
+        sn = san4_parts(f.read())
     with open(taiki, 'rb') as f:
-        tk = ls11.ls11_decode_parts(f.read())
+        tk = san4_parts(f.read())
 
     def person(scenario, b):
-        return scenario, to_unicode_name(b[:20].split(b'\0')[0]), int.from_bytes(b[20:22], 'little')
+        name = san4_pc98_name(b[:9].split(b'\0')[0]) if pc98 else to_unicode_name(b[:20].split(b'\0')[0])
+        return scenario, name, int.from_bytes(b[20:22], 'little')
 
     persons = []
     for scenario, (part, extra) in enumerate(zip(sn, tk), 1):
@@ -212,19 +249,31 @@ def san5_parts(file) -> list[bytes]:
     return parts
 
 
-def load_san5_persons(sndata, taiki) -> list[tuple[int, str, int]]:
+# PC-98 KOEI gaiji (SJIS 0xEB9F + glyph index of FONT.S5); only the codes used by person names
+SAN5_PC98_GAIJI = {
+    **SAN4_PC98_GAIJI, 0xEBAF: "畯", 0xEBD9: "璜", 0xEBE2: "龔",
+}
+
+
+def load_san5_persons(sndata, taiki, pc98=False) -> list[tuple[int, str, int]]:
     """(scenario, name, face code) of every person record: SNDATA.S5 then TAIKI.S5 for scenarios 1-12.
 
     SNDATA's person table ends 1100 bytes before the end of each scenario, 38 bytes per person
     (name 10 bytes, face u16 at +30); TAIKI is 69-byte records with the same 38 bytes at +31.
+    PC-98: the name is 8 bytes Shift-JIS + NUL, then the reading in half-width kana at +9.
     """
     def person(scenario, b):
-        return scenario, to_unicode_name(b[:10].split(b'\0')[0]), int.from_bytes(b[30:32], 'little')
+        name = san4_pc98_name(b[:9].split(b'\0')[0], SAN5_PC98_GAIJI) if pc98 else \
+            to_unicode_name(b[:10].split(b'\0')[0])
+        return scenario, name, int.from_bytes(b[30:32], 'little')
+
+    def is_person(b):
+        return b[0] >= 0x81 and b[8] == 0 and 0xA1 <= b[9] <= 0xDF if pc98 else b[0] >= 0x80 and not any(b[10:20])
 
     persons = []
     for scenario, part in enumerate(san5_parts(sndata), 1):
         end = start = len(part) - 1100
-        while start >= 38 and part[start - 38] >= 0x80 and not any(part[start - 28:start - 18]):
+        while start >= 38 and is_person(part[start - 38:start]):
             start -= 38
         persons += [person(scenario, part[o:o + 38]) for o in range(start, end, 38)]
     for scenario, part in enumerate(san5_parts(taiki), 1):

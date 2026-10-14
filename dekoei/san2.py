@@ -445,6 +445,73 @@ def compose_montage(data: bytes, code: int) -> bytes:
     return bytes(face)
 
 
+# ---------------------------------------------------------------- PC-98 / X68000 (Japanese, see notes/san2.md)
+# KAODATA1/2/3.DAT: full-height 64x80 3bpp faces, 1920 bytes each (95 + 96 + 28 = 219); the montage parts
+# follow in KAODATA3 at 0xD200: 8 heads x 0x37E0 bytes, areas ORed the same way as DOS
+JP_FACE = 1920
+JP_FACE_FILES = [("KAODATA1.DAT", 95), ("KAODATA2.DAT", 96), ("KAODATA3.DAT", 28)]
+JP_MONTAGE_OFFSET = 0xD200
+JP_MONTAGE_HEAD_SIZE = 0x37E0
+# (offset in the head block, bytes per record, first face row); areas 3 and 4 are nose then mouth
+JP_MONTAGE_AREAS = [(0, 792, 0), (3168, 1128, 33), (7680, 552, 21), (9888, 552, 29), (12096, 552, 41)]
+# KOEI gaiji (SJIS 0xEB9F..), glyphs in FONT.DAT; table at PC-98 MAIN.EXE DGROUP 0x34B0, read off the glyphs
+JP_GAIJI = dict(zip(
+    [0xEB9F + i for i in range(32)] + [0xEBC0, 0xEBC1, 0xEBC3, 0xEBC4, 0xEBC6, 0xEBC7],
+    "瓚昱彧郃蒯蔡傕Ⅱ汜詡鄧兗龐繇邈鷙畯闞玠顗邢歆闓禕釭琬郝琮♥褚©℗" "琦琮幷璝彤琬"))
+
+
+def jp_montage_record(data: bytes, head: int, area: int, record: int) -> bytes:
+    """`data` is KAODATA3.DAT."""
+    base, size, _ = JP_MONTAGE_AREAS[area]
+    pos = JP_MONTAGE_OFFSET + head * JP_MONTAGE_HEAD_SIZE + base + record * size
+    return data[pos:pos + size]
+
+
+def jp_name(raw: bytes) -> str:
+    """14-byte name field: 7 bytes Shift-JIS (+ gaiji), then 7 bytes of half-width kana (not returned)."""
+    raw = raw[:7].split(b"\0")[0]
+    out, i = [], 0
+    while i < len(raw):
+        n = 2 if 0x81 <= raw[i] <= 0x9F or 0xE0 <= raw[i] <= 0xFC else 1
+        code = int.from_bytes(raw[i:i + n], "big")
+        out.append(JP_GAIJI.get(code) or raw[i:i + n].decode("cp932"))
+        i += n
+    return "".join(out)
+
+
+def load_san2_jp_persons(game_dir: str, x68: bool = False) -> list[tuple[int, str]]:
+    """(face code, name): SNDATA1-6.CIM then TAIKI.DAT, deduplicated by face code (same order as DOS).
+
+    PC-98 records are the DOS ones (s2_format / s2_format_taiki). X68000 records are big-endian with
+    68000 padding: 54 bytes (face u32 at +34, name at +38), TAIKI adds 4 bytes in front.
+    """
+    persons, seen = [], set()
+
+    def add(rec, face_at, name_at):
+        if rec[name_at:name_at + 4] == bytes(4):
+            return False
+        face = int.from_bytes(rec[face_at:face_at + (4 if x68 else 2)], "big" if x68 else "little") & 0xFFFF
+        if face not in seen:
+            seen.add(face)
+            persons.append((face, jp_name(rec[name_at:name_at + 14])))
+        return True
+
+    size, header, face_at = (54, 0x1A, 34) if x68 else (struct.calcsize(s2_format), 0x16, 26)
+    for n in range(1, 7):
+        with open(os.path.join(game_dir, f"SNDATA{n}.CIM"), "rb") as f:
+            d = f.read()
+        for i in range(215):
+            if not add(d[header + i * size:header + (i + 1) * size], face_at, face_at + (4 if x68 else 2)):
+                break
+    with open(os.path.join(game_dir, "TAIKI.DAT"), "rb") as f:
+        d = f.read()
+    size, face_at = (58, 38) if x68 else (struct.calcsize(s2_format_taiki), 29)
+    for i in range(420):
+        if not add(d[6 + i * size:6 + (i + 1) * size], face_at, face_at + (4 if x68 else 2)):
+            break
+    return persons
+
+
 san2.add_command(san2_face, "face")
 san2.add_command(san2_grp, "grp")
 san2.add_command(san2_grpa, "grpa")

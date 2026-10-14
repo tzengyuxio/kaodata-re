@@ -65,3 +65,40 @@
     - P238–P245：新君主（女）
     - P246–P275：新武將（男）
     - P276–P305：新武將（女）
+
+## PC-98 日文版（`san3-pc98`）
+
+`dekoei.py export san3-pc98` 用到的差異。來源是 `games/pc98/【PC98】三國志３.rar` 的 FDI 磁碟映像，解出放在 `games/san3-pc98/`。
+
+- `KAODATA.DAT`、`MONTAGE.DAT` 和 DOS 中文版逐 byte 相同，頭像、組合臉照上文處理。
+- `MAIN.EXE` 沒有壓縮，映像＝檔案 0x8C00 起，DGROUP 段值 0x4B20。程式結構和 DOS 一對一，下表是對應的位址（PC-98 欄是映像位址）：
+
+| 項目 | DOS | PC-98 |
+|---|---|---|
+| 讀 KAODATA | 0x67E6 | 0x4BFC |
+| 組合臉 | 0x66B7 | 0x4ACD |
+| 組合臉三張表 | DGROUP 0x2682／0x268C／0x2696 | DGROUP 0x1BE2／0x1BEC／0x1BF6（內容相同） |
+| 事件人物表 | DGROUP 0x2FB6／0x2FCA | DGROUP 0x27C2／0x27D6 |
+| 色盤表 | DGROUP 0x322E | DGROUP 0x2A3A |
+| 挑臉函式 | 0x116E3 | 0x1067B |
+| 連環計（貂蟬＝307） | 0x17122 | 0x161B2 |
+
+- 色盤：0x4CE 每色讀 B、R、G 各 4 bit，寫到 port 0xA8（色號）、0xAE、0xAC、0xAA。頭像用前 8 色，4 bit 換 8 bit 用 v × 17（推論，沒有和實機截圖比對）：`#000000 #0044FF #FF5500 #FF55DD #11BB55 #00CCFF #FFEE00 #FFFFFF`。
+- 像素順序：繪製時每 3 bytes 依序寫到 A800（B）、B000（R）、B800（G）平面，所以同樣是 byte k＝bit k。
+
+### 人物
+
+- `SNDATA1B.CIM`–`SNDATA6B.CIM`：600 筆 × 62 bytes（`san3.load_san3_pc98_persons`）。
+  - +0x00–0x2A 和 DOS 記錄前 43 bytes 相同，頭像碼在 +2。
+  - +0x31 起 6 bytes 是姓名（Shift-JIS），全 0 是空格位。
+  - +0x38 起 6 bytes 是半形片假名讀音，長的會被截斷（如諸葛亮 ｼｮｶﾂﾘｮ），所以不匯出 `reading`。
+- 外字：漢字 ROM 沒有的字用 SJIS 0xEB9F–0xEBD9（JIS 0x7621–0x765B）。DGROUP 0x1C62 是 48 個 JIS 碼的排序表（不連續），第 i 個對應 `FONT.DAT` 第 i 個 16×16 字形。字是看字形判讀的，見 `san3.PC98_GAIJI_CHARS`；第 34、36 字（釭、鄴）不確定，人名沒用到。
+- 依劇本 1–6 的順序、以頭像碼去重，共 531 人，頭像碼集合和 DOS 版相同，但 `id` 順序不同：
+  - 劇本 1 的車胄用了楊懐的組合臉碼 0x82CB（DOS 是 0x9831），所以車胄到劇本 2 才出現，排在最後（530）。
+  - 劇本 1 未登場武將的排列也不同。
+- 陳羣在六個劇本都寫陳羣，不需要 `SAN3_NAME_PICK`。
+- 姓名和 DOS 版的差異（新舊字形如関／關不算）：
+  - DOS 錯、日文版正確：孔伷、蔡邕、張顗、張闓（DOS 互換）、劉璝、閻象、笮融、全琮、王粲、曹羲、孫冀。所以 DOS 版的 4 筆 `nameHistorical` 在日文版都不需要，日文版沒有任何 `nameHistorical`。
+  - 日文版的錯字照遊戲寫法：粱剛（梁剛）、諸葛謹（諸葛瑾）、尚挙（向挙）、劉畯（koei-wiki 作劉晙）。
+- 事件人物照遊戲寫法：華佗、司馬徽、許子将、献帝、吉平、干吉、左慈、管輅、紫虚上人、李意、貂蝉。新君主／新武將的範圍和 DOS 相同。
+- 發行年份：PC-9801 版 1992-02-05（ja.wikipedia〈三國志III〉）。`VERSION` 是 ver 1.2。

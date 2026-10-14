@@ -107,3 +107,57 @@ def san1_person(file, scenario, to):
 
 san1.add_command(san1_face, "face")
 san1.add_command(san1_person, "person")
+
+
+# ---------------------------------------------------------------- PC-98 (Japanese, Ver 2.4), see notes/san1.md
+# PICDATA.DAT: 48x40 half-height 3bpp faces, 18-byte rows (to_3bpp_indexes order), shown line-doubled
+PC98_FACE = 720
+PC98_FACE_ROWS = 40
+# composite code 0xGTMB: group G (6-10) is the five faces at 6 * (G + 8); half-height rows of
+# face T, M, B for the top / middle / bottom bands (DOS MAIN.EXE 0x467B)
+PC98_BANDS = [(0, 15), (15, 25), (25, 40)]
+# SAVEDATA: 10 x 30-byte slot headers, then 10 slots of 29364 bytes; slot 0 holds the person table
+PC98_PERSONS = 300 + 0x1096
+PC98_PERSON_SIZE = 34
+# KOEI gaiji JIS 0x7620.. (glyphs in KANJIF.DAT at 0x4000 + 32 * k), read off the glyphs
+PC98_GAIJI = ("袁焉瓚荀彧昱韋曄攸丕瑜翊苞沮郃譚煕蒯蔡瑁琦琮粲傕邕汜賈詡樊稠軫趙岑旻鄧璋沛璝懿龐褚繇糜邈鮑暹儁魏廖雍曠翔"
+              "隲薛畯闞潘玠虔顗謖鞏聘歆閻傅逵沙闓禕譙楙姜淮毗琬郝")
+
+
+def is_pc98_composite(code):
+    return code >= 0x1000
+
+
+def pc98_composite_group(code):
+    """First PICDATA face of the composite group."""
+    return 6 * ((code >> 12) + 8)
+
+
+def pc98_composite_parts(code):
+    return [code >> 8 & 15, code >> 4 & 15, code & 15]
+
+
+def pc98_name(raw):
+    """Little-endian JIS words; one record (夏侯尚) has bit 15 set on a character."""
+    out = []
+    for i in range(0, len(raw), 2):
+        w = int.from_bytes(raw[i:i + 2], "little") & 0x7FFF
+        if not w:
+            break
+        if 0x7620 <= w < 0x7620 + len(PC98_GAIJI):
+            out.append(PC98_GAIJI[w - 0x7620])
+        else:
+            out.append(bytes([0x1B, 0x24, 0x42, w >> 8, w & 0xFF, 0x1B, 0x28, 0x42]).decode("iso2022_jp"))
+    return "".join(out)
+
+
+def load_san1_pc98_persons(savedata):
+    """(face code, name) of the 255 persons in save slot 0 (the scenario files are encoded; face codes
+    match every DOS scenario)."""
+    with open(savedata, "rb") as f:
+        data = f.read()
+    persons = []
+    for i in range(255):
+        rec = data[PC98_PERSONS + i * PC98_PERSON_SIZE:PC98_PERSONS + (i + 1) * PC98_PERSON_SIZE]
+        persons.append((int.from_bytes(rec[22:24], "little"), pc98_name(rec[8:14])))
+    return persons

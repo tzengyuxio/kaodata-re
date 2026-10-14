@@ -60,6 +60,48 @@ def montage_record(data, head, area, record):
     return data[start:start + size]
 
 
+# PC-98 (Japanese) SNDATA?B.CIM: 600 records x 62 bytes; face code at +2, Shift-JIS name at +0x31 (6 bytes)
+PC98_RECORD_SIZE = 62
+# gaiji: MAIN.EXE DGROUP 0x1C62 lists the JIS code of each FONT.DAT glyph; characters read off the glyphs
+PC98_GAIJI_JIS = [0x7621, 0x7622, 0x7623, 0x7624, 0x7625, 0x7626, 0x7627, 0x7628, 0x7629, 0x762A, 0x762B, 0x762D,
+                  0x762E, 0x762F, 0x7630, 0x7631, 0x7632, 0x7633, 0x7634, 0x7635, 0x7636, 0x7637, 0x7638, 0x7639,
+                  0x763A, 0x763B, 0x763C, 0x763D, 0x763E, 0x7641, 0x7642, 0x7646, 0x7648, 0x7649, 0x764A, 0x764B,
+                  0x764E, 0x7650, 0x7652, 0x7653, 0x7654, 0x7655, 0x7656, 0x7657, 0x7658, 0x7659, 0x765A, 0x765B]
+PC98_GAIJI_CHARS = "瓚昱彧郃蒯蔡傕邕汜詡鄧龐繇邈騭畯闞玠顗邢歆闓禕譙琬郝琮伷褚邳琦璝彤琬釭涪鄴臧莒綝諶惲昕琪笮祜蕤璜"
+
+
+def jis_to_sjis(code):
+    j1, j2 = code >> 8, code & 0xFF
+    s1 = ((j1 + 1) >> 1) + (0x70 if j1 < 0x5F else 0xB0)
+    s2 = j2 + (0x1F + (j2 >= 0x60) if j1 & 1 else 0x7E)
+    return bytes([s1, s2])
+
+
+PC98_GAIJI = {jis_to_sjis(j): c for j, c in zip(PC98_GAIJI_JIS, PC98_GAIJI_CHARS)}
+
+
+def decode_pc98_name(raw):
+    raw = raw.split(b"\0", 1)[0]
+    out, i = [], 0
+    while i < len(raw):
+        n = 2 if 0x81 <= raw[i] <= 0x9F or 0xE0 <= raw[i] <= 0xFC else 1
+        out.append(PC98_GAIJI.get(raw[i:i + n]) or raw[i:i + n].decode("cp932"))
+        i += n
+    return "".join(out)
+
+
+def load_san3_pc98_persons(file):
+    """(face code, name) of every used record."""
+    with open(file, "rb") as f:
+        data = f.read()
+    persons = []
+    for i in range(600):
+        rec = data[i * PC98_RECORD_SIZE:(i + 1) * PC98_RECORD_SIZE]
+        if rec[0x31:0x37] != bytes(6):
+            persons.append((struct.unpack_from("<H", rec, 2)[0], decode_pc98_name(rec[0x31:0x37])))
+    return persons
+
+
 
 @click.group()
 def san3():

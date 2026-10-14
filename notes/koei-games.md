@@ -201,3 +201,53 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 日: ケルトの聖戦 (日文 wiki 好像找不到條目?)
 - 英: Celtic Tales: Balor of the Evil Eye
 - [魔眼邪神存檔分析 \- KPHEROS\# \- lechi的創作 \- 巴哈姆特](https://home.gamer.com.tw/artwork.php?sn=5227637)
+
+## 水滸伝・天命の誓い（SUIKODEN, PC-98 日文版）
+
+`dekoei.py export suikoden-pc98` 用到的格式。來源是 `games/pc98/SUIKODEN_PC98_水滸伝2.FDI`，只有第 2 片磁碟，解出放在 `games/suikoden-pc98/`。
+
+- `KAO98.DAT`：260 張，64×80 全高、3bpp、每列 24 bytes，順序同 `utils.to_3bpp_indexes`，無壓縮、無組合臉。
+- 色盤：沒有執行檔（在第 1 片）可查，用 8 色數位色盤（每分量 0 或 FF）。理由：舊的 `suikoden face` FDI 分支也用這組；膚色是紅黃抖色，沒有專用膚色色號；同期的三國志II PC-98 也是數位色。屬推論。
+- 人物：`SUIDATA1–4.CIM` 從 7124 起 255 筆 × 20 bytes（`koei_games.load_suikoden_pc98_persons`）：
+  - +0 姓名 7 bytes Shift-JIS，+7 讀音 9 bytes 半形片假名（不匯出），+16 恆為 0，+17 頭像碼（0 起算），+19 旗標。
+  - 4 個劇本的姓名和頭像碼相同，匯出用劇本 1。順序、姓名和 `suikoden-fc` 完全相同。
+  - 外字 SJIS 0xEBA0–0xEBAD 的字形在缺少的第 1 片上，字是用 FC 名字和讀音推出來的：鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩。
+- 沒有人物使用的頭像（對照 FC 的特殊頭像）：255 造船所、256 雑貨屋、257 武器屋（施設），258 徽宗皇帝、259 金国太宗（特殊人物）。
+- 發行年份：ja.wikipedia 只寫 PC-9801 版 1991 年，沒有月日，待查。
+
+## 維新の嵐（ISHIN, PC-98 日文版，未匯出）
+
+只有 A 片（`games/pc98/ISHIN_維新の嵐A.fdi`，其實是沒有檔頭的原始映像），解出放在 `games/ishin-pc98/`。人物→頭像的對照在 B 片的 `SHINARIO.DAT`，所以還不能匯出。ISIN.EXE 的 load image 從檔案 0x3800 起，DGROUP（段 0x3FE4）在 image 0x371C0；下文是 image 位址。
+
+- `KAODAT.DAT`：105 張 48×40、3bpp，每 8 px 3 bytes，byte k＝bit k（0xA4B 依序寫 A800／B000／B800），720 bytes，無壓縮。200 線模式，匯出時應逐列加倍（推論）。
+  - 檔案 0x12750 是第 106 張代用頭像（持旗的浪士群），給 id 450–713 用（0x2F2D、0x4AC7）。
+  - 檔案 0x12A20 是 48×40 1bpp 圓角遮罩，每張臉畫上去前都 AND 它（0x4B86–0x4BD0）。
+- 讀臉函式 0x4AB1：id 0x2CA 讀特殊頭像，否則讀 `DS:0x9346 + id × 6` 的 6 bytes 臉記錄；byte0＝0xFF 時讀 KAODAT 第 byte1 張，否則合成。這張表在 exe 裡全是 0，執行時從 `b:shinario.dat` 載入。
+- `MONDAT.DAT` 合成：記錄解碼在 0x3BBC（b0–b3 的高低 nibble → w0–w7，b4 高 nibble → w8，w9＝((b4 >> 2) & 3) − 2，w10＝(b4 & 3) − 2，w11–w13＝b5 bit 7-6／5-4／3-2 各減 2，w14＝b5 bit 1，w15＝b5 bit 0）。11 層依序畫（函式表 DS:0x43C、高度 DS:0x424、y DS:0x430），每個部件是「1bpp 遮罩 h × 6 bytes」接「3 plane 圖 h × 18 bytes」，畫法是 AND 遮罩再 OR 圖：
+
+| 圖層 | 欄位 | 檔案 offset | 項數 | 高 | y |
+|---|---|---|---|---|---|
+| 背景（無遮罩，720 bytes） | w0 | 0x0000 | 8 | 40 | 0 |
+| 後髮？（10＝無） | w1 | 0x1680 | 4 | 40 | 0 |
+| 頭／臉底 | w2 | 0x2580 | 10 | 40 | 0 |
+| 衣服 | w3 | 0x4B00 | 10 | 40 | 0 |
+| 眼 | w4 | 0x7080 | 10 | 6 | 14＋w9 |
+| 口 | w5 | 0x7620 | 10 | 6 | 23＋w10 |
+| 鼻 | w6 | 0x7BC0 | 10 | 9 | 15＋w11 |
+| 眉 | w7 | 0x8430 | 10 | 5 | 10＋w12 |
+| 髮型（10＝無） | w8 | 0x88E0 | 10 | 40 | 0 |
+| 鬍子（w14 才畫） | — | 0xAE60 | 1 | 20 | 20＋w13 |
+| 髷輪廓（w15 才畫） | — | 0xB040 | 1 | 40 | 0 |
+
+- 色盤：ISINS.OVL 0x856 只寫數位色盤 port（`color & 7`），預設值 `37 15 26 04`，沒有切類比模式，所以是 8 色數位（每分量 0 或 FF）。
+- 人名：ISIN.EXE 檔案 0x42312 姓 7 bytes × 423、0x449F4 名 9 bytes × 423，Shift-JIS＋外字 0xEB9F–0xEBAD（字形在 USKCG.SYS：恂寛屏佶溥叟孚訥阮煕襄奎霖謨）。id 0–422 是史實人物（0x2F12）。
+- 確定的頭像對照只有開場點名的 14 人（OPENNING.EXE DS:0x244／0x252）：坂本 0、島津斉彬 1、西郷 2、吉田 3、高杉 4、桂 5、井伊 6、勝 8、松平容保 10、河井 18、松平慶永 19、岩倉 76、小栗 81、近藤勇 100。看起來頭像依 id 遞增分配。
+- PC-9801 版 1988 年 6 月（ja.wikipedia）。
+
+## ロイヤルブラッド（ROYAL, PC-98 日文版，未匯出）
+
+只有 B 片，解出放在 `games/royal-pc98/`，主程式和人物資料在缺少的 A 片。
+
+- `KAODATA.DAT`：91 張 64×80，byte k＝bit k，1920 bytes，無壓縮（OPEN.EXE image 0x12D9 以 idx × 0x780 讀，0x29B0 依序寫 A800／B000／B800）。順序和 `royal-fc` 的 91 張逐張相同：0–63 武將、64–67 相談役、68–90 部隊／魔獸／召喚。
+- 色盤：遊戲啟動時問是否用類比 RGB。數位模式是標準 8 色；遊戲本體的類比色盤在 A 片主程式，無法確認。OPEN.EXE DS:0x8D6C 的色盤是開場用的染色，套到頭像會變綠。
+- PC-9801 版 1991-12-21（ja.wikipedia）。
