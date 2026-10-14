@@ -1787,6 +1787,9 @@ KOUKAIGD_WIN_SLOTS = {"top": ("上", 0, 0x318, 8, 0, 0, 7), "bottom": ("下", 0x
                       "eyes": ("眼", 0x3C00, 0x1B0, 8, 21, 8, 7), "nose": ("鼻", 0x4980, 0x240, 4, 29, 6, 3),
                       "mouth": ("口", 0x5280, 0x1C8, 8, 45, 11, 7)}
 KOUKAIGD_WIN_OR = ("eyes", "nose", "mouth")
+# portraits 0-5 are the six heroes of 大航海時代II, who appear in the scenario events; names as the
+# speakers in Snr1.mes / Snr2.mes (阿蘭•維斯特 is Al Vezas, "在奧斯曼帝國做生意")
+KOUKAIGD_WIN_II_HEROES = ["約翰•法雷爾", "卡特琳娜•艾蘭茨", "奧托•斯賓諾拉", "恩斯特•洛佩斯", "皮耶德•康迪", "阿蘭•維斯特"]
 
 
 def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -1822,9 +1825,12 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
     people = [(tables[1 - t][t][0], tables[t][t][1]) for t in (0, 1)]
     people += [row for table in tables for row in table if row[0] is not None]
     people += koei_games.load_koukaigd_win_events(os.path.join(game_dir, "Sdata.dat"))
+    people += [(name, i) for i, name in enumerate(KOUKAIGD_WIN_II_HEROES)]
+    tavern = koei_games.load_koukaigd_win_tavern(os.path.join(game_dir, "Sdata.dat"))
     characters, seen = [], set()
-    for name, code in people:
-        if name in seen:
+    for name, code in people + tavern:
+        # same-name mates in the two tables share their code; two tavern women are both 安娜
+        if name in seen and (name, code) not in tavern:
             continue
         seen.add(name)
         ch = {"id": len(characters), "name": name, "face": face(code)}

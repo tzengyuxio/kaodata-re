@@ -243,6 +243,9 @@ KOUKAIGD_WIN_MATES = (0x773E0, 0x78088)
 KOUKAIGD_WIN_NAMES = (0x78D30, 0x79348)
 # Sdata.dat: event people, 26-byte records (20-byte Big5 name, face at +23)
 KOUKAIGD_WIN_EVENT = (0x9AA, 20, 26)
+# Sdata.dat: tavern women, 19-byte records (12-byte Big5 name); woman k has portrait 0x61 + k (exe 0x425D87)
+KOUKAIGD_WIN_TAVERN = (0x770, 30, 19)
+KOUKAIGD_WIN_TAVERN_FACE = 0x61
 
 
 def load_koukaigd_win_mates(exe) -> list[list[tuple[str | None, int]]]:
@@ -273,6 +276,15 @@ def load_koukaigd_win_events(sdata) -> list[tuple[str, int]]:
     start, count, size = KOUKAIGD_WIN_EVENT
     return [(data[o:o + 20].split(b"\0")[0].decode("big5"), data[o + 23])
             for o in range(start, start + count * size, size)]
+
+
+def load_koukaigd_win_tavern(sdata) -> list[tuple[str, int]]:
+    """(name, portrait) of the Sdata.dat tavern women."""
+    with open(sdata, "rb") as f:
+        data = f.read()
+    start, count, size = KOUKAIGD_WIN_TAVERN
+    return [(data[o:o + 12].split(b"\0")[0].decode("big5"), KOUKAIGD_WIN_TAVERN_FACE + k)
+            for k, o in enumerate(range(start, start + count * size, size))]
 
 ##############################################################################
 
