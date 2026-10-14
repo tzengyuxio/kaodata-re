@@ -19,6 +19,7 @@ import genpei
 import koei_games
 import san2
 import san3
+import sango
 import utils
 
 FORMAT = "kaodata/1"
@@ -424,6 +425,87 @@ def build_san3(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+SAN4_INPUTS = ["KAODATA.S4", "MONDATA.S4", "SNDATA.S4", "TAIKI.S4"]
+# DGROUP 0xF52 of MAIN.EXE (B, R, G, 4 bits each), colours 8-15 are the faces; widened as (v << 4) | (v >> 2)
+SAN4_PALETTE = ["#302000", "#204182", "#B24120", "#C38251", "#417120", "#418292", "#D3B282", "#D3D3B2"]
+SAN4_SLOTS = [("top", "上"), ("bottom", "下"), ("eyes", "眼"), ("mouth", "口")]
+# named speakers: DGROUP 0x127E event table, overlay 2 event scripts (see notes/san4.md)
+SAN4_PORTRAIT_NAMES = {250: "華佗", 251: "馬鈞", 252: "司馬徽", 253: "許子將", 254: "于吉", 255: "左慈", 256: "管輅",
+                       257: "普淨", 333: "密探", 334: "士兵", 335: "書僮", 338: "貂蟬", 339: "獻帝"}
+# new rulers / new officers offered by the face picker (overlay 1), by sex; 舉兵 event (DGROUP 0x7CEE)
+SAN4_PORTRAIT_GROUPS = {
+    **{i: "事件人物" for i in SAN4_PORTRAIT_NAMES},
+    **{i: "新君主（男）" for i in range(258, 264)},
+    **{i: "新君主（女）" for i in range(264, 270)},
+    **{i: "新武將（男）" for i in range(270, 300)},
+    **{i: "新武將（女）" for i in range(300, 330)},
+    **{i: "舉兵事件" for i in (330, 331, 332, 336, 337)},
+}
+
+
+def build_san4(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN4_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    mon = files["MONDATA.S4"]
+    variants = []
+    for head in range(len(mon) // sango.SAN4_MONTAGE_HEAD_SIZE):
+        parts = {}
+        for area, (slot, _) in enumerate(SAN4_SLOTS):
+            items = []
+            for rec in range(sango.SAN4_MONTAGE_AREAS[area][2]):
+                w, h, px = sango.san4_montage_record(mon, head, area, rec)
+                # the game ORs eyes and mouth over the face, the same as colour 0 being transparent
+                items.append(store.add(w, h, bytes(c if area < 2 or c else TRANSPARENT for c in px)))
+            parts[slot] = {"at": [0, sango.SAN4_MONTAGE_ROWS[area][head]], "items": items}
+        variants.append({"id": str(head), "label": f"類型 {head}", "parts": parts})
+
+    faces = sango.load_san4_faces(os.path.join(game_dir, "KAODATA.S4"))
+    portraits = [{"img": store.add(*face, blob=1), "code": f"{i:04X}"} for i, face in enumerate(faces)]
+    for i, group in SAN4_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in SAN4_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    characters = []
+    # scenarios 1-6 in order; 羌族、烏丸族、山越族、南蠻族 share one face code, so key on the name too
+    seen = set()
+    for _, name, code in sango.load_san4_persons(os.path.join(game_dir, "SNDATA.S4"),
+                                                  os.path.join(game_dir, "TAIKI.S4")):
+        if (code, name) in seen:
+            continue
+        seen.add((code, name))
+        ch = {"id": len(characters), "name": name}
+        if code & 0x8000:
+            ch["face"] = {"variant": code & 15, "parts": sango.san4_montage_parts(code), "code": f"{code:04X}"}
+        else:
+            ch["face"] = {"portrait": code}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san4-dos", "game": "SAN4", "platform": "DOS",
+        "title": {"ja": "三國志IV", "zh": "三國志IV"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN4_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": SAN4_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": i, "label": label} for i, label in SAN4_SLOTS],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 LEMPE_INPUTS = ["KAODATA.DAT", "NPDATA.CIM"]
 # correct name where the Chinese release names a different person than the English one
 # (identity from the English and Japanese names, see koei-wiki 拿破崙/人物資料 mapping)
@@ -481,10 +563,11 @@ def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2, "san3-dos": build_san3, "lempe-dos": build_lempe}
+DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2, "san3-dos": build_san3, "lempe-dos": build_lempe,
+            "san4-dos": build_san4}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, san3-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san2-dos, san3-dos, san4-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
