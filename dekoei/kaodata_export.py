@@ -2039,9 +2039,11 @@ def build_eiketsu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
         if looks is None and code in EIKETSU3_WIN_PAIRS:
             looks = [(code, "青年"), (code + 1, "壯年")]
         ch = by_name[name] = {"id": len(characters), "name": name, "face": {"portrait": code}}
-        if looks:
+        if looks:  # listed young to old; faceAt keeps the record's face in its place
             ch["face"]["label"] = dict(looks)[code]
             ch["expressions"] = [{"portrait": p, "label": label} for p, label in looks if p != code]
+            if [p for p, _ in looks].index(code):
+                ch["faceAt"] = [p for p, _ in looks].index(code)
         if name in EIKETSU3_WIN_NAME_HISTORICAL:
             ch["nameHistorical"] = EIKETSU3_WIN_NAME_HISTORICAL[name]
         characters.append(ch)

@@ -3,7 +3,7 @@
 `dekoei.py export eiketsu3-win` 用到的格式。來源是 `games/win/[系列] 英傑傳/毛利元就傳 (中文).zip`，解到 `games/eiketsu3-win/`（不含 WAV、AVI、MP3）。zip 裡的檔名是 Big5，用 Python `zipfile` 解（cp437 → Big5）。
 
 - 英傑傳系列第 3 作（光榮的檔名代碼 EKD3，資料檔副檔名 `.E3`），日文原名《毛利元就 誓いの三矢》。
-- dataset id 比照 `eiketsu4-win`／`eiketsu5-win` 取 `eiketsu3-win`。
+- dataset id 是 `eiketsu3-win`、game code EIKETSU3（比照 `eiketsu4-win`／`eiketsu5-win`，已確認）。Windows 原版 1997-05-23 發售。
 - 主程式 `毛利元就傳_Gr.EXE`（Win32 PE，沒有加殼，imagebase 0x400000，.data VA 0x47C000＝檔案 0x7B000），下文的位址都是 VA。
 
 ## KAO.E3：頭像
@@ -45,7 +45,7 @@
 
 - 記錄 0–199 和 792–799，每個名字一人，共 201 人。
   - 同一人的別名合併（`EIKETSU3_WIN_ALIASES`）：少輔太郎→毛利隆元、少輔次郎→吉川元春、德壽丸→小早川隆景、竹千代／松平元康→德川家康、竹若丸→安國寺惠瓊、夫人→妙姬（同一張臉）。
-  - 上一節的年齡臉放進 `face`／`expressions`，加 `label`（`EIKETSU3_WIN_LOOKS`、`EIKETSU3_WIN_PAIRS`）；`face` 是記錄用的那張。
+  - 上一節的年齡臉放進 `face`／`expressions`，加 `label`（`EIKETSU3_WIN_LOOKS`、`EIKETSU3_WIN_PAIRS`）；`face` 是記錄用的那張，`expressions` 由年輕排到年長，`faceAt` 標出 `face` 在其中的位置（例：元就是少年、青年、壯年、老年，`faceAt` 1）。
   - 不同人共用一張臉的照實保留：隆元之妻／元就之母（116）、長介／高橋鑑種（91）。
 - 只有 NPC、兵種用的臉，以第一筆記錄的稱呼（去掉編號）命名：士兵和記錄 500 起的兵種歸「部隊」，其他歸「一般人物」；隨機姓名家臣的臉叫「一般武將」。
 - 剩下 21 張沒人用的臉（28、151、159、211、308–322、324、327）歸「未使用」。308 以後多是和 323–331 同一批畫風的武將臉。

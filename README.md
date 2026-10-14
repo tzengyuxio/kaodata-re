@@ -67,7 +67,7 @@ Early KOEI Games Data Research
 | AIR2      | 航空霸業II                  | 1993 |       DOS        |       |        |                     |
 | EIKETSU   | 三國志英傑傳                | 1995 |     DOS,WIN      |       |        |                     |
 | KOUMEI    | 三國志孔明傳                | 1996 |       WIN        |       |        |                     |
-| EIKETSU3  | 毛利元就 三矢之誓           | 1996 |       WIN        |       |        |                     |
+| EIKETSU3  | 毛利元就 三矢之誓           | 1997 |       WIN        |       |        |                     |
 | EIKETSU4  | 織田信長傳                  | 1998 |       WIN        |       |        |                     |
 | EIKETSU5  | 三國志曹操傳                | 1998 |       WIN        |       |        |                     |
 | GENPEI    | 源平合戰                    | 1994 |                  |       |        |                     |
