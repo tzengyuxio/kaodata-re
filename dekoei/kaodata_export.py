@@ -977,6 +977,57 @@ def build_suikoden_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOURYUUKI (DOS, Chinese)
+
+KOURYUUKI_DOS_INPUTS = ["KAO.KR1", "MAIN.EXE"]
+KOURYUUKI_DOS_FACE = 1920  # 64x80 full height, byte k = bit k
+# MAIN.EXE DGROUP 0x5E5A (set at start-up through GRPDRV fn 15h): 4-bit B, R, G, written to the DAC as v << 2
+KOURYUUKI_DOS_PALETTE = ["#000000", "#0030a2", "#c34100", "#b27171", "#418200", "#82a2b2", "#e3a251", "#f3e3d3"]
+# faces 92-96 have no person; names from MAIN.EXE DGROUP 0x7D6E
+KOURYUUKI_DOS_PORTRAIT_GROUPS = {92: "長老", 93: "長老", 94: "士兵", 95: "士兵", 96: "事件人物"}
+KOURYUUKI_DOS_PORTRAIT_NAMES = {96: "虞姬"}
+KOURYUUKI_DOS_NAME_HISTORICAL = {79: "臧荼", 80: "司馬卬", 82: "靳彊"}
+
+
+def build_kouryuuki_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOURYUUKI_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    kao = files["KAO.KR1"]
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+                  "code": f"{i // KOURYUUKI_DOS_FACE:04X}"} for i in range(0, len(kao), KOURYUUKI_DOS_FACE)]
+    for i, group in KOURYUUKI_DOS_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in KOURYUUKI_DOS_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    characters = []
+    # face = person number (MAIN.EXE reads KAO.KR1 at face * 0x780)
+    for cid, name in enumerate(koei_games.load_kohryuki_dos_names(os.path.join(game_dir, "MAIN.EXE"))):
+        ch = {"id": cid, "name": name}
+        if cid in KOURYUUKI_DOS_NAME_HISTORICAL:
+            ch["nameHistorical"] = KOURYUUKI_DOS_NAME_HISTORICAL[cid]
+        ch["face"] = {"portrait": cid}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "kouryuuki-dos", "game": "KOURYUUKI", "platform": "DOS",
+        "title": {"ja": "項劉記", "zh": "項劉記"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOURYUUKI_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "vga", "label": "VGA", "colors": KOURYUUKI_DOS_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -985,10 +1036,11 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
-            "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos}
+            "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
+            "kouryuuki-dos": build_kouryuuki_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

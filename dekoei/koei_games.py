@@ -196,6 +196,15 @@ def kohryuki_person(game_dir, to, scenario):
 kohryuki.add_command(kohryuki_face, 'face')
 kohryuki.add_command(kohryuki_person, 'person')
 
+# DOS (Chinese) MAIN.EXE is PKLITE packed; the 92 x 17-byte name table is at 0x3D0D4 of the unpacked image
+KOHRYUKI_DOS_NAMES = 0x3D0D4
+
+
+def load_kohryuki_dos_names(main_exe) -> list[str]:
+    import pklite
+    with open(main_exe, 'rb') as f:
+        image = pklite.depklite(f.read())
+    return [koei_tw_name(image[KOHRYUKI_DOS_NAMES + i * 17:KOHRYUKI_DOS_NAMES + i * 17 + 6]) for i in range(92)]
 
 ##############################################################################
 
