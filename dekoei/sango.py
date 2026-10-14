@@ -1,4 +1,5 @@
 import click
+import genpei
 from rich.console import Console
 from utils import *
 from san_person import *
@@ -135,7 +136,7 @@ def load_san4_persons(sndata, taiki) -> list[tuple[int, str, int]]:
     return persons
 
 
-# MONDATA.S4: 16 heads x 0x2E80 bytes, 3bpp planar rows of 24 bytes (to_3bpp_indexes order).
+# MONDATA.S4: 16 heads x 0x2E80 bytes, 3bpp planar rows of 24 bytes (byte k = bit k, as genpei.decode_planar).
 # Composer at MAIN.EXE 0x24FB8; face code bit 15 = composite, bits 0-3 head.
 SAN4_MONTAGE_HEAD_SIZE = 0x2E80
 # (offset in head block, rows per record, records, (shift, mask) in the face code) per area
@@ -156,7 +157,7 @@ def san4_montage_parts(code):
 def san4_montage_record(data, head, area, record) -> tuple[int, int, bytes]:
     offset, rows, _, _ = SAN4_MONTAGE_AREAS[area]
     start = head * SAN4_MONTAGE_HEAD_SIZE + offset + record * rows * 24
-    return 64, rows, bytes(to_3bpp_indexes(data[start:start + rows * 24]))
+    return 64, rows, bytes(genpei.decode_planar(data, start, 64, rows, 3))
 
 ##############################################################################
 

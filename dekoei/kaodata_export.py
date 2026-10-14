@@ -441,6 +441,8 @@ SAN4_PORTRAIT_GROUPS = {
     **{i: "新武將（女）" for i in range(300, 330)},
     **{i: "舉兵事件" for i in (330, 331, 332, 336, 337)},
 }
+# the DOS release writes 孔秀 (another person) for 孔伷; the PC-98 release has 孔伷
+SAN4_NAME_HISTORICAL = {0x38: "孔伷"}
 
 
 def build_san4(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -479,6 +481,8 @@ def build_san4(game_dir: str) -> tuple[dict, list[bytes]]:
             continue
         seen.add((code, name))
         ch = {"id": len(characters), "name": name}
+        if code in SAN4_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN4_NAME_HISTORICAL[code]
         if code & 0x8000:
             ch["face"] = {"variant": code & 15, "parts": sango.san4_montage_parts(code), "code": f"{code:04X}"}
         else:
