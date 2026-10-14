@@ -36,7 +36,7 @@ def get_image(meta: dict, blobs: list[bytes], img: int) -> tuple[int, int, bytes
     return w, h, pixels[offset:offset + w * h]
 
 
-def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, y: int) -> None:
+def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, y: int, xor: bool = False) -> None:
     sw, sh, data = src
     for sy in range(sh):
         dy = y + sy
@@ -46,7 +46,8 @@ def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, 
             dx = x + sx
             c = data[sy * sw + sx]
             if 0 <= dx < dw and c != TRANSPARENT:
-                dst[dy * dw + dx] = c
+                d = dst[dy * dw + dx]
+                dst[dy * dw + dx] = c ^ d if xor and d != TRANSPARENT else c
 
 
 def crop(src: tuple[int, int, bytes], rect) -> tuple[int, int, bytes]:
@@ -82,7 +83,7 @@ def compose_display(meta: dict, blobs: list[bytes], face: dict) -> tuple[int, in
         sp = variant["parts"][slot["id"]]
         item = sp["items"][part]
         img, (x, y) = (item, sp.get("at", [0, 0])) if isinstance(item, int) else (item["img"], item["at"])
-        blit(canvas, cw, ch, get_image(meta, blobs, img), x, y)
+        blit(canvas, cw, ch, get_image(meta, blobs, img), x, y, slot.get("blend") == "xor")
     shown = (cw, ch, bytes(canvas))
     if "window" in variant:
         shown = crop(shown, variant["window"])
