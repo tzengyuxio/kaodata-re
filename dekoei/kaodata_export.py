@@ -1217,6 +1217,117 @@ def build_koukai_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+GENGHIS_DOS_INPUTS = ["KAO.DAT", "MONTER.DAT", "MDATA.CIM", "SDATA.CIM"]
+# MONTER.DAT: 4 types x 0x15C0 bytes; per type 4 items of each slot. slot -> (label, offset, first row, rows)
+GENGHIS_DOS_SLOTS = {"top": ("上", 0, 0, 19), "bottom": ("下", 0x720, 19, 21), "eyes": ("眼", 0xF00, 12, 7),
+                     "nose": ("鼻", 0x11A0, 19, 6), "mouth": ("口", 0x13E0, 25, 5)}
+GENGHIS_DOS_TYPE = 0x15C0
+GENGHIS_DOS_XOR = ("eyes", "nose", "mouth")  # XORed onto the head (MAIN.EXE 0x5C94)
+GENGHIS_DOS_SKIN = 4  # plane-0-only pixels of top/bottom, recoloured by code bits 12-14 (MAIN.EXE 0x955)
+GENGHIS_DOS_NAME_HISTORICAL = {
+    "菲利浦一世": "菲利浦二世",  # Philip II Augustus (FC フィリップ2せい); wrong regnal number
+    "北鞗政子": "北條政子",      # typo
+    "偪山重忠": "畠山重忠",      # 畠 missing from the font
+    "斡鄰勒": "脫斡鄰勒",        # 少字 (Toghrul)
+    "江宗": "襄宗",              # English "Chiang Tsung" = Xi Xia Xiangzong (inferred)
+    "摩柯末": "摩訶末",          # 《元史》
+}
+
+
+def build_genghis_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in GENGHIS_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    mon = files["MONTER.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+    cache = {}
+
+    def part(v, slot, i, colour):
+        _, offset, _, rows = GENGHIS_DOS_SLOTS[slot]
+        o = v * GENGHIS_DOS_TYPE + offset + i * rows * 24
+        px = utils.to_3bpp_indexes(mon[o:o + rows * 24])
+        if slot not in GENGHIS_DOS_XOR:
+            px = [colour if p == GENGHIS_DOS_SKIN else p for p in px]
+        rows = [bytes(px[r * 64:(r + 1) * 64]) for r in range(rows)]
+        img = b"".join(r + r for r in rows)  # half-height rows doubled
+        if img not in cache:  # most colours don't touch a part, so variants share images
+            cache[img] = store.add(64, len(img) // 64, img)
+        return cache[img]
+
+    variants = []
+    for c in range(8):
+        # code bits 12-14 are a colour number with bit k -> plane k; to_3bpp_indexes puts plane 0 in bit 2
+        colour = (c & 1) << 2 | (c & 2) | (c >> 2) & 1
+        for v in range(4):
+            parts = {slot: {"at": [0, 2 * row], "items": [part(v, slot, i, colour) for i in range(4)]}
+                     for slot, (_, _, row, _) in GENGHIS_DOS_SLOTS.items()}
+            variants.append({"id": f"{v}-{c}", "label": f"類型 {v}／色 {c}", "parts": parts})
+
+    kao = files["KAO.DAT"]
+    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True), blob=1),
+                  "code": f"{i // SAN2_FACE:04X}"} for i in range(0, len(kao), SAN2_FACE)]
+
+    def face(code):
+        if code & 0x8000:
+            return {"variant": (code >> 12 & 7) * 4 + (code >> 10 & 3),
+                    "parts": [code >> 8 & 3, code >> 6 & 3, code >> 4 & 3, code >> 2 & 3, code & 3],
+                    "code": f"{code:04X}"}
+        return {"portrait": code}
+
+    m = koei_games.load_genghis_dos_people(os.path.join(game_dir, "MDATA.CIM"))
+    s = koei_games.load_genghis_dos_people(os.path.join(game_dir, "SDATA.CIM"))
+    assert m["woman"] == s["woman"]
+    # genghis-fc order: Mongol rulers, family, sons; world rulers, family, sons; women;
+    # then the generals (not in FC), Mongol then world; a name already listed is skipped
+    order = [m["ruler"], m["family"], m["son"], s["ruler"], s["family"], s["son"], m["woman"],
+             m["general"], s["general"]]
+    characters, seen = [], {}
+    for table in order:
+        for name, faces in table:
+            if name in seen:
+                assert seen[name] == faces, name
+                continue
+            seen[name] = faces
+            ch = {"id": len(characters), "name": name}
+            if name in GENGHIS_DOS_NAME_HISTORICAL:
+                ch["nameHistorical"] = GENGHIS_DOS_NAME_HISTORICAL[name]
+            ch["face"] = face(faces[0])
+            extra = []
+            for f, label in zip(faces[1:], ("笑", "哭")):  # women: normal, smile, cry
+                if f != faces[0] and f not in [e["portrait"] for e in extra]:
+                    extra.append({"portrait": f, "label": label})
+            if extra:
+                ch["face"]["label"] = "平常"
+                ch["expressions"] = extra
+            characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "genghis-dos", "game": "GENGHIS", "platform": "DOS",
+        "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "xor"} if slot in GENGHIS_DOS_XOR else {})}
+                      for slot, (label, *_) in GENGHIS_DOS_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "$variant", "hi": 15, "lo": 10, "base": 32},  # 1 ccc vv: variant = c * 4 + v
+                {"of": "top", "hi": 9, "lo": 8}, {"of": "bottom", "hi": 7, "lo": 6},
+                {"of": "eyes", "hi": 5, "lo": 4}, {"of": "nose", "hi": 3, "lo": 2},
+                {"of": "mouth", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -1227,10 +1338,10 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
-            "koukai-dos": build_koukai_dos}
+            "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, lempe-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4-dos, san4-pc98, san4pk-pc98, san5pk-dos, san5pk-pc98, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, lempe-dos)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

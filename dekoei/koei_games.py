@@ -340,6 +340,29 @@ def load_koukai_dos_people(shinario) -> tuple[list[tuple[str, int, int, int]], l
     off, size, n = KOUKAI_WOMEN
     return men, [koei_tw_name(data[off + i * size:off + i * size + 15]) for i in range(n)]
 
+# GENGHIS DOS MDATA.CIM / SDATA.CIM: kind -> (offset, groups, group size, records, record size, face offset)
+GENGHIS_TABLES = {"ruler": (0x2E2, 1, 0, 27, 43, 0x27), "family": (0x76C, 4, 205, 5, 41, 0x27),
+                  "son": (0xE46, 4, 160, 5, 32, 0x1E), "general": (0xAEB, 1, 0, 26, 33, 0x1F),
+                  "woman": (0x1E8A, 1, 0, 40, 34, 0x1C)}
+
+
+def load_genghis_dos_people(cim) -> dict[str, list[tuple[str, list[int]]]]:
+    """(name, face codes) per kind, in table order; women have three faces (normal, smile, cry)."""
+    with open(cim, 'rb') as f:
+        data = f.read()
+    out = {}
+    for kind, (off, groups, gsize, n, size, face) in GENGHIS_TABLES.items():
+        out[kind] = []
+        for g in range(groups):
+            for i in range(n):
+                o = off + g * gsize + i * size
+                if data[o]:
+                    faces = 3 if kind == "woman" else 1
+                    out[kind].append((koei_tw_name(data[o:o + 20]),
+                                      [int.from_bytes(data[o + face + 2 * j:o + face + 2 * j + 2], 'little')
+                                       for j in range(faces)]))
+    return out
+
 ##############################################################################
 
 
