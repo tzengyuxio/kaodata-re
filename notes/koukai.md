@@ -1,6 +1,6 @@
 # 大航海時代（KOUKAI, DOS 中文版）頭像相關格式
 
-`dekoei.py export koukai-dos` 用到的格式。來源是 `games/大航海時代_中文版_uwc.zip` 的 `sea1/`，解開放在 `games/koukai-dos/`。
+`dekoei.py export koukai-dos` 用到的格式。來源是 `games/archives/dos/大航海時代_中文版_uwc.zip` 的 `sea1/`，解開放在 `games/koukai-dos/`。
 
 ## 版本
 

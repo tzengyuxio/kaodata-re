@@ -1,6 +1,6 @@
 # 航空霸業II（AIR2, DOS 中文版）頭像相關格式
 
-`dekoei.py export air2-dos` 用到的格式。來源是 `games/航空霸業２_中文版_air2.rar`，是大陸網站的 DOSBox 打包版。遊戲檔在包內的 `air2/game/AM2/`，搬到 `games/air2-dos/`；包外的 `.url`、`.bat`、DOSBox 和 DLL 都沒有用。
+`dekoei.py export air2-dos` 用到的格式。來源是 `games/archives/dos/航空霸業２_中文版_air2.rar`，是大陸網站的 DOSBox 打包版。遊戲檔在包內的 `air2/game/AM2/`，搬到 `games/air2-dos/`；包外的 `.url`、`.bat`、DOSBox 和 DLL 都沒有用。
 
 ## 版本
 

@@ -1,6 +1,6 @@
 # 織田信長傳（EIKETSU4, Win 中文版）頭像相關格式
 
-`dekoei.py export eiketsu4-win` 用到的格式。來源是 `games/6.7_英傑傳四織田信長傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `Ekd4/` 解到 `games/eiketsu4-win/`（不含 `TESTAVI.AVI`），說明文字檔和 `wing/`（WinG 安裝程式）放在 `games/eiketsu4-win-src/`。
+`dekoei.py export eiketsu4-win` 用到的格式。來源是 `games/archives/win/6.7_英傑傳四織田信長傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `Ekd4/` 解到 `games/eiketsu4-win/`（不含 `TESTAVI.AVI`），說明文字檔和 `wing/`（WinG 安裝程式）放在 `games/archives/win/eiketsu4-win-src/`。
 
 - 英傑傳系列第 4 作（光榮的檔名代碼是 EKD4，資料檔副檔名 `.E4`），主程式 `Ekd4.EXE`。
 - `UNKOEI.exe`／`unKOEI.dat`／`rmKOEI.bin` 是上傳者附的工具，匯出不讀 EXE。

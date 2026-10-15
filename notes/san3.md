@@ -66,7 +66,7 @@
 
 ## PC-98 日文版（`san3-pc98`）
 
-`dekoei.py export san3-pc98` 用到的差異。來源是 `games/pc98/【PC98】三國志３.rar` 的 FDI 磁碟映像，解出放在 `games/san3-pc98/`。
+`dekoei.py export san3-pc98` 用到的差異。來源是 `games/archives/pc98/【PC98】三國志３.rar` 的 FDI 磁碟映像，解出放在 `games/san3-pc98/`。
 
 - `KAODATA.DAT`、`MONTAGE.DAT` 和 DOS 中文版逐 byte 相同，頭像、組合臉照上文處理。
 - `MAIN.EXE` 沒有壓縮，映像＝檔案 0x8C00 起，DGROUP 段值 0x4B20。程式結構和 DOS 一對一，下表是對應的位址（PC-98 欄是映像位址）：

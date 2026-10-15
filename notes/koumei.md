@@ -1,6 +1,6 @@
 # 三國志孔明傳（KOUMEI, Windows 中文版）頭像相關格式
 
-`dekoei.py export koumei-win` 用到的格式。來源是 `games/5.31_三國志孔明傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `kou/` 搬到 `games/koumei-win/`；`wing/` 是 WinG 安裝程式，不用。
+`dekoei.py export koumei-win` 用到的格式。來源是 `games/archives/win/5.31_三國志孔明傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `kou/` 搬到 `games/koumei-win/`；`wing/` 是 WinG 安裝程式，不用。
 
 ## 版本
 

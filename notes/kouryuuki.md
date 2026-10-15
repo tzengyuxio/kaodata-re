@@ -1,6 +1,6 @@
 # 項劉記（KOURYUUKI, DOS 中文版）頭像相關格式
 
-`dekoei.py export kouryuuki-dos` 用到的格式。來源是 `games/項劉記_中文版_hanlau.rar` 的 `hanlau/`，解開放在 `games/kouryuuki-dos/`。
+`dekoei.py export kouryuuki-dos` 用到的格式。來源是 `games/archives/dos/項劉記_中文版_hanlau.rar` 的 `hanlau/`，解開放在 `games/kouryuuki-dos/`。
 
 ## 版本
 

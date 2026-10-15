@@ -1,10 +1,10 @@
 # 蒼狼與白鹿・成吉思汗（GENGHIS, DOS 中文版）頭像相關格式
 
-`dekoei.py export genghis-dos` 用到的格式。來源是 `games/成吉思汗_中文版_khan-c.zip`，解開放在 `games/genghis-dos/`。
+`dekoei.py export genghis-dos` 用到的格式。來源是 `games/archives/dos/成吉思汗_中文版_khan-c.zip`，解開放在 `games/genghis-dos/`。
 
 ## 版本
 
-- 英文 DOS 版 Genghis Khan（1989，部分資料寫 1990）的移植：`KAO.DAT`、`MONTER.DAT`、`PICDATA.DAT` 和英文版（`games/成吉思汗_英文版_genghis-khan.zip`）逐 byte 相同；`MDATA.CIM`／`SDATA.CIM` 換成中文名字（1992-11）。原作是 1987-12 的 PC-98 版。
+- 英文 DOS 版 Genghis Khan（1989，部分資料寫 1990）的移植：`KAO.DAT`、`MONTER.DAT`、`PICDATA.DAT` 和英文版（`games/archives/dos/成吉思汗_英文版_genghis-khan.zip`）逐 byte 相同；`MDATA.CIM`／`SDATA.CIM` 換成中文名字（1992-11）。原作是 1987-12 的 PC-98 版。
 - 中文版 `MAIN.EXE`（1993-04-26）是 EXEPACK，DGROUP 段值 0x1DED（MZ 檔頭 0x4290）。下文是解壓後的映像位址。
 
 ## 頭像：KAO.DAT

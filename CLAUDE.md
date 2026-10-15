@@ -10,8 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `notes/`：格式研究筆記（繁中），改解碼邏輯前先讀對應筆記，例如源平合戰看 `notes/genpei.md`
 - `kaocgeditor/`：獨立的 React（Create React App）頭像編輯器，與 Python 端沒有程式碼共用
 - `GLYPH_TABLE/`、`PERSONS_TABLE/`、`MISC_TABLE/`、`montage/`：已產出的成果圖／表，不是原始碼
-- `games/`：原版遊戲（壓縮檔，以及解開後的 `games/<dataset-id>/`，如 `games/san2-dos/`），被 `.gitignore` 排除，不要 commit
-  - PC-98／X68000 版是磁碟映像（`games/pc98/` 的 FDI／HDI、`games/Sangokushi II [FD]*/` 的 HDM），檔案已解到 `games/<game>-pc98/`、`games/san2-x68/`，每片磁碟的原樣在 `games/pc98/disks/`
+- `games/`：原版遊戲，被 `.gitignore` 排除，不要 commit
+  - 根目錄只放解開後、給 `--game-dir` 用的 `games/<dataset-id>/`（如 `games/san2-dos/`）
+  - 原始壓縮檔、磁碟映像與用不到的附帶檔（說明文字、`<dataset-id>-src/`）依平台放在 `games/archives/dos/`、`win/`、`pc98/`、`x68000/`；新加的原始檔也照這個分法
+  - PC-98／X68000 版是磁碟映像（`games/archives/pc98/` 的 FDI／HDI、`games/archives/x68000/Sangokushi II [FD]*/` 的 HDM），檔案已解到 `games/<game>-pc98/`、`games/san2-x68/`，每片磁碟的原樣在 `games/archives/pc98/disks/`
 - 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理；例外是 PC-98 安裝包 DPACK 的解壓 `dekoei/dpack.py`（`python dpack.py OUTDIR DPACK1 DPACK2 ...`，見 `notes/dpack.md`），用來從提督の決断III、三国志V 的磁片取得遊戲檔
 
 ## 指令

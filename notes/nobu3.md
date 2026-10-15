@@ -1,10 +1,10 @@
 # 信長之野望・戰國群雄傳（NOBU3, DOS 中文版）頭像相關格式
 
-`dekoei.py export nobu3-dos` 用到的格式。來源是 `games/信長之野望２_中文版_nobu2-c.rar`（台灣稱「信長之野望II」），解開放在 `games/nobu3-dos/`。
+`dekoei.py export nobu3-dos` 用到的格式。來源是 `games/archives/dos/信長之野望２_中文版_nobu2-c.rar`（台灣稱「信長之野望II」），解開放在 `games/nobu3-dos/`。
 
 ## 版本
 
-- 英文 DOS 版 Nobunaga's Ambition II 的移植：`KAODATA.DAT`、`KAO_OE.DAT`、`PACKDATA.DAT`、`HEXDATA.DAT` 和英文版（`games/信長之野望２_英文版_nobunagas-ambition-ii.zip`）逐 byte 相同；劇本換成中文名字（1993-08）。
+- 英文 DOS 版 Nobunaga's Ambition II 的移植：`KAODATA.DAT`、`KAO_OE.DAT`、`PACKDATA.DAT`、`HEXDATA.DAT` 和英文版（`games/archives/dos/信長之野望２_英文版_nobunagas-ambition-ii.zip`）逐 byte 相同；劇本換成中文名字（1993-08）。
 - 中文版 `MAIN.EXE`（1993-11-04）是 TINYPROG 壓縮，開頭會印「Cracked by C.C.F. 4th November, 1993」，是破解版。用 unicorn 跑完解壓 stub 後，程式碼和英文版 `MAIN.EXE`（沒壓縮，MZ 檔頭 0x3E00，DGROUP 0x1DBC）相同結構。下文位址是英文版映像位址。
 - `SAVEDATA.DAT`（2001）是玩家存檔，`SAVEDATA.ORG` 是空白存檔範本，都不用。
 

@@ -1,6 +1,6 @@
 # 大航海時代外傳（KOUKAIGD, Win 中文版）頭像相關格式
 
-`dekoei.py export koukaigd-win` 用到的格式。來源是 `games/5.31_大航海時代外傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `Seaadd/` 解開放在 `games/koukaigd-win/`，其他文字檔在 `games/koukaigd-win-src/`。主程式 `koukaiGD.exe` 是 Win32 PE（DirectDraw）。下文的位址：VA 是 imagebase 0x400000 起算，「檔案」是檔案 offset（.data 的 VA＝檔案＋0x401000）。
+`dekoei.py export koukaigd-win` 用到的格式。來源是 `games/archives/win/5.31_大航海時代外傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `Seaadd/` 解開放在 `games/koukaigd-win/`，其他文字檔在 `games/archives/win/koukaigd-win-src/`。主程式 `koukaiGD.exe` 是 Win32 PE（DirectDraw）。下文的位址：VA 是 imagebase 0x400000 起算，「檔案」是檔案 offset（.data 的 VA＝檔案＋0x401000）。
 
 ## 頭像
 

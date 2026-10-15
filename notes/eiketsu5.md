@@ -1,10 +1,10 @@
 # 三國志曹操傳（EIKETSU5, Win 中文版）頭像相關格式
 
-`dekoei.py export eiketsu5-win` 用到的格式。來源是 `games/6.3_三國志曹操傳_killpeople.rar`（killpeople 是上傳者標記）。
+`dekoei.py export eiketsu5-win` 用到的格式。來源是 `games/archives/win/6.3_三國志曹操傳_killpeople.rar`（killpeople 是上傳者標記）。
 
 - 包內的 `edk5.exe` 是 Wise 安裝程式（Zip SFX）。用 `7z x` 解到 `games/eiketsu5-win/`，刪掉 AVI。
   - 7z 會警告 `GATE.E5` 後面還有資料，但解出的大小和清單相同，不影響。
-- 說明文字檔和 `wing/` 放在 `games/eiketsu5-win-src/`。
+- 說明文字檔和 `wing/` 放在 `games/archives/win/eiketsu5-win-src/`。
 - 英傑傳系列第 5 作（光榮的檔名代碼 EKD5，資料檔副檔名 `.E5`）。主程式 `EKD5.EXE`（Win32 PE，imagebase 0x400000，.data VA 0x489000＝檔案 0x87A00），下文的位址都是 VA。
 
 ## FACE.E5：頭像

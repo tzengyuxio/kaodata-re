@@ -1,6 +1,6 @@
 # 三國志（SAN1, PC-98 日文版）頭像相關格式
 
-`dekoei.py export san1-pc98` 用到的格式。來源是 `games/pc98/【PC98】三國志.rar` 的 FDI（Ver.2.4, 87/4/20），解出放在 `games/san1-pc98/`。
+`dekoei.py export san1-pc98` 用到的格式。來源是 `games/archives/pc98/【PC98】三國志.rar` 的 FDI（Ver.2.4, 87/4/20），解出放在 `games/san1-pc98/`。
 
 ## 頭像：PICDATA.DAT
 
@@ -37,7 +37,7 @@ PC-9801 版 1986-04-30（ja.wikipedia〈三國志 (ゲーム)〉，和 FM-16β �
 
 ## DOS 英文版（`san1-dos`）
 
-`dekoei.py export san1-dos` 用到的差異。來源是 `games/三國志_英文版_romance-of-the-three-kingdoms.zip`，解開放在 `games/san1-dos/`（檔案日期 1996-06-06，應是重新包裝的日期）。`MAIN.EXE` 標題字串「(C)1988 KOEI CORPORATION」「Ver.2.4(87/4/20)」，和 PC-98 版號相同。
+`dekoei.py export san1-dos` 用到的差異。來源是 `games/archives/dos/三國志_英文版_romance-of-the-three-kingdoms.zip`，解開放在 `games/san1-dos/`（檔案日期 1996-06-06，應是重新包裝的日期）。`MAIN.EXE` 標題字串「(C)1988 KOEI CORPORATION」「Ver.2.4(87/4/20)」，和 PC-98 版號相同。
 
 - `MAIN.EXE` 用 PLINK86 overlay（`SAN.OVL`），C 程式庫是 MSC 1986，DGROUP 在檔案 0x13830。
 - PICDATA.DAT：

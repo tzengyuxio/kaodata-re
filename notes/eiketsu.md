@@ -1,6 +1,6 @@
 # 三國志英傑傳（EIKETSU, DOS 中文版）頭像相關格式
 
-`dekoei.py export eiketsu-dos` 用到的格式。來源是 `games/6.10_三國志英傑傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `rhero/` 解開放在 `games/eiketsu-dos/`。
+`dekoei.py export eiketsu-dos` 用到的格式。來源是 `games/archives/dos/6.10_三國志英傑傳_killpeople.rar`（killpeople 是上傳者標記），包內的 `rhero/` 解開放在 `games/eiketsu-dos/`。
 
 - 是 DOS 版：`PLAY.BAT` 執行 `REKO3IBM.COM`，它依序載入 `SBOPL2.COM`、`GRPDRV.EXE`、`TFDED.COM`，再跑 `OPEN.EXE`、`MAIN.EXE`、`END.EXE`。
 - `MAIN.EXE`：MS C 編譯，MZ 檔頭 0x6A00 bytes，DGROUP 在檔案 0x371D0（"MS Run-Time Library" 在 DGROUP 0x8）。下文的 DGROUP 位址都從這裡算。

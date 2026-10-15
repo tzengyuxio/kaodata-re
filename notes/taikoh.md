@@ -1,6 +1,6 @@
 # 太閤立志傳（TAIKOH, DOS 中文版）頭像相關格式
 
-`dekoei.py export taikoh-dos` 用到的格式。來源是 `games/win/[系列] 太閣立志傳 (pw 可能也是 Old-Games）/$太閤立志傳1.rar`（DOSBox 包），`太閤立志傳/DOS/game/TK/` 解到 `games/taikoh-dos/`，`操作說明.txt` 放在 `games/taikoh-dos-src/`。
+`dekoei.py export taikoh-dos` 用到的格式。來源是 `games/archives/win/[系列] 太閣立志傳 (pw 可能也是 Old-Games）/$太閤立志傳1.rar`（DOSBox 包），`太閤立志傳/DOS/game/TK/` 解到 `games/taikoh-dos/`，`操作說明.txt` 放在 `games/archives/dos/taikoh-dos-src/`。
 
 - 中文版 `MAIN.EXE` 1995-01-25，沒有壓縮（MZ 檔頭 0x6A00 bytes），DGROUP 段值 0x5578（檔案 0x5C180）。下文的位址是映像（檔案 − 0x6A00）位址，DGROUP 位址另外標明。
 - `SAVE.DAT`（1997-03-04）是玩過的存檔，5 個槽內容不同（例如今川義元已換成熊谷信直），不使用。

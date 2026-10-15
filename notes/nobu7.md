@@ -1,6 +1,6 @@
 # 信長之野望・將星錄（NOBU7, Win 中文版）頭像相關格式
 
-`dekoei.py export nobu7-win` 用到的格式。來源是 `games/5.31_信長之野望七_killpeople.rar`（killpeople 是上傳者標記），解到 `games/nobu7-win/`（不含動畫），說明文字檔放在 `games/nobu7-win-src/`。
+`dekoei.py export nobu7-win` 用到的格式。來源是 `games/archives/win/5.31_信長之野望七_killpeople.rar`（killpeople 是上傳者標記），解到 `games/nobu7-win/`（不含動畫），說明文字檔放在 `games/archives/win/nobu7-win-src/`。
 
 ## Kaodata.nb7：頭像
 

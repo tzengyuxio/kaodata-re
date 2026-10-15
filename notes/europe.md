@@ -1,6 +1,6 @@
 # 歐陸戰線（EUROPE, DOS 中文版）頭像相關格式
 
-`dekoei.py export europe-dos` 用到的格式。來源是 `games/歐陸戰線_中文版_europe.rar` 的 `olzx/`，解開放在 `games/europe-dos/`。
+`dekoei.py export europe-dos` 用到的格式。來源是 `games/archives/dos/歐陸戰線_中文版_europe.rar` 的 `olzx/`，解開放在 `games/europe-dos/`。
 
 ## 版本
 

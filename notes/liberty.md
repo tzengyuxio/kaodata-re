@@ -1,6 +1,6 @@
 # 獨立戰爭 Liberty or Death（LIBERTY, DOS 中文版）頭像相關格式
 
-`dekoei.py export liberty-dos` 用到的格式。來源是 `games/獨立戰爭_中文版_liberty.rar` 的 `LIBERTY/`，解開放在 `games/liberty-dos/`。資料集用英文名 liberty：這款原本在北美開發、發行，日文版是移植。
+`dekoei.py export liberty-dos` 用到的格式。來源是 `games/archives/dos/獨立戰爭_中文版_liberty.rar` 的 `LIBERTY/`，解開放在 `games/liberty-dos/`。資料集用英文名 liberty：這款原本在北美開發、發行，日文版是移植。
 
 ## 版本
 

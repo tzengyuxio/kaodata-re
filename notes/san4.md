@@ -76,7 +76,7 @@ DOS 本體的格式。本體的頭像在 `san4pk-dos` 裡全部沒變，網站�
 
 ## PC-98 日文版（`san4-pc98`）
 
-PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網站只收 `san4pk-pc98`，本體不再匯出；這節記錄兩者共用的差異（`build_san4(..., pc98=True)`）。來源是 `games/pc98/【PC98】三國志４.rar` 的 FDI 磁碟映像，解出放在 `games/san4-pc98/`。
+PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網站只收 `san4pk-pc98`，本體不再匯出；這節記錄兩者共用的差異（`build_san4(..., pc98=True)`）。來源是 `games/archives/pc98/【PC98】三國志４.rar` 的 FDI 磁碟映像，解出放在 `games/san4-pc98/`。
 
 - `KAODATA.S4`、`MONDATA.S4` 和 DOS 中文版逐 byte 相同。
 - `MAIN.EXE`：MZ 檔頭 0x4E00，DGROUP 段 0x400E（檔案 0x44EE0）。
@@ -92,7 +92,7 @@ PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網�
 
 ## PC-98 日文版 PK（`san4pk-pc98`）
 
-`dekoei.py export san4pk-pc98` 用到的差異（`build_san4(..., pk=True)`）。來源是 `games/pc98/【PC98】三國志４　パワーアップキット.rar` 的 HDI 硬碟映像（已安裝 PK），解出放在 `games/san4pk-pc98/`。PK `MAIN.EXE`（1995-09-01）MZ 檔頭 0x5E00，DGROUP 段 0x4780（檔案 0x4D600）；下文是檔案 offset。
+`dekoei.py export san4pk-pc98` 用到的差異（`build_san4(..., pk=True)`）。來源是 `games/archives/pc98/【PC98】三國志４　パワーアップキット.rar` 的 HDI 硬碟映像（已安裝 PK），解出放在 `games/san4pk-pc98/`。PK `MAIN.EXE`（1995-09-01）MZ 檔頭 0x5E00，DGROUP 段 0x4780（檔案 0x4D600）；下文是檔案 offset。
 
 - `KAODATA.S4`、`MONDATA.S4` 和 base 相同，色盤（檔案 0x4E736）也相同。
 - SNDATA／TAIKI 不是 LS11，是未壓縮容器：u16 筆數（10），再接 10 組（u32 offset, u16 size），offset 從表尾算起（`sango.san4_parts`）。10 個劇本，去重後同樣 462 人，順序和 base 相同。
@@ -114,7 +114,7 @@ PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網�
 
 ## DOS 中文版 PK（`san4pk-dos`）
 
-`dekoei.py export san4pk-dos` 用到的差異（`build_san4(..., pk=True)`）。來源是 `games/6.10_三國志四加強版_killpeople.rar`（killpeople 是上傳者標記），解開放在 `games/san4pk-dos/`。
+`dekoei.py export san4pk-dos` 用到的差異（`build_san4(..., pk=True)`）。來源是 `games/archives/dos/6.10_三國志四加強版_killpeople.rar`（killpeople 是上傳者標記），解開放在 `games/san4pk-dos/`。
 
 - 版本：
   - PK 的檔案日期多是 1995-06-23，`PKSAN4.VER` 署名光榮軟體有限公司。

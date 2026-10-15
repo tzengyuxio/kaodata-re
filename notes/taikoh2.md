@@ -1,6 +1,6 @@
 # 太閤立志傳II（TAIKOH2, Win 中文版）頭像相關格式
 
-`dekoei.py export taikoh2-win` 用到的格式。來源是 `games/win/[系列] 太閣立志傳 (pw 可能也是 Old-Games）/$太閤立志傳2.rar`（RAR5，要用 `unar`，`7z` 解不開），`Taikou 2/tk2/` 解到 `games/taikoh2-win/`，`使用說明.txt` 放在 `games/taikoh2-win-src/`。包裡的 `Taikou 2.mdx` 是光碟映像（背景音樂用），沒有解。
+`dekoei.py export taikoh2-win` 用到的格式。來源是 `games/archives/win/[系列] 太閣立志傳 (pw 可能也是 Old-Games）/$太閤立志傳2.rar`（RAR5，要用 `unar`，`7z` 解不開），`Taikou 2/tk2/` 解到 `games/taikoh2-win/`，`使用說明.txt` 放在 `games/archives/win/taikoh2-win-src/`。包裡的 `Taikou 2.mdx` 是光碟映像（背景音樂用），沒有解。
 
 - 主程式 `Taik2w95.exe`（Win32 PE，imagebase 0x400000，.data VA 0x500000＝檔案 0xFE800），下文的位址都是 VA。
 - `rmKOEI.bin` 是上傳者附的工具，匯出不讀。

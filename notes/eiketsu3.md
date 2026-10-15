@@ -1,6 +1,6 @@
 # 毛利元就傳（EIKETSU3, Win 中文版）頭像相關格式
 
-`dekoei.py export eiketsu3-win` 用到的格式。來源是 `games/win/[系列] 英傑傳/毛利元就傳 (中文).zip`，解到 `games/eiketsu3-win/`（不含 WAV、AVI、MP3）。zip 裡的檔名是 Big5，用 Python `zipfile` 解（cp437 → Big5）。
+`dekoei.py export eiketsu3-win` 用到的格式。來源是 `games/archives/win/[系列] 英傑傳/毛利元就傳 (中文).zip`，解到 `games/eiketsu3-win/`（不含 WAV、AVI、MP3）。zip 裡的檔名是 Big5，用 Python `zipfile` 解（cp437 → Big5）。
 
 - 英傑傳系列第 3 作（光榮的檔名代碼 EKD3，資料檔副檔名 `.E3`），日文原名《毛利元就 誓いの三矢》。
 - dataset id 是 `eiketsu3-win`、game code EIKETSU3（比照 `eiketsu4-win`／`eiketsu5-win`，已確認）。Windows 原版 1997-05-23 發售。

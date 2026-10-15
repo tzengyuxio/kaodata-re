@@ -1,6 +1,6 @@
 # 信長之野望・武將風雲錄（NOBU4, DOS 中文版）頭像相關格式
 
-`dekoei.py export nobu4-dos` 用到的格式。來源是 `games/信長之野望．武將風雲錄_中文版_Nobu4.rar`，解開放在 `games/nobu4-dos/`。
+`dekoei.py export nobu4-dos` 用到的格式。來源是 `games/archives/dos/信長之野望．武將風雲錄_中文版_Nobu4.rar`，解開放在 `games/nobu4-dos/`。
 
 ## 版本
 

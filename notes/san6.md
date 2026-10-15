@@ -1,6 +1,6 @@
 # 三國志VI 威力加強版（SAN6PK, Windows 中文版）頭像相關格式
 
-`dekoei.py export san6pk-win` 用到的格式。來源是 `games/5.31_三國志六加強版_killpeople.rar`（killpeople 是上傳者標記）。
+`dekoei.py export san6pk-win` 用到的格式。來源是 `games/archives/win/5.31_三國志六加強版_killpeople.rar`（killpeople 是上傳者標記）。
 
 ## 版本與解包
 

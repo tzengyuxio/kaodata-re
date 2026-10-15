@@ -1,6 +1,6 @@
 # 大航海時代III（KOUKAI3, Win 中文版）頭像相關格式
 
-`dekoei.py export koukai3-win` 用到的格式。來源是 `games/win/大航海時代_III (中文).zip`，解到 `games/koukai3-win/`（不含 `AVI/`）。
+`dekoei.py export koukai3-win` 用到的格式。來源是 `games/archives/win/大航海時代_III (中文).zip`，解到 `games/koukai3-win/`（不含 `AVI/`）。
 
 - 主程式：
   - `大航海時代_III_Gr.EXE`（檔名是 Big5 亂碼）是 PECompact2 壓縮過的。

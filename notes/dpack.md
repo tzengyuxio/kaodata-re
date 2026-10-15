@@ -41,7 +41,7 @@ cd dekoei
 
 ## 驗證
 
-- 提督の決断III：在 DOSBox-X 實際安裝（`games/pc98/install/tk3-pc98/`），81 個檔中 80 個與 `dpack.py` 的結果逐 byte 相同。
+- 提督の決断III：在 DOSBox-X 實際安裝（`games/archives/pc98/install/tk3-pc98/`），81 個檔中 80 個與 `dpack.py` 的結果逐 byte 相同。
   - 唯一不同的是 MAIN.EXE 檔案 0x15AC02 的 3 bytes：包裡是 `0F 85 8A 00`（jne），裝好的是 `E9 8B 00 00`（jmp），位置在一個 far call 之後的 `or ax,ax`。這是安裝後的修補，來源沒找到（INSTALL.SYS、INSTALL.EXE 的 UNPACK 路徑都沒有），檔案時間和包的日期相同。匯出不用 MAIN.EXE 的這一段。
   - 安裝後多出的檔是 INSTALL.SYS 的 MakeNewFile（全 0 的存檔等）與 README。
 - 提督の決断III パワーアップキット（DPACK1–3.T3P）、三国志V（DPACK1–7.S5）都能解到 opcode 14，無錯誤。

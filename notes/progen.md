@@ -1,6 +1,6 @@
 # プロジェネター（PROGEN, PC-98）頭像相關格式
 
-`dekoei.py export progen-pc98` 用到的格式。來源是 `games/pc98/[PC98] [光栄] プロジェネター（FDI).zip`（5 片 FDI，`disk.txt` 標 1995-08-22），每片解到 `games/pc98/disks/progen-pc98/disk1..5/`，合併到 `games/progen-pc98/`（disk4／5 重複的 `PUT.DAT`、`SHELL.SYS` 不覆蓋）。
+`dekoei.py export progen-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] [光栄] プロジェネター（FDI).zip`（5 片 FDI，`disk.txt` 標 1995-08-22），每片解到 `games/archives/pc98/disks/progen-pc98/disk1..5/`，合併到 `games/progen-pc98/`（disk4／5 重複的 `PUT.DAT`、`SHELL.SYS` 不覆蓋）。
 
 - `MAIN.EXE` 是 MZ，header 0x4400 bytes；DGROUP 是段 0x341F（檔案 0x4400＋0x341F0）。下文的「DS」是 DGROUP 內的位移，程式位址是去掉 header 後的 image 位址。
 

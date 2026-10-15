@@ -13,7 +13,7 @@
 
 - [ ] 更新 `requirements.txt` 的 bitarray — 鎖定的 2.7.3 沒有 Python 3.12 wheel，本機編譯失敗，目前 `.venv` 只能用 3.11（2026-10-10）
 
-## 待分析遊戲（`games/` 新增的 killpeople 壓縮檔）
+## 待分析遊戲（新增的 killpeople 壓縮檔，現在在 `games/archives/dos/`、`win/`）
 
 - [x] 三國志IV 威力加強版 DOS 中文版（`6.10_三國志四加強版_killpeople.rar`）— 已解到 `games/san4pk-dos/`，有 KAODATAP／KAODATA2／NBDATA.SUI；比對 `san4pk-pc98` 後做 `san4pk-dos` 匯出（2026-10-14）
 - [x] 三國志VI 威力加強版 Win 中文版（`5.31_三國志六加強版_killpeople.rar`）— 舊 `sango.san6_face` 有頭像解碼，尚未做 kaodata 匯出（2026-10-14）
@@ -25,7 +25,7 @@
 - [x] 大航海時代外傳 Win 中文版（`5.31_大航海時代外傳_killpeople.rar`）— 解到 `games/koukaigd-win/`，做 `koukaigd-win` 匯出（2026-10-14）
 - [x] 三國志英傑傳 DOS 中文版（`6.10_三國志英傑傳_killpeople.rar`）— 解到 `games/eiketsu-dos/`，做 `eiketsu-dos` 匯出（2026-10-14）
 
-## 待分析遊戲（`games/win/` 新增的檔案）
+## 待分析遊戲（`games/archives/win/` 新增的檔案）
 
 - [x] 大航海時代III Win 中文版（`大航海時代_III (中文).zip`）— 解到 `games/koukai3-win/`（不含 AVI），做 `koukai3-win` 匯出（2026-10-14）
 - [x] 成吉思汗 蒼狼與白鹿IV 威力加強版（`成吉思汗 IV-威力加強版/`）— 複製到 `games/genghis4pk-win/`，做 `genghis4pk-win` 匯出（2026-10-15）
@@ -35,7 +35,7 @@
 - [ ] 維新之嵐2（`ISHIN2.mdx`，538 MB 光碟映像）（2026-10-14）
 - [ ] 太閤立志傳IV（`taiko4.rar`）（2026-10-14）
 
-## 待分析遊戲（`games/pc98/` 新增的 `[PC98]` 壓縮檔）
+## 待分析遊戲（`games/archives/pc98/` 新增的 `[PC98]` 壓縮檔）
 
 - [ ] 三国志・英傑伝（`[PC98] 三国志・英傑伝.zip`）— 可和 `eiketsu-dos` 對照（2026-10-14）
 - [ ] 信長の野望・戦国群雄伝（`[PC98] 信長の野望・戦国群雄伝.zip`）— 可和 `nobu3-dos` 對照（2026-10-14）

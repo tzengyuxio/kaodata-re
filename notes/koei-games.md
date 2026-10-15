@@ -205,7 +205,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 水滸伝・天命の誓い（SUIKODEN, PC-98 日文版）
 
-`dekoei.py export suikoden-pc98` 用到的格式。來源是 `games/pc98/SUIKODEN_PC98_水滸伝2.FDI`，只有第 2 片磁碟，解出放在 `games/suikoden-pc98/`。
+`dekoei.py export suikoden-pc98` 用到的格式。來源是 `games/archives/pc98/SUIKODEN_PC98_水滸伝2.FDI`，只有第 2 片磁碟，解出放在 `games/suikoden-pc98/`。
 
 - `KAO98.DAT`：260 張，64×80 全高、3bpp、每列 24 bytes，順序同 `utils.to_3bpp_indexes`，無壓縮、無組合臉。
 - 色盤：沒有執行檔（在第 1 片）可查，用 8 色數位色盤（每分量 0 或 FF）。理由：舊的 `suikoden face` FDI 分支也用這組；膚色是紅黃抖色，沒有專用膚色色號；同期的三國志II PC-98 也是數位色。屬推論。
@@ -218,7 +218,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 水滸傳・天命之誓（SUIKODEN, DOS 中文版）
 
-`dekoei.py export suikoden-dos` 用到的格式。來源是 `games/水滸傳_中文版_water.zip` 的 `water/`，解開放在 `games/suikoden-dos/`。
+`dekoei.py export suikoden-dos` 用到的格式。來源是 `games/archives/dos/水滸傳_中文版_water.zip` 的 `water/`，解開放在 `games/suikoden-dos/`。
 
 - 版本：英文 DOS 版 Bandit Kings of Ancient China（1989，[Wikipedia](https://en.wikipedia.org/wiki/Bandit_Kings_of_Ancient_China)）的中文化。`KAOIBM.DAT` 等和英文版逐 byte 相同，`SUIDATA?.CIM` 只有 7124–19899 的人名、綽號不同。中文版檔案日期都是 1993-05-06，執行檔只寫「(C)1989 KOEI」。
 - `MAIN.EXE` 兩層壓縮（LZEXE 0.91 外層、MS EXEPACK 內層），解開後 DGROUP 段 0x28DE。下文是解開後的映像位址。
@@ -230,7 +230,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 維新の嵐（ISHIN, PC-98 日文版）
 
-`dekoei.py export ishin-pc98` 用到的格式。來源是 `games/pc98/[PC98] 維新の嵐.zip`（A、B 兩片 FDI），解到 `games/pc98/disks/ishin-pc98/A`、`B`，合併到 `games/ishin-pc98/`。A 片和之前的 `games/pc98/ISHIN_維新の嵐A.fdi`（沒有檔頭的原始映像）內容相同。ISIN.EXE 的 load image 從檔案 0x3800 起，DGROUP（段 0x3FE4）在 image 0x371C0；下文是 image 位址。
+`dekoei.py export ishin-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 維新の嵐.zip`（A、B 兩片 FDI），解到 `games/archives/pc98/disks/ishin-pc98/A`、`B`，合併到 `games/ishin-pc98/`。A 片和之前的 `games/archives/pc98/ISHIN_維新の嵐A.fdi`（沒有檔頭的原始映像）內容相同。ISIN.EXE 的 load image 從檔案 0x3800 起，DGROUP（段 0x3FE4）在 image 0x371C0；下文是 image 位址。
 
 - `KAODAT.DAT`：105 張 48×40、3bpp，每 8 px 3 bytes，byte k＝bit k（0xA4B 依序寫 A800／B000／B800），720 bytes，無壓縮。
   - 匯出時逐列加倍成 48×80（200 線模式，看圖比例判斷，沒有找到設定模式的程式）。
@@ -266,7 +266,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## ロイヤルブラッド（ROYAL, PC-98 日文版）
 
-`dekoei.py export royal-pc98` 用到的格式。來源是 `games/pc98/[PC98] [光栄] ロイヤルブラッド(FDI).zip`（A、B 片和使用者片），每片解到 `games/pc98/disks/royal-pc98/A`、`B`、`user`，A、B 合併到 `games/royal-pc98/`。使用者片的 KAODATA.DAT／SENFIEDA.DAT 和 B 片相同。
+`dekoei.py export royal-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] [光栄] ロイヤルブラッド(FDI).zip`（A、B 片和使用者片），每片解到 `games/archives/pc98/disks/royal-pc98/A`、`B`、`user`，A、B 合併到 `games/royal-pc98/`。使用者片的 KAODATA.DAT／SENFIEDA.DAT 和 B 片相同。
 
 - `MAIN.EXE` 的 header 是 0x3200 bytes；DS 在檔案 0x27270（0x5B0 用 `index × 13 + 0xE52` 找名字）。下文程式位址是去掉 header 後的 image 位址。
 - `KAODATA.DAT`：91 張 64×80，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1920 bytes，無壓縮（OPEN.EXE image 0x12D9 以 idx × 0x780 讀，0x29B0 依序寫 A800／B000／B800；MAIN.EXE 是 0x8D06）。順序和 `royal-fc` 的 91 張逐張相同：0–63 君主、64–67 相談役、68–90 部隊／魔獸／召喚。
@@ -280,7 +280,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 提督の決断（TK, PC-98 日文版）
 
-`dekoei.py export tk-pc98` 用到的格式。來源是 `games/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。
+`dekoei.py export tk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/archives/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。
 
 - `RENMAIN.EXE` 的 header 是 0x4600 bytes，DGROUP 是段 0x3852（檔案 0x3CB20）。下文程式位址是去掉 header 後的 image 位址。
 - `RENPIC.DAT`：42 張 40×48，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），720 bytes，無壓縮。
@@ -295,7 +295,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 提督の決断II（TK2, PC-98 日文版）
 
-`dekoei.py export tk2-pc98` 用到的格式。來源是 `games/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
+`dekoei.py export tk2-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/archives/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
 
 - `MAIN.EXE` 的 header 是 0xD600 bytes，DGROUP 是段 0x5E15。下文程式位址是去掉 header 後的 image 位址。
 - `KAO.TK2`：103 張 48×64，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1152 bytes，無壓縮。0x2A9D2（另一份在 0x3577C）以 `n × 0x480` 讀第 n 張；KAIGI.EXE（0x1C620）、END.EXE（0x3286）也讀這個檔。
@@ -311,14 +311,14 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ### パワーアップキット（`tk2pk-pc98`）
 
-- PK 只有一片（`games/pc98/disks/tk2pk-pc98/1`）：INSTALL.EXE 把 PACK.LZW 解到已安裝的本體上（LWEXT.EXE 是解壓工具）。`games/tk2pk-pc98/` 是本體的檔案加上 PK 片的檔案，匯出時直接從 PACK.LZW 取檔。
+- PK 只有一片（`games/archives/pc98/disks/tk2pk-pc98/1`）：INSTALL.EXE 把 PACK.LZW 解到已安裝的本體上（LWEXT.EXE 是解壓工具）。`games/tk2pk-pc98/` 是本體的檔案加上 PK 片的檔案，匯出時直接從 PACK.LZW 取檔。
 - PACK.LZW 是 LW11：檔頭「LW11」＋12 bytes、256 bytes 字典（同 LS11），接著每個檔 32 bytes 的目錄（16 bytes 檔名、big-endian 的壓縮大小、原始大小、位移、4 bytes 不明），檔名第一個 byte 是 0 結束。壓縮碼和 LS11 相同（`ls11.lw11_decode_files`）。共 27 個檔：main.exe、kaigi.exe、end.exe、ardata、newsce（新劇本）等，沒有頭像檔，KAO.TK2、GRDATA、SJDATA 沿用本體。
 - 和本體的差別只有 ARDATA 兩個盟軍提督名：C.A.スプレング → スプレイグ、W.A.C.クラッチレー → V.A.C.クラッチレー。NEWSCE 裡的人物表和 PK 的 ARDATA、本體的 GRDATA／SJDATA 相同。
 - 色盤：解開的 main.exe 0x3D860，值和本體相同。
 
 ## 提督の決断III（TK3, PC-98 日文版）
 
-`dekoei.py export tk3-pc98`／`tk3pk-pc98` 用到的格式。來源是 `games/pc98/[PC98] 提督の決断３.zip`（7 片 FDI）與 `[PC98] 提督の決断３　パワーアップキット.zip`，磁片上只有 DPACK 安裝包，用 `dekoei/dpack.py` 解開（見 [dpack.md](dpack.md)）：本體解到 `games/tk3-pc98/`，`games/tk3pk-pc98/` 是本體再疊上 PK 的檔。
+`dekoei.py export tk3-pc98`／`tk3pk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断３.zip`（7 片 FDI）與 `[PC98] 提督の決断３　パワーアップキット.zip`，磁片上只有 DPACK 安裝包，用 `dekoei/dpack.py` 解開（見 [dpack.md](dpack.md)）：本體解到 `games/tk3-pc98/`，`games/tk3pk-pc98/` 是本體再疊上 PK 的檔。
 
 - `MAIN.EXE` 是 MS C 7 加 MOVE overlay：root 的 header 是 0x8000 bytes，load image 到 0x62563，之後是 114 個 overlay（各自是 MZ，從 0x62600 起 512 對齊）。DGROUP 是段 0x542B。下文程式位址是 root 去掉 header 後的 image 位址。
 - `KAODATA.TK3`：LS11，197 段，每段一張 64×80、4 bpp，2560 bytes。每 8 px 4 bytes 交錯：byte (y × 8 + x / 8) × 4 + q 是 plane q（色號的 bit q），MSB 是最左邊（`kaodata_export.tk3_pc98_face`）。root 0x30D0C 讀（ov107 0x2C4 以 0x2453:0xC7DC 呼叫），本體的頭像號 ≥ 0xC5 會取 197 的餘數。
