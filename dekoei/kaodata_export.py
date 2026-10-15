@@ -113,28 +113,40 @@ def to_rgba(src: tuple[int, int, bytes], colors: list[str], opaque: bool = False
 
 
 def display_entries(meta: dict, blobs: list[bytes]):
-    """(key, indexed display) for every face, as covered by checksums.json (spec §8)."""
+    """(key, indexed display, own palette or None) for every face, as covered by checksums.json (spec §8)."""
+    portraits = meta.get("portraits", [])
+
     def face_display(face):
         if "portrait" in face:
-            return portrait_display(meta, blobs, face["portrait"], face.get("bg"))
-        return compose_display(meta, blobs, face)
+            return (portrait_display(meta, blobs, face["portrait"], face.get("bg")),
+                    portraits[face["portrait"]].get("palette"))
+        return compose_display(meta, blobs, face), None
 
     for ch in meta["characters"]:
         face = ch.get("face")
         if face is None:
             continue
-        yield f"ch:{ch['id']}", face_display(face)
+        yield f"ch:{ch['id']}", *face_display(face)
         for k, expr in enumerate(ch.get("expressions", []), 1):
-            yield f"ch:{ch['id']}/{k}", face_display(expr)
-    for i in range(len(meta.get("portraits", []))):
-        yield f"pt:{i}", portrait_display(meta, blobs, i)
+            yield f"ch:{ch['id']}/{k}", *face_display(expr)
+    for i, p in enumerate(portraits):
+        yield f"pt:{i}", portrait_display(meta, blobs, i), p.get("palette")
+
+
+def portrait_palette(meta: dict, blobs: list[bytes], k: int) -> list[str]:
+    """Palette k of the per-portrait palettes blob (spec §4): `size` colours x RGB each."""
+    pp = meta["portraitPalettes"]
+    size = pp.get("size", 256)
+    data = blobs[pp["blob"]][k * size * 3:(k + 1) * size * 3]
+    return [f"#{data[i * 3:i * 3 + 3].hex()}" for i in range(size)]
 
 
 def checksums(meta: dict, blobs: list[bytes]) -> dict:
-    colors = meta["palettes"][0]["colors"]
+    shared = meta["palettes"][0]["colors"] if meta["palettes"] else None
     return {"algo": "sha256-rgba",
-            "entries": {k: hashlib.sha256(to_rgba(img, colors, meta.get("opaque", False))).hexdigest()
-                        for k, img in display_entries(meta, blobs)}}
+            "entries": {k: hashlib.sha256(to_rgba(img, shared if pal is None else portrait_palette(meta, blobs, pal),
+                                                  meta.get("opaque", False))).hexdigest()
+                        for k, img, pal in display_entries(meta, blobs)}}
 
 
 # ---------------------------------------------------------------- writer
@@ -4522,6 +4534,98 @@ def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN10 PK (Windows, Japanese, Steam)
+
+SAN10PK_WIN_INPUTS = sango.SAN10_FACE_FILES + sango.SAN10_FACE_TABLES + ["San10WPK.exe", "ScePK000.s10"]
+SAN10PK_WIN_NAME_HISTORICAL = {"厳晙": "厳畯"}
+# faces below 731 that no officer uses: people of SAN9 who are only in events here, named as in SAN9 (same face codes)
+SAN10PK_WIN_EVENT_FACES = {
+    296: "禰衡", 496: "于吉", 497: "華佗", 498: "管輅", 499: "許劭", 500: "左慈", 501: "司馬徽", 538: "孫尚香",
+    563: "霊帝", 564: "少帝", 565: "献帝", 566: "貂蝉", 567: "大喬", 568: "小喬", 569: "蔡琰", 665: "黄月英",
+    666: "北斗", 667: "南斗", 669: "文官", 670: "兵士", 678: "烏丸大王", 679: "烏丸武将", 680: "羌大王", 681: "羌武将",
+    682: "山越大王", 683: "山越武将", 684: "南蛮大王", 685: "南蛮武将"}
+# 731-884: the new-officer face picker (San10WPK.exe 0x524187) keeps men below 845 and women from 845 on, and puts a
+# man back at 775; 731-774 are other faces (wives, children, townsfolk), usage not traced. The PK's 40 are not split
+SAN10PK_WIN_PORTRAIT_GROUPS = {
+    **{i: "其他頭像" for i in range(731, 775)},
+    **{i: "新武將（男）" for i in range(775, 845)},
+    **{i: "新武將（女）" for i in range(845, 885)},
+}
+# faces up to 730 in face order, cut at about 1 MB compressed; 731-884 and the PK's faces go last in extra.bin
+SAN10PK_WIN_CUTS = [250, 500, 731]
+SAN10PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "extra.bin", "palettes.bin"]
+
+
+def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN10PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(SAN10PK_WIN_BLOBS)
+
+    # every face has its own 256-colour palette; the faces do not use the key colour 0, so 255 moves to 0
+    remap = bytes(range(255)) + b"\0"
+    palettes, palette_index = bytearray(), {}
+
+    def own_palette(bgrx):
+        pal = bytes(c for i in [255, *range(1, 255)] for c in (bgrx[i * 4 + 2], bgrx[i * 4 + 1], bgrx[i * 4])) + bytes(3)
+        if pal not in palette_index:
+            palette_index[pal] = len(palette_index)
+            palettes.extend(pal)
+        return palette_index[pal]
+
+    persons = sango.load_san10_persons(os.path.join(game_dir, "San10WPK.exe"), os.path.join(game_dir, "ScePK000.s10"))
+    used = {p["face"] for p in persons}
+    portraits, index = [], {}
+    for archive, table, base in zip(sango.SAN10_FACE_FILES, sango.SAN10_FACE_TABLES, [0, sango.SAN10_PK_FACE_CODE]):
+        entries = sango.load_san10_grp(os.path.join(game_dir, archive))
+        for slot, e in enumerate(sango.load_san10_face_table(os.path.join(game_dir, table))):
+            if e is None:
+                continue
+            code = base + slot
+            w, h, px, bgrx = entries[e]
+            assert (w, h) == (64, 80) and 0 not in px
+            blob = bisect.bisect_right(SAN10PK_WIN_CUTS, code) if base == 0 else SAN10PK_WIN_BLOBS.index("extra.bin")
+            index[code] = len(portraits)
+            p = {"img": store.add(64, 80, px.translate(remap), blob=blob), "code": f"{code:04X}",
+                 "palette": own_palette(bgrx)}
+            if code in SAN10PK_WIN_EVENT_FACES:
+                assert code not in used
+                p["group"], p["name"] = "事件人物", SAN10PK_WIN_EVENT_FACES[code]
+            elif code in SAN10PK_WIN_PORTRAIT_GROUPS or base:
+                assert code not in used
+                p["group"] = SAN10PK_WIN_PORTRAIT_GROUPS.get(code, "新武將")
+            if base:
+                p["pk"] = True
+            portraits.append(p)
+    assert all(int(p["code"], 16) in used for p in portraits if "group" not in p)
+    store.blobs[SAN10PK_WIN_BLOBS.index("palettes.bin")] = palettes
+
+    # the reading is of the full name with no break, so it has no space
+    characters = []
+    for p in persons:
+        ch = {"id": p["id"], "name": p["name"], "reading": kana_to_hiragana(p["kana"]),
+              "face": {"portrait": index[p["face"]]}}
+        if p["name"] in SAN10PK_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN10PK_WIN_NAME_HISTORICAL[p["name"]]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san10pk-win", "game": "SAN10PK", "platform": "WIN",
+        "title": {"ja": "三國志X with パワーアップキット", "zh": "三國志X 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN10PK_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [],
+        "portraitPalettes": {"blob": SAN10PK_WIN_BLOBS.index("palettes.bin")},
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- KOUMEI (Windows, Chinese)
 
 KOUMEI_WIN_INPUTS = ["KAO.E2", "PALET.E2", "BAKDATA.E2"]
@@ -5346,7 +5450,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
-            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "san10pk-win": build_san10pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,

@@ -518,6 +518,72 @@ def load_san9_persons(game_dir) -> list[dict]:
              "kana": parts[4 * k + 3][2:-2].decode("cp932"), "face": faces[k]} for k in range(SAN9_PERSONS)]
 
 
+# 三國志X PK (Steam): Grp/GrpFaceS.s10 and the PK's Grp/GpkFaceS.s10 are "SAN10GRP" archives: u16 count at 12, an
+# LS11 dictionary at 20-276, then 24-byte entries (u32 width, height, size, packed size, offset, flags); an entry is
+# LS11-packed when its packed size differs, and holds width x height 8-bit pixels and a 256 x BGRX palette.
+# The left- and right-facing versions of a face are separate entries sharing a palette.
+SAN10_FACE_FILES = ["GrpFaceS.s10", "GpkFaceS.s10"]
+# D_FacTbl.s10 / D_FacPK.s10: u16 count, then four u16 tables of 885 / 40 slots; the first maps a face code to the
+# entry of the face as drawn (0xFFFF = no face). The PK's faces have codes 4000 + k (San10WPK.exe 0x40A130)
+SAN10_FACE_TABLES = ["D_FacTbl.s10", "D_FacPK.s10"]
+SAN10_PK_FACE_CODE = 4000
+# Scenario files: 650 officer records of 66 bytes from 23001: +14 u16 index (kana order), +20 u16 biography number,
+# +22 u16 face code. Names are in San10WPK.exe (.rdata/.data are not encrypted by the SteamStub): pointer tables of
+# 650 u32 VAs (image base 0x400000) to the surname, given name, style name and reading (half-width kana, full name)
+SAN10_PERSONS = (23001, 66, 650)
+SAN10_NAME_TABLES = {"sei": 0x8F0030, "mei": 0x8F0A58, "azana": 0x8F1480, "yomi": 0x8F1EA8}
+# S10Gaiji.tte has the same glyphs as S9gaiji.tte, plus U+E031
+SAN10_GAIJI = {**SAN9_GAIJI, 0xE031: "莒"}
+
+
+def load_san10_grp(path) -> list[tuple[int, int, bytes, bytes]]:
+    """(width, height, pixels, BGRX palette) of every entry of a SAN10GRP archive."""
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:8] == b"SAN10GRP"
+    dic = data[20:276]
+    entries = []
+    for i in range(struct.unpack_from("<H", data, 12)[0]):
+        w, h, size, packed, start, _ = struct.unpack_from("<6I", data, 276 + 24 * i)
+        raw = data[start:start + packed]
+        if packed != size:
+            raw = ls11.recover(ls11.get_codes(raw), dic)[:size]
+        entries.append((w, h, raw[:w * h], raw[w * h:w * h + 1024]))
+    return entries
+
+
+def load_san10_face_table(path) -> list[int]:
+    """Face code -> archive entry (None = no face), from the first table of D_FacTbl.s10 / D_FacPK.s10."""
+    with open(path, "rb") as f:
+        data = f.read()
+    slots = (len(data) - 2) // 8
+    return [None if e == 0xFFFF else e for e in struct.unpack_from(f"<{slots}H", data, 2)]
+
+
+def load_san10_persons(exe_path, scenario) -> list[dict]:
+    """The 650 officers in index (kana) order: id, name, style name, kana, face code."""
+    with open(exe_path, "rb") as f:
+        exe = f.read()
+    with open(scenario, "rb") as f:
+        sce = f.read()
+
+    def text(va):
+        o = va - 0x400000
+        return "".join(SAN10_GAIJI[ord(c)] if 0xE000 <= ord(c) <= 0xF8FF else c
+                       for c in exe[o:exe.index(b"\0", o)].decode("cp932"))
+
+    start, size, count = SAN10_PERSONS
+    persons = []
+    for k in range(count):
+        r = sce[start + k * size:start + (k + 1) * size]
+        assert struct.unpack_from("<H", r, 14)[0] == k
+        names = {key: text(struct.unpack_from("<I", exe, t - 0x400000 + 4 * k)[0])
+                 for key, t in SAN10_NAME_TABLES.items()}
+        persons.append({"id": k, "name": names["sei"] + names["mei"], "azana": names["azana"], "kana": names["yomi"],
+                        "face": struct.unpack_from("<H", r, 22)[0]})
+    return persons
+
+
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
 # +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
 KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)
