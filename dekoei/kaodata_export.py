@@ -3270,10 +3270,12 @@ KOUKAIGD_WIN_II_HEROES = ["約翰•法雷爾", "卡特琳娜•艾蘭茨", "奧
 # faces only the scenario scripts show (Snr1/Snr2.dat `c0 <side> cc <face>` before a line), named after the
 # speaker; None: an unnamed speaker (152, 153 the heroine's father and mother, 156 劉魁星's mother)
 KOUKAIGD_WIN_SCRIPT_FACES = {
-    36: "馬休", 58: "雅各布•威爾維克", 88: "希爾頓", 135: "基爾•迪•洛伽", 136: "約克", 137: "里貝卡•卡特蘭德", 138: "加斯帕爾•比利",
-    139: "潮見風吉", 140: "劉魁星", 141: "長谷平藏", 142: "羅德里格斯•比戈爾", 143: "岡薩雷斯•比戈爾", 150: "卡秋帕",
+    36: "馬休", 58: "雅各布•威爾維克", 88: "希爾頓", 135: "基爾•迪•洛伽", 136: "約克", 137: "里貝卡•卡特蘭德",
+    139: "潮見風吉", 140: "劉魁星", 142: "羅德里格斯•比戈爾", 143: "岡薩雷斯•比戈爾", 150: "卡秋帕",
     151: "蒂諾卡托", 152: None, 153: None, 154: "艾絲米拉達", 155: "何塞", 156: None,
 }
+# the two Sdata.dat event records after the table: their portrait byte is 0x10, the scripts show these faces
+KOUKAIGD_WIN_EXTRA_FACES = {"加斯帕爾•比利": 138, "長谷平藏": 141}
 
 
 def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -3312,7 +3314,10 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
     people += [(name, i) for i, name in enumerate(KOUKAIGD_WIN_II_HEROES)]
     tavern = koei_games.load_koukaigd_win_tavern(os.path.join(game_dir, "Sdata.dat"))
     characters, seen = [], set()
-    for name, code in people + tavern:
+    # appended after everyone else, so the earlier ids stay
+    extra = [(name, KOUKAIGD_WIN_EXTRA_FACES[name])
+             for name, _ in koei_games.load_koukaigd_win_events(os.path.join(game_dir, "Sdata.dat"), extra=True)]
+    for name, code in people + tavern + extra:
         # same-name mates in the two tables share their code; two tavern women are both 安娜
         if name in seen and (name, code) not in tavern:
             continue

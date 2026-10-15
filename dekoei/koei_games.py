@@ -291,11 +291,14 @@ def load_koukaigd_win_mates(exe) -> list[list[tuple[str | None, int]]]:
     return tables
 
 
-def load_koukaigd_win_events(sdata) -> list[tuple[str, int]]:
-    """(name, portrait) of the Sdata.dat event people."""
+def load_koukaigd_win_events(sdata, extra=False) -> list[tuple[str, int]]:
+    """(name, portrait) of the Sdata.dat event people; `extra`: the two records after them instead
+    (加斯帕爾•比利, 長谷平藏), whose portrait byte is a placeholder."""
     with open(sdata, "rb") as f:
         data = f.read()
     start, count, size = KOUKAIGD_WIN_EVENT
+    if extra:
+        start, count = start + count * size, 2
     return [(data[o:o + 20].split(b"\0")[0].decode("big5"), data[o + 23])
             for o in range(start, start + count * size, size)]
 
