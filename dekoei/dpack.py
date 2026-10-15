@@ -180,6 +180,8 @@ def unpack(*volumes: bytes):
             if not h["more"]:
                 yield name, bytes(buf)
                 buf = bytearray()
+            if h["size"] < 2:
+                raise ValueError(f"bad block size {h['size']} at {pos:#x}")
             pos += h["size"] - 1
 
 
@@ -190,5 +192,7 @@ if __name__ == "__main__":
         sys.exit("usage: dpack.py OUTDIR DPACK1 [DPACK2 ...]")
     os.makedirs(sys.argv[1], exist_ok=True)
     for name, data in unpack(*(open(p, "rb").read() for p in sys.argv[2:])):
+        if name in (None, ".", "..") or os.path.basename(name) != name or "\\" in name:
+            sys.exit(f"unsafe file name in pack: {name!r}")
         open(os.path.join(sys.argv[1], name), "wb").write(data)
         print(name, len(data))

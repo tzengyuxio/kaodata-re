@@ -500,8 +500,10 @@ def build_san3(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
             ch["nameHistorical"] = historical[code]
         if san3.is_montage_code(code):
             ch["face"] = {"variant": san3.montage_head(code), "parts": san3.montage_parts(code), "code": f"{code:04X}"}
-        else:
+        elif 1 <= code <= len(portraits):
             ch["face"] = {"portrait": code - 1}
+        else:
+            raise ValueError(f"{name}: face code {code:#06x} out of range")
         characters.append(ch)
 
     meta = {
@@ -2670,7 +2672,6 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
-    import ls11
     faces = ls11.ls11_decode_parts(files["KAO.E2"])
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
 
@@ -2696,7 +2697,7 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
         characters.append(ch)
     person_faces = {c for codes in faces_of.values() for c in codes}
     for code, names in users.items():
-        if code not in person_faces and "name" not in portraits[code]:
+        if code not in person_faces:
             portraits[code].update(name=names[0], group="部隊" if names[0] in KOUMEI_WIN_TROOPS else "一般人物")
     for i, p in enumerate(portraits):
         if i not in users:
@@ -3262,7 +3263,6 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     for name in GENGHIS4PK_WIN_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
-    store = ImageStore(GENGHIS4PK_WIN_BLOBS)
 
     sheets, cells, blank = [], [], set()  # cells: (sex, face, pixels)
     for sex, (name, cols, _) in enumerate(GENGHIS4PK_WIN_SHEETS):

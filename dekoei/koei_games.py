@@ -1234,6 +1234,8 @@ def load_taikoh2_win_others(exe, sndata) -> list[tuple[int, str, int]]:
         o = 0
         while True:
             o = sn.find(first.to_bytes(2, "little"), o)
+            if o < 0:
+                raise ValueError(f"no {first} records in {sndata}")
             if int.from_bytes(sn[o + step:o + step + 2], "little") == first + 1:
                 break
             o += 1
