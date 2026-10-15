@@ -319,6 +319,15 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 名字：`SNDATA1.CIM` 就是 PC-98 DS:0x6EB 起的資料，君主在檔案 0x767、部隊在 0xCE1（`koei_games.load_royal_pc98_names(..., pc88=True)`），和 PC-98 逐筆相同。
 - 色盤：平時是數位 8 色（`ROYAL_PC98_DIGITAL`，palette id `pc88`）；`MAIN.COM` 只在畫面切換淡入時暫用類比色。
 
+### X68000 版（`royal-x68`）
+
+`dekoei.py export royal-x68` 用 `build_royal_pc98(x68=True)`。
+
+- 來源：Internet Archive `softwarelibrary-x68k` 的 `royal_blood_19xx_koei_disk_1_o_x68k`（A、B、C 3 片 DIM）。`games/royal-x68/` 放 A 片的 `MAIN.Z`、`VERSION`，C 片的 `KAODATA.DAT`，以及參考用的 B 片 `WKAODATA.DAT`。`VERSION` 寫「ロイヤルブラッド 1992.3.4 ver1.1」。
+- 頭像：`KAODATA.DAT` 和 PC-98 逐 byte 相同。`WKAODATA.DAT` 是 6 張 64×80，等於 KAODATA 的第 83–88 張（放在 B 片給片尾用），不另外匯出。
+- 名字：`MAIN.Z` 沒有壓縮，是同一份資料加上 68000 的補位：君主從檔案 0x249C0 起每筆 16 bytes，部隊從 0x25018 起每筆 20 bytes（`koei_games.load_royal_x68_names`），和 PC-98 逐筆相同。
+- 色盤：檔案 0x2DEBC 起是 8 組 B、R、G 各 5 bit 的類比色，是 PC-98 那組 4 bit 值 v 換成 2v＋1，換成 8 bit 用 v << 3 | v >> 2；後面接一組較暗的版本和數位 8 色。和 PC-98 一樣匯出類比與數位兩組。
+
 ## 提督の決断（TK, PC-98 日文版）
 
 `dekoei.py export tk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/archives/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。

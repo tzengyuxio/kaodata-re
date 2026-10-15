@@ -1474,9 +1474,9 @@ ROYAL_PC98_DGROUP = 0x27270  # MAIN.EXE file offset of DS (the name table DS:0xE
 ROYAL_PC88_SNDATA = 0x6EB  # PC-88 SNDATA1.CIM starts at PC-98 DS:0x6EB
 
 
-def _royal_pc98_names(main: bytes, offset: int, size: int, count: int) -> list[str]:
+def _royal_pc98_names(main: bytes, offset: int, size: int, count: int, base=ROYAL_PC98_DGROUP) -> list[str]:
     """Half-width katakana names, as full-width."""
-    o = ROYAL_PC98_DGROUP + offset
+    o = base + offset
     return [unicodedata.normalize("NFKC", main[o + i * size:o + i * size + 10].split(b"\0")[0].decode("cp932"))
             for i in range(count)]
 
@@ -1489,6 +1489,14 @@ def load_royal_pc98_names(main_exe, pc88=False) -> tuple[list[str], list[str]]:
     if pc88:
         main = bytes(ROYAL_PC98_DGROUP + ROYAL_PC88_SNDATA) + main
     return _royal_pc98_names(main, 0xE52, 13, 64), _royal_pc98_names(main, 0x13CC, 16, 23)
+
+
+def load_royal_x68_names(main_z) -> tuple[list[str], list[str]]:
+    """As load_royal_pc98_names, from the X68000 MAIN.Z (not packed): the same records with 68000 padding,
+    lords 16 bytes from file 0x249C0, unit types 20 bytes from 0x25018."""
+    with open(main_z, "rb") as f:
+        main = f.read()
+    return _royal_pc98_names(main, 0x249C0, 16, 64, 0), _royal_pc98_names(main, 0x25018, 20, 23, 0)
 
 
 NOBU2_PC88_DATA = 0x1581  # DATA50S.DAT: 53 clan names (9 bytes), then 53 given names (5 bytes) at 0x175E

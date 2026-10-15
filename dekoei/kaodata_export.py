@@ -2151,11 +2151,15 @@ ROYAL_PC98_UNITS = 68  # 0x8460: 0x44 + unit type
 # PC-88: KAODATA.DAT (disk C) has the same 91 faces at 64x40 (B, R, G bytes per 8 px); names in SNDATA1.CIM
 ROYAL_PC88_INPUTS = ["KAODATA.DAT", "SNDATA1.CIM"]
 ROYAL_PC88_FACE = 960
+# X68000: the same KAODATA.DAT (WKAODATA.DAT on disk B is a copy of faces 83-88) and names; MAIN.Z file 0x2DEBC
+# holds the analog colours as 5-bit (B, R, G), the PC-98 4-bit values as 2v + 1, followed by the digital ones
+ROYAL_X68_INPUTS = ["KAODATA.DAT", "MAIN.Z"]
+ROYAL_X68_ANALOG = 0x2DEBC
 
 
-def build_royal_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
-    """pc88=True: the PC-88 version (200-line faces, digital colours only)."""
-    inputs = ROYAL_PC88_INPUTS if pc88 else ROYAL_PC98_INPUTS
+def build_royal_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (200-line faces, digital colours only); x68=True: the X68000 version."""
+    inputs = ROYAL_PC88_INPUTS if pc88 else ROYAL_X68_INPUTS if x68 else ROYAL_PC98_INPUTS
     files = {}
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -2170,7 +2174,8 @@ def build_royal_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
     else:
         portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
                       "code": f"{i // ROYAL_PC98_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC98_FACE)]
-        lords, units = koei_games.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
+        lords, units = koei_games.load_royal_x68_names(os.path.join(game_dir, "MAIN.Z")) if x68 else \
+            koei_games.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
     for i in ROYAL_PC98_ADVISORS:
         portraits[i]["group"] = "相談役"
     # same groups as royal-fc, whose 91 faces are in the same order
@@ -2184,6 +2189,12 @@ def build_royal_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
     if pc88:
         # MAIN.COM 0x1B7D fades the title in through analog colours, then switches back to digital (0x1BAD)
         palettes = [{"id": "pc88", "label": "PC88", "colors": ROYAL_PC98_DIGITAL}]
+    elif x68:
+        pal = files["MAIN.Z"][ROYAL_X68_ANALOG:][:24]
+        analog = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
+                  for i in range(0, 24, 3)]
+        palettes = [{"id": "analog", "label": "類比 RGB", "colors": analog},
+                    {"id": "digital", "label": "數位 8 色", "colors": ROYAL_PC98_DIGITAL}]
     else:
         pal = files["MAIN.EXE"][koei_games.ROYAL_PC98_DGROUP + ROYAL_PC98_ANALOG:][:24]
         analog = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
@@ -2191,8 +2202,8 @@ def build_royal_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
                     {"id": "digital", "label": "數位 8 色", "colors": ROYAL_PC98_DIGITAL}]
 
     meta = {
-        "format": FORMAT, "id": "royal-pc88" if pc88 else "royal-pc98", "game": "ROYAL",
-        "platform": "PC88" if pc88 else "PC98",
+        "format": FORMAT, "id": "royal-pc88" if pc88 else "royal-x68" if x68 else "royal-pc98", "game": "ROYAL",
+        "platform": "PC88" if pc88 else "X68" if x68 else "PC98",
         "title": {"ja": "ロイヤルブラッド", "zh": "魔法皇冠"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
@@ -4211,6 +4222,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
             "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
+            "royal-x68": lambda game_dir: build_royal_pc98(game_dir, x68=True),
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
             "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
             "genchou-pc88": build_genchou_pc88,

@@ -59,7 +59,7 @@ Early KOEI Games Data Research
 | ISHIN     | 維新之嵐                    | 1988 |       PC98       |       |        |                     |
 | KOHRYUKI  | 項劉記                      | 1993 |       DOS        |   ○   |        |                     |
 | LEMPE     | 拿破崙                      | 1990 |       DOS        |   ○   |        |                     |
-| ROYAL     | 魔法皇冠                    | 1991 |     DOS,PC98     |       |        |                     |
+| ROYAL     | 魔法皇冠                    | 1991 |   DOS,PC98,X68   |       |        |                     |
 | (ROYAL2)  | 王國興亡錄                  | 1999 |                  |       |        |                     |
 | SUIKODEN  | 水滸傳・天命之誓            | 1989 |     DOS,PC98     |   ○   |        |                     |
 | TK        | 提督之決斷                  | 1989 |       PC98       |       |        |                     |
@@ -169,6 +169,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `tk3pk-pc98` | 提督の決断III パワーアップキット | PC-98    |  141 |  205 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `royal-pc98` | ロイヤルブラッド               | PC-98      |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `royal-pc88` | ロイヤルブラッド               | PC-88      |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
+| `royal-x68`  | ロイヤルブラッド               | X68000     |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `progen-pc98` | プロジェネター               | PC-98      |   97 |  125 |   ○    | [notes/progen.md](notes/progen.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-pc88` | ランペルール                   | PC-88      |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
