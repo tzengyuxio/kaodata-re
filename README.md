@@ -131,6 +131,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `liberty-pc98` | 独立戦争                     | PC-98      |  250 |  299 |        | [notes/liberty.md](notes/liberty.md) |
 | `koukai-dos` | 大航海時代                     | DOS 中文版 |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
 | `koukai-pc98` | 大航海時代                    | PC-98      |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
+| `koukai-pc88` | 大航海時代                    | PC-88      |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
 | `koukaigd-win` | 大航海時代外傳               | Win 中文版 |  171 |  157 |   ○    | [notes/koukaigd.md](notes/koukaigd.md) |
 | `koukai2-pc98` | 大航海時代II                 | PC-98      |  170 |  128 |   ○    | [notes/koukai2.md](notes/koukai2.md) |
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |

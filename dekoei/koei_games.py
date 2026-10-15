@@ -580,23 +580,25 @@ def load_koukai_dos_people(shinario) -> tuple[list[tuple[str, int, int, int]], l
 
 
 KOUKAI_PC98_SHIFT = -0x20  # PC-98 SHINARIO.CIM: the same records, 0x20 bytes earlier
+KOUKAI_PC88_SHIFT = -0xAC  # PC-88 SHINARIO.CIM: the same records, 0xAC bytes earlier
 
 
-def load_koukai_pc98_people(shinario) -> tuple[list[tuple[str, int, int, int]], list[str]]:
-    """As load_koukai_dos_people, names in Shift-JIS."""
+def load_koukai_pc98_people(shinario, pc88=False) -> tuple[list[tuple[str, int, int, int]], list[str]]:
+    """As load_koukai_dos_people, names in Shift-JIS; pc88 reads the PC-88 SHINARIO.CIM."""
+    shift = KOUKAI_PC88_SHIFT if pc88 else KOUKAI_PC98_SHIFT
     with open(shinario, 'rb') as f:
         data = f.read()
 
     def name(raw: bytes) -> str:
         return raw.split(b"\0")[0].decode("shift_jis")
     off, size, n = KOUKAI_MEN
-    off += KOUKAI_PC98_SHIFT
+    off += shift
     men = []
     for i in range(n):
         r = data[off + i * size:off + (i + 1) * size]
         men.append((name(r[:15]), r[0x11], r[0x12], r[0x13] >> 4))
     off, size, n = KOUKAI_WOMEN
-    off += KOUKAI_PC98_SHIFT
+    off += shift
     return men, [name(data[off + i * size:off + i * size + 15]) for i in range(n)]
 
 # GENGHIS DOS MDATA.CIM / SDATA.CIM: kind -> (offset, groups, group size, records, record size, face offset)

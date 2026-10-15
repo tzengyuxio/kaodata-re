@@ -37,9 +37,24 @@
 
 來源是 `games/archives/pc98/[PC98] 大航海時代.zip`（SYSTEM、海 兩片 FDI），每片解在 `games/archives/pc98/disks/koukai-pc98/`（`SYSTEM/`、`UMI/`），合併放在 `games/koukai-pc98/`（兩片的 `OPEN.EXE` 不同，用 SYSTEM 片的，匯出用不到）。檔案日期 1990-07-20。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6A00 bytes），DGROUP 段值 0x39F1；下文是映像（檔案 − 0x6A00）位址。
 
-- `KAO.PUT` 160512 bytes，是 DOS 版的兩倍：排法相同，但全高 64×80（每列 24 bytes，byte 0／1／2 畫到 B／R／G 平面，即 `san2_jp_pixels`）。DOS 版的頭像是另外以 64×40 EGA 重畫的（人物、順序相同，但姿勢、表情不同，不是縮小）。
+- `KAO.PUT` 160512 bytes，是 DOS 版的兩倍：排法相同，但全高 64×80（每列 24 bytes，byte 0／1／2 畫到 B／R／G 平面，即 `san2_jp_pixels`）。DOS 版的 64×40 頭像和 PC-98 的不同（人物、順序相同，但姿勢、表情不同，不是縮小）：那是 PC-88 原版的 200 線圖，DOS 直接沿用，PC-98 才是重畫的（見下方 PC-88 一節）。
   - 組合臉 0x7292：每國 0x5D00 bytes（表 DS:0x2B32），零件位置、大小、畫到的列都是 DOS 的兩倍（上 0x3F0、下 0x4080／0x390、眼 0x1F80／0x180、鼻 0x2B80／0x180、口 0x3180／0x1E0），組成 1920 bytes 的全高臉。五官 OR 疊上，檢查過全部組合，和上下及彼此都不重疊。
   - 頭像 0x749C：`seek(0x17400 + n × 0x780)`；女性 i 用頭像 13＋i，男性 0xFF 用頭像 8，同 DOS。
 - 色盤：類比色盤（0x11AC，B、R、G 各 4 bit）初始值 DS:0x2800 就是標準 8 色，數位模式（0x812）同樣，所以用 `SAN2_JP_PALETTE`。
 - 人物：`SHINARIO.CIM` 記錄格式同 DOS，位置早 0x20 bytes（女性 0x7B0、男性 0x900），姓名是 Shift-JIS（`koei_games.load_koukai_pc98_people`）。男性的臉碼（+0x11–0x13）和 DOS 版完全相同。
 - 國名用 `MAIN.EXE` 的寫法：ポルトガル、イスパニア、イスラム、海賊。頭像 1–12 的身分沿用 DOS 版的判讀（國王、設施、老航海士），名字換成日文（道具屋、造船所、交易所、酒場、港、王宮、教会、宿屋）；遊戲字串裡只找得到交易所、酒場、王宮、ギルド，其餘是暫定。
+
+## PC-88 版（`koukai-pc88`）
+
+`dekoei.py export koukai-pc88` 用到的差異（`build_koukai_dos(pc88=True)`）。
+
+- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Daikoukai Jidai/`。用 `[FD] [Set 1]`（乾淨的 80 軌映像），`[FD]`、`[Set 2]` 的這幾個檔相同。
+- 磁碟：Main、Minato、Umi、Opening 四片加 User 片，都是 YDOS 3.0，每軌 9 × 512 bytes。
+- `games/koukai-pc88/` 放 Main 片的 `KAO.PUT`、`VER.DAT`，Umi 片的 `SHINARIO.CIM`、`MAIN.COM`（後兩者之外是參考用）。
+- 版本：沒有明文版號，`VER.DAT` 是編碼過的。檔案日期最晚是 1990-04-25（`MAIN.OVL`、`MAIN.COM`、`INIT.CIM`）。PC-8801 是首發平台。
+- `KAO.PUT` 和 DOS 版**逐 byte 相同**：DOS 沿用的是 PC-88 的 64×40 半高圖，所以頭像、組合臉照 DOS 的排法匯出（`san2_pixels`，逐列加倍）。
+  - `SHIP.BIN`、`MAP.PUT`、`NEWGAME.DAT` 等也和 DOS 相同。
+- 色盤：數位 8 色（`SAN2_JP_PALETTE`，palette id `pc88`），色號意義同 `san2-pc88`。這是依其他 PC-88 版類推，沒有追 PC-88 的畫圖程式。
+- 人物：`SHINARIO.CIM` 的記錄同 DOS／PC-98，位置比 DOS 早 0xAC（男性 0x874、女性 0x724；`load_koukai_pc98_people(..., pc88=True)`），Shift-JIS。
+  - 41 男、21 女的姓名、順序、頭像位元組、國籍都和 `koukai-pc98` 相同，`id` 一致，沒有 `nameHistorical`。
+- 國名、沒有人物使用的頭像 1–12 的分組與名稱，沿用 PC-98 的日文寫法。
