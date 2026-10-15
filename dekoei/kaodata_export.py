@@ -2525,7 +2525,7 @@ def build_inindou(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     for h, person in enumerate(heroines):
         o = first + person * size
         characters.append({"id": h, "name": sdata[o:o + 16].split(b"\0")[0].decode("cp932"),
-                           "face": {"portrait": 2 * h},
+                           "face": {"portrait": 2 * h, "label": "通常"},
                            "expressions": [{"portrait": 2 * h + 1, "label": "閉眼"}]})
 
     if x68:

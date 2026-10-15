@@ -11,7 +11,7 @@
 ## 頭像：KAOGRP.DAT
 
 - 兩版逐 byte 相同。14 張 64×80 全高，每 8 點 B、R、G 各 1 byte（`pc88.brg_pixels(raw, 8, double=False)`），沒有壓縮、沒有索引。
-- 只有 7 位女主角，每人兩張：第 2h 張平常，第 2h＋1 張閉眼、換白衣。匯出成 `face` 和 `expressions`（label「閉眼」）。
+- 只有 7 位女主角，每人兩張：第 2h 張平常，第 2h＋1 張閉眼、換白衣。匯出成 `face`（label「通常」）和 `expressions`（label「閉眼」）。
 - 夥伴、敵人（`SDATA`、`RJDATA`）只有行走用的 32×32 小圖（`CHARAGRP.DAT`），沒有頭像。沒有組合臉。
 
 ## 人物
