@@ -632,9 +632,11 @@ def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
     return tables
 
 
-def load_nobu3_pc98_people(game_dir) -> list[list[tuple[str, int]]]:
+def load_nobu3_pc98_people(game_dir, pc88=False) -> list[list[tuple[str, int]]]:
     """(name, face code) per scenario (SNDATA1, SNDATA2) of the PC-98 version: 38-byte records from 0xD38,
-    surname 9 bytes, given name 7 bytes (Shift-JIS), +27 face code; same people and codes as the DOS version."""
+    surname 9 bytes, given name 7 bytes (Shift-JIS), +27 face code; same people and codes as the DOS version.
+    The PC-88 records are 36 bytes from 0xC1E with the same fields."""
+    start, size = (0xC1E, 36) if pc88 else (0xD38, 38)
     tables = []
     for n in (1, 2):
         with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
@@ -642,7 +644,7 @@ def load_nobu3_pc98_people(game_dir) -> list[list[tuple[str, int]]]:
         tables.append([(unicodedata.normalize("NFKC", (data[o:o + 9].split(b'\0')[0] +
                                                        data[o + 9:o + 16].split(b'\0')[0]).decode('cp932')),
                          int.from_bytes(data[o + 27:o + 29], 'little'))
-                        for o in range(0xD38, len(data) - 37, 38) if data[o]])
+                        for o in range(start, len(data) - size + 1, size) if data[o]])
     return tables
 
 

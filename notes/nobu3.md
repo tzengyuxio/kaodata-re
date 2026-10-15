@@ -59,3 +59,19 @@
 - 人物：`SNDATA1.CIM`、`SNDATA2.CIM` 0xD38 起 38 bytes 一筆：姓 9 bytes、名 7 bytes（Shift-JIS），+27 是 u16 頭像碼（`koei_games.load_nobu3_pc98_people`）。人數（240、212）和頭像碼都和 DOS 版相同，去重後同樣是 385 人（228 組合臉）。日文名沒有 DOS 版的錯字，不填 `nameHistorical`。
 - 通婚的公主頭像同樣是 `0x9D + rand(20)`（0x10CBE），即 157–176，group「姫」。
 
+## PC-88 原版（`nobu3-pc88`）
+
+`dekoei.py export nobu3-pc88` 用到的差異（`build_nobu3_pc88`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Sengoku Gunyuuden/Nobunaga no Yabou - Sengoku Gunyuuden [FD].7z`。檔案放在 `games/nobu3-pc88/`：Disk C（FAT12）的 `KAODATA.DAT`，Disk A（YDOS 3.0）的 `SNDATA1/2.CIM`、`VERSION`，以及參考用的 `MAIN.COM`。
+
+- `VERSION`：`NOBUNAGA NO YABOU -- SENGOKU GUNYUUDEN -- Rel.1C Dec.07, 1988`。這是系列的首發平台。
+- `KAODATA.DAT` 和 DOS 版**逐 byte 相同**：177 張 64×40 半高頭像，加上 4 組組合臉零件。DOS 版直接沿用了 PC-88 的 200 線圖。匯出照 DOS 用 `san2_pixels`（每列重複一次）。
+- 色盤：數位 8 色，色號意義同 `san2-pc88`（`SAN2_JP_PALETTE`），palette id `pc88`。
+- 組合臉：`MAIN.COM` 0x2F8F 算 `(碼 & 3) × 0x1680 + 0x297C0`，用頭像碼 bit 0–1 選組（同 PC-98），所以 4 組都匯出成 variant。各區域的位置和 XOR 同 DOS（0x2F7D 是 XOR 迴圈）。
+- 人物：`SNDATA1.CIM`、`SNDATA2.CIM` 0xC1E 起 36 bytes 一筆，欄位同 PC-98（姓 9、名 7，Shift-JIS，+27 頭像碼；`load_nobu3_pc98_people(..., pc88=True)`）。人數、順序、頭像碼都和 PC-98 相同，去重後 385 人。
+- 姓名有 5 個 PC-88 才有的錯字，PC-98、DOS 版都已改正，填 `nameHistorical`（`NOBU3_PC88_NAME_HISTORICAL`）：
+  - 河野道宣→河野通宣
+  - 河野道直→河野通直
+  - 萩野直正→荻野直正
+  - 萩清誉→荻清誉
+  - 山内隆道→山内隆通
+- 公主頭像 157–176 的 group「姫」沿用 PC-98 的結論，沒有在 PC-88 程式裡另外追。

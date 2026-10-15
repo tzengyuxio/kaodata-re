@@ -2821,6 +2821,79 @@ def build_nobu3_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+
+NOBU3_PC88_INPUTS = ["KAODATA.DAT", "SNDATA1.CIM", "SNDATA2.CIM"]
+NOBU3_PC88_SET = 0x1680  # KAODATA.DAT part set picked by face code bits 0-1 (MAIN.COM 0x2F8F)
+# PC-88 typos (the PC-98 and DOS releases have them right)
+NOBU3_PC88_NAME_HISTORICAL = {"河野道宣": "河野通宣", "河野道直": "河野通直", "萩野直正": "荻野直正", "萩清誉": "荻清誉",
+                              "山内隆道": "山内隆通"}
+
+
+def build_nobu3_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU3_PC88_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAODATA.DAT"]  # the same file as nobu3-dos
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for v in range(4):
+        parts = {}
+        for slot, (_, offset, row, rows) in NOBU3_DOS_SLOTS.items():
+            size = rows * 24
+            o = NOBU3_DOS_PARTS + v * NOBU3_PC88_SET + offset
+            parts[slot] = {"at": [0, 2 * row],
+                           "items": [store.add(*san2_pixels(kao[o + i * size:o + (i + 1) * size], True)) for i in range(4)]}
+        variants.append({"id": str(v), "label": f"類型 {v}", "parts": parts})
+
+    portraits = [{"img": store.add(*san2_pixels(kao[i * SAN2_FACE:(i + 1) * SAN2_FACE], True), blob=1),
+                  "code": f"{i:04X}"} for i in range(NOBU3_DOS_PORTRAITS)]
+    for i in NOBU3_DOS_PRINCESSES:
+        portraits[i]["group"] = "姫"
+
+    # as nobu3-pc98: scenario 1 then 2, one character per name and face code
+    characters, seen = [], set()
+    for table in koei_games.load_nobu3_pc98_people(game_dir, pc88=True):
+        for name, code in table:
+            if (name, code) in seen:
+                continue
+            seen.add((name, code))
+            ch = {"id": len(characters), "name": name}
+            if name in NOBU3_PC88_NAME_HISTORICAL:
+                ch["nameHistorical"] = NOBU3_PC88_NAME_HISTORICAL[name]
+            if code & 0x8000:
+                ch["face"] = {"variant": code & 3, "parts": [code >> 2 & 3, code >> 4 & 3, code >> 6 & 3, code >> 8 & 3,
+                                                             code >> 10 & 3], "code": f"{code:04X}"}
+            else:
+                ch["face"] = {"portrait": code}
+            characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "nobu3-pc88", "game": "NOBU3", "platform": "PC88",
+        "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_PC88_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "xor"} if slot in NOBU3_DOS_XOR else {})}
+                      for slot, (label, *_) in NOBU3_DOS_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "mouth", "hi": 15, "lo": 10, "base": 32},  # 1 000 mm: bit 15 marks a composite
+                {"of": "nose", "hi": 9, "lo": 8}, {"of": "eyes", "hi": 7, "lo": 6},
+                {"of": "bottom", "hi": 5, "lo": 4}, {"of": "top", "hi": 3, "lo": 2},
+                {"of": "$variant", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -3817,7 +3890,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98, "nobu3-pc88": build_nobu3_pc88, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
