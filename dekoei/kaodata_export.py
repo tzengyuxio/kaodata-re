@@ -3062,7 +3062,7 @@ GENCHOU_PC88_FACES = 40
 # slot -> (offset, item size, stride) for men and for women, the bottom starts where the top ends
 GENCHOU_PC88_SLOTS = {"top": ("上", (6, 480, 480), (6, 576, 576)), "bottom": ("下", (0x786, 480, 480), (0x906, 384, 384)),
                       "eyes": ("眼", (0xF06, 144, 576), (0xF06, 144, 576)), "mouth": ("口", (0x1806, 96, 288), (0x1806, 96, 288))}
-GENCHOU_PC88_NAME_HISTORICAL = {"考宗": "孝宗"}
+GENCHOU_PC88_NAME_HISTORICAL = {"考宗": "孝宗", "畠山重定": "畠山重忠"}
 GENCHOU_PC88_CHILDREN = 2000  # ids of the children that are nobody else (genchou-fc numbering)
 # genchou-fc has these two twice (other faces there); the record of this scenario is the second character
 GENCHOU_PC88_SPLIT = {("アイバク", 4), ("アルベルトゥス", 3)}
