@@ -1330,6 +1330,7 @@ EUROPE_PC88_PORTRAITS = {100: ("替補指揮官", None), 101: ("替補指揮官"
 EUROPE_X68_INPUTS = ["FACE.DAT", "SCEDATA", "MAIN.Z"]
 EUROPE_X68_FACES = 120
 EUROPE_X68_PALETTE = 0x49058
+EUROPE_DOS_LEADERS_END = 106  # faces 0-105 are people (commanders, then leaders)
 EUROPE_X68_PORTRAITS = {**{i: ("替補指揮官", None) for i in range(106, 118)}, 118: ("事件人物", "村娘"),
                         119: ("事件人物", "修道女")}  # MAIN.Z strings
 
@@ -1359,6 +1360,9 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False) -> tu
         for i, (group, name) in EUROPE_X68_PORTRAITS.items():
             portraits[i].update(group=group, **({"name": name} if name else {}))
         names = koei_games.load_europe_x68_names(os.path.join(game_dir, "SCEDATA"), os.path.join(game_dir, "MAIN.Z"))
+        for i in range(EUROPE_DOS_LEADERS_END):
+            if i not in names:  # people only in the damaged scenarios 1-4
+                portraits[i]["group"] = "劇本資料損壞"
         colours = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31))
                    for w in struct.unpack_from(">8I", files["MAIN.Z"], EUROPE_X68_PALETTE)]
     else:
