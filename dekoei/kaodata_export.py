@@ -1094,6 +1094,27 @@ LEMPE_NAPOLEON_FACES = [(0, "司令官"), (255, "第一執政"), (256, "皇帝")
 # PC-88 (the original; KAODATA.DAT is the DOS file): MAIN.OVL / COMSUB.OVL names, MAIN.COM rank titles
 LEMPE_PC88_PORTRAIT_NAMES = {257: "ジョゼフィーヌ", 258: "マリー・ルイーズ", 259: "ネルソン"}
 LEMPE_PC88_NAPOLEON_FACES = [(0, "司令官"), (255, "第一執政"), (256, "皇帝")]
+# nameZh of lempe-pc88, by character id: the lempe-fc nameZh (the lempe-dos names, with LEMPE_NAME_HISTORICAL
+# and regnal numbers for seven rulers), so both kana editions show the same Chinese names
+LEMPE_PC88_NAME_ZH = """
+    拿破崙 喬斯福 魯西恩 路易斯 哲羅姆 尤金 塞律里埃 卡爾諾 伯奇爾 脫利蘭 蒙塞 巴羅斯 勒費弗爾 歐吉里歐 儒爾當
+    馬塞納 福契 貝爾納多特 維特 圣西里 杜邦 德爾隆 麥克唐納 格魯希 貝西埃爾 米約 木雷 迪賽伊克斯 莫蒂埃 墨勃格
+    史考得 耐伊 佛蘭特 列寧斯 旺達姆 坎伯尼 克拉蒙 絮歇 達夫歐 布雷尼 蒙特布朗 莫羅 朱諾 拉普 雷尼埃
+    塞巴斯蒂尼 布代 馬蒙 吉納德 拉薩爾 雷耶 科蘭寇特 古爾戈 穆頓 拉貝都爾 喬治三世 喬治四世 維多利亞 亞丁頓 薛里登
+    彼克頓 皮特 巴紹特 比藍特 戈登 奧蘭治 穆爾 厄克司喬 藍伯特 畢瑞福德 威靈頓 梅特蘭 康瓦利斯 華亭 菲利比克斯
+    范德魯 威維恩 薩默塞特 西爾 波謝 潘森彼 麥克唐納 科伯恩 卡西勒布 昂吉迪 馬什 多朗什 拉姆齊 查塔姆 諾莫爾
+    貝林格 多爾蓀 鮑威爾一世 亞厲山大一世 本尼格森 羅斯托普金 庫突斯歐夫 霍夫頓 普拉托夫 葉爾莫洛夫 戈雷謝可夫 布霍布登 巴克萊 列弗茨基 烏瓦羅夫
+    庫泰卓夫 巴格拉吉昂 柯羅夫 德克特羅夫 戈爾恰科夫 克萊茲 維特根施泰因 托爾斯泰 凱敏斯基 圖柴可夫 米洛拉多維奇 尼維洛斯基 哥利欣 西奧斯 托馬索夫
+    康斯坦丁 沃龍佐夫 腓特烈·威廉三世 布朗史威克 布魯爾 霍恩洛厄 哈頓堡 威瑪 呂歇爾 約克 沙安赫司特 普羅 都布勞司基 斯泰恩 格奈森諾
+    博恩 波奈塔司基 克萊斯特 烏迪諾 芮騰 弗里德瑞奇 魯德維格 希爾曼 奧古斯特 席勒 克勞塞維茨 科蘇泰司基 弗朗茨二世 維爾姆澤 阿爾文齊
+    奧特 雷伯特 麥克 可班瑟 維恩芳 貝利加德 尤根 費迪南 施米圖 米拉斯 普羅韋拉 路易斯 魏尼克 查理斯 施瓦岑貝格
+    呂西尼昂 米特尼奇 約翰 威廉五世 邦哈美 荷根多 詹森 坎培爾 柯羅華特 麥克西米蘭一世 貝爾格 科魯華特 波那契 蒙吉拉斯 夏斯
+    瑞凡 薛林三世 馬斯塔法四世 默函特二世 怕司凡諾格魯 阿部都 艾普西蘭特 福洛西特 瑞蓋司 易卜拉欣 佛吉爾 伊匹希莫司 蒂普連 穆拉德 阿里
+    卡巴庫爾 恰瑞比 拜拉克達 卡拉喬琪 泰亞爾 塞蘭諾維奇 卡洛司四世 費迪南七世 戴茲 伊凡塔多 庫斯塔 布萊克 伯雷德 艾布奎克 卡斯塔那司
+    戈第 達伊斯 阿瑞查戈 羅馬納 寇爾 拉丁哥 米納 彼可奈 佐奧六世 葛拉漢 甫傑茲 桑吉斯 凡莫敦 魯西萊 沙伯龍尼
+    基瑞邁迪 葛萊尼 奈利 羅多維可 珂里 碧利歐 曼寧 卡沙諾娃 巴塔里亞 寇尼里 丹都羅 比沙洛 卡洛琳娜 卡拉西歐羅 魯索
+    艾克頓 庫寇 庫利塔 高斯塔夫四世 卡爾十三世 菲爾森 克利斯汀七世 佛瑞德雷克六世 伯恩斯多佛 詹森 伯恩赫德 史威恩 伊納克 海格 克利斯坦
+""".split()
 
 
 def build_lempe(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
@@ -1121,6 +1142,8 @@ def build_lempe(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
     # the five scenarios list the same 255 people in the same order
     for cid, name, face in people:
         ch = {"id": cid, "name": name}
+        if pc88:
+            ch["nameZh"] = LEMPE_PC88_NAME_ZH[cid]
         if cid in LEMPE_NAME_HISTORICAL and not pc88:  # translation errors of the Chinese release
             ch["nameHistorical"] = LEMPE_NAME_HISTORICAL[cid]
         ch["face"] = {"portrait": face}
