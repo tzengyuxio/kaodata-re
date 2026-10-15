@@ -3869,6 +3869,63 @@ def build_nobu3_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes
 
 
 
+NOBU3_WIN_INPUTS = ["Kao.nb3", "Kao2.nb3", "Kao3.nb3", "palette.nb3", "sndata1.nb3", "sndata2.nb3"]
+# Nobunaga3.exe 0x432DD0: the bride's face is 0x800 | rand(22), so the two men at the end of Kao2 can show up too
+NOBU3_WIN_KAO2_NOTE = "婚姻時從 Kao2 的 22 張臉隨機選一張，最後兩張男性的臉也在其中。"
+
+
+def build_nobu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU3_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin", "portraits2.bin"])
+
+    # palette.nb3 part 1 is the face palette (B, R, G); the faces use 98 colours, neither 0 nor 255
+    pal = ls11.ls11_decode_parts(files["palette.nb3"])[1]
+    colors = [f"#{pal[i * 3 + 1]:02x}{pal[i * 3 + 2]:02x}{pal[i * 3]:02x}" for i in range(255)]
+
+    # Nobunaga3.exe 0x42A950: face code bit 15 -> Kao3[code & 0xFF], bit 11 -> Kao2[code & 0xFF], else Kao[code].
+    # Each part: 2A 38, u16 width, u16 height, then 64x80 8-bit pixels
+    portraits, first = [], {}
+    for name, flag in (("Kao.nb3", 0), ("Kao2.nb3", 0x800), ("Kao3.nb3", 0x8000)):
+        first[flag] = len(portraits)
+        for i, part in enumerate(ls11.ls11_decode_parts(files[name])):
+            p = {"img": store.add(64, 80, part[6:6 + 64 * 80], blob=int(flag == 0x8000)), "code": f"{flag | i:04X}"}
+            if flag == 0x800:
+                p["group"] = "姫"
+                if i >= 20:
+                    p["note"] = NOBU3_WIN_KAO2_NOTE
+            elif flag == 0x8000:
+                p["group"] = "大眾臉"
+            portraits.append(p)
+
+    # as nobu3-pc98: scenario 1 then 2, one character per name and face code
+    characters, seen = [], set()
+    for table in koei_games.load_nobu3_pc98_people(game_dir, win=True):
+        for name, code in table:
+            if (name, code) in seen:
+                continue
+            seen.add((name, code))
+            flag = 0x8000 if code & 0x8000 else 0x800 if code & 0x800 else 0
+            characters.append({"id": len(characters), "name": name,
+                               "face": {"portrait": first[flag] + (code & 0xFF if flag else code)}})
+
+    meta = {
+        "format": FORMAT, "id": "nobu3-win", "game": "NOBU3", "platform": "WIN",
+        "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 NOBU3_PC88_INPUTS = ["KAODATA.DAT", "SNDATA1.CIM", "SNDATA2.CIM"]
 NOBU3_PC88_SET = 0x1680  # KAODATA.DAT part set picked by face code bits 0-1 (MAIN.COM 0x2F8F)
 # PC-88 typos (the PC-98 and DOS releases have them right)
@@ -5282,7 +5339,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
-            "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
+            "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,

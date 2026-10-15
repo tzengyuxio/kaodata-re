@@ -753,19 +753,21 @@ def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
     return tables
 
 
-def load_nobu3_pc98_people(game_dir, pc88=False, x68=False) -> list[list[tuple[str, int]]]:
+def load_nobu3_pc98_people(game_dir, pc88=False, x68=False, win=False) -> list[list[tuple[str, int]]]:
     """(name, face code) per scenario (SNDATA1, SNDATA2) of the PC-98 version: 38-byte records from 0xD38,
     surname 9 bytes, given name 7 bytes (Shift-JIS), +27 face code; same people and codes as the DOS version.
     The PC-88 records are 36 bytes from 0xC1E, the X68000 ones 44 bytes from 0x11F8
-    with the face code big-endian at +30; otherwise the same fields."""
-    start, size = (0xC1E, 36) if pc88 else (0x11F8, 44) if x68 else (0xD38, 38)
+    with the face code big-endian at +30; otherwise the same fields. The Windows (Steam) sndata?.nb3 have
+    44-byte records from 0x11B6 with the face code little-endian at +30."""
+    start, size = (0xC1E, 36) if pc88 else (0x11F8, 44) if x68 else (0x11B6, 44) if win else (0xD38, 38)
     tables = []
     for n in (1, 2):
-        with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+        with open(f'{game_dir}/sndata{n}.nb3' if win else f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
             data = f.read()
         tables.append([(unicodedata.normalize("NFKC", (data[o:o + 9].split(b'\0')[0] +
                                                        data[o + 9:o + 16].split(b'\0')[0]).decode('cp932')),
                          int.from_bytes(data[o + 30:o + 32], 'big') if x68 else
+                         int.from_bytes(data[o + 30:o + 32], 'little') if win else
                          int.from_bytes(data[o + 27:o + 29], 'little'))
                         for o in range(start, len(data) - size + 1, size) if data[o]])
     return tables
