@@ -720,6 +720,22 @@ def load_nobu4_pc98_people(game_dir) -> list[list[tuple[str, int]]]:
     return tables
 
 
+
+def load_nobu4_pc88_people(game_dir) -> list[list[tuple[str, int]]]:
+    """PC-88 (two scenarios, no later arrivals): the PC-98 records, starting at 0x1175."""
+    tables = []
+    for n in (1, 2):
+        with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+            data = f.read()
+        people = []
+        for o in range(0x1175, len(data) - 32, 33):
+            if data[o] < 0x20:  # scenario 2 ends with a record starting 0x01
+                break
+            people.append((nobu4_pc98_name(data[o:o + 7]) + nobu4_pc98_name(data[o + 7:o + 14]),
+                           int.from_bytes(data[o + 0x15:o + 0x17], 'little')))
+        tables.append(people)
+    return tables
+
 ##############################################################################
 
 

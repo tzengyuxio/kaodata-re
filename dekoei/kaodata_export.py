@@ -1677,6 +1677,88 @@ def build_nobu4_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes
     return meta, [bytes(b) for b in store.blobs]
 
 
+NOBU4_PC88_INPUTS = ["KAODATA.DAT", "SNDATA1.CIM", "SNDATA2.CIM", "GAIJI.CIM"]
+NOBU4_PC88_FACES = 285  # 64x40, B, R, G per 8 pixels; composites follow, 4 types x 0x2D48 bytes
+NOBU4_PC88_TYPE = 0x2D48
+# MAIN.COM 0x2EEB builds the face in a 960-byte buffer: top, bottom copied; eyes, mouth, nose XORed
+NOBU4_PC88_SLOTS = {"top": ("上", 0, 8, 0, 20), "bottom": ("下", 0xF00, 8, 20, 20), "eyes": ("眼", 0x1E00, 8, 11, 8),
+                    "nose": ("鼻", 0x2AC0, 3, 16, 9), "mouth": ("口", 0x2400, 8, 23, 9)}
+NOBU4_PC88_PORTRAITS = {139: "今井宗久", 140: "千利休", 273: "沢彦", 274: "朝廷使者"}
+NOBU4_PC88_PRINCESSES = range(275, 285)
+
+
+def build_nobu4_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU4_PC88_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAODATA.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for v, label in enumerate(NOBU4_DOS_TYPES):
+        base = NOBU4_PC88_FACES * 960 + v * NOBU4_PC88_TYPE
+        parts = {}
+        for slot, (_, offset, count, row, rows) in NOBU4_PC88_SLOTS.items():
+            size = rows * 24
+            items = [store.add(64, rows * 2, pc88.brg_pixels(kao[base + offset + i * size:base + offset + (i + 1) * size], 8))
+                     for i in range(count)]
+            parts[slot] = {"at": [0, row * 2], "items": items}
+        variants.append({"id": str(v), "label": label, "parts": parts})
+
+    portraits = [{"img": store.add(64, 80, pc88.brg_pixels(kao[i * 960:(i + 1) * 960], 8), blob=1), "code": f"{i:04X}"}
+                 for i in range(NOBU4_PC88_FACES)]
+    for i, name in NOBU4_PC88_PORTRAITS.items():
+        portraits[i].update(name=name, group="事件人物")
+    for i in NOBU4_PC88_PRINCESSES:
+        portraits[i]["group"] = "姫"
+
+    # scenario 1, then scenario 2 (no later arrivals); ids 0-249 as nobu4-fc
+    characters, seen = [], set()
+    for table in koei_games.load_nobu4_pc88_people(game_dir):
+        for name, code in table:
+            if code in seen:
+                continue
+            seen.add(code)
+            ch = {"id": len(characters), "name": NOBU4_PC98_ALIASES.get(name, name)}
+            if code < 0x4000:
+                ch["face"] = {"portrait": code}
+            else:
+                ch["face"] = {"variant": code & 3,
+                              "parts": [code >> 2 & 7, code >> 5 & 7, code >> 8 & 7, (code >> 14) - 1, code >> 11 & 7],
+                              "code": f"{code:04X}"}
+            characters.append(ch)
+    # the PC-98 scenario 3 and later-arrival people's faces are on the disk but no PC-88 record uses them
+    used = {c["face"]["portrait"] for c in characters if "portrait" in c["face"]}
+    for i in range(NOBU4_PC88_FACES):
+        if i not in used and "group" not in portraits[i]:
+            portraits[i]["group"] = "未使用"
+
+    meta = {
+        "format": FORMAT, "id": "nobu4-pc88", "game": "NOBU4", "platform": "PC88",
+        "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_PC88_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "xor"} if slot in NOBU4_DOS_XOR else {})}
+                      for slot, (label, *_) in NOBU4_PC88_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "nose", "hi": 15, "lo": 14, "base": 1}, {"of": "mouth", "hi": 13, "lo": 11},
+                {"of": "eyes", "hi": 10, "lo": 8}, {"of": "bottom", "hi": 7, "lo": 5},
+                {"of": "top", "hi": 4, "lo": 2}, {"of": "$variant", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH (太閤立志傳, DOS, Chinese)
 
 TAIKOH_DOS_INPUTS = ["MAIN.EXE", "TBS.DAT", "KAO.PUT", "MONTA.PUT", "HIME.PUT"]
@@ -3652,6 +3734,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
