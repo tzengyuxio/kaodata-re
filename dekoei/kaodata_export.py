@@ -2593,6 +2593,8 @@ NOBU5_PC98_EVENT_PEOPLE = {917: "ルイス＝フロイス", 918: "オルガン�
 NOBU5_PC98_UNKNOWN = [139, 140, *range(820, 878), 914, 915, 916, 921, 922, 923, 924, 927, 928]
 # aliases sharing a face code (renamed in later scenarios); one character under the best-known name
 NOBU5_PC98_ALIASES = {"長尾景虎": "上杉謙信", "武田晴信": "武田信玄", "松平元康": "徳川家康"}
+# PC-98 misspelling (the X68000 release has it right)
+NOBU5_PC98_NAME_HISTORICAL = {"楽厳寺雅方": "楽巌寺雅方"}
 # X68000: MAIN.Z is CZ11-packed (ls11.cz11_decode, image base 0x47FFA). The face index is 930 u32 (big-endian)
 # at image 0x5FC80; the palette set at start (0x500E: colours 0-15 from $A8BF0) holds GRB words, and colours 8-15
 # are the PC-98 4-bit faces colours as 5-bit 2v + 1
@@ -2633,8 +2635,11 @@ def build_nobu5_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes
                 if face in seen:
                     continue
                 seen.add(face)
-                characters.append({"id": len(characters), "name": NOBU5_PC98_ALIASES.get(name, name),
-                                   "face": {"portrait": face}})
+                name = NOBU5_PC98_ALIASES.get(name, name)
+                ch = {"id": len(characters), "name": name}
+                if name in NOBU5_PC98_NAME_HISTORICAL:
+                    ch["nameHistorical"] = NOBU5_PC98_NAME_HISTORICAL[name]
+                characters.append({**ch, "face": {"portrait": face}})
 
     if x68:
         grb = struct.unpack_from(">8I", exe, NOBU5_X68_PALETTE)
