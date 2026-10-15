@@ -7,6 +7,7 @@ come from the reference renderer below, which implements spec §6.
 """
 import bisect
 import hashlib
+import io
 import json
 import os
 import struct
@@ -2092,6 +2093,83 @@ NOBU4_PC98_PORTRAITS = {139: "今井宗久", 140: "千利休", 273: "沢彦", 27
 NOBU4_PC98_ALIASES = {"松平元康": "徳川家康"}
 # the only DOS typo the Japanese original shares
 NOBU4_PC98_NAME_HISTORICAL = {"四天王政孝": "四王天政孝"}
+
+
+NOBU4_WIN_INPUTS = ["Facedata.nb4", "Mondata.nb4", "sndata1.nb4", "sndata2.nb4", "sndata3.nb4"]
+# all 256 colours are used; colour 243 (108 pixels) merges into the nearly equal 237, and 255 moves to 243
+NOBU4_WIN_REMAP = bytes([*range(243), 237, *range(244, 255), 243])
+NOBU4_WIN_NOTE = "後登場的武將在登場時才從同頭型、同上半部的 8 張大眾臉中分配一張還沒人用的，這裡取頭像碼指定的那張。"
+
+
+def nobu4_win_bitmap(data: bytes) -> Image.Image:
+    """An .nb4 bitmap is a BMP whose 14-byte file header is "XEBM", size, pixel offset, 2 zero bytes."""
+    return Image.open(io.BytesIO(b"BM" + data[4:8] + bytes(4) + data[8:12] + data[14:]))
+
+
+def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU4_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin", "portraits2.bin"])
+
+    # Facedata: the 311 KAODATA faces repainted; Mondata: 4 head types x 8 tops x 8 bottoms, each drawn whole
+    # (eyes, nose and mouth are not separate). Both share the BMP palette.
+    faces, mon = nobu4_win_bitmap(files["Facedata.nb4"]), nobu4_win_bitmap(files["Mondata.nb4"])
+    pal = faces.getpalette()
+    colors = [f"#{pal[i * 3]:02x}{pal[i * 3 + 1]:02x}{pal[i * 3 + 2]:02x}" for i in [*range(243), 255, *range(244, 255)]]
+    portraits = []
+    for i in range(faces.height // 80):
+        p = {"img": store.add(64, 80, faces.crop((0, i * 80, 64, i * 80 + 80)).tobytes().translate(NOBU4_WIN_REMAP)),
+             "code": f"{i:04X}"}
+        if i in NOBU4_PC98_PORTRAITS:
+            p.update(name=NOBU4_PC98_PORTRAITS[i], group="事件人物")
+        elif i in NOBU4_DOS_PRINCESSES:
+            p["group"] = "姫"
+        portraits.append(p)
+    first_mon = len(portraits)
+    for i in range(mon.height // 80):
+        px = mon.crop((0, i * 80, 64, i * 80 + 80)).tobytes().translate(NOBU4_WIN_REMAP)
+        portraits.append({"img": store.add(64, 80, px, blob=1), "group": f"大眾臉（{NOBU4_DOS_TYPES[i // 64]}）"})
+
+    # as nobu4-pc98: one character per face code; a composite face is the one the scenario first assigned
+    tables = koei_games.load_nobu4_win_people(game_dir)
+    assigned = {}
+    for table in tables[0::2]:
+        for _, code, index in table:
+            assigned.setdefault(code, index)
+    characters, seen = [], set()
+    for table in tables:
+        for name, code, _ in table:
+            if code in seen:
+                continue
+            seen.add(code)
+            name = NOBU4_PC98_ALIASES.get(name, name)
+            ch = {"id": len(characters), "name": name}
+            if name in NOBU4_PC98_NAME_HISTORICAL:
+                ch["nameHistorical"] = NOBU4_PC98_NAME_HISTORICAL[name]
+            if code < 0x4000:
+                ch["face"] = {"portrait": code}
+            elif code in assigned:
+                ch["face"] = {"portrait": first_mon + assigned[code]}
+            else:
+                ch["face"] = {"portrait": first_mon + (code & 3) * 64 + (code >> 2 & 7) * 8 + (code >> 5 & 7)}
+                ch["note"] = NOBU4_WIN_NOTE
+            characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "nobu4-win", "game": "NOBU4", "platform": "WIN",
+        "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
 
 
 def build_nobu4_dos(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
@@ -5207,7 +5285,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
-            "nobu4-pc88": build_nobu4_pc88,
+            "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),

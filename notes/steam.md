@@ -39,3 +39,4 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 大航海時代IV with パワーアップキット HD Version | 1424800 | 1424801（manifest 3835565721977098930）、1424802（manifest 2363000941244658290） | build 7195847 | `games/steam/1424800/` |
 | 太閤立志伝V DX | 1842810 | 1842811（manifest 2345313088801476794） | build 9163702 | `games/steam/1842810/` |
 | 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（內容未查），`games/steam/397720/` |
+| 信長の野望・武将風雲録 | 521740 | 521741（manifest 4318626338706197183） | build 1691564／Readme 2017年3月 | 日文 Windows 版，`games/steam/521740/` |

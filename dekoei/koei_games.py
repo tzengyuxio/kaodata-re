@@ -866,6 +866,35 @@ def load_nobu4_pc88_people(game_dir) -> list[list[tuple[str, int]]]:
         tables.append(people)
     return tables
 
+
+def load_nobu4_win_people(game_dir) -> list[list[tuple[str, int, int]]]:
+    """Windows (Steam) sndata1-3.nb4: (name, face code, Mondata.nb4 index) per record, in the PC-98 table order
+    (scenario n, then its later arrivals). 41-byte records from 0x14: surname 9 bytes, given name 7 (Shift-JIS),
+    +23 u16 face code, +25 u16 the composite face the scenario assigned. 32-byte arrivals from 0x3F38: surname 9
+    bytes at +3, given name 7 at +12, +26 u16 face code; their composite face is assigned on arrival (index 0)."""
+    def name(raw):
+        return raw.split(b'\0', 1)[0].decode('cp932')
+
+    tables = []
+    for n in range(1, 4):
+        with open(f'{game_dir}/sndata{n}.nb4', 'rb') as f:
+            data = f.read()
+        people = []
+        o = 0x14
+        while data[o] >= 0x20:
+            people.append((name(data[o:o + 9]) + name(data[o + 9:o + 16]),
+                           int.from_bytes(data[o + 23:o + 25], 'little'), int.from_bytes(data[o + 25:o + 27], 'little')))
+            o += 41
+        tables.append(people)
+        arrivals = []
+        o = 0x3F38
+        while o + 32 <= len(data) and data[o + 3]:
+            arrivals.append((name(data[o + 3:o + 12]) + name(data[o + 12:o + 19]),
+                             int.from_bytes(data[o + 26:o + 28], 'little'), 0))
+            o += 32
+        tables.append(arrivals)
+    return tables
+
 ##############################################################################
 
 
