@@ -1,6 +1,7 @@
 import bitarray
 import click
 import unicodedata
+import genpei
 from ls11 import *
 from rich.table import Table
 from PIL import ImageFile
@@ -1983,3 +1984,43 @@ def winning_face(game_dir, out_dir, prefix):
 
 
 winning.add_command(winning_face, 'face')
+
+
+def gdt_images(data: bytes, big: bool = False) -> list[tuple[int, int, bytes]]:
+    """(width, height, colour indices) of each image in a KOEI GDT file (Leading Company, Air Management): a
+    16-byte header (+2 compressed flag, +4 width, +6 height, +8 bytes per row of 8 px, +12 data size; big-endian
+    on the X68000), then 4 byte-interleaved planes per 8 px, byte k = bit k. Compressed data (X68 LC.Z 0xB06D2)
+    is in 4-byte units: 11kkkkcc copies cc+1 units from k+1 rows back, 10kkkkcc from k+1 units back, 011cc + 11 bits
+    and 010 + 13 bits copy from far back, 001nnnnn repeats one unit n+1 times, 000nnnnn has n+1 literal units."""
+    order = 'big' if big else 'little'
+    images, o = [], 0
+    while o + 16 <= len(data):
+        w, h, bpr = (int.from_bytes(data[o + k:o + k + 2], order) for k in (4, 6, 8))
+        size = int.from_bytes(data[o + 12:o + 16], order)
+        src = data[o + 16:o + 16 + size]
+        if data[o + 2]:
+            out, p = bytearray(), 0
+            while len(out) < bpr * h * 4:
+                b = src[p]
+                p += 1
+                if b & 0x80:
+                    n, back = (b & 3) + 1, ((b >> 2 & 15) + 1) * (4 * bpr if b & 0x40 else 4)
+                elif b & 0x40:
+                    v = b << 8 | src[p]
+                    p += 1
+                    n, back = ((b >> 3 & 3) + 1, ((v & 0x7FF) + 1) * 4) if b & 0x20 else (1, ((v & 0x1FFF) + 1) * 4)
+                elif b & 0x20:
+                    out += src[p:p + 4] * ((b & 0x1F) + 1)
+                    p += 4
+                    continue
+                else:
+                    out += src[p:p + 4 * (b + 1)]
+                    p += 4 * (b + 1)
+                    continue
+                for _ in range(n * 4):
+                    out.append(out[-back])
+            assert p == len(src)
+            src = bytes(out)
+        images.append((w, h, bytes(genpei.decode_planar(src, 0, w, h, 4))))
+        o += 16 + size
+    return images

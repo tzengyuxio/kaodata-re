@@ -3918,6 +3918,58 @@ def build_air2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- LEADING (PC-98, X68000)
+
+# the face sheets, 4 faces each, in the order of the game's picture table (X68 LC.Z 0x51BF0, pictures 20-30)
+LEADING_FACES = [("SYA_1.GDT", "社長"), ("SYA_2.GDT", "社長"), ("SYA_3.GDT", "社長"),
+                 ("HI_1.GDT", "秘書"), ("HI_2.GDT", "秘書"), ("HI_3.GDT", "秘書"),
+                 ("BU_KAI.GDT", "部長（開発）"), ("BU_SEI.GDT", "部長（生産）"), ("BU_EIG.GDT", "部長（営業）"),
+                 ("BU_KEI.GDT", "部長（経理）"), ("KAICYO.GDT", "会長")]
+# the in-game palette (set when the main loop starts, X68 0x8D436): PC-98 LC.EXE file 0x45994, 16 x (G, R, B) 4 bits;
+# X68 LC.Z 0x53F4A, 16 palette words for colour c ^ 8 (the X68 faces are the PC-98 ones with plane 3 inverted).
+# Another table (PC-98 0x45964, X68 0x53F2A, used by the sales statistics) differs in PC-98 colours 1, 2, 9 and 10
+LEADING_PC98_PALETTE = 0x45994
+LEADING_X68_PALETTE = 0x53F4A - 0x514DE
+
+
+def build_leading(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = [name for name, _ in LEADING_FACES] + ["LC.Z" if x68 else "LC.EXE"]
+    files = {}
+    for name in inputs:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    # no face codes or person names: each sheet is loaded as a picture
+    portraits = [{"img": store.add(w, h, px), "group": group}
+                 for name, group in LEADING_FACES for w, h, px in koei_games.gdt_images(files[name], big=x68)]
+
+    if x68:
+        main = files["LC.Z"]
+        words = [int.from_bytes(main[LEADING_X68_PALETTE + 2 * i:][:2], "big") for i in range(16)]
+        colors = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31))
+                  for w in words]
+    else:
+        pal = files["LC.EXE"][LEADING_PC98_PALETTE:][:48]
+        colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i], pal[i + 2])) for i in range(0, 48, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "leading-x68" if x68 else "leading-pc98", "game": "LEADING",
+        "platform": "X68" if x68 else "PC98",
+        "title": {"ja": "リーディングカンパニー", "zh": "リーディングカンパニー"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
+                     {"id": "analog", "label": "類比 RGB", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": [],
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SAN6 PK (Windows, Chinese)
 
 SAN6PK_WIN_INPUTS = ["KAODATA.S6", "PALETTE.S6"] + [f"SNDATA{n:02}.S6" for n in range(1, 24)]
@@ -4807,7 +4859,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98,
