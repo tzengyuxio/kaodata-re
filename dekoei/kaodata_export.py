@@ -1057,6 +1057,10 @@ SAN1_X68_GROUP_ITEMS = [5, 5, 5, 5, 3]
 SAN1_X68_WHITE = 250
 
 
+# 程昱 and 曹丕 both use face 7 in the data (46 and 27 on PC-98); face 6 is unused
+SAN1_X68_NOTES = dict.fromkeys(["程昱", "曹丕"], "遊戲資料中程昱和曹丕都用 P007（PC-98 版兩人各有不同的臉），P006 沒有人用。")
+
+
 def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     files = {}
     for name in SAN1_X68_INPUTS:
@@ -1086,6 +1090,8 @@ def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         ch = {"id": cid, "name": name}
         if cid in SAN1_PC98_NAME_HISTORICAL:
             ch["nameHistorical"] = SAN1_PC98_NAME_HISTORICAL[cid]
+        if name in SAN1_X68_NOTES:
+            ch["note"] = SAN1_X68_NOTES[name]
         if code >= 100:
             ch["face"] = {"variant": (code >> 16) - 1, "parts": [code >> s & 15 for s in (12, 8, 4, 0)],
                           "code": f"{code:05X}"}
@@ -3631,6 +3637,7 @@ def build_nobu2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
 # ---------------------------------------------------------------- NOBU2 (信長の野望・全国版, X68000)
 
 NOBU2_X68_INPUTS = ["KAO.DAT", "DATA50.DAT", "ODAMAIN.Z"]
+NOBU2_X68_NOTE = "X68000 版頭像檔裡秀吉、勝家兩張臉的順序和 PC-88 版相反，遊戲顯示時會互換，所以秀吉用 P052、勝家用 P051。"
 # KAO.DAT (read whole, ODAMAIN.Z 0x606F0): 64x80 faces of B, R, G bytes per 8 px; 53 lords, 20 women from 0x18D80,
 # then the successors' composite (0x60EE0, table at 0x70632): 4 heads, then 4 items each of 4 bands 40 px wide
 NOBU2_X68_FACE = 1920
@@ -3675,6 +3682,8 @@ def build_nobu2_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         ch = {"id": i, "name": name, "face": {"portrait": NOBU2_X68_FACE_OF.get(i, i)}}
         if name in NOBU2_PC88_NAME_HISTORICAL:
             ch["nameHistorical"] = NOBU2_PC88_NAME_HISTORICAL[name]
+        if i in NOBU2_X68_FACE_OF:
+            ch["note"] = NOBU2_X68_NOTE
         characters.append(ch)
 
     # X68000 palette words: G, R, B 5 bits each, then the intensity bit; women's pixels are shifted to 8-15
