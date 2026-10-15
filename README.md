@@ -48,7 +48,7 @@ Early KOEI Games Data Research
 | GENGHIS   | 蒼狼與白鹿 成吉思汗         | 1987 |       DOS        |       |        |                     |
 | (GENCHOH) | 蒼狼與白鹿 元朝秘史         | 1992 |                  |       |        |                     |
 | GENGHIS4  | 成吉思汗 蒼狼與白鹿IV       | 1998 |       WIN        |       |        |                     |
-| KOUKAI    | 大航海時代                  | 1990 |       DOS        |       |        |                     |
+| KOUKAI    | 大航海時代                  | 1990 |     DOS,PC98     |       |        |                     |
 | KOUKAI2   | 大航海時代II                | 1993 |       DOS        |       |        |                     |
 | KOUKAIGD  | 大航海時代外傳              | 1998 |       WIN        |       |        |                     |
 | KOUKAI3   | 大航海時代III Costa del Sol | 1996 |       WIN        |       |        |                     |
@@ -123,6 +123,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `europe-dos` | 歐陸戰線                       | DOS 中文版 |  106 |  120 |        | [notes/europe.md](notes/europe.md) |
 | `liberty-dos` | 獨立戰爭                      | DOS 中文版 |  250 |  299 |        | [notes/liberty.md](notes/liberty.md) |
 | `koukai-dos` | 大航海時代                     | DOS 中文版 |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
+| `koukai-pc98` | 大航海時代                    | PC-98      |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
 | `koukaigd-win` | 大航海時代外傳               | Win 中文版 |  169 |  157 |   ○    | [notes/koukaigd.md](notes/koukaigd.md) |
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |

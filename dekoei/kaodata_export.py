@@ -1197,6 +1197,13 @@ KOUKAI_DOS_PORTRAIT_GROUPS = {1: "國王", 2: "國王", 3: "國王", 8: "特殊�
                               **{i: "設施" for i in (4, 5, 6, 7, 9, 10, 11, 12)}}
 KOUKAI_DOS_PORTRAIT_NAMES = {1: "葡萄牙國王", 2: "西班牙國王", 3: "土耳其國王", 4: "道具店", 5: "造船廠", 6: "交易所",
                              7: "酒館", 8: "老航海士", 9: "港口", 10: "王宮", 11: "教會", 12: "旅館"}
+# PC-98: the same layout at double height (MAIN.EXE 0x7292 composes a 1920-byte face; portraits from 0x17400,
+# 0x749C), drawn byte 0/1/2 to B/R/G with the standard digital colours; the same faces at full resolution
+KOUKAI_PC98_NATIONS = ["ポルトガル", "イスパニア", "イスラム", "海賊"]  # MAIN.EXE nation names
+KOUKAI_PC98_PORTRAIT_GROUPS = {1: "国王", 2: "国王", 3: "国王", 8: "特殊人物",
+                               **{i: "施設" for i in (4, 5, 6, 7, 9, 10, 11, 12)}}
+KOUKAI_PC98_PORTRAIT_NAMES = {1: "ポルトガル国王", 2: "イスパニア国王", 3: "イスラム国王", 4: "道具屋", 5: "造船所",
+                              6: "交易所", 7: "酒場", 8: "老航海士", 9: "港", 10: "王宮", 11: "教会", 12: "宿屋"}
 
 
 def koukai_dos_parts(b0: int, b1: int) -> list[int]:
@@ -1204,7 +1211,9 @@ def koukai_dos_parts(b0: int, b1: int) -> list[int]:
     return [b1 & 7, b1 >> 3 & 7, b0 & 7, b1 >> 6, b0 >> 4 & 7]
 
 
-def build_koukai_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_koukai_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    """pc98=True: the PC-98 original (full-height faces, Shift-JIS names)."""
+    scale, pixels = (2, san2_jp_pixels) if pc98 else (1, san2_pixels)
     files = {}
     for name in KOUKAI_DOS_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1213,24 +1222,27 @@ def build_koukai_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     variants = []
-    for nation, label in enumerate(KOUKAI_DOS_NATIONS):
-        base = nation * KOUKAI_DOS_NATION
+    for nation, label in enumerate(KOUKAI_PC98_NATIONS if pc98 else KOUKAI_DOS_NATIONS):
+        base = nation * KOUKAI_DOS_NATION * scale
         parts = {}
         for slot, _, offset, size, count, row in KOUKAI_DOS_SLOTS:
-            items = [store.add(*san2_pixels(kao[base + offset + i * size:base + offset + (i + 1) * size],
-                                            slot in ("top", "bottom"))) for i in range(count)]
+            offset, size = offset * scale, size * scale
+            items = [store.add(*pixels(kao[base + offset + i * size:base + offset + (i + 1) * size],
+                                       slot in ("top", "bottom"))) for i in range(count)]
             parts[slot] = {"at": [0, 2 * row], "items": items}
         variants.append({"id": str(nation), "label": label, "parts": parts})
 
-    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True), blob=1),
-                  "code": f"{(i - KOUKAI_DOS_PORTRAITS) // SAN2_FACE:04X}"}
-                 for i in range(KOUKAI_DOS_PORTRAITS, len(kao), SAN2_FACE)]
-    for i, group in KOUKAI_DOS_PORTRAIT_GROUPS.items():
+    face_size = SAN2_FACE * scale
+    portraits = [{"img": store.add(*pixels(kao[i:i + face_size], True), blob=1),
+                  "code": f"{(i - KOUKAI_DOS_PORTRAITS * scale) // face_size:04X}"}
+                 for i in range(KOUKAI_DOS_PORTRAITS * scale, len(kao), face_size)]
+    for i, group in (KOUKAI_PC98_PORTRAIT_GROUPS if pc98 else KOUKAI_DOS_PORTRAIT_GROUPS).items():
         portraits[i]["group"] = group
-    for i, name in KOUKAI_DOS_PORTRAIT_NAMES.items():
+    for i, name in (KOUKAI_PC98_PORTRAIT_NAMES if pc98 else KOUKAI_DOS_PORTRAIT_NAMES).items():
         portraits[i]["name"] = name
 
-    men, women = koei_games.load_koukai_dos_people(os.path.join(game_dir, "SHINARIO.CIM"))
+    load = koei_games.load_koukai_pc98_people if pc98 else koei_games.load_koukai_dos_people
+    men, women = load(os.path.join(game_dir, "SHINARIO.CIM"))
     characters = []
     # men 0-40, then the women from 41 (as koukai-fc, which has no character for the last woman)
     for cid, (name, b0, b1, nation) in enumerate(men):
@@ -1243,12 +1255,14 @@ def build_koukai_dos(game_dir: str) -> tuple[dict, list[bytes]]:
                    for i, name in enumerate(women)]
 
     meta = {
-        "format": FORMAT, "id": "koukai-dos", "game": "KOUKAI", "platform": "DOS",
+        "format": FORMAT, "id": "koukai-pc98" if pc98 else "koukai-dos", "game": "KOUKAI",
+        "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "大航海時代", "zh": "大航海時代"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE} if pc98 else
+                     {"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -3343,7 +3357,8 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
-            "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
+            "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
+            "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos,
             "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,

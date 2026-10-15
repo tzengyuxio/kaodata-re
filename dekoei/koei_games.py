@@ -530,6 +530,27 @@ def load_koukai_dos_people(shinario) -> tuple[list[tuple[str, int, int, int]], l
     off, size, n = KOUKAI_WOMEN
     return men, [koei_tw_name(data[off + i * size:off + i * size + 15]) for i in range(n)]
 
+
+KOUKAI_PC98_SHIFT = -0x20  # PC-98 SHINARIO.CIM: the same records, 0x20 bytes earlier
+
+
+def load_koukai_pc98_people(shinario) -> tuple[list[tuple[str, int, int, int]], list[str]]:
+    """As load_koukai_dos_people, names in Shift-JIS."""
+    with open(shinario, 'rb') as f:
+        data = f.read()
+
+    def name(raw: bytes) -> str:
+        return raw.split(b"\0")[0].decode("shift_jis")
+    off, size, n = KOUKAI_MEN
+    off += KOUKAI_PC98_SHIFT
+    men = []
+    for i in range(n):
+        r = data[off + i * size:off + (i + 1) * size]
+        men.append((name(r[:15]), r[0x11], r[0x12], r[0x13] >> 4))
+    off, size, n = KOUKAI_WOMEN
+    off += KOUKAI_PC98_SHIFT
+    return men, [name(data[off + i * size:off + i * size + 15]) for i in range(n)]
+
 # GENGHIS DOS MDATA.CIM / SDATA.CIM: kind -> (offset, groups, group size, records, record size, face offset)
 GENGHIS_TABLES = {"ruler": (0x2E2, 1, 0, 27, 43, 0x27), "family": (0x76C, 4, 205, 5, 41, 0x27),
                   "son": (0xE46, 4, 160, 5, 32, 0x1E), "general": (0xAEB, 1, 0, 26, 33, 0x1F),
