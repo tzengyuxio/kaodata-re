@@ -4233,6 +4233,76 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN9 PK (Windows, Japanese, Steam)
+
+SAN9PK_WIN_INPUTS = sango.SAN9_FACE_FILES + ["P_Face.s9", "M_MsgPK.s9"] + sango.SAN9_SCENARIOS
+# records 693-699 are roles, not people; their faces become named portraits. The tribes' officers share one face each
+SAN9PK_WIN_ROLES = range(693, 700)
+SAN9PK_WIN_NAME_HISTORICAL = {"厳晙": "厳畯"}
+# no person uses 686-835; 70 men and 30 women as in SAN7's new-officer faces, then the PK's 35 men and 15 women
+SAN9PK_WIN_PORTRAIT_GROUPS = {
+    **{i: "新武將（男）" for i in [*range(686, 756), *range(786, 821)]},
+    **{i: "新武將（女）" for i in [*range(756, 786), *range(821, 836)]},
+}
+SAN9PK_WIN_PK = range(786, 836)
+# faces 0-785 in face order, cut at about 1 MB compressed; the PK faces go last in extra.bin
+SAN9PK_WIN_CUTS = [262, 524, 786]
+SAN9PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "extra.bin"]
+
+
+def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN9PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(SAN9PK_WIN_BLOBS)
+
+    # colour 255 is used and the key colour 0 (green) is not, so 255 moves to 0
+    normal, sepia = sango.load_san9_palettes(os.path.join(game_dir, "P_Face.s9"))
+    remap = bytes(range(255)) + b"\0"
+    persons = sango.load_san9_persons(game_dir)
+    roles = {p["face"]: p["name"] for p in persons if p["id"] in SAN9PK_WIN_ROLES}
+
+    portraits = []
+    for code, px in enumerate(sango.load_san9_faces(game_dir)):
+        blob = bisect.bisect_right(SAN9PK_WIN_CUTS, code)
+        p = {"img": store.add(64, 80, px.translate(remap), blob=blob), "code": f"{code:04X}"}
+        if code in roles:
+            p["group"], p["name"] = "事件人物", roles[code]
+        elif code in SAN9PK_WIN_PORTRAIT_GROUPS:
+            p["group"] = SAN9PK_WIN_PORTRAIT_GROUPS[code]
+        if code in SAN9PK_WIN_PK:
+            p["pk"] = True
+        portraits.append(p)
+
+    # the kana has no break between surname and given name, so the reading has no space
+    characters, seen = [], set()
+    for p in persons:
+        if p["id"] in SAN9PK_WIN_ROLES or (p["name"], p["face"]) in seen:
+            continue
+        seen.add((p["name"], p["face"]))
+        ch = {"id": p["id"], "name": p["name"], "reading": kana_to_hiragana(p["kana"]),
+              "face": {"portrait": p["face"]}}
+        if p["name"] in SAN9PK_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN9PK_WIN_NAME_HISTORICAL[p["name"]]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san9pk-win", "game": "SAN9PK", "platform": "WIN",
+        "title": {"ja": "三國志IX with パワーアップキット", "zh": "三國志IX 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN9PK_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": [normal[255]] + normal[1:255]},
+                     {"id": "sepia", "label": "懷舊", "colors": [sepia[255]] + sepia[1:255]}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- KOUMEI (Windows, Chinese)
 
 KOUMEI_WIN_INPUTS = ["KAO.E2", "PALET.E2", "BAKDATA.E2"]
@@ -5057,7 +5127,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
-            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san8pk-win": build_san8pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,

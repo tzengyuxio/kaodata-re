@@ -1,4 +1,5 @@
 import collections
+import ls11
 import click
 import genpei
 from rich.console import Console
@@ -453,6 +454,68 @@ def load_san8_persons(sce) -> list[dict]:
         persons.append({"id": k, "name": text(r[2:7]) + text(r[0x12:0x17]),
                         "kana": (text(r[7:0x12]), text(r[0x17:0x22])), "face": int.from_bytes(r[0x27:0x29], "little")})
     return persons
+
+
+# 三國志IX PK (Steam): G_FaceS.s9 (786) and the PK's G_FacSPK.s9 (50) are u32 file size, then per face a 16-byte
+# header (u32 size incl. header, ?, width, height) and 64x80 8-bit pixels; face numbers run on across both files.
+# P_Face.s9: u32 count 2, then 2 x (BITMAPINFOHEADER + 256 x RGBX): the normal and a sepia palette.
+SAN9_FACE_FILES = ["G_FaceS.s9", "G_FacSPK.s9"]
+SAN9_SCENARIOS = [f"D_Sce{k:03d}.S9" for k in range(1, 21)]
+# S9gaiji.tte glyphs used in names: the SAN8 ones plus these. U+E06A is 孫𩅦's name (Sun Xiu's eldest son)
+SAN9_GAIJI = {**SAN8_GAIJI, 0xE001: "昱", 0xE002: "彧", 0xE008: "汜", 0xE00A: "鄧", 0xE010: "晙", 0xE01B: "琮",
+              0xE021: "琦", 0xE033: "諶", 0xE035: "昕", 0xE048: "嘏", 0xE050: "珝", 0xE055: "甯", 0xE065: "璜",
+              0xE067: "璿", 0xE068: "騄", 0xE069: "紞", 0xE06A: "\U00029166"}
+SAN9_PERSONS = 700
+
+
+def load_san9_faces(game_dir) -> list[bytes]:
+    faces = []
+    for name in SAN9_FACE_FILES:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = f.read()
+        assert struct.unpack_from("<I", data)[0] == len(data)
+        o = 4
+        while o < len(data):
+            size, _, w, h = struct.unpack_from("<4I", data, o)
+            assert (size, w, h) == (16 + 64 * 80, 64, 80)
+            faces.append(data[o + 16:o + size])
+            o += size
+    return faces
+
+
+def load_san9_palettes(palette) -> list[list[str]]:
+    with open(palette, "rb") as f:
+        data = f.read()
+    count = struct.unpack_from("<I", data)[0]
+    return [[f"#{data[o + i * 4]:02x}{data[o + i * 4 + 1]:02x}{data[o + i * 4 + 2]:02x}" for i in range(256)]
+            for o in (4 + k * (40 + 1024) + 40 for k in range(count))]
+
+
+def load_san9_persons(game_dir) -> list[dict]:
+    """The 700 people (kana order): id, name, kana, face number.
+
+    Faces come from the "prsn" chunk of the D_Sce???.S9 RIFF files (134-byte records, +4 u16 id, +14 u16 face; the
+    same in all 20 scenarios, records 700-799 are new-officer slots). Names are in part 0 of M_MsgPK.s9 (LS11), from
+    阿会喃 on: surname, given name, style name and kana (ESC k ... ESC H) separated by 05 05 05."""
+    faces = None
+    for name in SAN9_SCENARIOS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = f.read()
+        i = data.index(b"prsn")
+        prsn = data[i + 8:i + 8 + struct.unpack_from("<I", data, i + 4)[0]]
+        assert all(struct.unpack_from("<H", prsn, k * 134 + 4)[0] == k for k in range(SAN9_PERSONS))
+        f = [struct.unpack_from("<H", prsn, k * 134 + 14)[0] for k in range(SAN9_PERSONS)]
+        assert faces in (None, f)
+        faces = f
+    with open(os.path.join(game_dir, "M_MsgPK.s9"), "rb") as f:
+        msg = ls11.ls11_decode_parts(f.read())[0]
+    parts = msg[msg.index("阿会".encode("cp932")):].split(b"\x05\x05\x05")
+
+    def text(b):
+        return "".join(SAN9_GAIJI.get(ord(c), c) for c in b.decode("cp932"))
+
+    return [{"id": k, "name": text(parts[4 * k]) + text(parts[4 * k + 1]),
+             "kana": parts[4 * k + 3][2:-2].decode("cp932"), "face": faces[k]} for k in range(SAN9_PERSONS)]
 
 
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
