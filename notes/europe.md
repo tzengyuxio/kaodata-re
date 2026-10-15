@@ -43,7 +43,9 @@
 - `games/europe-pc88/` 放 Disk A 的 `FACE.PIC`、`KOEI.C`（參考用），Disk B 的 `SCEDATA.CIM`、`MAIN.COM`，Disk C 的 `FACE2.PIC`。
 - 頭像：`FACE.PIC` 102 張、`FACE2.PIC` 2 張（匯出成 102、103），都是 64×40、每 8 點 B、R、G 3 bytes（`MAIN.COM` 0x1320 依序寫 port 0x5C–0x5E），960 bytes。匯出用 `pc88.brg_pixels`，逐列加倍。
   - 第 0 列與第 39 列全白，是畫框線。
-  - 0–99 和 DOS 是同一批人、同樣順序，但 DOS 是重畫的全高圖，沒有一張相同。100、101 是沒有人物用到的軍官臉（看圖像 DOS 的替補指揮官，未確認），102、103 看圖是 DOS 的 118 村姑、119 修女；都沒有標分類，同 `europe-sfc`。
+  - 0–99 和 DOS 是同一批人、同樣順序，但 DOS 是重畫的全高圖，沒有一張相同。
+  - 100、101 是沒有人物用到的軍官臉，看圖像 DOS 的替補指揮官，分類「替補指揮官」（陣營未確認，不加軸心／聯合軍）。
+  - 102、103（`FACE2.PIC`）分類「事件人物」：`SCOM.OVL` 0x16E72 讀 FACE2.PIC 第 0 張、旁邊印「村娘」，0x16A41 讀第 1 張（0x3C0）、印「修道女」（SCOM.OVL 載入位址 = 檔案位移 − 0xC902，0x9503 是字串 `FACE2.PIC`）。對應 DOS 的 118 村姑、119 修女。
 - 人物：記錄格式同 DOS（22 bytes，名字 8 bytes，國籍 +9，頭像 +20），名字是半形片假名（轉全形）。`SCEDATA.CIM` 0x229 起 7 個劇本、間隔 0x1D64、各 40 筆；領袖 6 人在 `MAIN.COM` 0x264（頭像 94–99）。DOS 的 100–105（戈林等）PC-88 版沒有（`koei_games.load_europe_pc88_names`）。
   - 共 100 人，id 和名字與 `europe-sfc` 逐筆相同（11 ラフェンシュタイ 是 8 字截斷）。
 - 色盤：`MAIN.OVL` 0x555A 在數位模式下把 8 個暫存器設成恆等對應，就是數位 8 色（palette id `pc88`）。

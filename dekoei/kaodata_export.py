@@ -1287,6 +1287,10 @@ EUROPE_DOS_PORTRAIT_NAMES = {118: "村姑", 119: "修女"}
 # 0-99 are the DOS people in the same order, the leaders 100-105 are not in this version
 EUROPE_PC88_INPUTS = ["FACE.PIC", "FACE2.PIC", "SCEDATA.CIM", "MAIN.COM"]
 EUROPE_PC88_FACE = 960
+# 100-101 are officers no record uses (side unknown); SCOM.OVL 0x16A41 / 0x16E72 read FACE2.PIC face 1 / 0 under the
+# speaker labels 修道女 / 村娘
+EUROPE_PC88_PORTRAITS = {100: ("替補指揮官", None), 101: ("替補指揮官", None), 102: ("事件人物", "村娘"),
+                         103: ("事件人物", "修道女")}
 
 
 def build_europe_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
@@ -1302,6 +1306,8 @@ def build_europe_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
         face = files["FACE.PIC"] + files["FACE2.PIC"]
         portraits = [{"img": store.add(64, 80, brg_pixels(face[i:i + EUROPE_PC88_FACE], 8)),
                       "code": f"{i // EUROPE_PC88_FACE:04X}"} for i in range(0, len(face), EUROPE_PC88_FACE)]
+        for i, (group, name) in EUROPE_PC88_PORTRAITS.items():
+            portraits[i].update(group=group, **({"name": name} if name else {}))
         names = koei_games.load_europe_pc88_names(os.path.join(game_dir, "SCEDATA.CIM"),
                                                   os.path.join(game_dir, "MAIN.COM"))
     else:
