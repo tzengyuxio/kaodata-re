@@ -220,3 +220,25 @@ def load_liberty_dos_names(main_exe) -> tuple[list[str], list[str]]:
     offset, size, count = LIBERTY_OFFICIALS
     officials = [liberty_name(ds[offset + i * size + 4:][:13], ds[offset + i * size + 17:][:17]) for i in range(count)]
     return persons, officials
+
+
+# ---------------------------------------------------------------- PC-98 (Japanese original)
+# MAIN.EXE file offsets of the same tables (names in Shift-JIS)
+LIBERTY_PC98_PERSONS = 0x3B330
+LIBERTY_PC98_OFFICIALS = 0x3ACF8
+
+
+def load_liberty_pc98_names(main_exe) -> tuple[list[str], list[str]]:
+    """As load_liberty_dos_names, for the PC-98 MAIN.EXE."""
+    with open(main_exe, "rb") as f:
+        exe = f.read()
+
+    def name(given: bytes, surname: bytes) -> str:
+        return "・".join(raw.split(b"\0")[0].decode("cp932") for raw in (given, surname))
+    _, size, count = LIBERTY_PERSONS
+    persons = [name(exe[LIBERTY_PC98_PERSONS + i * size + 18:][:17], exe[LIBERTY_PC98_PERSONS + i * size + 35:][:17])
+               for i in range(count)]
+    _, size, count = LIBERTY_OFFICIALS
+    officials = [name(exe[LIBERTY_PC98_OFFICIALS + i * size + 4:][:13], exe[LIBERTY_PC98_OFFICIALS + i * size + 17:][:17])
+                 for i in range(count)]
+    return persons, officials

@@ -75,7 +75,7 @@ Early KOEI Games Data Research
 | EIKETSU4  | 織田信長傳                  | 1998 |       WIN        |       |        |                     |
 | EIKETSU5  | 三國志曹操傳                | 1998 |       WIN        |       |        |                     |
 | GENPEI    | 源平合戰                    | 1994 |                  |       |        |                     |
-| LIBERTY   | 獨立戰爭                    | 1993 |       DOS        |       |        |                     |
+| LIBERTY   | 獨立戰爭                    | 1993 |     DOS,PC98     |       |        |                     |
 | PROGEN    | プロジェネター              | 1995 |       PC98       |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
@@ -122,6 +122,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `kouryuuki-dos` | 項劉記                      | DOS 中文版 |   92 |   97 |        | [notes/kouryuuki.md](notes/kouryuuki.md) |
 | `europe-dos` | 歐陸戰線                       | DOS 中文版 |  106 |  120 |        | [notes/europe.md](notes/europe.md) |
 | `liberty-dos` | 獨立戰爭                      | DOS 中文版 |  250 |  299 |        | [notes/liberty.md](notes/liberty.md) |
+| `liberty-pc98` | 独立戦争                     | PC-98      |  250 |  299 |        | [notes/liberty.md](notes/liberty.md) |
 | `koukai-dos` | 大航海時代                     | DOS 中文版 |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
 | `koukai-pc98` | 大航海時代                    | PC-98      |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |
 | `koukaigd-win` | 大航海時代外傳               | Win 中文版 |  169 |  157 |   ○    | [notes/koukaigd.md](notes/koukaigd.md) |

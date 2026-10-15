@@ -1135,9 +1135,19 @@ LIBERTY_DOS_PORTRAITS = {294: ("傳令", "大陸會議傳令"), 295: ("傳令", 
                          297: ("海軍", "同盟國海軍軍官"), 298: ("傭兵", "雇傭兵隊長")}
 # the Chinese name is another person's, by character id
 LIBERTY_DOS_NAME_HISTORICAL = {82: "托馬斯・蓋奇", 191: "伊斯雷爾・帕特南"}
+# PC-98: the same FACE.IDX; the same 4-bit table (MAIN.EXE file 0x3945A) on the analog palette, as v * 17
+LIBERTY_PC98_PALETTE = ["#000000", "#114499", "#bb5511", "#aa7777", "#447700", "#88aabb", "#eebb99", "#ffeedd"]
+LIBERTY_PC98_SIDES = ["大陸会議", "英国"]
+LIBERTY_PC98_SUPPLY = {20: "弾薬補給担当", 21: "食糧補給担当"}  # MAIN.EXE office names
+LIBERTY_PC98_PORTRAITS = {294: ("伝令", "大陸会議伝令"), 295: ("伝令", "英国伝令"), 296: ("海軍", "同盟国海軍士官"),
+                          297: ("海軍", "同盟国海軍士官"), 298: ("傭兵", "傭兵隊長")}
 
 
-def build_liberty_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_liberty_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    """pc98=True: the Japanese PC-98 original (Shift-JIS names, PC-98 palette)."""
+    sides, supply, specials, historical = ((LIBERTY_PC98_SIDES, LIBERTY_PC98_SUPPLY, LIBERTY_PC98_PORTRAITS, {}) if pc98
+                                           else (LIBERTY_DOS_SIDES, LIBERTY_DOS_SUPPLY, LIBERTY_DOS_PORTRAITS,
+                                                 LIBERTY_DOS_NAME_HISTORICAL))
     files = {}
     for name in LIBERTY_DOS_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1146,30 +1156,32 @@ def build_liberty_dos(game_dir: str) -> tuple[dict, list[bytes]]:
 
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"}
                  for i, px in enumerate(liberty.load_liberty_faces(os.path.join(game_dir, "FACE.IDX")))]
-    persons, officials = liberty.load_liberty_dos_names(os.path.join(game_dir, "MAIN.EXE"))
-    for side, label in enumerate(LIBERTY_DOS_SIDES):
+    load = liberty.load_liberty_pc98_names if pc98 else liberty.load_liberty_dos_names
+    persons, officials = load(os.path.join(game_dir, "MAIN.EXE"))
+    for side, label in enumerate(sides):
         for slot in range(22):
-            portraits[250 + side * 22 + slot].update(
-                group=label, name=LIBERTY_DOS_SUPPLY.get(slot) or officials[side * 22 + slot])
-    for i, (group, name) in LIBERTY_DOS_PORTRAITS.items():
+            portraits[250 + side * 22 + slot].update(group=label, name=supply.get(slot) or officials[side * 22 + slot])
+    for i, (group, name) in specials.items():
         portraits[i].update(group=group, name=name)
 
     characters = []
     # face = person number (MAIN.EXE 0x78A9)
     for cid, name in enumerate(persons):
         ch = {"id": cid, "name": name}
-        if cid in LIBERTY_DOS_NAME_HISTORICAL:
-            ch["nameHistorical"] = LIBERTY_DOS_NAME_HISTORICAL[cid]
+        if cid in historical:
+            ch["nameHistorical"] = historical[cid]
         ch["face"] = {"portrait": cid}
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "liberty-dos", "game": "LIBERTY", "platform": "DOS",
+        "format": FORMAT, "id": "liberty-pc98" if pc98 else "liberty-dos", "game": "LIBERTY",
+        "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "独立戦争 Liberty or Death", "zh": "獨立戰爭"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in LIBERTY_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "vga", "label": "VGA", "colors": LIBERTY_DOS_PALETTE}],
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": LIBERTY_PC98_PALETTE} if pc98 else
+                     {"id": "vga", "label": "VGA", "colors": LIBERTY_DOS_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -1198,7 +1210,7 @@ KOUKAI_DOS_PORTRAIT_GROUPS = {1: "國王", 2: "國王", 3: "國王", 8: "特殊�
 KOUKAI_DOS_PORTRAIT_NAMES = {1: "葡萄牙國王", 2: "西班牙國王", 3: "土耳其國王", 4: "道具店", 5: "造船廠", 6: "交易所",
                              7: "酒館", 8: "老航海士", 9: "港口", 10: "王宮", 11: "教會", 12: "旅館"}
 # PC-98: the same layout at double height (MAIN.EXE 0x7292 composes a 1920-byte face; portraits from 0x17400,
-# 0x749C), drawn byte 0/1/2 to B/R/G with the standard digital colours; the same faces at full resolution
+# 0x749C), drawn byte 0/1/2 to B/R/G with the standard digital colours; DOS redrew the faces at 64x40
 KOUKAI_PC98_NATIONS = ["ポルトガル", "イスパニア", "イスラム", "海賊"]  # MAIN.EXE nation names
 KOUKAI_PC98_PORTRAIT_GROUPS = {1: "国王", 2: "国王", 3: "国王", 8: "特殊人物",
                                **{i: "施設" for i in (4, 5, 6, 7, 9, 10, 11, 12)}}
@@ -3357,6 +3369,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
+            "liberty-pc98": lambda game_dir: build_liberty_dos(game_dir, pc98=True),
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,

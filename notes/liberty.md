@@ -31,3 +31,12 @@
   - 格位 0–14：州代表／州總督；15–19：財政部長、國務卿、陸軍部長、海軍部長、大陸會議議長／財政大臣、外交大臣、陸軍大臣、海軍大臣、英國首相。名字取 DS:0x33D2 的初始任職者（44 × 34 bytes，+4 名、+17 姓），遊戲中會換人。
   - 格位 20、21（270／292、271／293）：彈藥補給官、糧食補給官（映像 0x14043）。
 - 294、295 傳令（依陣營）；296、297 同盟國海軍軍官（映像 0x12301，國別參數 2 用 296、其他用 297；哪國未確認）；298 雇傭兵隊長。
+
+## PC-98 版（`liberty-pc98`）
+
+來源是 `games/archives/pc98/[PC98] 独立戦争.zip`（`dsensoua/b/c.D88` 三片，D88 格式，轉成一般磁碟映像後讀 FAT），每片解在 `games/archives/pc98/disks/liberty-pc98/`（`A/`、`B/`、`C/`），合併放在 `games/liberty-pc98/`。`LIBERTY.VER`：「独立戦争・Liberty or Death PC-9801」Sep.02.'93，`MAIN.EXE` 1993-09-07（MZ 檔頭 0x4600 bytes）。
+
+- `FACE.IDX`、`SCENARIO.DAT`、`SAVEDATA.DAT` 和 DOS 中文版逐 byte 相同，頭像就是同一批圖。
+- 色盤：`MAIN.EXE` 檔案 0x3945A 有和 DOS 相同的 4 組 × 16 色 4 bit 表（B、R、G），PC-98 類比色盤直接用 4 bit，換算 v × 17：`#000000 #114499 #bb5511 #aa7777 #447700 #88aabb #eebb99 #ffeedd`。
+- 人名：同樣的兩張表在 `MAIN.EXE` 檔案 0x3B330（人物，250 × 58 bytes）與 0x3ACF8（官職，44 × 34 bytes），Shift-JIS（`liberty.load_liberty_pc98_names`）。日文版 82 是トーマス・ゲージ、191 是イスラエル・パットナム，沒有中文版寫成別人的問題，不填 `nameHistorical`。
+- 頭像 250–298 的分組比照 DOS。補給官用 `MAIN.EXE` 的官職名（弾薬補給担当、食糧補給担当），傭兵隊長也在字串裡；伝令、同盟国海軍士官是照 DOS 版譯回的暫定名。
