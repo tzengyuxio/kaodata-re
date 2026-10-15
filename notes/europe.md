@@ -33,3 +33,17 @@
 
 - 106–117 替補指揮官：映像 0xBD9E 建立新指揮官（名字「--------」），頭像範圍表在 DGROUP 0x57BA：軸心 106–111、聯合軍 112–117。
 - 118 村姑、119 修女：映像 0x11834、0x114A0 直接 seek，旁邊是對應的字串。
+
+## PC-88 版（`europe-pc88`）
+
+`dekoei.py export europe-pc88` 用到的差異（`build_europe_dos(pc88=True)`）。
+
+- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Europe Sensen/` 主組 `[FD]`（Disk A–C）。[Set 1]、[Alt 1] 只有 Disk A 的程式檔不同，頭像和人物檔相同。三片都是 YDOS 3.0，每軌 9 × 512 bytes。
+- 版本：Disk A 的 `KOEI.C` 寫「Copyright KOEI 1991.12.5」「Ver. 1.00 rel. 1」，檔案日期多是 1991-12-06。
+- `games/europe-pc88/` 放 Disk A 的 `FACE.PIC`、`KOEI.C`（參考用），Disk B 的 `SCEDATA.CIM`、`MAIN.COM`，Disk C 的 `FACE2.PIC`。
+- 頭像：`FACE.PIC` 102 張、`FACE2.PIC` 2 張（匯出成 102、103），都是 64×40、每 8 點 B、R、G 3 bytes（`MAIN.COM` 0x1320 依序寫 port 0x5C–0x5E），960 bytes。匯出用 `pc88.brg_pixels`，逐列加倍。
+  - 第 0 列與第 39 列全白，是畫框線。
+  - 0–99 和 DOS 是同一批人、同樣順序，但 DOS 是重畫的全高圖，沒有一張相同。100、101 是沒有人物用到的軍官臉（看圖像 DOS 的替補指揮官，未確認），102、103 看圖是 DOS 的 118 村姑、119 修女；都沒有標分類，同 `europe-sfc`。
+- 人物：記錄格式同 DOS（22 bytes，名字 8 bytes，國籍 +9，頭像 +20），名字是半形片假名（轉全形）。`SCEDATA.CIM` 0x229 起 7 個劇本、間隔 0x1D64、各 40 筆；領袖 6 人在 `MAIN.COM` 0x264（頭像 94–99）。DOS 的 100–105（戈林等）PC-88 版沒有（`koei_games.load_europe_pc88_names`）。
+  - 共 100 人，id 和名字與 `europe-sfc` 逐筆相同（11 ラフェンシュタイ 是 8 字截斷）。
+- 色盤：`MAIN.OVL` 0x555A 在數位模式下把 8 個暫存器設成恆等對應，就是數位 8 色（palette id `pc88`）。

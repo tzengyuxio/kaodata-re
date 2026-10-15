@@ -1283,32 +1283,48 @@ EUROPE_DOS_PORTRAIT_GROUPS = {**{i: "替補指揮官（軸心國）" for i in ra
 EUROPE_DOS_PORTRAIT_NAMES = {118: "村姑", 119: "修女"}
 
 
-def build_europe_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+# PC-88: FACE.PIC (disk A) 102 and FACE2.PIC (disk C) 2 faces of 64x40, B, R, G bytes per 8 px (MAIN.COM 0x1320);
+# 0-99 are the DOS people in the same order, the leaders 100-105 are not in this version
+EUROPE_PC88_INPUTS = ["FACE.PIC", "FACE2.PIC", "SCEDATA.CIM", "MAIN.COM"]
+EUROPE_PC88_FACE = 960
+
+
+def build_europe_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the Japanese PC-88 version (digital colours)."""
+    inputs = EUROPE_PC88_INPUTS if pc88 else EUROPE_DOS_INPUTS
     files = {}
-    for name in EUROPE_DOS_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
-    face = files["FACE.DAT"]
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
-                  "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
-    for i, group in EUROPE_DOS_PORTRAIT_GROUPS.items():
-        portraits[i]["group"] = group
-    for i, name in EUROPE_DOS_PORTRAIT_NAMES.items():
-        portraits[i]["name"] = name
-
-    # face = person number: commanders 0-93 from the scenarios, leaders 94-105 from MAIN.EXE
-    names = koei_games.load_europe_dos_names(os.path.join(game_dir, "SCEDATA"), os.path.join(game_dir, "MAIN.EXE"))
+    if pc88:
+        face = files["FACE.PIC"] + files["FACE2.PIC"]
+        portraits = [{"img": store.add(64, 80, brg_pixels(face[i:i + EUROPE_PC88_FACE], 8)),
+                      "code": f"{i // EUROPE_PC88_FACE:04X}"} for i in range(0, len(face), EUROPE_PC88_FACE)]
+        names = koei_games.load_europe_pc88_names(os.path.join(game_dir, "SCEDATA.CIM"),
+                                                  os.path.join(game_dir, "MAIN.COM"))
+    else:
+        face = files["FACE.DAT"]
+        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+                      "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
+        for i, group in EUROPE_DOS_PORTRAIT_GROUPS.items():
+            portraits[i]["group"] = group
+        for i, name in EUROPE_DOS_PORTRAIT_NAMES.items():
+            portraits[i]["name"] = name
+        # face = person number: commanders 0-93 from the scenarios, leaders 94-105 from MAIN.EXE
+        names = koei_games.load_europe_dos_names(os.path.join(game_dir, "SCEDATA"), os.path.join(game_dir, "MAIN.EXE"))
     characters = [{"id": cid, "name": names[cid], "face": {"portrait": cid}} for cid in sorted(names)]
 
     meta = {
-        "format": FORMAT, "id": "europe-dos", "game": "EUROPE", "platform": "DOS",
+        "format": FORMAT, "id": "europe-pc88" if pc88 else "europe-dos", "game": "EUROPE",
+        "platform": "PC88" if pc88 else "DOS",
         "title": {"ja": "ヨーロッパ戦線", "zh": "歐陸戰線"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EUROPE_DOS_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "vga", "label": "VGA", "colors": EUROPE_DOS_PALETTE}],
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
+                     {"id": "vga", "label": "VGA", "colors": EUROPE_DOS_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -4011,6 +4027,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
+            "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

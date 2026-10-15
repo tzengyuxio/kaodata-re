@@ -127,6 +127,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `suikoden-dos` | 水滸傳・天命之誓             | DOS 中文版 |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `kouryuuki-dos` | 項劉記                      | DOS 中文版 |   92 |   97 |        | [notes/kouryuuki.md](notes/kouryuuki.md) |
 | `europe-dos` | 歐陸戰線                       | DOS 中文版 |  106 |  120 |        | [notes/europe.md](notes/europe.md) |
+| `europe-pc88` | ヨーロッパ戦線                 | PC-88      |  100 |  104 |        | [notes/europe.md](notes/europe.md) |
 | `liberty-dos` | 獨立戰爭                      | DOS 中文版 |  250 |  299 |        | [notes/liberty.md](notes/liberty.md) |
 | `liberty-pc98` | 独立戦争                     | PC-98      |  250 |  299 |        | [notes/liberty.md](notes/liberty.md) |
 | `koukai-dos` | 大航海時代                     | DOS 中文版 |   62 |   34 |   ○    | [notes/koukai.md](notes/koukai.md) |

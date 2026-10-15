@@ -391,6 +391,36 @@ def load_europe_dos_names(scedata, main_exe) -> dict[int, str]:
     return names
 
 
+
+# PC-88: the same 22-byte records with half-width katakana names; SCEDATA.CIM has 7 scenarios of 40,
+# MAIN.COM the 6 leaders (faces 94-99)
+EUROPE_PC88_SCENARIOS = (0x229, 0x1D64, 7)
+EUROPE_PC88_LEADERS = (0x264, 6)
+
+
+def load_europe_pc88_names(scedata, main_com) -> dict[int, str]:
+    """Name per face/person number (every commander is spelt the same in all scenarios)."""
+    with open(scedata, 'rb') as f:
+        sce = f.read()
+    with open(main_com, 'rb') as f:
+        main = f.read()
+
+    def name(rec):
+        return unicodedata.normalize('NFKC', rec[:8].split(b'\0')[0].decode('cp932')).strip()
+
+    first, stride, count = EUROPE_PC88_SCENARIOS
+    names = {}
+    for s in range(count):
+        for r in range(40):
+            rec = sce[first + s * stride + r * 22:first + s * stride + (r + 1) * 22]
+            if rec[9] != 0xFF:
+                names.setdefault(rec[20], name(rec))
+    offset, count = EUROPE_PC88_LEADERS
+    for r in range(count):
+        rec = main[offset + r * 22:offset + (r + 1) * 22]
+        names[rec[20]] = name(rec)
+    return names
+
 ##############################################################################
 
 
