@@ -2433,11 +2433,16 @@ TK_PC98_PALETTE = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ff
 # PC-88: KAO.DAT (disk B, opened by HYOUSHI.CIM) is the same 42 people redrawn at 48x32, B, R, G bytes per 8 px
 TK_PC88_INPUTS = ["KAO.DAT", "YSHELL.COM"]
 TK_PC88_FACE = 576
+# X68000: RENPIC.DAT is the same 42 people redrawn at 56x72 (0x645A0 seeks face * 0x5E8 and draws 7 bytes x 72 rows
+# to text planes 0-2 with 0x86A84, byte k = plane k); the text palette (RENMAIN.Z 0x96FB6) is the digital 8 colours
+TK_X68_INPUTS = ["RENPIC.DAT", "RENMAIN.Z"]
+TK_X68_FACE = 1512
 
 
-def build_tk_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
-    """pc88=True: the PC-88 version (its own 48x32 faces, line-doubled; the PC-98 name records)."""
-    inputs = TK_PC88_INPUTS if pc88 else TK_PC98_INPUTS
+def build_tk_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (its own 48x32 faces, line-doubled; the PC-98 name records).
+    x68=True: the X68000 version (its own 56x72 faces; the PC-98 names in 20-byte records)."""
+    inputs = TK_PC88_INPUTS if pc88 else TK_X68_INPUTS if x68 else TK_PC98_INPUTS
     files = {}
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -2447,6 +2452,10 @@ def build_tk_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]
     if pc88:
         kao = files["KAO.DAT"]
         portraits = [{"img": store.add(48, 64, brg_pixels(kao[i * TK_PC88_FACE:(i + 1) * TK_PC88_FACE], 6))}
+                     for i in range(TK_PC98_ARMY + 2)]
+    elif x68:
+        pic = files["RENPIC.DAT"]
+        portraits = [{"img": store.add(56, 72, bytes(genpei.decode_planar(pic, i * TK_X68_FACE, 56, 72, 3)))}
                      for i in range(TK_PC98_ARMY + 2)]
     else:
         pic = files["RENPIC.DAT"]
@@ -2458,16 +2467,19 @@ def build_tk_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]
 
     # 0xE644: a face is the admiral's record index ((record - DS:0xC6FC) / 19)
     names = (koei_games.load_tk_pc98_names(os.path.join(game_dir, "YSHELL.COM"), koei_games.TK_PC88_ADMIRALS) if pc88
-             else koei_games.load_tk_pc98_names(os.path.join(game_dir, "RENMAIN.EXE")))
+             else koei_games.load_tk_pc98_names(os.path.join(game_dir, "RENMAIN.Z"), koei_games.TK_X68_ADMIRALS, 20)
+             if x68 else koei_games.load_tk_pc98_names(os.path.join(game_dir, "RENMAIN.EXE")))
     characters = [{"id": i, "name": name, "face": {"portrait": i}} for i, name in enumerate(names)]
 
     meta = {
-        "format": FORMAT, "id": "tk-pc88" if pc88 else "tk-pc98", "game": "TK", "platform": "PC88" if pc88 else "PC98",
+        "format": FORMAT, "id": "tk-pc88" if pc88 else "tk-x68" if x68 else "tk-pc98", "game": "TK",
+        "platform": "PC88" if pc88 else "X68" if x68 else "PC98",
         "title": {"ja": "提督の決断", "zh": "提督之決斷"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": TK_PC98_PALETTE} if pc88 else
+                     {"id": "x68", "label": "X68000", "colors": TK_PC98_PALETTE} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": TK_PC98_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -4263,6 +4275,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "koukai-pc88": lambda game_dir: build_koukai_dos(game_dir, pc88=True),
             "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
             "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
+            "tk-x68": lambda game_dir: build_tk_pc98(game_dir, x68=True),
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
             "royal-x68": lambda game_dir: build_royal_pc98(game_dir, x68=True),
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),

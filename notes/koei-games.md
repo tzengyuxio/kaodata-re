@@ -367,6 +367,17 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - 平面順序 B、R、G 是和 PC-98 比對色差最小的排法，和其他 PC-88 作品一致，沒有追畫圖程式。
 - 名字：`YSHELL.COM` 0x7849 起 40 × 19 bytes，和 PC-98 `RENMAIN.EXE` DS:0xC6FC 逐 byte 相同（`load_tk_pc98_names(..., TK_PC88_ADMIRALS)`），`id` 一致。外字 EBA4 照 PC-98 當「纒」，PC-88 的字形沒有確認。
 
+### X68000 版（`tk-x68`）
+
+`dekoei.py export tk-x68` 用到的差異（`build_tk_pc98(x68=True)`）。
+
+- 來源：Internet Archive `teitoku_no_ketsudan_1990_koei_x68k`（`games/archives/x68000/ia-softwarelibrary/`）。Disk A 的 `RENMAIN.Z`、Disk C 的 `RENPIC.DAT` 放在 `games/tk-x68/`。
+- `RENMAIN.Z` 沒有壓縮，映像起點是 0x54FDE（由 `jsr` 目標推得），下文是執行位址。
+- 頭像：`RENPIC.DAT` 是 42 張 56×72、每 8 px 3 bytes，1512 bytes，後面接 288 bytes（同 PC-98 的小圖示）。人物、順序和 PC-98 相同（40、41 是陸軍参謀），但是另外重畫的大圖。
+  - 0x645A0：(記錄 − 0xB41B6) / 20 × 0x5E8 讀一張，0x86A84 以 7 bytes × 72 列寫到文字 VRAM 平面 0–2（E00000／E20000／E40000），byte k＝plane k，平面 3 寫 0。
+- 色盤：文字色盤 E82200 由 0x86BAA 從 0x96FB6／0x9750C 設定，色號 0–7 是數位 8 色，和 PC-98 的 `TK_PC98_PALETTE` 相同（palette id `x68`）。
+- 名字：0x5F1D8（檔案位址）起 40 × 20 bytes，內容和 PC-98 的 19 bytes 記錄相同（`load_tk_pc98_names(..., TK_X68_ADMIRALS, 20)`），宇垣纒也是外字 EBA4，`GAIJI.DAT` 的字形沒有確認。
+
 ## 提督の決断II（TK2, PC-98 日文版）
 
 `dekoei.py export tk2-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/archives/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。

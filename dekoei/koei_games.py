@@ -1669,11 +1669,12 @@ TK_PC98_GAIJI = (b"\xeb\xa4", "纒")  # KOEI gaiji in 宇垣纒; glyph in USKCG.
 
 
 TK_PC88_ADMIRALS = 0x7849  # PC-88 YSHELL.COM: the PC-98 records, byte for byte
+TK_X68_ADMIRALS = 0x5F1D8  # X68000 RENMAIN.Z (not packed): the same names in 20-byte records
 
 
-def load_tk_pc98_names(renmain_exe, offset=None) -> list[str]:
+def load_tk_pc98_names(renmain_exe, offset=None, size=19) -> list[str]:
     """Admiral names from RENMAIN.EXE; the index is also the RENPIC.DAT face. The PC-88 YSHELL.COM holds the same
-    records at `offset` TK_PC88_ADMIRALS.
+    records at `offset` TK_PC88_ADMIRALS, the X68000 RENMAIN.Z at TK_X68_ADMIRALS with `size` 20.
 
     Half-width katakana become full-width; spaces (full-width in 吉川　潔, two half-width in 宇垣　纒) stay
     one full-width space."""
@@ -1681,7 +1682,7 @@ def load_tk_pc98_names(renmain_exe, offset=None) -> list[str]:
         exe = f.read()
     names = []
     for i in range(TK_PC98_PEOPLE):
-        raw = exe[(TK_PC98_ADMIRALS if offset is None else offset) + i * 19:][:19].split(b"\0")[0]
+        raw = exe[(TK_PC98_ADMIRALS if offset is None else offset) + i * size:][:size].split(b"\0")[0]
         text = TK_PC98_GAIJI[1].join(unicodedata.normalize("NFKC", p.decode("cp932")) for p in raw.split(TK_PC98_GAIJI[0]))
         names.append("　".join(text.split()))
     return names

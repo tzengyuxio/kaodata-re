@@ -168,6 +168,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `tk2pk-pc98` | 提督の決断II パワーアップキット | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk-pc98`   | 提督の決断                     | PC-98      |   40 |   42 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk-pc88`   | 提督の決断                     | PC-88      |   40 |   42 |        | [notes/koei-games.md](notes/koei-games.md) |
+| `tk-x68`    | 提督の決断                     | X68000     |   40 |   42 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk3-pc98`  | 提督の決断III                  | PC-98      |  134 |  197 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk3pk-pc98` | 提督の決断III パワーアップキット | PC-98    |  141 |  205 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `royal-pc98` | ロイヤルブラッド               | PC-98      |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
