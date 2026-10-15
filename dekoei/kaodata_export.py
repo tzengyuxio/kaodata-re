@@ -2803,6 +2803,146 @@ def build_nobu6_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- GENCHOU (蒼き狼と白き牝鹿・元朝秘史, PC-88)
+
+GENCHOU_PC88_INPUTS = ["KAODATA.DAT", "QKAODATA.DAT"] + [f"{n}{s}.DAT" for n in ("GENDATA", "USDATA") for s in range(1, 5)]
+# KAODATA.DAT (men) / QKAODATA.DAT (women): 40 faces of 1830 bytes, then the composite types of 7302 bytes
+# (16 / 8). A face is a 6-byte header (x px, y half-row of eye 1, eye 2, mouth), 64x40 B, R, G bytes per 8 px,
+# then the eye (2 x 9 bytes x 8 rows at +0x3C6, +0x40E) and mouth (12 bytes x 8 rows at +0x606) frames, ORed in
+GENCHOU_PC88_FACE = 1830
+GENCHOU_PC88_TYPE = 7302
+GENCHOU_PC88_FACES = 40
+# composite type: the header, then 4 items each of top, bottom, eyes (both, 144 bytes), mouth (MAIN.COM 0x2973);
+# slot -> (offset, item size, stride) for men and for women, the bottom starts where the top ends
+GENCHOU_PC88_SLOTS = {"top": ("上", (6, 480, 480), (6, 576, 576)), "bottom": ("下", (0x786, 480, 480), (0x906, 384, 384)),
+                      "eyes": ("眼", (0xF06, 144, 576), (0xF06, 144, 576)), "mouth": ("口", (0x1806, 96, 288), (0x1806, 96, 288))}
+GENCHOU_PC88_NAME_HISTORICAL = {"考宗": "孝宗"}
+GENCHOU_PC88_CHILDREN = 2000  # ids of the children that are nobody else (genchou-fc numbering)
+# genchou-fc has these two twice (other faces there); the record of this scenario is the second character
+GENCHOU_PC88_SPLIT = {("アイバク", 4), ("アルベルトゥス", 3)}
+
+
+def genchou_pc88_or(buf: bytearray, x: int, y: int, width: int, data: bytes) -> None:
+    """OR an 8-row block of `width` B, R, G bytes into a 64x40 picture at (x px, y half-row)."""
+    shift, d = x & 7, (y * 8 + x // 8) * 3
+    for r in range(8):
+        for i in range(width):
+            v, o = data[r * width + i], d + r * 24 + i
+            if o < len(buf):
+                buf[o] |= v >> shift
+            if shift and o + 3 < len(buf):
+                buf[o + 3] |= v << (8 - shift) & 0xFF
+
+
+def genchou_pc88_features(buf: bytearray, head: bytes, eyes: bytes, mouth: bytes) -> None:
+    genchou_pc88_or(buf, head[0], head[1], 9, eyes[:72])
+    genchou_pc88_or(buf, head[2], head[3], 9, eyes[72:144])
+    genchou_pc88_or(buf, head[4], head[5], 12, mouth[:96])
+
+
+def build_genchou_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in GENCHOU_PC88_INPUTS + ["VERSION"]:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    portraits, variants = [], []
+    for woman, kao in enumerate((files["KAODATA.DAT"], files["QKAODATA.DAT"])):
+        for n in range(GENCHOU_PC88_FACES):
+            o = n * GENCHOU_PC88_FACE
+            buf = bytearray(kao[o + 6:o + 966])
+            genchou_pc88_features(buf, kao[o:o + 6], kao[o + 0x3C6:o + 0x456], kao[o + 0x606:o + 0x666])
+            portraits.append({"img": store.add(64, 80, brg_pixels(buf, 8), 1), "code": f"{len(portraits):04X}"})
+        types = (len(kao) - GENCHOU_PC88_FACES * GENCHOU_PC88_FACE) // GENCHOU_PC88_TYPE
+        for t in range(types):
+            o = GENCHOU_PC88_FACES * GENCHOU_PC88_FACE + t * GENCHOU_PC88_TYPE
+            head = kao[o:o + 6]
+            parts = {}
+            for slot, (_, *layouts) in GENCHOU_PC88_SLOTS.items():
+                start, size, stride = layouts[woman]
+                items = []
+                for k in range(4):
+                    raw = kao[o + start + k * stride:][:size]
+                    if slot in ("top", "bottom"):
+                        y = 0 if slot == "top" else GENCHOU_PC88_SLOTS["top"][1 + woman][1] // 24
+                        items.append({"img": store.add(64, size // 24 * 2, brg_pixels(raw, 8)), "at": [0, y * 2]})
+                    else:
+                        buf = bytearray(960)
+                        if slot == "eyes":
+                            genchou_pc88_features(buf, head[:4] + b"\0\0", raw, bytes(96))
+                        else:
+                            genchou_pc88_features(buf, b"\0" * 4 + head[4:], bytes(144), raw)
+                        items.append({"img": store.add(64, 80, brg_pixels(buf, 8)), "at": [0, 0]})
+                parts[slot] = {"items": items}
+            variants.append({"id": str(len(variants)), "label": f"{'女' if woman else '男'} {t}", "parts": parts})
+    men_types = (len(files["KAODATA.DAT"]) - GENCHOU_PC88_FACES * GENCHOU_PC88_FACE) // GENCHOU_PC88_TYPE
+
+    def face(woman: bool, code: int) -> dict:
+        if code < GENCHOU_PC88_FACES:
+            return {"portrait": code + GENCHOU_PC88_FACES * woman}
+        # MAIN.COM 0x2C66: type in bits 11-14, then 2-bit top, bottom, eyes, mouth
+        return {"variant": (code >> 11 & 15) + men_types * woman,
+                "parts": [code >> 9 & 3, code >> 7 & 3, code >> 5 & 3, code >> 3 & 3], "code": f"{code:04X}"}
+
+    # one character per name (women apart), numbered as genchou-fc: the men of GENDATA1, USDATA1 block 0,
+    # GENDATA2-4 from 0, the women from 1000, the children who are nobody else from 2000; then the other USDATA men
+    records = koei_games.load_genchou_pc88_people(game_dir)
+    people = {}
+    def key(sc: int, kind: str, name: str) -> tuple:
+        return kind == "woman", name, (name, sc) in GENCHOU_PC88_SPLIT
+
+    for sc, block, kind, name, code in records:
+        looks = people.setdefault(key(sc, kind, name), {"kind": kind, "looks": {}})
+        looks["looks"].setdefault(code, []).append(sc)
+        if kind == "man":
+            looks["kind"] = "man"
+    order = ([r for r in records if r[2] == "man" and r[0] == 1 and r[1] <= 0]
+             + [r for r in records if r[2] == "man" and r[0] > 1 and r[1] < 0]
+             + [r for r in records if r[2] == "woman"] + [r for r in records if r[2] == "child"]
+             + [r for r in records if r[2] == "man" and r[1] >= 0])
+    ids, first = {}, {"man": 0, "woman": 1000, "child": GENCHOU_PC88_CHILDREN}
+    for sc, _, kind, name, _ in order:
+        k = key(sc, kind, name)
+        if k not in ids:
+            ids[k] = first[people[k]["kind"]]
+            first[people[k]["kind"]] += 1
+    characters = []
+    for k, p in people.items():
+        woman, name, _ = k
+        looks = list(p["looks"].items())
+        ch = {"id": ids[k], "name": name, "face": face(woman, looks[0][0])}
+        if name in GENCHOU_PC88_NAME_HISTORICAL:
+            ch["nameHistorical"] = GENCHOU_PC88_NAME_HISTORICAL[name]
+        if len(looks) > 1:
+            ch["face"]["label"] = "劇本" + "、".join(map(str, sorted(set(looks[0][1]))))
+            ch["expressions"] = [{**face(woman, c), "label": "劇本" + "、".join(map(str, sorted(set(ss))))}
+                                 for c, ss in looks[1:]]
+        characters.append(ch)
+    characters.sort(key=lambda c: c["id"])
+
+    meta = {
+        "format": FORMAT, "id": "genchou-pc88", "game": "GENCHOU", "platform": "PC88",
+        "title": {"ja": "蒼き狼と白き牝鹿・元朝秘史", "zh": "蒼狼與白鹿・元朝秘史"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENCHOU_PC88_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "or"} if slot in ("eyes", "mouth") else {})}
+                      for slot, (label, *_) in GENCHOU_PC88_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- NOBU2 (信長の野望・全国版, PC-88)
 
 NOBU2_PC88_INPUTS = ["DISK_A.D88", "DISK_B.D88"]
@@ -4028,6 +4168,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
             "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
+            "genchou-pc88": build_genchou_pc88,
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

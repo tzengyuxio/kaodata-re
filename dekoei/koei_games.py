@@ -1553,6 +1553,50 @@ def load_ishin_pc88_persons(main_com, shinario) -> list[tuple[list[str], bytes]]
         persons.append((names, sc[ISHIN_PC88_SCENARIOS[0][1] + i * 5:][:5]))
     return persons
 
+
+# 元朝秘史 PC-88: GENDATA<s>.DAT has the men (109 x 27 bytes from 1, face code at +25) and the women (33 x 23 bytes
+# from 0x1A23, face code at +21); empty records have no name (or "　"); USDATA<s>.DAT is blocks of 351 bytes, each
+# 8 men (27 bytes) and then 5 children (23 bytes, face code at +21, 0 for the daughters, who have no face)
+GENCHOU_PC88_MEN = (1, 27, 109)
+GENCHOU_PC88_WOMEN = (0x1A23, 23, 33)
+GENCHOU_PC88_BLOCK = 351
+GENCHOU_PC88_PLACEHOLDER = "モンゴル統一者"  # scenario 4: the player's own Mongol leader
+
+
+def load_genchou_pc88_people(game_dir) -> list[tuple[int, int, str, str, int]]:
+    """(scenario, USDATA block or -1 for GENDATA, kind "man" / "woman" / "child", NFKC name, face code) of every
+    record, in file order."""
+    def name(rec):
+        return unicodedata.normalize("NFKC", rec[:17].split(b"\0")[0].decode("cp932")).strip()
+
+    people = []
+    for sc in range(1, 5):
+        with open(os.path.join(game_dir, f"GENDATA{sc}.DAT"), "rb") as f:
+            gen = f.read()
+        with open(os.path.join(game_dir, f"USDATA{sc}.DAT"), "rb") as f:
+            us = f.read()
+        first, size, count = GENCHOU_PC88_MEN
+        for i in range(count):
+            rec = gen[first + i * size:][:size]
+            if name(rec) and name(rec) != GENCHOU_PC88_PLACEHOLDER:
+                people.append((sc, -1, "man", name(rec), int.from_bytes(rec[25:27], "little")))
+        first, size, count = GENCHOU_PC88_WOMEN
+        for i in range(count):
+            rec = gen[first + i * size:][:size]
+            if name(rec):
+                people.append((sc, -1, "woman", name(rec), int.from_bytes(rec[21:23], "little")))
+        for b in range(0, len(us), GENCHOU_PC88_BLOCK):
+            for i in range(8):
+                rec = us[b + i * 27:][:27]
+                if name(rec):
+                    people.append((sc, b // GENCHOU_PC88_BLOCK, "man", name(rec), int.from_bytes(rec[25:27], "little")))
+            for i in range(5):
+                rec = us[b + 216 + i * 23:][:23]
+                code = int.from_bytes(rec[21:23], "little")
+                if name(rec) and code:
+                    people.append((sc, b // GENCHOU_PC88_BLOCK, "child", name(rec), code))
+    return people
+
 TK_PC98_ADMIRALS = 0x4600 + 0x38520 + 0xC6FC  # RENMAIN.EXE: header + DGROUP 0x3852, DS:0xC6FC
 TK_PC98_PEOPLE = 40  # 19-byte records: 0-19 Japan, 20-39 the Allies
 TK_PC98_GAIJI = (b"\xeb\xa4", "纒")  # KOEI gaiji in 宇垣纒; glyph in USKCG.SYS (JIS 0x7626)
