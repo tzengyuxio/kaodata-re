@@ -1684,40 +1684,56 @@ GENCHOU_PC88_MEN = (1, 27, 109)
 GENCHOU_PC88_WOMEN = (0x1A23, 23, 33)
 GENCHOU_PC88_BLOCK = 351
 GENCHOU_PC88_PLACEHOLDER = "モンゴル統一者"  # scenario 4: the player's own Mongol leader
+# X68000: GENDATA1-3, USDATA1-3 are packed (san3.unpack_x68_sndata), GENDATA4 and USDATA4 are not. GENDATA begins
+# with a copy of USDATA1; the records are 3 bytes longer (zero) before a big-endian face code: men 30 bytes from
+# 0x66A, women 26 from 0x1E46; USDATA is 2 bytes (FF FF), then blocks of 410: 8 men, then 5 children at +240
+GENCHOU_X68_MEN = (0x66A, 30, 109)
+GENCHOU_X68_WOMEN = (0x1E46, 26, 33)
+GENCHOU_X68_BLOCK = 410
 
 
-def load_genchou_pc88_people(game_dir) -> list[tuple[int, int, str, str, int]]:
+def load_genchou_pc88_people(game_dir, x68=False) -> list[tuple[int, int, str, str, int]]:
     """(scenario, USDATA block or -1 for GENDATA, kind "man" / "woman" / "child", NFKC name, face code) of every
-    record, in file order."""
+    record, in file order. x68=True: the X68000 files."""
+    from san3 import unpack_x68_sndata
+
     def name(rec):
         return unicodedata.normalize("NFKC", rec[:17].split(b"\0")[0].decode("cp932")).strip()
 
+    def read(file):
+        with open(os.path.join(game_dir, file), "rb") as f:
+            data = f.read()
+        return unpack_x68_sndata(data) if x68 and data[0] != 0xFF else data
+
+    if x68:
+        men, women, block, first_block, order = GENCHOU_X68_MEN, GENCHOU_X68_WOMEN, GENCHOU_X68_BLOCK, 2, "big"
+    else:
+        men, women, block, first_block, order = GENCHOU_PC88_MEN, GENCHOU_PC88_WOMEN, GENCHOU_PC88_BLOCK, 0, "little"
+    man_size, woman_size = men[1], women[1]
     people = []
     for sc in range(1, 5):
-        with open(os.path.join(game_dir, f"GENDATA{sc}.DAT"), "rb") as f:
-            gen = f.read()
-        with open(os.path.join(game_dir, f"USDATA{sc}.DAT"), "rb") as f:
-            us = f.read()
-        first, size, count = GENCHOU_PC88_MEN
+        gen = read(f"GENDATA{sc}.DAT")
+        us = read(f"USDATA{sc}.DAT")
+        first, size, count = men
         for i in range(count):
             rec = gen[first + i * size:][:size]
             if name(rec) and name(rec) != GENCHOU_PC88_PLACEHOLDER:
-                people.append((sc, -1, "man", name(rec), int.from_bytes(rec[25:27], "little")))
-        first, size, count = GENCHOU_PC88_WOMEN
+                people.append((sc, -1, "man", name(rec), int.from_bytes(rec[size - 2:size], order)))
+        first, size, count = women
         for i in range(count):
             rec = gen[first + i * size:][:size]
             if name(rec):
-                people.append((sc, -1, "woman", name(rec), int.from_bytes(rec[21:23], "little")))
-        for b in range(0, len(us), GENCHOU_PC88_BLOCK):
+                people.append((sc, -1, "woman", name(rec), int.from_bytes(rec[size - 2:size], order)))
+        for b in range(first_block, len(us), block):
             for i in range(8):
-                rec = us[b + i * 27:][:27]
+                rec = us[b + i * man_size:][:man_size]
                 if name(rec):
-                    people.append((sc, b // GENCHOU_PC88_BLOCK, "man", name(rec), int.from_bytes(rec[25:27], "little")))
+                    people.append((sc, b // block, "man", name(rec), int.from_bytes(rec[man_size - 2:], order)))
             for i in range(5):
-                rec = us[b + 216 + i * 23:][:23]
-                code = int.from_bytes(rec[21:23], "little")
+                rec = us[b + 8 * man_size + i * woman_size:][:woman_size]
+                code = int.from_bytes(rec[woman_size - 2:], order)
                 if name(rec) and code:
-                    people.append((sc, b // GENCHOU_PC88_BLOCK, "child", name(rec), code))
+                    people.append((sc, b // block, "child", name(rec), code))
     return people
 
 TK_PC98_ADMIRALS = 0x4600 + 0x38520 + 0xC6FC  # RENMAIN.EXE: header + DGROUP 0x3852, DS:0xC6FC

@@ -41,3 +41,20 @@
 - 名字做 NFKC（同 `genchou-fc`）。同名（女性另算）是同一人；碼不同時依劇本放 `expressions`（只有三浦義村：劇本 2、4）。
 - id 照 `genchou-fc`：男是 GENDATA1、USDATA1 第 0 區、GENDATA2–4 的出現順序，女從 1000，只當子嗣出現的從 2000；`genchou-fc` 的 299 人全部對得上。FC 把アイバク（劇本 4）、アルベルトゥス（劇本 3）各當另一人（FC 的臉不同），這裡照做（`GENCHOU_PC88_SPLIT`）。FC 沒有的 USDATA 武將從 222、子嗣從 2004 起。
 - 「考宗」是孝宗（FC 198），填 `nameHistorical`。
+
+## X68000 版（`genchou-x68`）
+
+`dekoei.py export genchou-x68` 用 `build_genchou_pc88(x68=True)`。
+
+- 來源：Internet Archive `aoki-ookami-to-shiroki-meshika-genchou-hishi-1993-koei-disk-1-of-3`（`games/archives/x68000/ia-softwarelibrary/`，3 片）。沒有版本字串；`MAIN.Z` 與劇本檔的日期是 1993-02-10，`MAIN.Z` 有「X68000 CONVERSION STAFF … T.FUJINUMA 1992,1993」。`games/genchou-x68/` 放 Disk 1 的 `KAODATA.DAT`、參考用的 `MAIN.Z`，以及 Disk 3 的 `GENDATA1–4.DAT`、`USDATA1–4.DAT`。
+- `MAIN.Z` 是 CZ10（`ls11.cz10_decode`，映像位址＝檔案＋0x514FA）。
+- `KAODATA.DAT` 一個檔放男女兩組，排法同 PC-88 但全高（列數、表頭 y 都是整列，各部件高度加倍）：
+  - 男 64 張 × 3654 bytes（6 bytes 表頭、1920 bytes 64×80、眼 4 幀 × 2 × 9 bytes × 16 列、口 3 幀 × 12 bytes × 16 列），接 16 型 × 14598 bytes 的組合臉；女 40 張、8 型。
+  - 組合臉：男上 6／960、下 0xF06／960；女上 6／1152、下 0x1206／768；眼 0x1E06／288（間隔 1152）、口 0x3006／192（間隔 576）。
+  - PC-88 的 40 張男性頭像全部重畫，另多 40–63 共 24 張：PC-88 用組合臉的 24 人（カサル、ベルグタイ、カチウン、テムゲ、耶律阿海、北条義時、ルイ8世、パスパ、アルグン等）改用獨立頭像。
+- 人物：記錄是 PC-88 的再加 3 bytes 0，頭像碼改成大端序放在最後 2 bytes（`load_genchou_pc88_people(..., x68=True)`）。
+  - `GENDATA1–3`、`USDATA1–3` 是 `san3.unpack_x68_sndata` 的壓縮，`GENDATA4`、`USDATA4` 沒壓縮（第一個 byte 是 0xFF）。
+  - `GENDATA`：開頭是 `USDATA1` 的副本（0x66A bytes），男 109 筆 × 30 bytes 從 0x66A 起，女 33 筆 × 26 bytes 從 0x1E46 起。`USDATA`：2 bytes（FF FF）後每 410 bytes 一區，8 筆 30 bytes 的武將接 5 筆 26 bytes 的子嗣。
+  - 名字、記錄順序與 PC-88 逐筆相同（445 筆），只有頭像碼不同（上述 24 人，以及イァティマード用女性 P32，PC-88 是 P33），並修正兩個錯字：「考宗」→孝宗、「畠山重定」→畠山重忠。所以 id 照 `genchou-pc88`，不需要 `nameHistorical`。
+- 色盤：`MAIN.Z` 0x38D6E 是寫圖形色盤（$E82200）的程式，0x2724 把檔案 0x44924 的 16 色（B、R、G 各 0–31）設進去；頭像用 0–7（palette id `x68`）。
+- 104 張頭像全部用到；女性類型 3 同 PC-88 沒用到。

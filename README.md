@@ -144,6 +144,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `genghis-pc88` | 蒼き狼と白き牝鹿・ジンギスカン | PC-88    |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  836 |        | [notes/genghis4.md](notes/genghis4.md) |
 | `genchou-pc88` | 蒼き狼と白き牝鹿・元朝秘史   | PC-88      |  372 |   80 |   ○    | [notes/genchou.md](notes/genchou.md) |
+| `genchou-x68` | 蒼き狼と白き牝鹿・元朝秘史   | X68000     |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `nobu2-pc88` | 信長の野望・全国版             | PC-88      |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |
 | `nobu3-dos`  | 信長之野望・戰國群雄傳         | DOS 中文版 |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
 | `nobu3-pc98` | 信長の野望・戦国群雄伝         | PC-98      |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
