@@ -55,7 +55,7 @@
 - [x] ロイヤルブラッド（`[PC98] [光栄] ロイヤルブラッド(FDI).zip`）— A 片補齊，做 `royal-pc98` 匯出（2026-10-15）
 - [x] プロジェネター（`[PC98] [光栄] プロジェネター（FDI).zip`）— 解到 `games/progen-pc98/`，做 `progen-pc98` 匯出（2026-10-15）
 - [x] 太閤立志伝（`[PC98] 太閤立志伝.zip`）— 解到 `games/taikoh-pc98/`，用 `build_taikoh_dos(pc98=True)` 做 `taikoh-pc98` 匯出（2026-10-15）
-- [ ] 太閤立志伝II（`[PC98] 太閤立志伝２.zip`、`[PC98] 太閤立志伝2(hdi+fdi)(anex動確).zip`，兩份）（2026-10-14）
+- [x] 太閤立志伝II（`[PC98] 太閤立志伝２.zip`、`[PC98] 太閤立志伝2(hdi+fdi)(anex動確).zip`，兩份的遊戲檔相同）— `taikoh2-pc98`（2026-10-15）
 - [x] 提督の決断（`[PC98] 提督の決断.zip`）— 解到 `games/tk-pc98/`，做 `tk-pc98` 匯出（2026-10-15）
 - [x] 提督の決断II（`[PC98] 提督の決断２.zip`，7 片 FDI）— 解到 `games/tk2-pc98/`，做 `tk2-pc98` 匯出（2026-10-15）
 - [x] 提督の決断III（`[PC98] 提督の決断３.zip`，7 片 FDI）— DPACK 用 `dekoei/dpack.py` 解到 `games/tk3-pc98/`，做 `tk3-pc98` 匯出（2026-10-15）

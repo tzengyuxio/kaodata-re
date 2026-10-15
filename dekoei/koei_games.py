@@ -1278,26 +1278,41 @@ def _big5(b: bytes) -> str:
     return TAIKOH2_WIN_GAIJI.get(b) or b.decode("big5")
 
 
-def load_taikoh2_win_persons(bsdata) -> list[tuple[int, str]]:
+# PC-98 GAIJI.TR2 holds the same squeeze as JIS 0x7670- (Shift-JIS EBEE-), plus single characters
+TAIKOH2_PC98_GAIJI = {b"\xeb\xef\xeb\xf1\xeb\xf2": "長宗我部", b"\xeb\xf0\xeb\xf1\xeb\xf2": "香宗我部",
+                      b"\xeb\xee": "堯", b"\xeb\xf5": "垪", b"\xeb\xf9": "瓊"}
+TAIKOH2_PC98_NAMES = (0x30DF8, 0x30ECA, 0x30F9C)  # MAIN.EXE: master surnames, given names, women
+TAIKOH2_PC98_KEY = 0xD5  # SNDATA1.TR2 XOR
+
+
+def _taikoh2_pc98_sjis(b: bytes) -> str:
+    b = b.split(b"\0")[0]
+    for code, text in TAIKOH2_PC98_GAIJI.items():
+        b = b.replace(code, text.encode("cp932"))
+    return b.decode("cp932")
+
+
+def load_taikoh2_win_persons(bsdata, decode=_big5) -> list[tuple[int, str]]:
     """(person number, name) of BSDATA1.TR2; the number is also the FACE.LZW face."""
     with open(bsdata, "rb") as f:
         data = f.read()
     persons = []
     for o in range(0, len(data), TAIKOH2_WIN_PERSON):
         number = int.from_bytes(data[o + 16:o + 18], "little")
-        name = _big5(data[o:o + 7]) + _big5(data[o + 7:o + 14])
+        name = decode(data[o:o + 7]) + decode(data[o + 7:o + 14])
         persons.append((number, name))
     return persons
 
 
-def load_taikoh2_win_others(exe, sndata) -> list[tuple[int, str, int]]:
+def load_taikoh2_win_others(exe, sndata, names=tuple(va - TAIKOH2_WIN_DATA for va in (0x5067D8, 0x5068B0, 0x506988)),
+                            decode=_big5, key=0x26) -> list[tuple[int, str, int]]:
     """(person number, name, face) of the 30 masters (1000-) and the named women (2000-).
 
-    Names are in Taik2w95.exe; the faces are (number, face) pairs in SNDATA1.TR2, which is XORed with 0x26."""
+    Names are in Taik2w95.exe; the faces are (number, face) pairs in SNDATA1.TR2, which is XORed with 0x26 (PC-98: 0xD5)."""
     with open(exe, "rb") as f:
         exe = f.read()
     with open(sndata, "rb") as f:
-        sn = bytes(b ^ 0x26 for b in f.read())
+        sn = bytes(b ^ key for b in f.read())
     faces = {}
     for first, step in ((1000, 12), (2000, 4)):  # (number, face, ...) records
         o = 0
@@ -1311,10 +1326,10 @@ def load_taikoh2_win_others(exe, sndata) -> list[tuple[int, str, int]]:
         while (n := int.from_bytes(sn[o:o + 2], "little")) // 1000 == first // 1000:
             faces[n] = int.from_bytes(sn[o + 2:o + 4], "little")
             o += step
-    surname, given, women = (exe[va - TAIKOH2_WIN_DATA:] for va in (0x5067D8, 0x5068B0, 0x506988))
-    others = [(1000 + i, _big5(surname[i * 7:i * 7 + 7]) + _big5(given[i * 7:i * 7 + 7]), faces[1000 + i])
+    surname, given, women = (exe[o:] for o in names)
+    others = [(1000 + i, decode(surname[i * 7:i * 7 + 7]) + decode(given[i * 7:i * 7 + 7]), faces[1000 + i])
               for i in range(30)]
-    others += [(2000 + i, _big5(women[i * 5:i * 5 + 5]), faces[2000 + i]) for i in range(4)]
+    others += [(2000 + i, decode(women[i * 5:i * 5 + 5]), faces[2000 + i]) for i in range(4)]
     return others
 
 

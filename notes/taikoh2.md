@@ -46,3 +46,16 @@
   - 缺字代用：田山→畠山、北田→北畠、神原→榊原、坪和→垪和、脅阪→脇坂、木脅→木脇、稻井→籾井
   - 錯字：排鄉→拜鄉、穴戶→宍戶、六角承偵→承禎、稻留→稻富、鯰貝→鮎貝、鯰川→鮎川、門註所→問註所、蒲地→蒲池
   - 竹俁、豬俁（俣）、亙理（亘）、千阪（坂）算同字異形或通用寫法，不填。
+
+## PC-98 版（`taikoh2-pc98`）
+
+來源是 `games/archives/pc98/[PC98] 太閤立志伝２.zip` 與 `[PC98] 太閤立志伝2(hdi+fdi)(anex動確).zip`，兩份都是裝好的硬碟映像（HDI，`TAIKOU2/`）加開機片（FDI），`TAIKOU2/` 的 70 個檔逐 byte 相同（只有 MS-DOS 系統檔不同）。原樣放在 `games/archives/pc98/disks/taikoh2-pc98/{hdi,fdi}/`，遊戲檔在 `games/taikoh2-pc98/`。`DISK-1.VER`：For PC-9801 Series，Feb.22,1995 Ver. 1.0 Rel 1。
+
+- `FACE.LZW`、`EXTFACE.PK8` 和 Win 中文版逐 byte 相同，頭像碼、換臉（16→695、364→743、1→744）、名人與女性的頭像對照也相同。
+- 色盤：`MAIN.EXE`（MZ 檔頭 0x5800 bytes）檔案 0x6D400 起是一連串 16 色表（B、R、G 各 4 bit），每組前 8 色都相同，也和 Win 版第 4 組相同。PC-98 類比色盤以 v × 17 換算：`#000000 #004499 #cc4400 #dd8833 #228800 #44aabb #ffbb66 #eeffdd`。
+- 人物：`BSDATA*.TR2` 排法同 Win 版，姓名是 Shift-JIS。BSDATA1 的 466 是「この人削除」，取 BSDATA2 的黒田職高。
+  - 外字在 `GAIJI.TR2`（16 筆，u16 JIS 碼是 little-endian，0x7670 起＝Shift-JIS EBEE 起）：EBEE 堯、EBF5 垪、EBF9 瓊；EBEF／EBF0＋EBF1＋EBF2 是三格擠四字的長宗我部／香宗我部。
+  - 名人姓、名在 `MAIN.EXE` 檔案 0x30DF8、0x30ECA（每筆 7 bytes），女性（ねね、なか、お槙、お市）在 0x30F9C（每筆 5 bytes）。
+  - `SNDATA1.TR2` 檔頭之後 XOR 0xD5（Win 版是 0x26），名人、女性頭像的對照表格式相同。
+- 沒有人物記錄的頭像名用日文：739 城守備、740 兵士、741 弟子、742 山賊。
+- `nameHistorical`：Win 版的缺字代用（畠、榊、垪、脇、籾）在日文版都是正字，拝郷、鮎貝、鮎川、宍戸也正確；錯字只剩 六角承偵→承禎、稲留→稲富、門註所→問註所、蒲地→蒲池。

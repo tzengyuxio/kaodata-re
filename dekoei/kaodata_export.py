@@ -2534,11 +2534,22 @@ TAIKOH2_WIN_NAME_HISTORICAL = {
     "排鄉家嘉": "拜鄉家嘉", "穴戶隆家": "宍戶隆家", "六角承偵": "六角承禎", "稻留祐直": "稻富祐直",
     "鯰貝宗重": "鮎貝宗重", "鯰川盛長": "鮎川盛長", "門註所鑑豐": "問註所鑑豐", "蒲地鑑盛": "蒲池鑑盛",
 }
+# PC-98 (Japanese): same files and faces; names are Shift-JIS, the rest is in MAIN.EXE
+TAIKOH2_PC98_INPUTS = ["MAIN.EXE"] + TAIKOH2_WIN_INPUTS[1:]
+TAIKOH2_PC98_PALETTE = 0x6D400  # MAIN.EXE: the first 8 colours of every palette, same as TAIKOH2_WIN_PALETTE
+TAIKOH2_PC98_DELETED = "この人削除"
+TAIKOH2_PC98_PORTRAIT_NAMES = {739: "城守備", 740: "兵士", 741: "弟子", 742: "山賊"}
+TAIKOH2_PC98_NAME_HISTORICAL = {"六角承偵": "六角承禎", "稲留祐直": "稲富祐直", "門註所鑑豊": "問註所鑑豊",
+                                "蒲地鑑盛": "蒲池鑑盛"}
 
 
-def build_taikoh2_win(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_taikoh2_win(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = TAIKOH2_PC98_INPUTS if pc98 else TAIKOH2_WIN_INPUTS
+    decode = koei_games._taikoh2_pc98_sjis if pc98 else koei_games._big5
+    deleted = TAIKOH2_PC98_DELETED if pc98 else TAIKOH2_WIN_DELETED
+    historical = TAIKOH2_PC98_NAME_HISTORICAL if pc98 else TAIKOH2_WIN_NAME_HISTORICAL
     files = {}
-    for name in TAIKOH2_WIN_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
@@ -2552,41 +2563,51 @@ def build_taikoh2_win(game_dir: str) -> tuple[dict, list[bytes]]:
     portraits.append({"img": face(faces[TAIKOH2_WIN_EXTFACE]), "group": "未使用"})  # never shown
 
     characters = []
-    second = koei_games.load_taikoh2_win_persons(os.path.join(game_dir, "BSDATA2.TR2"))
-    for number, name in koei_games.load_taikoh2_win_persons(os.path.join(game_dir, "BSDATA1.TR2")):
+    second = koei_games.load_taikoh2_win_persons(os.path.join(game_dir, "BSDATA2.TR2"), decode)
+    for number, name in koei_games.load_taikoh2_win_persons(os.path.join(game_dir, "BSDATA1.TR2"), decode):
         if number >= TAIKOH2_WIN_PEOPLE:
             continue
-        if name == TAIKOH2_WIN_DELETED:
+        if name == deleted:
             name = second[number][1]
         ch = {"id": len(characters), "name": name, "face": {"portrait": number}}
         if number in TAIKOH2_WIN_LATER:
             ch["face"]["label"] = "前期"
             ch["expressions"] = [{"portrait": TAIKOH2_WIN_LATER[number], "label": "後期"}]
-        if name in TAIKOH2_WIN_NAME_HISTORICAL:
-            ch["nameHistorical"] = TAIKOH2_WIN_NAME_HISTORICAL[name]
+        if name in historical:
+            ch["nameHistorical"] = historical[name]
         characters.append(ch)
-    others = koei_games.load_taikoh2_win_others(os.path.join(game_dir, "Taik2w95.exe"),
-                                                os.path.join(game_dir, "SNDATA1.TR2"))
+    exe, sndata = os.path.join(game_dir, inputs[0]), os.path.join(game_dir, "SNDATA1.TR2")
+    if pc98:
+        others = koei_games.load_taikoh2_win_others(exe, sndata, koei_games.TAIKOH2_PC98_NAMES, decode,
+                                                    koei_games.TAIKOH2_PC98_KEY)
+    else:
+        others = koei_games.load_taikoh2_win_others(exe, sndata)
     characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": code}}
                    for i, (_, name, code) in enumerate(c for c in others if c[2] != 0xFFFF)]
 
     for i in TAIKOH2_WIN_PICKER:
         portraits[i]["group"] = "主角相貌"
-    for i, name in TAIKOH2_WIN_PORTRAIT_NAMES.items():
+    for i, name in (TAIKOH2_PC98_PORTRAIT_NAMES if pc98 else TAIKOH2_WIN_PORTRAIT_NAMES).items():
         portraits[i].update(name=name, group="一般人物")
     used = {look["portrait"] for ch in characters for look in [ch["face"]] + ch.get("expressions", [])}
     assert all(i in used or "group" in p for i, p in enumerate(portraits))
 
-    pal = files["Taik2w95.exe"][TAIKOH2_WIN_PALETTE - koei_games.TAIKOH2_WIN_DATA:][:24]
-    colours = ["#" + "".join(f"{v << 4:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+    if pc98:
+        pal = files["MAIN.EXE"][TAIKOH2_PC98_PALETTE:][:24]
+    else:
+        pal = files["Taik2w95.exe"][TAIKOH2_WIN_PALETTE - koei_games.TAIKOH2_WIN_DATA:][:24]
+    scale = 17 if pc98 else 16  # 4-bit analog palette on the PC-98; Taik2w95.exe sets v << 4
+    colours = ["#" + "".join(f"{v * scale:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
 
     meta = {
-        "format": FORMAT, "id": "taikoh2-win", "game": "TAIKOH2", "platform": "WIN",
+        "format": FORMAT, "id": "taikoh2-pc98" if pc98 else "taikoh2-win", "game": "TAIKOH2",
+        "platform": "PC98" if pc98 else "WIN",
         "title": {"ja": "太閤立志伝II", "zh": "太閤立志傳II"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH2_WIN_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": colours} if pc98 else
+                     {"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -3406,7 +3427,8 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),
-            "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
+            "taikoh2-win": build_taikoh2_win, "taikoh2-pc98": lambda game_dir: build_taikoh2_win(game_dir, pc98=True),
+            "progen-pc98": build_progen_pc98,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),

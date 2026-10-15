@@ -53,7 +53,7 @@ Early KOEI Games Data Research
 | KOUKAIGD  | 大航海時代外傳              | 1998 |       WIN        |       |        |                     |
 | KOUKAI3   | 大航海時代III Costa del Sol | 1996 |       WIN        |       |        |                     |
 | TAIKOH    | 太閤立志傳                  | 1992 |     DOS,PC98     |       |        |                     |
-| TAIKOH2   | 太閤立志傳II                | 1995 |       WIN        |       |        |                     |
+| TAIKOH2   | 太閤立志傳II                | 1995 |     PC98,WIN     |       |        |                     |
 | (TAIKOH3) | 太閤立志傳III               | 1999 |                  |       |        |                     |
 | EUROPE    | 歐陸戰線                    | 1991 |       DOS        |       |        |                     |
 | ISHIN     | 維新之嵐                    | 1988 |       PC98       |       |        |                     |
@@ -143,6 +143,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `taikoh-dos` | 太閤立志傳                     | DOS 中文版 |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh-pc98` | 太閤立志伝                    | PC-98      |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
+| `taikoh2-pc98` | 太閤立志伝II                 | PC-98      |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `tk2-pc98`  | 提督の決断II                   | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk2pk-pc98` | 提督の決断II パワーアップキット | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
