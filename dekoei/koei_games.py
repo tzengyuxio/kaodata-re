@@ -1620,6 +1620,28 @@ def load_ishin_pc88_persons(main_com, shinario) -> list[tuple[list[str], bytes]]
     return persons
 
 
+ISHIN_X68_SURNAMES = 0x4548  # ISINMAIN.Z (not packed): the PC-88 surnames, byte for byte
+ISHIN_X68_GIVEN = 0x1DBE  # SDATA1.DAT / SDATA2.DAT: the PC-88 given names of each scenario
+ISHIN_X68_FACES = 0x2B18  # SDATA1.DAT: 5-byte face records (the same in SDATA2.DAT)
+
+
+def load_ishin_x68_persons(main_z, sdata1, sdata2) -> list[tuple[list[str], bytes]]:
+    """As load_ishin_pc88_persons, for the X68000 version: the same people and names, but the composite
+    records index the X68000 MONDAT.DAT."""
+    with open(main_z, "rb") as f:
+        main = f.read()
+    scenarios = []
+    for path in (sdata1, sdata2):
+        with open(path, "rb") as f:
+            scenarios.append(f.read())
+    persons = []
+    for i in range(ISHIN_PC88_PEOPLE):
+        surname = _ishin_pc98_text(main[ISHIN_X68_SURNAMES + i * 7:][:7].split(b"\0")[0])
+        names = [surname + _ishin_pc98_text(sc[ISHIN_X68_GIVEN + i * 9:][:9].split(b"\0")[0]) for sc in scenarios]
+        persons.append((names, scenarios[0][ISHIN_X68_FACES + i * 5:][:5]))
+    return persons
+
+
 # 元朝秘史 PC-88: GENDATA<s>.DAT has the men (109 x 27 bytes from 1, face code at +25) and the women (33 x 23 bytes
 # from 0x1A23, face code at +21); empty records have no name (or "　"); USDATA<s>.DAT is blocks of 351 bytes, each
 # 8 men (27 bytes) and then 5 children (23 bytes, face code at +21, 0 for the daughters, who have no face)

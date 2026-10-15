@@ -2424,6 +2424,106 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
     return meta, [bytes(b) for b in store.blobs]
 
 
+# X68000: the PC-88 people with new full-height art. KAODAT.DAT is 96 faces of 48x80 (face 95 is the crowd, as
+# PC-88 face 94), and MONDAT.DAT is a new composite set. ISINMAIN.Z 0x7F5EE builds a face from the 5-byte record
+# (0x7F52C: w0-w9 are the nibbles, w9 &= 7, mage = b4 bit 3) into a 48x80 buffer; each layer ANDs a 1 bpp mask
+# (6 bytes a row, over all 3 planes) and ORs a picture (18 bytes a row); mask-only layers draw colour 0 lines.
+# The buffer goes to text planes 0-2 (0x9D6EE, byte k = plane k); the text palette (0x571D6) is the digital 8.
+ISHIN_X68_INPUTS = ["KAODAT.DAT", "MONDAT.DAT", "ISINMAIN.Z", "SDATA1.DAT", "SDATA2.DAT"]
+ISHIN_X68_FACE = 1440
+ISHIN_X68_CROWD = 95  # 0x7F9B6: ids 0xD0 and up
+# slot -> (label, field, count (the "none" value when one is left out), mask, mask step, picture, picture step,
+# mask rows, picture rows, y); offsets in MONDAT.DAT, the backgrounds are 0x5A0-byte pictures from 0
+ISHIN_X68_LAYERS = {
+    "head": ("頭", 1, 6, 0x21C0, 0x780, 0x23A0, 0x780, 80, 80, 0),
+    "clothes": ("衣", 2, 6, 0x4EC0, 0, 0x4F98, 0x288, 36, 36, 44),
+    "collar": ("羽織", 3, 10, 0x5EC8, 0x3C0, 0x5FB8, 0x3C0, 40, 40, 40),  # 10 = none
+    "hair": ("髮型", 4, 6, 0x8448, 0x4C8, 0x857A, 0x4C8, 51, 51, 0),  # 6 = none
+    "brows": ("眉", 5, 6, 0xA0F8, 0, 0xA116, 0x5A, 5, 5, 24),
+    "nose": ("鼻", 6, 6, 0xA332, 0, 0xA37A, 0xD8, 12, 12, 31),
+    "eyes": ("眼", 7, 6, 0xA88A, 30, None, 0, 5, 0, 29),
+    "mouth": ("口", 8, 6, 0xA93E, 36, None, 0, 6, 0, 44),
+    "beard": ("鬍", 9, 3, 0xAA16, 0x96, None, 0, 25, 0, 33),  # 3 = none
+    "mage": ("髷", 10, 1, 0xABD8, 0, 0xAC44, 0, 18, 12, 0),  # drawn when b4 bit 3 is set; only 12 picture rows
+}
+ISHIN_X68_OPTIONAL = {"collar", "hair", "beard"}  # the count is "none", the last item
+
+
+def build_ishin_x68(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in ISHIN_X68_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+    kao, mon = files["KAODAT.DAT"], files["MONDAT.DAT"]
+
+    portraits = []
+    for face in range(len(kao) // ISHIN_X68_FACE):
+        img = store.add(48, 80, bytes(genpei.decode_planar(kao, face * ISHIN_X68_FACE, 48, 80, 3)), 1)
+        portraits.append({"img": img, **({} if face == ISHIN_X68_CROWD else {"code": f"FF{face:02X}000000"})})
+    portraits[ISHIN_X68_CROWD]["group"] = "一般人物"
+
+    # a masked-off pixel is the picture's colour (OR onto 0); a kept one shows through unless the picture has a
+    # colour, which only happens with colour 7, so OR = copy there too
+    none = store.add(1, 1, bytes([TRANSPARENT]))
+    parts = {"back": {"items": [store.add(48, 80, bytes(genpei.decode_planar(mon, k * ISHIN_X68_FACE, 48, 80, 3)))
+                                for k in range(ISHIN_X68_LAYERS["head"][3] // ISHIN_X68_FACE)]}}
+    for slot, (_, _, count, mask, mask_step, pic, pic_step, mask_rows, pic_rows, y) in ISHIN_X68_LAYERS.items():
+        items = []
+        for k in range(count):
+            m = mask + k * mask_step
+            colours = genpei.decode_planar(mon, pic + k * pic_step, 48, pic_rows, 3) if pic else []
+            px = []
+            for i in range(48 * mask_rows):
+                c = colours[i] if i < len(colours) else 0
+                keep = mon[m + i // 8] >> (7 - i % 8) & 1
+                px.append(TRANSPARENT if keep and not c else c)
+            items.append({"img": store.add(48, mask_rows, bytes(px)), "at": [0, y]})
+        if slot in ISHIN_X68_OPTIONAL:
+            items.append(none)
+        elif slot == "mage":
+            items.insert(0, none)
+        parts[slot] = {"items": items}
+
+    def face(rec: bytes) -> dict:
+        if rec[0] == 0xFF:
+            return {"portrait": rec[1]}
+        w = [b >> s & 15 for b in rec for s in (4, 0)]
+        w[9] &= 7
+        w.append(rec[4] >> 3 & 1)
+        picks = [w[0]] + [min(w[field], count) if slot in ISHIN_X68_OPTIONAL else w[field]
+                          for slot, (_, field, count, *_) in ISHIN_X68_LAYERS.items()]
+        return {"variant": 0, "parts": picks, "code": rec.hex().upper()}
+
+    characters, later = [], []
+    for names, rec in koei_games.load_ishin_x68_persons(*(os.path.join(game_dir, n) for n in ISHIN_X68_INPUTS[2:])):
+        characters.append({"id": len(characters), "name": names[0], "face": face(rec)})
+        # in scenario 2 the successor takes over the record (and the face)
+        later += [{"name": n, "face": face(rec)} for n in names[1:] if n != names[0]]
+    characters += [{"id": len(characters) + k, **ch} for k, ch in enumerate(later)]
+
+    meta = {
+        "format": FORMAT, "id": "ishin-x68", "game": "ISHIN", "platform": "X68",
+        "title": {"ja": "維新の嵐", "zh": "維新之嵐"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ISHIN_X68_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68000", "colors": ISHIN_PC98_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [48, 80],
+            "slots": [{"id": "back", "label": "背景"}] +
+                     [{"id": slot, "label": label} for slot, (label, *_) in ISHIN_X68_LAYERS.items()],
+            "variants": [{"id": "0", "label": "類型 0", "parts": parts}],
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TK (PC-98)
 
 TK_PC98_INPUTS = ["RENPIC.DAT", "RENMAIN.EXE"]
@@ -4279,6 +4379,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
             "royal-x68": lambda game_dir: build_royal_pc98(game_dir, x68=True),
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
+            "ishin-x68": build_ishin_x68,
             "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
             "genchou-pc88": build_genchou_pc88,
             "genghis-dos": build_genghis_dos,
