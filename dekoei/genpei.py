@@ -492,8 +492,8 @@ def unpack_main_exe(exe: bytes) -> bytes:
     return bytes(out)
 
 
-def montage_types(image: bytes) -> list[dict]:
-    """Composition table, one entry per face type 1-3: per layer
+def montage_types(image: bytes, table: int = MONTAGE_TABLE) -> list[dict]:
+    """Composition table (at `table` in `image`), one entry per face type 1-3: per layer
     (file, offset, width, height, (x, y)) and the 64x80 window corner.
     Positions are in a 128x160 buffer of 16 bytes per row."""
     def xy(v):
@@ -501,7 +501,7 @@ def montage_types(image: bytes) -> list[dict]:
 
     out = []
     for t in range(MONTAGE_TYPES):
-        v = struct.unpack_from("<IIHH8H5H", image, MONTAGE_TABLE + t * 0x26)
+        v = struct.unpack_from("<IIHH8H5H", image, table + t * 0x26)
         out.append(dict(
             head=("Montage.gp", v[0], v[4] * 8, v[5], xy(v[12])),
             body=("Montage.gp", v[1], v[6] * 8, v[7], xy(v[13])),
@@ -521,7 +521,7 @@ def load_generals(sndata: bytes, scenario: int = 0) -> list[dict]:
     """Sndata.gp generals: name (+0x00 surname, +0x0E given), half-width kana
     readings (+0x07, +0x13) and face code (+0x1A, u16; 0xFFFF = none)."""
     def sjis(b):
-        return b.split(b"\0", 1)[0].decode("cp932")
+        return b.split(b"\0", 1)[0].decode("cp932").rstrip(" ")
 
     base = scenario * SCENARIO_SIZE + SCENARIO_HEADER
     out = []

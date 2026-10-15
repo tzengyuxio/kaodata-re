@@ -177,18 +177,23 @@ GENPEI_INPUTS = ["Mainpal.pld", "Montage.gp", "Haikei.gp", "Kaodata.gp", "Main.e
 GENPEI_VARIANT_LABELS = ["大鎧戴兜", "鎧", "直垂"]
 GENPEI_SLOTS = [("body", "身"), ("head", "頭"), ("eyes", "眼"), ("mouth", "口")]
 GENPEI_PART_COUNT = {"head": 8, "body": 8, "eyes": 16, "mouth": 16}
+# PC-98: the same Mainpal/Montage/Haikei/Kaodata files; MAIN.EXE is not packed and has the composition table at
+# file 0x5DAF4; SNDATA.GP has the same layout and face codes
+GENPEI_PC98_MONTAGE_TABLE = 0x5DAF4
 
 
-def build_genpei(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_genpei(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     files = {}
     for name in GENPEI_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
+        with open(os.path.join(game_dir, name.upper() if pc98 else name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     palette = genpei.load_mainpal(files["Mainpal.pld"], 0)
     variants = []
-    for t, layers in enumerate(genpei.montage_types(genpei.unpack_main_exe(files["Main.exe"]))):
+    table = (genpei.montage_types(files["Main.exe"], GENPEI_PC98_MONTAGE_TABLE) if pc98 else
+             genpei.montage_types(genpei.unpack_main_exe(files["Main.exe"])))
+    for t, layers in enumerate(table):
         parts = {}
         for slot, _ in GENPEI_SLOTS:
             src, off, w, h, at = layers[slot]
@@ -221,10 +226,12 @@ def build_genpei(game_dir: str) -> tuple[dict, list[bytes]]:
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "genpei-dos", "game": "GENPEI", "platform": "DOS",
+        "format": FORMAT, "id": "genpei-pc98" if pc98 else "genpei-dos", "game": "GENPEI",
+        "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "源平合戦", "zh": "源平合戰"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENPEI_INPUTS]},
+                   "inputs": [{"path": n.upper() if pc98 else n, "sha1": hashlib.sha1(files[n]).hexdigest()}
+                              for n in GENPEI_INPUTS]},
         "display": {"scale": 6},
         "palettes": [{"id": "main", "label": "Mainpal 第 0 組",
                       "colors": ["#%02x%02x%02x" % c for c in palette]}],
@@ -3370,7 +3377,7 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
-DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
+DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_genpei(game_dir, pc98=True), "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
             "san3-pc98": lambda game_dir: build_san3(game_dir, pc98=True), "lempe-dos": build_lempe,

@@ -54,3 +54,12 @@
 - 遊戲裡只顯示 64×80 的頭像窗，從 128×160 圖 1:1 裁出。透明處填背景 **(武將編號 >> 1) mod 5**（Main.exe 0x49048）。
 - Kaodata 頭像在遊戲裡也墊同一組背景、同一條公式。匯出時，兩種臉的人物都帶 `bg`，背景放在資料集頂層的 `backgrounds`。
 - 匯出把零件與背景放 `pixels.bin`，90 張 Kaodata 頭像放 `portraits.bin`（image ref 第 4 個元素為 1）。
+
+## PC-98 版（`genpei-pc98`）
+
+來源是 `games/archives/pc98/[PC98] 源平合戦.zip`（5 片 FDI），每片解在 `games/archives/pc98/disks/genpei-pc98/`，合併放在 `games/genpei-pc98/`。`VERSION`：「源平合戦」For PC-9801RA~ Series，9.21,1994 Ver. 1.3 Rel 1.0。
+
+- `MAINPAL.PLD`、`MONTAGE.GP`、`HAIKEI.GP`、`KAODATA.GP` 和 DOS 版逐 byte 相同，匯出的 `pixels.bin`、`portraits.bin` 也和 `genpei-dos` 相同。
+- `MAIN.EXE` 沒有壓縮（MZ 檔頭 0x5490 bytes），組合表（3 筆 × 0x26 bytes，格式同上）在檔案 0x5DAF4，內容和 DOS 的相同。
+- `SNDATA.GP` 格式相同，400 人的頭像碼和 DOS 完全一致；名字只有 393 不同：DOS「宋商人」、PC-98「宗商人」（照錄）。
+- 兩版的名字都有用空白補齊的（かむろ、賊、吉次、商人、静、政子、白拍子等），`load_generals` 現在會去掉尾端空白；本機沒有 DOS 原版檔，`genpei-dos` 還沒重新匯出。

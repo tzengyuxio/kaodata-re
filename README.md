@@ -74,7 +74,7 @@ Early KOEI Games Data Research
 | EIKETSU3  | 毛利元就 三矢之誓           | 1997 |       WIN        |       |        |                     |
 | EIKETSU4  | 織田信長傳                  | 1998 |       WIN        |       |        |                     |
 | EIKETSU5  | 三國志曹操傳                | 1998 |       WIN        |       |        |                     |
-| GENPEI    | 源平合戰                    | 1994 |                  |       |        |                     |
+| GENPEI    | 源平合戰                    | 1994 |     DOS,PC98     |       |        |                     |
 | LIBERTY   | 獨立戰爭                    | 1993 |     DOS,PC98     |       |        |                     |
 | PROGEN    | プロジェネター              | 1995 |       PC98       |       |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
@@ -92,6 +92,7 @@ Early KOEI Games Data Research
 ```sh
 cd dekoei
 python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaodata>/data-local/genpei-dos
+python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaodata>/data-local/genpei-pc98
 ```
 
 輸出 `dataset.json`、像素檔（`pixels.bin`、`portraits.bin`）與 `checksums.json`，格式見 kaodata 網站 repo 的 `docs/data-format.md`。目前支援的資料集：
@@ -99,6 +100,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | DATASET      | 遊戲                           | 來源版本   | 人物 | 頭像 | 組合臉 | 格式筆記                         |
 | ------------ | ------------------------------ | ---------- | ---: | ---: | :----: | -------------------------------- |
 | `genpei-dos` | 源平合戰                       | DOS        |  400 |   90 |   ○    | [notes/genpei.md](notes/genpei.md) |
+| `genpei-pc98` | 源平合戦                      | PC-98      |  400 |   90 |   ○    | [notes/genpei.md](notes/genpei.md) |
 | `san1-dos`   | 三國志                         | DOS 英文版 |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san1-pc98`  | 三國志                         | PC-98      |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san2-dos`   | 三國志II                       | DOS 中文版 |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
