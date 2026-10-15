@@ -1793,6 +1793,136 @@ def build_royal_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- ISHIN (PC-98)
+
+ISHIN_PC98_INPUTS = ["KAODAT.DAT", "MONDAT.DAT", "ISIN.EXE", "SHINARIO.DAT"]
+ISHIN_PC98_FACE = 720  # 48x40, 3 bytes per 8 px, byte k = plane k; shown line-doubled (200-line mode)
+ISHIN_PC98_CROWD = 105  # KAODAT 0x12750: face 0x2CA, for ids 450-713 (0x2F2D)
+ISHIN_PC98_MASK = 0x12A20  # KAODAT: 48x40 1 bpp, ANDed over every face (0x4BD0), so the corners are colour 0
+ISHIN_PC98_PALETTE = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
+# MONDAT.DAT layers in drawing order (0x3BBC decodes the 6-byte record into w0-w15):
+# slot -> (label, offset, parts, rows, y, field, y-offset field); a part is a 1 bpp mask (rows x 6 bytes),
+# then the picture (rows x 18 bytes), drawn as (screen AND mask) OR picture
+ISHIN_PC98_LAYERS = {
+    "back": ("背景", 0x0000, 8, 40, 0, 0, None),
+    "mage": ("髷", 0x1680, 4, 40, 0, 1, None),  # 10 = none
+    "head": ("頭", 0x2580, 10, 40, 0, 2, None),
+    "clothes": ("衣", 0x4B00, 10, 40, 0, 3, None),
+    "eyes": ("眼", 0x7080, 10, 6, 14, 4, 9),
+    "mouth": ("口", 0x7620, 10, 6, 23, 5, 10),
+    "nose": ("鼻", 0x7BC0, 10, 9, 15, 6, 11),
+    "brows": ("眉", 0x8430, 10, 5, 10, 7, 12),
+    "hair": ("髮", 0x88E0, 10, 40, 0, 8, None),  # 10 = none
+    "beard": ("鬍", 0xAE60, 1, 20, 20, 14, 13),  # drawn when w14 is set
+    "band": ("鉢卷", 0xB040, 1, 40, 0, 15, None),  # drawn when w15 is set
+}
+ISHIN_PC98_SHIFTS = range(-2, 2)  # y-offset fields are 2 bits - 2
+
+
+def ishin_pc98_fields(rec: bytes) -> list[int]:
+    """0x3BBC: w0-w8 are nibbles (high first), w9-w13 y offsets, w14 beard, w15 head band."""
+    return ([b >> s & 15 for b in rec[:5] for s in (4, 0)][:9]
+            + [(rec[4] >> 2 & 3) - 2, (rec[4] & 3) - 2]
+            + [(rec[5] >> s & 3) - 2 for s in (6, 4, 2)] + [rec[5] >> 1 & 1, rec[5] & 1])
+
+
+def build_ishin_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in ISHIN_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+    kao, mon = files["KAODAT.DAT"], files["MONDAT.DAT"]
+    mask = [kao[ISHIN_PC98_MASK + i // 8] >> (7 - i % 8) & 1 for i in range(48 * 40)]
+
+    def doubled(px: list[int], rows: int, blob: int = 0) -> int:
+        return store.add(48, rows * 2, bytes(c for r in range(rows) for _ in range(2) for c in px[r * 48:r * 48 + 48]), blob)
+
+    portraits = []
+    for i in range(0, ISHIN_PC98_MASK, ISHIN_PC98_FACE):
+        px = [c if m else 0 for c, m in zip(genpei.decode_planar(kao, i, 48, 40, 3), mask)]
+        face = i // ISHIN_PC98_FACE
+        portraits.append({"img": doubled(px, 40, 1), **({} if face == ISHIN_PC98_CROWD else {"code": f"FF{face:02X}00000000"})})
+    portraits[ISHIN_PC98_CROWD]["group"] = "一般人物"
+
+    # composite parts; the corners the mask clears are colour 0 in the background and left out of the others
+    none = store.add(1, 1, bytes([TRANSPARENT]))
+    parts = {}
+    for slot, (_, offset, count, rows, y, _, shift) in ISHIN_PC98_LAYERS.items():
+        items = []
+        for k in range(count):
+            if slot == "back":
+                px = genpei.decode_planar(mon, offset + k * ISHIN_PC98_FACE, 48, 40, 3)
+                items.append(doubled([c if m else 0 for c, m in zip(px, mask)], 40))
+                continue
+            o = offset + k * rows * 24
+            pic = genpei.decode_planar(mon, o + rows * 6, 48, rows, 3)
+            keep = [mon[o + i // 8] >> (7 - i % 8) & 1 for i in range(48 * rows)]
+            for dy in ISHIN_PC98_SHIFTS if shift is not None else [0]:
+                top = y + dy  # a kept pixel with colour is colour 7 in both parts that have one, so OR = copy
+                px = [TRANSPARENT if (keep[i] and not c) or top + i // 48 >= 40 or not mask[(top + i // 48) * 48 + i % 48]
+                      else c for i, c in enumerate(pic)]
+                items.append({"img": doubled(px, rows), "at": [0, top * 2]})
+        if slot in ("mage", "hair"):
+            items.append(none)
+        elif slot in ("beard", "band"):
+            items.insert(0, none)
+        parts[slot] = {"items": items}
+
+    def composite(rec: bytes) -> dict:
+        w = ishin_pc98_fields(rec)
+        picks = []
+        for slot, (_, _, count, _, _, field, shift) in ISHIN_PC98_LAYERS.items():
+            if slot == "beard":
+                picks.append(w[field] and 1 + w[shift] + 2)
+            elif slot == "band":
+                picks.append(w[field])
+            elif shift is not None:
+                picks.append(w[field] * len(ISHIN_PC98_SHIFTS) + w[shift] + 2)
+            else:
+                picks.append(min(w[field], count))  # 10 = none, the last item
+        return {"variant": 0, "parts": picks, "code": rec.hex().upper()}
+
+    def face(rec: bytes) -> dict:
+        return {"portrait": rec[1]} if rec[0] == 0xFF else composite(rec)
+
+    characters = []
+    for name, recs in koei_games.load_ishin_pc98_persons(os.path.join(game_dir, "ISIN.EXE"),
+                                                         os.path.join(game_dir, "SHINARIO.DAT")):
+        ch = {"id": len(characters), "name": name, "face": face(recs[0])}
+        # a few people have another face in a later scenario
+        looks = []
+        for s, rec in enumerate(recs):
+            if looks and looks[-1][0] == rec:
+                looks[-1][1].append(s + 1)
+            else:
+                looks.append((rec, [s + 1]))
+        if len(looks) > 1:
+            ch["face"]["label"] = "劇本" + "、".join(map(str, looks[0][1]))
+            ch["expressions"] = [{**face(rec), "label": "劇本" + "、".join(map(str, ss))} for rec, ss in looks[1:]]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "ishin-pc98", "game": "ISHIN", "platform": "PC98",
+        "title": {"ja": "維新の嵐", "zh": "維新之嵐"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ISHIN_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": ISHIN_PC98_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [48, 80],
+            "slots": [{"id": slot, "label": label} for slot, (label, *_) in ISHIN_PC98_LAYERS.items()],
+            "variants": [{"id": "0", "label": "類型 0", "parts": parts}],
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -2670,7 +2800,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos,
             "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
-            "royal-pc98": build_royal_pc98,
+            "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2680,7 +2810,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

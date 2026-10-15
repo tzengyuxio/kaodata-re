@@ -1229,6 +1229,42 @@ def load_royal_pc98_names(main_exe) -> tuple[list[str], list[str]]:
     return _royal_pc98_names(main, 0xE52, 13, 64), _royal_pc98_names(main, 0x13CC, 16, 23)
 
 
+ISHIN_PC98_PEOPLE = 423  # 0x2F12: ids 0-422 are the historical people
+ISHIN_PC98_SCENARIO = 0xA770  # SHINARIO.DAT: 3 scenarios, each loaded to DS:0x930A
+ISHIN_PC98_FACES = 0x3C  # scenario offset of the 6-byte face records (DS:0x9346, 0x4AB1)
+# KOEI gaiji in the names; glyphs in USKCG.SYS
+ISHIN_PC98_GAIJI = {0xEB9F: "恂", 0xEBA0: "寛", 0xEBA1: "屏", 0xEBA2: "佶", 0xEBA3: "溥", 0xEBA5: "叟", 0xEBA6: "孚",
+                    0xEBA7: "訥", 0xEBA8: "阮", 0xEBA9: "煕", 0xEBAA: "襄", 0xEBAB: "奎", 0xEBAC: "霖", 0xEBAD: "謨"}
+
+
+def _ishin_pc98_text(raw: bytes) -> str:
+    out, i = [], 0
+    while i < len(raw):
+        n = 2 if 0x81 <= raw[i] <= 0x9F or 0xE0 <= raw[i] <= 0xFC else 1
+        code = int.from_bytes(raw[i:i + n], "big")
+        out.append(ISHIN_PC98_GAIJI.get(code) or raw[i:i + n].decode("cp932"))
+        i += n
+    return "".join(out)
+
+
+def load_ishin_pc98_persons(isin_exe, shinario) -> list[tuple[str, list[bytes]]]:
+    """(name, face record of each scenario) of the historical people.
+
+    Names are in ISIN.EXE (surname 7 bytes at 0x42312, given name 9 bytes at 0x449F4); the face records are
+    in SHINARIO.DAT: 0xFF and a KAODAT.DAT face, or a MONDAT.DAT composite."""
+    with open(isin_exe, "rb") as f:
+        exe = f.read()
+    with open(shinario, "rb") as f:
+        sc = f.read()
+    persons = []
+    for i in range(ISHIN_PC98_PEOPLE):
+        name = "".join(_ishin_pc98_text(exe[o + i * n:o + (i + 1) * n].split(b"\0")[0])
+                       for o, n in ((0x42312, 7), (0x449F4, 9)))
+        faces = [sc[s + ISHIN_PC98_FACES + i * 6:][:6] for s in range(0, len(sc), ISHIN_PC98_SCENARIO)]
+        persons.append((name, faces))
+    return persons
+
+
 ##############################################################################
 
 
