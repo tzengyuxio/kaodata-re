@@ -1738,6 +1738,9 @@ NOBU4_DOS_PRINCESSES = range(276, 296)  # 0x114 + rand(20)
 # PC-98: the same KAODATA / MONDATA; MAIN.EXE draws byte 0/1/2 to the B/R/G planes (byte k = plane k) and fades
 # in DS:0x39DA (B, R, G) with colours 1, 3 and 7 set to blue 0xC (0x4646); the same constant face codes
 NOBU4_PC98_PALETTE = ["#000000", "#0000cc", "#ff0000", "#ff00cc", "#00ff00", "#00ffff", "#ffff00", "#ffffcc"]
+# X68000: the same files and records; the text palette (MAIN.Z file 0x3FD4E, GRB words written to E82200 by 0x2584;
+# the fade target at 0x3FC8E has the same B, R, G) has colours 1 and 3 at blue 27 / red 27 blue 25 of 31, white 7
+NOBU4_X68_PALETTE = ["#000000", "#0000de", "#ff0000", "#de00ce", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
 NOBU4_PC98_PORTRAITS = {139: "今井宗久", 140: "千利休", 273: "沢彦", 274: "朝廷使者", 275: "ルイス＝フロイス",
                         296: "義姫", 297: "畠山義継"}
 # aliases sharing a face code; one character under the best-known name, as nobu5-pc98 and nobu6-pc98
@@ -1746,8 +1749,9 @@ NOBU4_PC98_ALIASES = {"松平元康": "徳川家康"}
 NOBU4_PC98_NAME_HISTORICAL = {"四天王政孝": "四王天政孝"}
 
 
-def build_nobu4_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
-    """pc98=True: the PC-98 version (Shift-JIS names, PC-98 palette and plane order)."""
+def build_nobu4_dos(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc98=True: the PC-98 version (Shift-JIS names, PC-98 palette and plane order); x68=True with it: the X68000
+    version (the PC-98 data with its own palette)."""
     pixels = (lambda raw: bytes(genpei.decode_planar(raw, 0, 64, len(raw) // 24, 3))) if pc98 else \
         (lambda raw: bytes(utils.to_3bpp_indexes(raw)))
     files = {}
@@ -1781,7 +1785,7 @@ def build_nobu4_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes
     # scenario 1, its later arrivals, then scenarios 2 and 3 (as nobu4-fc for ids 0-249);
     # one character per face code
     characters, seen = [], set()
-    people = koei_games.load_nobu4_pc98_people(game_dir) if pc98 else koei_games.load_nobu4_dos_people(game_dir)
+    people = koei_games.load_nobu4_pc98_people(game_dir, x68) if pc98 else koei_games.load_nobu4_dos_people(game_dir)
     for table in people:
         for name, code in table:
             if code in seen:
@@ -1801,13 +1805,14 @@ def build_nobu4_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes
             characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "nobu4-pc98" if pc98 else "nobu4-dos", "game": "NOBU4",
-        "platform": "PC98" if pc98 else "DOS",
+        "format": FORMAT, "id": "nobu4-x68" if x68 else "nobu4-pc98" if pc98 else "nobu4-dos", "game": "NOBU4",
+        "platform": "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": NOBU4_PC98_PALETTE} if pc98 else
+        "palettes": [{"id": "x68", "label": "X68", "colors": NOBU4_X68_PALETTE} if x68 else
+                     {"id": "pc98", "label": "PC98", "colors": NOBU4_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": NOBU4_DOS_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -4189,6 +4194,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),

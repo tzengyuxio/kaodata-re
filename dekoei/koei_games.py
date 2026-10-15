@@ -763,24 +763,29 @@ def nobu4_pc98_name(raw: bytes) -> str:
     return out
 
 
-def load_nobu4_pc98_people(game_dir) -> list[list[tuple[str, int]]]:
-    """As load_nobu4_dos_people, but surname and given name are 7 bytes each (Shift-JIS, NUL padded)."""
+def load_nobu4_pc98_people(game_dir, x68=False) -> list[list[tuple[str, int]]]:
+    """As load_nobu4_dos_people, but surname and given name are 7 bytes each (Shift-JIS, NUL padded).
+    X68000: the same fields with 68000 padding, 40-byte records from 0x17C8 (face code big-endian at +24)
+    and 30-byte arrivals (face code big-endian at +26)."""
+    start, size, face = (0x17C8, 40, 24) if x68 else (0x1192, 33, 0x15)
+    arrival, arrival_face = (30, 26) if x68 else (28, 0x18)
+    order = 'big' if x68 else 'little'
     tables = []
     for n in range(1, 4):
         with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
             data = f.read()
         people = []
-        for o in range(0x1192, len(data) - 32, 33):
-            if not data[o]:
+        for o in range(start, len(data) - size + 1, size):
+            if data[o] < 0x20:  # scenario 2 ends with a record starting 0x01
                 break
             people.append((nobu4_pc98_name(data[o:o + 7]) + nobu4_pc98_name(data[o + 7:o + 14]),
-                           int.from_bytes(data[o + 0x15:o + 0x17], 'little')))
+                           int.from_bytes(data[o + face:o + face + 2], order)))
         tables.append(people)
         with open(f'{game_dir}/SNDATA{n}T.CIM', 'rb') as f:
             data = f.read()
         tables.append([(nobu4_pc98_name(data[o + 3:o + 10]) + nobu4_pc98_name(data[o + 10:o + 17]),
-                        int.from_bytes(data[o + 0x18:o + 0x1A], 'little'))
-                       for o in range(0, len(data) - 27, 28) if data[o + 3]])
+                        int.from_bytes(data[o + arrival_face:o + arrival_face + 2], order))
+                       for o in range(0, len(data) - arrival + 1, arrival) if data[o + 3]])
     return tables
 
 

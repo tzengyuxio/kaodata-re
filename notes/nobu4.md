@@ -61,6 +61,14 @@
   - DOS 中文版的錯字在日文版只剩「四天王政孝」（四王天政孝），只填這一筆 `nameHistorical`。
 - 沒有人物使用的頭像：`MAIN.EXE` 裡畫臉的常數相同（0x8B、0x8C、0x111–0x113、0x128、0x129，公主 0x114＋rand(20)）。名字用日文版的寫法：139 今井宗久、140 千利休、273 沢彦、274 朝廷使者、275 ルイス＝フロイス、296 義姫、297 畠山義継，歸「事件人物」；276–295 歸「姫」。
 
+## X68000 版（`nobu4-x68`）
+
+`dekoei.py export nobu4-x68` 用 `build_nobu4_dos(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_bushou_fuuun_x68k`（`games/archives/x68000/ia-softwarelibrary/`，3 片 DIM），Disk A 的 `MAIN.Z`、`VERSION`、`SNDATA*.CIM` 與 Disk C 的 `KAODATA.DAT`、`MONDATA.DAT`、`GAIJI.DAT` 放在 `games/nobu4-x68/`。Disk A 有三份傾印（無標記、`[a]`、`[a2]`），資料檔相同，`MAIN.Z` 只差 2 bytes，用無標記那份。`VERSION` 寫 `For X68000 Series july.12,1991 Ver 1.1`。
+
+- `KAODATA.DAT`、`MONDATA.DAT` 和 PC-98 版逐 byte 相同，像素順序也同 PC-98（byte k＝plane k）。
+- 人物：欄位同 PC-98，但有 68000 的補位。`SNDATA1–3.CIM` 從 0x17C8 起每筆 40 bytes，頭像碼是 +24 的大端序 u16；`SNDATA1T–3T.CIM` 每筆 30 bytes，頭像碼是 +26 的大端序 u16。三個劇本的姓名與頭像碼都和 PC-98 版相同。劇本 2 的人物表結尾和 PC-88 一樣是 0x01 開頭的記錄。
+- 色盤：唯一的差異。`MAIN.Z`（檔頭 0x1C bytes，執行位址＝檔案 offset＋0x514DE）在 0x2584 把檔案 0x3FD4E 的 16 個 GRB 值寫進文字色盤 E82200；淡入的目標表在 0x3FC8E（B、R、G 各 5 bit）也是同一組顏色。色號 0–7 是 `0000 0037 07C1 06F3 F801 F83F FFC1 FFFF`，即色號 1 的藍是 27、色號 3 是紅 27 藍 25（滿值是 31），色號 7 是純白。換成 8 bit（v << 3 | v >> 2）是 `#000000 #0000de #ff0000 #de00ce #00ff00 #00ffff #ffff00 #ffffff`。PC-98 版則是把色號 1、3、7 的藍設成 0xC。
+
 ## PC-88 版（`nobu4-pc88`）
 
 來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Bushou Fuuunroku/`：Disk A 取 `[FD].7z` 主檔，Disk C 取 `[FD] [Set 1].7z` 的（FD 主檔 Disk C 在 0x5400 有一個壞磁區，是第 7 張頭像的底部；Set 1 和 C Alt 1 的才對）。用到的檔案解在 `games/nobu4-pc88/`。
