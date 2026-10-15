@@ -34,3 +34,8 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 三國志VII with パワーアップキット | 628030 | 628031（manifest 4009306806308534811） | build 2278666／Readme 2017年7月 | 日文版，`games/steam/628030/` |
 | 三國志VIII with パワーアップキット | 628040 | 628041（manifest 8731655521113835098） | build 6784390／Readme 2017年8月 | 日文版，`games/steam/628040/` |
 | 三國志IX with パワーアップキット | 628050 | 628051（manifest 8109141869183570646） | build 3717947／Readme 2017年10月 | 日文版，`games/steam/628050/` |
+| 信長の野望・革新 with パワーアップキット | 363090 | 363091（manifest 8372108210806459325） | build 1345322 | 日文版，`games/steam/363090/` |
+| 信長の野望・天道 with パワーアップキット | 363110 | 363111（manifest 892070077066238385） | build 2338456 | 日文版，`games/steam/363110/` |
+| 大航海時代IV with パワーアップキット HD Version | 1424800 | 1424801（manifest 3835565721977098930）、1424802（manifest 2363000941244658290） | build 7195847 | `games/steam/1424800/` |
+| 太閤立志伝V DX | 1842810 | 1842811（manifest 2345313088801476794） | build 9163702 | `games/steam/1842810/` |
+| 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（內容未查），`games/steam/397720/` |
