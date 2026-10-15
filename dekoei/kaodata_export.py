@@ -22,6 +22,7 @@ import koei_games
 import liberty
 import ls11
 import pc88
+from pc88 import brg_pixels
 import san1
 import san2
 import san3
@@ -956,38 +957,56 @@ def build_san1_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
 # ---------------------------------------------------------------- SUIKODEN (PC-98)
 
 SUIKODEN_PC98_INPUTS = ["KAO98.DAT", "SUIDATA1.CIM"]
+SUIKODEN_PC88_INPUTS = ["KAODATA.DAT", "SUIDATA1.CIM"]
 SUIKODEN_PC98_FACE = 1920  # 64x80 full height, 3bpp
 # faces 255-259 have no person; identified against suikoden-fc
 SUIKODEN_PC98_PORTRAIT_GROUPS = {255: "施設", 256: "施設", 257: "施設", 258: "特殊人物", 259: "特殊人物"}
 SUIKODEN_PC98_PORTRAIT_NAMES = {255: "造船所", 256: "雑貨屋", 257: "武器屋", 258: "徽宗皇帝", 259: "金国太宗"}
+# misspelt names (the Chinese DOS release has them right), by character id
+SUIKODEN_PC98_NAME_HISTORICAL = {35: "盧俊義", 128: "馬麟", 210: "成貴", 254: "潘巧雲"}
 
 
-def build_suikoden_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_suikoden_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (KAODATA.DAT: 258 64x40 faces, B, R, G per 8 pixels; 19-byte person records)."""
+    inputs = SUIKODEN_PC88_INPUTS if pc88 else SUIKODEN_PC98_INPUTS
     files = {}
-    for name in SUIKODEN_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
-    kao = files["KAO98.DAT"]
-    portraits = [{"img": store.add(*san2_jp_pixels(kao[i:i + SUIKODEN_PC98_FACE], True)),
-                  "code": f"{i // SUIKODEN_PC98_FACE:04X}"} for i in range(0, len(kao), SUIKODEN_PC98_FACE)]
+    if pc88:
+        kao = files["KAODATA.DAT"]
+        portraits = [{"img": store.add(64, 80, brg_pixels(kao[i:i + 960], 8)), "code": f"{i // 960:04X}"}
+                     for i in range(0, len(kao), 960)]
+    else:
+        kao = files["KAO98.DAT"]
+        portraits = [{"img": store.add(*san2_jp_pixels(kao[i:i + SUIKODEN_PC98_FACE], True)),
+                      "code": f"{i // SUIKODEN_PC98_FACE:04X}"} for i in range(0, len(kao), SUIKODEN_PC98_FACE)]
+    # PC-88 has no 258, 259
     for i, group in SUIKODEN_PC98_PORTRAIT_GROUPS.items():
-        portraits[i]["group"] = group
+        if i < len(portraits):
+            portraits[i]["group"] = group
     for i, name in SUIKODEN_PC98_PORTRAIT_NAMES.items():
-        portraits[i]["name"] = name
+        if i < len(portraits):
+            portraits[i]["name"] = name
 
     # the four scenarios have the same names and faces
     characters = [{"id": cid, "name": name, "face": {"portrait": code}} for cid, (code, name) in
-                  enumerate(koei_games.load_suikoden_pc98_persons(os.path.join(game_dir, "SUIDATA1.CIM")))]
+                  enumerate(koei_games.load_suikoden_pc98_persons(os.path.join(game_dir, "SUIDATA1.CIM"), pc88))]
+    for ch in characters:
+        if ch["id"] in SUIKODEN_PC98_NAME_HISTORICAL:
+            ch["nameHistorical"] = SUIKODEN_PC98_NAME_HISTORICAL[ch["id"]]
 
     meta = {
-        "format": FORMAT, "id": "suikoden-pc98", "game": "SUIKODEN", "platform": "PC98",
+        "format": FORMAT, "id": "suikoden-pc88" if pc88 else "suikoden-pc98", "game": "SUIKODEN",
+        "platform": "PC88" if pc88 else "PC98",
         "title": {"ja": "水滸伝・天命の誓い", "zh": "水滸傳・天命之誓"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SUIKODEN_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
+                     {"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -3721,7 +3740,8 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san5-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True, pk=False),
             "san1-pc98": build_san1, "san1-pc88": build_san1_pc88, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
-            "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
+            "suikoden-pc98": build_suikoden_pc98,
+            "suikoden-pc88": lambda game_dir: build_suikoden_pc98(game_dir, pc88=True), "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "liberty-pc98": lambda game_dir: build_liberty_dos(game_dir, pc98=True),
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),

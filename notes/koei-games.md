@@ -215,6 +215,19 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - 外字 SJIS 0xEBA0–0xEBAD 的字形在缺少的第 1 片上，字是用 FC 名字和讀音推出來的：鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩。
 - 沒有人物使用的頭像（對照 FC 的特殊頭像）：255 造船所、256 雑貨屋、257 武器屋（施設），258 徽宗皇帝、259 金国太宗（特殊人物）。
 - 發行年份：ja.wikipedia 只寫 PC-9801 版 1991 年，沒有月日，待查。
+- `nameHistorical`：盧俊儀→盧俊義、馬鱗→馬麟、成喜→成貴、潘功雲→潘巧雲（`SUIKODEN_PC98_NAME_HISTORICAL`，中文 DOS 版是對的）。
+
+### PC-88 版（`suikoden-pc88`）
+
+來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Suikoden/`：Disk A、B 取 `[FD].7z` 主檔，Disk C 取同包 `alts/Suikoden (Disk C) [Alt 1].d88`（FD 主檔的 Disk C 在頭像 190 有 1 byte 和其他各組不同，Set 1 則在頭像 257 尾端被寫進 14 bytes ASCII）。用到的檔案解在 `games/suikoden-pc88/`，`build_suikoden_pc98(pc88=True)`。
+
+- 版本：`REL.DIR`「SUIKODEN TENMEI NO CHIKAI REL.1C Copyright (C) 1988 by KOEI」，Disk A／C 檔案日期 1988-12-13，`KAODATA.DAT` 1988-12-01。ja.wikipedia：PC-8801（SR）1989 年 3 月，是首發。
+- 磁碟：80 軌 × 9 × 512 bytes，YDOS 3.0 目錄（0xA00）。Disk A 程式、Disk B 開場與結局、Disk C 資料。
+- 色盤：YSHELL.COM 清掉 port 0x32 bit 5，數位 8 色。
+- `KAODATA.DAT`（Disk C）：258 張 × 960 bytes，64×40，每 8 點 B、R、G 3 bytes（`pc88.brg_pixels`），200 線，匯出逐列加倍。0–257 和 PC-98 同號同人，255–257 是設施，沒有 PC-98 的 258、259（徽宗皇帝、金国太宗）。
+  - 全部是 200 線原生畫：和 PC-98 同一個設計，但沒有一張是 400 線圖抽列；約 13 張到 PC-98 時改過或換色，明顯不同的是 167、172、230、251，252 在 PC-98 是另一張畫（DOS 保留 PC-88 的畫）。DOS 版的 165↔173、201↔240、207↔225 對調，PC-88 和 PC-98 一致。
+- 人物 `SUIDATA1–4.CIM`：0x1884 起 255 筆 × 19 bytes（PC-98 的記錄少了 +18 那個 byte，頭像碼同在 +17）。4 個劇本相同，姓名與頭像碼和 PC-98 逐筆相同，`nameHistorical` 也相同。
+  - 外字 0xEBA0–0xEBAD 的碼和 PC-98 相同，名字和讀音對得上（鄧元覚 トウゲンカク、寇烕 コウケツ 等）。Disk A 的 `FONT.DAT`（45 字）、`FONT2.DAT`（15 字）是外字字形，但排列和碼不是一一對應（例如「俅」「烕」在 FONT2），沿用 PC-98 的對照。
 
 ## 水滸傳・天命之誓（SUIKODEN, DOS 中文版）
 

@@ -1185,13 +1185,14 @@ def suikoden_person(game_dir, to, scenario, file):
 SUIKODEN_PC98_GAIJI = dict(zip(range(0xEBA0, 0xEBAE), "鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩"))
 
 
-def load_suikoden_pc98_persons(sndata) -> list[tuple[int, str]]:
-    """(face, name) per person."""
+def load_suikoden_pc98_persons(sndata, pc88: bool = False) -> list[tuple[int, str]]:
+    """(face, name) per person. pc88: 19-byte records from 0x1884 (no byte 18), the same gaiji codes."""
     with open(sndata, 'rb') as f:
         data = f.read()
+    start, size = (0x1884, 19) if pc88 else (7124, 20)
     persons = []
     for i in range(255):
-        rec = data[7124 + i * 20:7124 + (i + 1) * 20]
+        rec = data[start + i * size:start + (i + 1) * size]
         raw, name, j = rec[:7].split(b'\0')[0], [], 0
         while j < len(raw):
             n = 2 if 0x81 <= raw[j] <= 0x9F or 0xE0 <= raw[j] <= 0xFC else 1
