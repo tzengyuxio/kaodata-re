@@ -125,6 +125,7 @@ Python 端沒有 linter／formatter 設定。
     - `build_nobu5_pc98`（信長の野望・覇王伝 PC-98）只有逐人頭像：KAO.NB5 是 929 張 64×80，索引在 MAIN.EXE 檔案 0x40630，壓縮和天翔記相同（`nobu_pc98_face`），色盤是 MAIN.EXE 檔案 0x4131E 的色號 8–15；人物是 SN1–3.NB5（XOR 0xB4）與 S1T–S3T.NB5（`koei_games.load_nobu5_pc98_scenario`／`load_nobu5_pc98_arrivals`），一個頭像號一人，見 `notes/nobu5.md`。
     - `build_nobu6_pc98`（信長の野望・天翔記 PC-98）：KAODATA.NB6 是有索引的 410 張 64×80 自訂壓縮頭像（`nobu_pc98_face`），MONDATA.NB6 是 LS11 的 19 種組合臉（上、下 3bpp，眼、口是遮罩＋圖，遮罩保留處匯出成透明），類型在頭像碼 bit 0–4；人物是 SNDATA.NB6／TAIKI.NB6 的姓名記錄（`koei_games.load_nobu6_pc98_persons`），一個頭像碼一人、別名合併（`NOBU6_PC98_ALIASES`），色盤在 MAIN.EXE 檔案 0x38724，見 `notes/nobu6.md`。
     - `build_lempe` 只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`，見 `notes/lempe.md`。
+  - PK 資料集（本體完全包含在內、只保留 PK 版的）在 PK 才有的頭像與人物加 `"pk": true`，`group` 照原本的類別名稱、不自己加「PK」：`san4pk-*` 是 340 之後的頭像與 NBDATA.SUI 的人物，`san5pk-*` 是 733 之後的頭像，`tk3pk-pc98` 是 KAODATA2 的頭像 197–204 與用到它們的劇本人物。`tk2pk-pc98` 只改了兩個提督名的寫法，沒有標記。
   - `nameHistorical`（史書寫法）的規則：遊戲寫法讓人認不出或搜不到史書（或《三國演義》）的寫法時才填，用該資料集的字形（日文版用新字體）。
     - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
     - 不填：同一字的不同字形（関／關、羣／群、彝／彞、万／萬、胄／冑、瞱／曄、毘／毗）、《三國演義》本身的寫法（喬瑁、范疆）、史書就有兩種寫法的（干吉／于吉、朱儁／朱雋、梁綱／梁剛）。

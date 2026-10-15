@@ -623,6 +623,9 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
         # 水滸伝 extras first, next to the 水滸伝 officers 340-456
         for px, name, group in extra[150:] + extra[:150]:
             portraits.append({"img": store.add(64, 80, px, blob=2), "group": group, **({} if name == "-" else {"name": name})})
+        # everything after the base game's KAODATA.S4 faces is added by the PK
+        for p in portraits[len(faces):]:
+            p["pk"] = True
 
     characters = []
     # scenarios 1-6 in order; 羌族、烏丸族、山越族、南蠻族 share one face code, so key on the name too
@@ -646,7 +649,7 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
         characters.append(ch)
     if pk:
         # the 水滸伝 officers registered from NBDATA.SUI follow the scenario persons
-        characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": code},
+        characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": code}, "pk": True,
                         **({"nameHistorical": SAN4PK_DOS_SUIKODEN_HISTORICAL[name]}
                            if not pc98 and name in SAN4PK_DOS_SUIKODEN_HISTORICAL else {})}
                        for i, (name, code) in
@@ -702,6 +705,7 @@ SAN5PK_PC98_NAME_HISTORICAL = {467: "龐羲"}
 # base game (PC-98): no KAOEX.S5; 7 scenarios whose SNDATA person table ends 64 bytes before the end
 SAN5_PC98_INPUTS = ["KAODATA.S5", "SNDATA.S5", "TAIKI.S5"]
 SAN5_PC98_SNDATA_TAIL = 64
+SAN5_FACES = 733  # faces in the base game's KAODATA.S5; the PK appends 733-782 and KAOEX.S5
 
 
 def build_san5pk(game_dir: str, pc98: bool = False, pk: bool = True) -> tuple[dict, list[bytes]]:
@@ -725,6 +729,9 @@ def build_san5pk(game_dir: str, pc98: bool = False, pk: bool = True) -> tuple[di
         p["group"] = SAN5PK_EXTRA_GROUP
     for i, name in (SAN5PK_PC98_PORTRAIT_NAMES if pc98 else SAN5PK_PORTRAIT_NAMES).items():
         portraits[i]["name"] = name
+    if pk:
+        for p in portraits[SAN5_FACES:]:
+            p["pk"] = True
 
     characters = []
     # scenarios 1-12 in order, deduplicated by face code (one name per code)
@@ -2100,6 +2107,7 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     store = ImageStore(["portraits.bin"])
 
     faces = ls11.ls11_decode_parts(files["KAODATA.TK3"])
+    base_faces = len(faces)
     if pk:
         faces += ls11.ls11_decode_parts(files["KAODATA2.TK3"])
     portraits = [{"img": store.add(64, 80, tk3_pc98_face(data))} for data in faces]
@@ -2111,6 +2119,8 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
         portraits[i].update(group="参謀", name=name)
     for i in (166, 167, 169, 170, 171, 172, 173, 184):  # not found in events or code
         portraits[i]["group"] = "不明"
+    for p in portraits[base_faces:]:  # KAODATA2.TK3
+        p["pk"] = True
 
     people = koei_games.load_tk3_pc98_persons(exe, TK3PK_PC98_PEOPLE if pk else TK3_PC98_PEOPLE)
     if pk:
@@ -2123,7 +2133,7 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     for name, face in people:
         if face == leader:
             continue
-        ch = {"id": face, "name": name, "face": {"portrait": face}}
+        ch = {"id": face, "name": name, "face": {"portrait": face}, **({"pk": True} if face >= base_faces else {})}
         if face == admiral:
             ch["face"]["label"] = "提督"
             ch["expressions"] = [{"portrait": leader, "label": "総統"}]
