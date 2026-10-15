@@ -83,3 +83,14 @@
   - E2 對齊是「邈」（張邈），但 `FONT.R3` 第 0xE2 − 0x9F 個字形不是邈（0xDF 那格才是），E0 之後的對應方式沒有查。
 - 兵種、一般人物用日文名稱（`EIKETSU_PC98_TROOPS`／`EIKETSU_PC98_FOLK`），共 264 人，分組和 DOS 相同。
 - `nameHistorical`：沙摩可→沙摩柯（日文版也是這樣寫）、歩鷙→歩騭。
+
+## Win31 版（不另做資料集）
+
+來源是 `games/archives/win/[系列] 英傑傳/三國志英傑傳 Win31 繁體化 (reko_win).zip`：DOSBox＋Windows 3.1 的整包，遊戲在 `reko_win/C_DRIVE/R3WIN/`，`R3WIN.EXE`（Win16）與同人繁體化修改的 `R3W_CHT.EXE`。沒有找到 Win31 版的發售日。
+
+- `FACEDAT.R3` 是 LS11，240 段，每段是 NPK016（檔頭 0x10 的 16 色是通用色、不是遊戲用的；資料從 0x30 起，`utils.unpack_npk`，64×80 4 bpp）。
+  - 和 DOS／PC-98 版是同一批圖、同樣順序，色號一對一：DOS 的 0 在 Win 是 8（都是黑），其他相同。
+  - 只有 4 張共 137 點不同，DOS 的色 1／3 在 Win 是 9／11（多了 bit 3）：5 徐庶 68 點、164 劉璝 63 點、7 魏延 1 點（1→9），18 劉封 5 點（3→11）。都在帽緣，用 R3WIN 的色表是 9＝#aabbaa、11＝#3377aa，遊戲中看得到，可能是刻意加的亮點，也可能是轉檔的雜點，還沒確定。
+- 色盤：`R3WIN.EXE` 檔案 0x3E8DC 起的 B、R、G 4 bit 色表和 PC-98 `MAIN.EXE` 0x359AC 相同，所以頭像色和 `eiketsu-pc98` 一樣。
+- `BAKDATA.R3` 和 DOS 中文版逐 byte 相同（繁體化時換掉的），這份檔裡沒有日文 Win 版的人名。
+- 結論：圖、色同 `eiketsu-pc98`，人名同 `eiketsu-dos`，不另做 `eiketsu-win`。kaodata 在 `src/ui/editions.ts` 把它列在 `eiketsu-pc98` 下（WIN 標籤＋說明），比較圖在 kaodata 的 `docs/images/eiketsu-win-vs-pc98.png`。
