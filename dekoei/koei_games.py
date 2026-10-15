@@ -1589,10 +1589,14 @@ NOBU2_PC88_DATA = 0x1581  # DATA50S.DAT: 53 clan names (9 bytes), then 53 given 
 NOBU2_PC88_LORDS = 53
 
 
-def load_nobu2_pc88_names(data50s: bytes) -> list[str]:
-    """Shift-JIS names of the 50 daimyo and 明智, 羽柴, 柴田; the index is also the face (ODAMAIN 0x3A67)."""
-    given = NOBU2_PC88_DATA + 9 * NOBU2_PC88_LORDS
-    return [data50s[NOBU2_PC88_DATA + 9 * i:][:9].split(b"\0")[0].decode("cp932")
+NOBU2_X68_DATA = (0x1E86, 0x2064)  # X68000 DATA50.DAT: the same tables, the given names at an even offset
+
+
+def load_nobu2_pc88_names(data50s: bytes, x68: bool = False) -> list[str]:
+    """Shift-JIS names of the 50 daimyo and 明智, 羽柴, 柴田; the index is also the face (ODAMAIN 0x3A67).
+    x68=True: the X68000 DATA50.DAT."""
+    clans, given = NOBU2_X68_DATA if x68 else (NOBU2_PC88_DATA, NOBU2_PC88_DATA + 9 * NOBU2_PC88_LORDS)
+    return [data50s[clans + 9 * i:][:9].split(b"\0")[0].decode("cp932")
             + data50s[given + 5 * i:][:5].split(b"\0")[0].decode("cp932") for i in range(NOBU2_PC88_LORDS)]
 
 

@@ -37,3 +37,15 @@
 ## 和 FC 版比較
 
 - FC 版是 48×48 的重畫，另有 22 張姫；PC-88 是 64×40（200 線）的 53 張大名與 20 張 88×48 的女性。
+
+## X68000 版（`nobu2-x68`）
+
+`dekoei.py export nobu2-x68` 用 `build_nobu2_x68`。
+
+- 來源：Internet Archive `nobunaga_no_yabou_zenkokuhan_1_x68k`（`games/archives/x68000/ia-softwarelibrary/`），A、B 兩片 DIM，各有主檔、`[a]`、`[a2]`。A 片的 `KAO.DAT`、`DATA50.DAT` 三份相同，`[a2]` 的 `ODAMAIN.Z` 不同；用主檔。`games/nobu2-x68/` 放 A 片的 `KAO.DAT`、`DATA50.DAT`、`ODAMAIN.Z`（色盤）。檔案日期 1988-07～09-29，沒有版本字串。
+- `ODAMAIN.Z` 沒有壓縮，執行位址＝檔案＋0x4FFDE。
+- `KAO.DAT`（0x606F0 整檔讀進來）：全部重畫成 64×80 全高，每 8 點 B、R、G 3 bytes（`pc88.brg_pixels(..., double=False)`）。
+  - 大名 53 張（0x6103C），女性 20 張從 0x18D80 起（0x61132，group「姫」）。
+  - 大名 51、52（羽柴秀吉、柴田勝家）在 0x61084 互換，所以羽柴用頭像 52、柴田用 51；人物 id 和名字照 `nobu2-pc88`（`DATA50.DAT` 同一張表，名字逐筆相同，`load_nobu2_pc88_names(..., x68=True)`）。
+  - 後繼者的組合臉（0x60EE0，表在 0x70632）：0x22380 起 4 個 64×80 的頭，接著眉（第 25 列起 7 列）、眼（32 起 5 列）、鼻（37 起 11 列）、口（48 起 7 列）各 4 個，寬 40 點、貼在 x＝0。碼是 10 bit，每段 2 bit，頭在最低位。人物資料不用組合臉（後繼者是遊戲中產生），匯出成一個 variant「後継者」。
+- 色盤（0x60EA2）：0x706EC 是兩組 8 色（X68000 色盤字），設到色號 8–15；大名與組合臉用第 0 組、女性用第 1 組。kaodata 一份資料集只有共用的色盤，所以女性的像素加 8，色盤做成 16 色（0–7 大名、8–15 女性）。

@@ -3377,6 +3377,82 @@ def build_nobu2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU2 (信長の野望・全国版, X68000)
+
+NOBU2_X68_INPUTS = ["KAO.DAT", "DATA50.DAT", "ODAMAIN.Z"]
+# KAO.DAT (read whole, ODAMAIN.Z 0x606F0): 64x80 faces of B, R, G bytes per 8 px; 53 lords, 20 women from 0x18D80,
+# then the successors' composite (0x60EE0, table at 0x70632): 4 heads, then 4 items each of 4 bands 40 px wide
+NOBU2_X68_FACE = 1920
+NOBU2_X68_WOMEN = 0x18D80
+NOBU2_X68_HEADS = 0x22380
+# slot -> (label, first row, rows, items' offset); the code holds 2 bits per slot, the head lowest
+NOBU2_X68_SLOTS = {"head": ("頭", 0, 80, NOBU2_X68_HEADS), "brows": ("眉", 25, 7, 0x24180),
+                   "eyes": ("眼", 32, 5, 0x24324), "nose": ("鼻", 37, 11, 0x24450), "mouth": ("口", 48, 7, 0x246E4)}
+# lords 51 and 52 (羽柴, 柴田) show each other's face (0x61084)
+NOBU2_X68_FACE_OF = {51: 52, 52: 51}
+NOBU2_X68_PALETTES = 0x706EC - 0x4FFDE  # ODAMAIN.Z: colours 8-15 for the lords, then for the women (0x60EA2)
+
+
+def build_nobu2_x68(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU2_X68_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAO.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    def pixels(raw: bytes, groups: int, women: bool = False) -> bytes:
+        px = pc88.brg_pixels(raw, groups, double=False)
+        return bytes(v + 8 for v in px) if women else px
+
+    parts = {}
+    for slot, (_, row, rows, start) in NOBU2_X68_SLOTS.items():
+        groups = 8 if slot == "head" else 5
+        size = rows * groups * 3
+        parts[slot] = {"at": [0, row], "items": [store.add(groups * 8, rows, pixels(kao[start + i * size:][:size], groups))
+                                                 for i in range(4)]}
+
+    portraits = []
+    for i in range(koei_games.NOBU2_PC88_LORDS):
+        portraits.append({"img": store.add(64, 80, pixels(kao[i * NOBU2_X68_FACE:][:NOBU2_X68_FACE], 8), blob=1)})
+    for i in range(NOBU2_PC88_WOMEN_COUNT):
+        o = NOBU2_X68_WOMEN + i * NOBU2_X68_FACE
+        portraits.append({"img": store.add(64, 80, pixels(kao[o:o + NOBU2_X68_FACE], 8, True), blob=1), "group": "姫"})
+
+    characters = []
+    for i, name in enumerate(koei_games.load_nobu2_pc88_names(files["DATA50.DAT"], x68=True)):
+        ch = {"id": i, "name": name, "face": {"portrait": NOBU2_X68_FACE_OF.get(i, i)}}
+        if name in NOBU2_PC88_NAME_HISTORICAL:
+            ch["nameHistorical"] = NOBU2_PC88_NAME_HISTORICAL[name]
+        characters.append(ch)
+
+    # X68000 palette words: G, R, B 5 bits each, then the intensity bit; women's pixels are shifted to 8-15
+    words = struct.unpack_from(">16H", files["ODAMAIN.Z"], NOBU2_X68_PALETTES)
+    colors = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31)) for w in words]
+
+    meta = {
+        "format": FORMAT, "id": "nobu2-x68", "game": "NOBU2", "platform": "X68",
+        "title": {"ja": "信長の野望・全国版", "zh": "信長之野望・全國版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU2_X68_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label} for slot, (label, *_) in NOBU2_X68_SLOTS.items()],
+            "variants": [{"id": "0", "label": "後継者", "parts": parts}],
+            "code": {"kind": "bitfield", "bits": 10, "fields": [
+                {"of": "mouth", "hi": 9, "lo": 8}, {"of": "nose", "hi": 7, "lo": 6}, {"of": "eyes", "hi": 5, "lo": 4},
+                {"of": "brows", "hi": 3, "lo": 2}, {"of": "head", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- NOBU3 (PC-98)
 
 NOBU3_PC98_INPUTS = ["ORGKAO1.DAT", "ORGKAO2.DAT", "ORGKAO3.DAT", "MONKAO.DAT", "SNDATA1.CIM", "SNDATA2.CIM"]
@@ -4554,7 +4630,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98,
+            "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
