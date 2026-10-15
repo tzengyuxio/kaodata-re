@@ -49,3 +49,12 @@
   - 202–227：町人、商人、南蠻人、公家等 NPC，程式用 0xCA＋表格（0x41047）、0xD0＋物件欄位（0x3ACAB）算出
   - 43、119、120、134：沒有找到使用的地方
 - `nameHistorical`：缺字代用 田山→畠山（義綱、義慶）、北田→北畠（具教、具房、政成）、神原→榊原（忠政、康政）、坪和→垪和（氏續、康忠）、脅阪→脇坂安治；錯字 常束正家→長束正家、突戶隆家→宍戶隆家、桶口直房→樋口直房。齊藤、佐佐、高阪、黑阪等照錄不填。
+
+## PC-98 版（`taikoh-pc98`）
+
+來源是 `games/archives/pc98/[PC98] 太閤立志伝.zip`（A、B、C 三片 FDI），每片解在 `games/archives/pc98/disks/taikoh-pc98/`，合併放在 `games/taikoh-pc98/`。`MAIN.EXE` 1992-02-20（MZ 檔頭 0x6C00 bytes），DGROUP 段值 0x4EF9（檔案 0x55B90）；`VER` 是 LZH 壓縮的 VER.TXT。
+
+- `KAO.PUT`、`HIME.PUT`、`MONTA.PUT` 和 DOS 中文版逐 byte 相同，頭像碼、組合臉排法也相同。但 PC-98 依序把 byte 0／1／2 寫到 B／R／G 平面（0xA800、0xB000、0xB800），所以用 `genpei.decode_planar`（byte k＝bit k），不是 `to_3bpp_indexes`。
+- 色盤：類比模式（DGROUP [0xCCCE] ≠ 0）由 0x61D8 淡入 DGROUP 0x7E96 的 8 色，就是 DOS 版 DGROUP 0x8468 的同一張表（B、R、G 各 4 bit；0x6041 組成 `R << 4 | G << 8 | B`，0x14AC 寫 port 0xAE／0xAC／0xAA），換算 v × 17：`#000000 #2266aa #ff5500 #ff66bb #44cc44 #00ccff #ffdd00 #ffffff`。
+- 人物：開局 241 人在 DGROUP 0xB8C、女性在 DGROUP 0x776，記錄格式和 `TBS.DAT` 都同 DOS，姓名是 Shift-JIS，用半形／全形空白排版（「於  市」「美　称」），匯出時去掉（`koei_games.load_taikoh_pc98_persons`／`load_taikoh_pc98_women`）。713 筆的頭像碼和 DOS 版完全相同，匯出同樣是 739 人。
+- DOS 中文版缺字、錯字的名字在日文版都正確（畠山、北畠、榊原、垪和、脇坂、長束、宍戸、樋口），不填 `nameHistorical`。

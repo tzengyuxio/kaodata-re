@@ -1610,6 +1610,7 @@ TAIKOH_DOS_SLOTS = {"top": ("上", 0, 8, 0, 40), "bottom": ("下", 0x1E00, 8, 40
 TAIKOH_DOS_OR = ("eyes", "nose", "mouth")
 TAIKOH_DOS_TYPES = ["甲冑", "正面", "側面", "斜側"]
 TAIKOH_DOS_HIME = 0x1000  # HIME.PUT face codes, kept apart from KAO.PUT's
+TAIKOH_PC98_PALETTE = 0x7E96  # DGROUP: the same 8 x (B, R, G) table, 4 bits each, used as v * 17
 TAIKOH_DOS_NAME_HISTORICAL = {
     "田山義綱": "畠山義綱", "田山義慶": "畠山義慶", "北田具教": "北畠具教", "北田具房": "北畠具房",
     "北田政成": "北畠政成", "神原忠政": "榊原忠政", "神原康政": "榊原康政", "坪和氏續": "垪和氏續",
@@ -1618,7 +1619,11 @@ TAIKOH_DOS_NAME_HISTORICAL = {
 }
 
 
-def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_taikoh_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    """pc98=True: the Japanese PC-98 original. The same KAO/HIME/MONTA.PUT, drawn byte 0/1/2 to the B/R/G planes
+    (byte k = bit k); the same B, R, G table at DGROUP 0x7E96 (MAIN.EXE 0x61D8) on the analog palette."""
+    pixels = (lambda raw: bytes(genpei.decode_planar(raw, 0, 64, len(raw) // 24, 3))) if pc98 else \
+        (lambda raw: bytes(utils.to_3bpp_indexes(raw)))
     files = {}
     for name in TAIKOH_DOS_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1632,27 +1637,27 @@ def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
         for slot, (_, offset, count, row, rows) in TAIKOH_DOS_SLOTS.items():
             size = rows * 24
             base = v * TAIKOH_DOS_TYPE + offset
-            items = [store.add(64, rows, bytes(utils.to_3bpp_indexes(mon[base + i * size:base + (i + 1) * size])))
-                     for i in range(count)]
+            items = [store.add(64, rows, pixels(mon[base + i * size:base + (i + 1) * size])) for i in range(count)]
             parts[slot] = {"at": [0, row], "items": items}
         variants.append({"id": str(v), "label": label, "parts": parts})
 
     kao, hime = files["KAO.PUT"], files["HIME.PUT"]
-    portraits = [{"img": store.add(64, 80, bytes(utils.to_3bpp_indexes(kao[i:i + 1920])), blob=1),
+    portraits = [{"img": store.add(64, 80, pixels(kao[i:i + 1920]), blob=1),
                   "code": f"{i // 1920:04X}"} for i in range(0, len(kao), 1920)]
     first_hime = len(portraits)
-    portraits += [{"img": store.add(64, 80, bytes(utils.to_3bpp_indexes(hime[i:i + 1920])), blob=1),
+    portraits += [{"img": store.add(64, 80, pixels(hime[i:i + 1920]), blob=1),
                    "code": f"{TAIKOH_DOS_HIME | i // 1920:04X}"} for i in range(0, len(hime), 1920)]
 
     # people at the start of a game, then those TBS.DAT brings in later; one character per name
     characters, seen = [], set()
-    persons = koei_games.load_taikoh_dos_persons(os.path.join(game_dir, "MAIN.EXE"), os.path.join(game_dir, "TBS.DAT"))
+    load = koei_games.load_taikoh_pc98_persons if pc98 else koei_games.load_taikoh_dos_persons
+    persons = load(os.path.join(game_dir, "MAIN.EXE"), os.path.join(game_dir, "TBS.DAT"))
     for name, code in persons:
         if name in seen:
             continue
         seen.add(name)
         ch = {"id": len(characters), "name": name}
-        if name in TAIKOH_DOS_NAME_HISTORICAL:
+        if not pc98 and name in TAIKOH_DOS_NAME_HISTORICAL:
             ch["nameHistorical"] = TAIKOH_DOS_NAME_HISTORICAL[name]
         if code < 0x4000:  # MAIN.EXE 0x8924
             ch["face"] = {"portrait": code}
@@ -1661,7 +1666,8 @@ def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
                           "parts": [code >> 11 & 7, code >> 8 & 7, code >> 5 & 7, (code >> 14) - 1, code >> 2 & 7],
                           "code": f"{code:04X}"}
         characters.append(ch)
-    for name, face in koei_games.load_taikoh_dos_women(os.path.join(game_dir, "MAIN.EXE")):
+    women = koei_games.load_taikoh_pc98_women if pc98 else koei_games.load_taikoh_dos_women
+    for name, face in women(os.path.join(game_dir, "MAIN.EXE")):
         if face != 0xFF:
             characters.append({"id": len(characters), "name": name, "face": {"portrait": first_hime + face}})
 
@@ -1671,17 +1677,23 @@ def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
             p["group"] = "其他頭像"
 
     main = files["MAIN.EXE"]
-    pal = main[koei_games.TAIKOH_DOS_DGROUP + TAIKOH_DOS_PALETTE:][:24]
-    colours = ["#" + "".join(f"{v << 4 | v >> 2:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
-               for i in range(0, 24, 3)]
+    if pc98:
+        pal = main[koei_games.TAIKOH_PC98_DGROUP + TAIKOH_PC98_PALETTE:][:24]
+        colours = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+    else:
+        pal = main[koei_games.TAIKOH_DOS_DGROUP + TAIKOH_DOS_PALETTE:][:24]
+        colours = ["#" + "".join(f"{v << 4 | v >> 2:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
+                   for i in range(0, 24, 3)]
 
     meta = {
-        "format": FORMAT, "id": "taikoh-dos", "game": "TAIKOH", "platform": "DOS",
+        "format": FORMAT, "id": "taikoh-pc98" if pc98 else "taikoh-dos", "game": "TAIKOH",
+        "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "太閤立志伝", "zh": "太閤立志傳"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "vga", "label": "VGA", "colors": colours}],
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": colours} if pc98 else
+                     {"id": "vga", "label": "VGA", "colors": colours}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -3373,7 +3385,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
-            "taikoh-dos": build_taikoh_dos,
+            "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),
             "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,

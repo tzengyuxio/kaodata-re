@@ -52,7 +52,7 @@ Early KOEI Games Data Research
 | KOUKAI2   | 大航海時代II                | 1993 |       DOS        |       |        |                     |
 | KOUKAIGD  | 大航海時代外傳              | 1998 |       WIN        |       |        |                     |
 | KOUKAI3   | 大航海時代III Costa del Sol | 1996 |       WIN        |       |        |                     |
-| TAIKOH    | 太閤立志傳                  | 1992 |       DOS        |       |        |                     |
+| TAIKOH    | 太閤立志傳                  | 1992 |     DOS,PC98     |       |        |                     |
 | TAIKOH2   | 太閤立志傳II                | 1995 |       WIN        |       |        |                     |
 | (TAIKOH3) | 太閤立志傳III               | 1999 |                  |       |        |                     |
 | EUROPE    | 歐陸戰線                    | 1991 |       DOS        |       |        |                     |
@@ -138,6 +138,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |
 | `taikoh-dos` | 太閤立志傳                     | DOS 中文版 |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
+| `taikoh-pc98` | 太閤立志伝                    | PC-98      |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `tk2-pc98`  | 提督の決断II                   | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |

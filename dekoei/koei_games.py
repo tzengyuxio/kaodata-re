@@ -1193,8 +1193,8 @@ TAIKOH_DOS_DGROUP = 0x5C180
 TAIKOH_DOS_PERSON = 0x47
 
 
-def _taikoh_persons(data: bytes, start: int, count: int) -> list[tuple[str, int]]:
-    return [(koei_tw_name(data[o:o + 6]) + koei_tw_name(data[o + 7:o + 13]),
+def _taikoh_persons(data: bytes, start: int, count: int, name=koei_tw_name) -> list[tuple[str, int]]:
+    return [(name(data[o:o + 6]) + name(data[o + 7:o + 13]),
              int.from_bytes(data[o + 14:o + 16], "little"))
             for o in range(start, start + count * TAIKOH_DOS_PERSON, TAIKOH_DOS_PERSON)]
 
@@ -1215,6 +1215,33 @@ def load_taikoh_dos_women(main_exe) -> list[tuple[str, int]]:
         main = f.read()
     o = TAIKOH_DOS_DGROUP + 0x776
     return [(koei_tw_name(main[o + i * 12:o + i * 12 + 6]), main[o + i * 12 + 7]) for i in range(30)]
+
+
+# PC-98 MAIN.EXE: the same tables, DGROUP at file 0x55B90 (0x6C00-byte header + segment 0x4EF9); names in
+# Shift-JIS, padded with half- and full-width spaces for display
+TAIKOH_PC98_DGROUP = 0x55B90
+
+
+def _sjis_name(raw: bytes) -> str:
+    return raw.split(b"\0")[0].decode("cp932").replace(" ", "").replace("\u3000", "")
+
+
+def load_taikoh_pc98_persons(main_exe, tbs) -> list[tuple[str, int]]:
+    """As load_taikoh_dos_persons, for the PC-98 version."""
+    with open(main_exe, "rb") as f:
+        main = f.read()
+    with open(tbs, "rb") as f:
+        later = f.read()
+    return (_taikoh_persons(main, TAIKOH_PC98_DGROUP + 0xB8C, 241, _sjis_name)
+            + _taikoh_persons(later, 0, len(later) // TAIKOH_DOS_PERSON, _sjis_name))
+
+
+def load_taikoh_pc98_women(main_exe) -> list[tuple[str, int]]:
+    """As load_taikoh_dos_women, for the PC-98 version."""
+    with open(main_exe, "rb") as f:
+        main = f.read()
+    o = TAIKOH_PC98_DGROUP + 0x776
+    return [(_sjis_name(main[o + i * 12:o + i * 12 + 6]), main[o + i * 12 + 7]) for i in range(30)]
 
 
 TAIKOH2_WIN_PERSON = 59  # BSDATA*.TR2 record: surname, given name, ..., u16 person number at +16
