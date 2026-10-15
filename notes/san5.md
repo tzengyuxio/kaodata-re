@@ -100,5 +100,5 @@
 ## PC-98 本體（`san5-pc98`，未匯出）
 
 - `games/san5-pc98/` 只有安裝片：`INSTALL.EXE`（KOEI Install Program Ver 2.1）照 `INSTALL.SYS` 的 `UNPACK DPACKn.S5` 解出 7 個包。
-- DPACK 沒有 LS11／LW11 magic，整檔熵 7.997 bit/byte，由 INSTALL.EXE 另一套較大的解碼程式（0x88AC 一帶）處理，還沒逆向。
+- DPACK 用 `dekoei/dpack.py` 解開（格式見 [dpack.md](dpack.md)），解出的檔放在 `games/san5-pc98/`：64 個檔和 `san5pk-pc98` 的同名檔相同，KAODATA.S5 是 PK 版的前段。
 - PC-98 本體 1995-12-15 發行。

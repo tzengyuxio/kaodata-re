@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `GLYPH_TABLE/`、`PERSONS_TABLE/`、`MISC_TABLE/`、`montage/`：已產出的成果圖／表，不是原始碼
 - `games/`：原版遊戲（壓縮檔，以及解開後的 `games/<dataset-id>/`，如 `games/san2-dos/`），被 `.gitignore` 排除，不要 commit
   - PC-98／X68000 版是磁碟映像（`games/pc98/` 的 FDI／HDI、`games/Sangokushi II [FD]*/` 的 HDM），檔案已解到 `games/<game>-pc98/`、`games/san2-x68/`，每片磁碟的原樣在 `games/pc98/disks/`
-- 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理
+- 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理；例外是 PC-98 安裝包 DPACK 的解壓 `dekoei/dpack.py`（`python dpack.py OUTDIR DPACK1 DPACK2 ...`，見 `notes/dpack.md`），用來從提督の決断III、三国志V 的磁片取得遊戲檔
 
 ## 指令
 
