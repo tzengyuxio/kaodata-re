@@ -44,6 +44,15 @@
 - 人物：`SHINARIO.CIM` 記錄格式同 DOS，位置早 0x20 bytes（女性 0x7B0、男性 0x900），姓名是 Shift-JIS（`koei_games.load_koukai_pc98_people`）。男性的臉碼（+0x11–0x13）和 DOS 版完全相同。
 - 國名用 `MAIN.EXE` 的寫法：ポルトガル、イスパニア、イスラム、海賊。頭像 1–12 的身分沿用 DOS 版的判讀（國王、設施、老航海士），名字換成日文（道具屋、造船所、交易所、酒場、港、王宮、教会、宿屋）；遊戲字串裡只找得到交易所、酒場、王宮、ギルド，其餘是暫定。
 
+## X68000 版（不另做資料集）
+
+來源是 Internet Archive `softwarelibrary-x68k` 的 `daikoukai_jidai_19xx_koei_disk_x68k`（Mai、Umi 2 片 DIM，各有一份 `[a]`，檔案相同）。和 `koukai-pc98` 的頭像、人名、色盤完全相同，kaodata 只在 `koukai-pc98` 標上 X68000 版：
+
+- Umi 片的 `KAO.PUT`、`NEWGAME.DAT`、`COLOR.CIM` 和 PC-98 逐 byte 相同（`BDAT.DAT` 不同）。
+- 沒有 `SHINARIO.CIM`：劇本資料在 Mai 片的 `KMAIN.Z`（未壓縮）裡，女性與男性表在 PC-98 `SHINARIO.CIM` 位置減 0xA 的地方（男性 0x8F6），0x7B0–0xC34 逐 byte 相同。
+- 色盤：`KMAIN.Z` 檔案 0x25C2 起是數位文字色盤 `0001 003F 07C1 07FF F801 F83F FFC1 FFFF`（bit 0 藍、bit 1 紅、bit 2 綠），和 PC-98 的數位 8 色相同。
+- `VER.DAT` 是編碼過的，沒有解讀。
+
 ## PC-88 版（`koukai-pc88`）
 
 `dekoei.py export koukai-pc88` 用到的差異（`build_koukai_dos(pc88=True)`）。
