@@ -1465,9 +1465,11 @@ GENGHIS_DOS_NAME_HISTORICAL = {
     "江宗": "襄宗",              # English "Chiang Tsung" = Xi Xia Xiangzong (inferred)
     "摩柯末": "摩訶末",          # 《元史》
 }
+GENGHIS_PC88_NAME_HISTORICAL = {"江宗": "襄宗"}  # as GENGHIS_DOS_NAME_HISTORICAL; the others are right on PC-88
 
 
-def build_genghis_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_genghis_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """Also the PC-88 original (`pc88`): KAO.DAT and MONTER.DAT are the same files, the people tables differ."""
     files = {}
     for name in GENGHIS_DOS_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1508,8 +1510,10 @@ def build_genghis_dos(game_dir: str) -> tuple[dict, list[bytes]]:
                     "code": f"{code:04X}"}
         return {"portrait": code}
 
-    m = koei_games.load_genghis_dos_people(os.path.join(game_dir, "MDATA.CIM"))
-    s = koei_games.load_genghis_dos_people(os.path.join(game_dir, "SDATA.CIM"))
+    load = koei_games.load_genghis_pc88_people if pc88 else koei_games.load_genghis_dos_people
+    name_historical = GENGHIS_PC88_NAME_HISTORICAL if pc88 else GENGHIS_DOS_NAME_HISTORICAL
+    m = load(os.path.join(game_dir, "MDATA.CIM"))
+    s = load(os.path.join(game_dir, "SDATA.CIM"))
     assert m["woman"] == s["woman"]
     # genghis-fc order: Mongol rulers, family, sons; world rulers, family, sons; women;
     # then the generals (not in FC), Mongol then world; a name already listed is skipped
@@ -1523,8 +1527,8 @@ def build_genghis_dos(game_dir: str) -> tuple[dict, list[bytes]]:
                 continue
             seen[name] = faces
             ch = {"id": len(characters), "name": name}
-            if name in GENGHIS_DOS_NAME_HISTORICAL:
-                ch["nameHistorical"] = GENGHIS_DOS_NAME_HISTORICAL[name]
+            if name in name_historical:
+                ch["nameHistorical"] = name_historical[name]
             ch["face"] = face(faces[0])
             extra = []
             for f, label in zip(faces[1:], ("笑", "哭")):  # women: normal, smile, cry
@@ -1536,12 +1540,14 @@ def build_genghis_dos(game_dir: str) -> tuple[dict, list[bytes]]:
             characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "genghis-dos", "game": "GENGHIS", "platform": "DOS",
+        "format": FORMAT, "id": "genghis-pc88" if pc88 else "genghis-dos", "game": "GENGHIS",
+        "platform": "PC88" if pc88 else "DOS",
         "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
+                     {"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -3890,7 +3896,8 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98, "nobu3-pc88": build_nobu3_pc88, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98, "nobu3-pc88": build_nobu3_pc88,
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),

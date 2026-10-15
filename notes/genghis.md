@@ -35,6 +35,22 @@
 - `nameHistorical`：菲利浦一世→菲利浦二世（FC 是フィリップ2せい）、北鞗政子→北條政子、偪山重忠→畠山重忠（缺字）、斡鄰勒→脫斡鄰勒（少字）、摩柯末→摩訶末、江宗→襄宗（英文版 Chiang Tsung，推斷是西夏襄宗）。
 - 未決定、沒填：高麗（英文版 Ghori）、合欽、岐國。
 
+## PC-88 版（`genghis-pc88`）
+
+`dekoei.py export genghis-pc88` 用到的差異（`build_genghis_dos(pc88=True)`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Aoki Ookami to Shiroki Mejika - Genghis Khan/Aoki Ookami to Shiroki Mejika - Genghis Khan [FD].7z`。附帶的說明檔寫的是「with サウンドウェア」版，V2 模式，1988-01。`[Set 1]` 的資料檔相同。
+
+- 磁碟：D88 每軌 9 × 512 bytes。Disk A 是 YDOS 3.0，B、C 是 FAT12。`games/genghis-pc88/` 放的是 B 片的 `KAO.DAT`、`MONTER.DAT`、`MDATA.CIM`，C 片的 `SDATA.CIM`，以及參考用的 A 片 `MAIN.COM`。B、C 兩片的 `KAO.DAT`、`MONTER.DAT` 相同。
+- 版本：B、C 片只有 `Copyright (C) 1987 by KOEI`，沒有版號字串。
+- `KAO.DAT`（83 × 960）和 `MONTER.DAT` 都和 DOS 版**逐 byte 相同**，DOS 版直接沿用了 PC-88 的 200 線圖。頭像、組合臉的 variant 與 code 照 DOS 版匯出，只換成數位 8 色（`SAN2_JP_PALETTE`，palette id `pc88`）。膚色重著色（碼的 bit 12–14）沿用 DOS 版的結論，沒有在 PC-88 程式裡另外追。
+- 人物：記錄比 DOS 版短，姓名在 +0（Shift-JIS，大多是片假名，NFKC 正規化，去掉姓名間的空白），後面接頭像碼（`koei_games.load_genghis_pc88_people`）：
+  - 君主 0x1D1，27 × 33 bytes，頭像碼 +29
+  - 繼承人 0x54C，4 組 × 5 × 31 bytes（每組 155），+29
+  - 部將 0x7ED，26 × 22 bytes，+20
+  - 子女 0xA29，4 組 × 5 × 21 bytes（每組 105），+19
+  - 女性 0x1806，40 × 24 bytes，+18／+20／+22
+- 人數、頭像碼和 DOS 版逐筆相同，排序與去重規則也相同：152 人，`id` 和 `genghis-dos` 一致。
+- `nameHistorical`：只填江宗→襄宗。DOS 版的其他幾筆在 PC-88 版是對的（フィリップ2世、北条政子、畠山重忠、ムハンマド）。トオリオルカン是音譯的寫法不同，不填。
+
 ## 發行年份
 
-- 英文 DOS 版 1989（部分資料 1990）；原版 PC-98 1987-12；中文版 MAIN.EXE 1993-04。
+- 英文 DOS 版 1989（部分資料 1990）；原版 PC-98 1987-12；PC-88 1988-01（說明檔，with サウンドウェア版）；中文版 MAIN.EXE 1993-04。

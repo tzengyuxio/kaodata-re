@@ -619,6 +619,31 @@ def load_genghis_dos_people(cim) -> dict[str, list[tuple[str, list[int]]]]:
                                        for j in range(faces)]))
     return out
 
+
+# PC-88: kind -> (offset, groups, group size, records, record size, face offset); the name (Shift-JIS) is at +0
+GENGHIS_PC88_TABLES = {"ruler": (0x1D1, 1, 0, 27, 33, 29), "family": (0x54C, 4, 155, 5, 31, 29),
+                       "son": (0xA29, 4, 105, 5, 21, 19), "general": (0x7ED, 1, 0, 26, 22, 20),
+                       "woman": (0x1806, 1, 0, 40, 24, 18)}
+
+
+def load_genghis_pc88_people(cim) -> dict[str, list[tuple[str, list[int]]]]:
+    """As load_genghis_dos_people, for the PC-88 MDATA.CIM / SDATA.CIM (same people and face codes)."""
+    with open(cim, 'rb') as f:
+        data = f.read()
+    out = {}
+    for kind, (off, groups, gsize, n, size, face) in GENGHIS_PC88_TABLES.items():
+        out[kind] = []
+        for g in range(groups):
+            for i in range(n):
+                o = off + g * gsize + i * size
+                if data[o]:
+                    faces = 3 if kind == "woman" else 1
+                    out[kind].append((unicodedata.normalize("NFKC", data[o:o + face].split(b'\0')[0].decode('cp932'))
+                                      .replace(" ", ""),
+                                      [int.from_bytes(data[o + face + 2 * j:o + face + 2 * j + 2], 'little')
+                                       for j in range(faces)]))
+    return out
+
 def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
     """(name, face code) per scenario (SNDATA1, SNDATA2): 44-byte records from 0xD38, surname 11 bytes,
     given name 11 bytes, +0x21 face code."""
