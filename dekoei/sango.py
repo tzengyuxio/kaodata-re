@@ -269,10 +269,10 @@ SAN5_PC98_GAIJI = {
 }
 
 
-def load_san5_persons(sndata, taiki, pc98=False) -> list[tuple[int, str, int]]:
-    """(scenario, name, face code) of every person record: SNDATA.S5 then TAIKI.S5 for scenarios 1-12.
+def load_san5_persons(sndata, taiki, pc98=False, tail=1100) -> list[tuple[int, str, int]]:
+    """(scenario, name, face code) of every person record: SNDATA.S5 then TAIKI.S5 for each scenario.
 
-    SNDATA's person table ends 1100 bytes before the end of each scenario, 38 bytes per person
+    SNDATA's person table ends `tail` bytes before the end of each scenario (PK 1100, base game 64), 38 bytes per person
     (name 10 bytes, face u16 at +30); TAIKI is 69-byte records with the same 38 bytes at +31.
     PC-98: the name is 8 bytes Shift-JIS + NUL, then the reading in half-width kana at +9.
     """
@@ -286,7 +286,7 @@ def load_san5_persons(sndata, taiki, pc98=False) -> list[tuple[int, str, int]]:
 
     persons = []
     for scenario, part in enumerate(san5_parts(sndata), 1):
-        end = start = len(part) - 1100
+        end = start = len(part) - tail
         while start >= 38 and is_person(part[start - 38:start]):
             start -= 38
         persons += [person(scenario, part[o:o + 38]) for o in range(start, end, 38)]

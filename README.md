@@ -110,6 +110,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `san4pk-pc98` | 三國志IV 威力加強版           | PC-98      |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
+| `san5-pc98`  | 三國志V                        | PC-98      |  500 |  733 |        | [notes/san5.md](notes/san5.md)     |
 | `eiketsu-dos` | 三國志英傑傳                 | DOS 中文版 |  264 |  240 |        | [notes/eiketsu.md](notes/eiketsu.md) |
 | `koumei-win` | 三國志孔明傳                   | Win 中文版 |  240 |  288 |        | [notes/koumei.md](notes/koumei.md) |
 | `eiketsu3-win` | 毛利元就傳                   | Win 中文版 |  201 |  332 |        | [notes/eiketsu3.md](notes/eiketsu3.md) |

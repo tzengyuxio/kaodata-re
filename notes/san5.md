@@ -97,8 +97,13 @@
 - 未使用頭像和 DOS 相同（新武將挑臉在 0x839F8 等處）。事件人物的名字表在 DGROUP 0x35BA：500 献帝、501 貂蝉、502–505 民衆、506 使者、507 兵士，對應同樣是推斷的。
 - 發行年份：PK PC-9801 版 1996-07-19（ja.wikipedia〈三國志V〉）。
 
-## PC-98 本體（`san5-pc98`，未匯出）
+## PC-98 本體（`san5-pc98`）
 
 - `games/san5-pc98/` 只有安裝片：`INSTALL.EXE`（KOEI Install Program Ver 2.1）照 `INSTALL.SYS` 的 `UNPACK DPACKn.S5` 解出 7 個包。
 - DPACK 用 `dekoei/dpack.py` 解開（格式見 [dpack.md](dpack.md)），解出的檔放在 `games/san5-pc98/`：64 個檔和 `san5pk-pc98` 的同名檔相同，KAODATA.S5 是 PK 版的前段。
+- `dekoei.py export san5-pc98` 用 `build_san5pk(pc98=True, pk=False)`：
+  - KAODATA.S5 是 733 張（PK 的 0–732），沒有 KAOEX.S5。
+  - 劇本只有 7 個；SNDATA.S5 每個劇本的人物表後面只接 64 bytes（PK 是 1100），`sango.load_san5_persons(tail=64)`。TAIKI.S5 的記錄格式相同。人物（500 人）、名字、頭像碼都和 PK 相同。
+  - 新武將挑臉（MAIN.EXE 檔案 0x79830）：起點 0x1FC（508），旗標為 0 時加 0x75（625），每頁 32 張，第 4 頁男 21 張、女 12 張，所以是男 508–624、女 625–732，沒有 PK 的 733–782。
+  - 頭像色盤在 MAIN.EXE 檔案 0x49E2A，值和 PK 相同。
 - PC-98 本體 1995-12-15 發行。

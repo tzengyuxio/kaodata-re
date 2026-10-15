@@ -697,22 +697,28 @@ SAN5PK_PC98_NAME_PICK = {199: "盧植"}
 # historical spelling by face code
 SAN5PK_NAME_HISTORICAL = {56: "孔伷", 467: "龐羲"}
 SAN5PK_PC98_NAME_HISTORICAL = {467: "龐羲"}
+# base game (PC-98): no KAOEX.S5; 7 scenarios whose SNDATA person table ends 64 bytes before the end
+SAN5_PC98_INPUTS = ["KAODATA.S5", "SNDATA.S5", "TAIKI.S5"]
+SAN5_PC98_SNDATA_TAIL = 64
 
 
-def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+def build_san5pk(game_dir: str, pc98: bool = False, pk: bool = True) -> tuple[dict, list[bytes]]:
+    """pk=False: the base game (PC-98 only), without KAOEX.S5 and the PK faces 733-782."""
+    inputs = SAN5PK_INPUTS if pk else SAN5_PC98_INPUTS
     files = {}
-    for name in SAN5PK_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     # KAOEX.S5 (borrowed faces) goes in its own blob
-    store = ImageStore(["portraits.bin", "extra.bin"])
+    store = ImageStore(["portraits.bin", "extra.bin"] if pk else ["portraits.bin"])
 
-    kao = files["KAODATA.S5"] + files["KAOEX.S5"]
+    kao = files["KAODATA.S5"] + files.get("KAOEX.S5", b"")
     portraits = [{"img": store.add(*san3_pixels(kao[i:i + sango.SAN5_FACE], True),
                                    blob=int(i >= len(files["KAODATA.S5"]))),
                   "code": f"{i // sango.SAN5_FACE:04X}"} for i in range(0, len(kao), sango.SAN5_FACE)]
     for i, group in SAN5PK_PORTRAIT_GROUPS.items():
-        portraits[i]["group"] = group
+        if i < len(portraits):
+            portraits[i]["group"] = group
     for p in portraits[len(files["KAODATA.S5"]) // sango.SAN5_FACE:]:
         p["group"] = SAN5PK_EXTRA_GROUP
     for i, name in (SAN5PK_PC98_PORTRAIT_NAMES if pc98 else SAN5PK_PORTRAIT_NAMES).items():
@@ -723,7 +729,8 @@ def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     seen = set()
     pick = SAN5PK_PC98_NAME_PICK if pc98 else {}
     for _, name, code in sango.load_san5_persons(os.path.join(game_dir, "SNDATA.S5"),
-                                                  os.path.join(game_dir, "TAIKI.S5"), pc98):
+                                                  os.path.join(game_dir, "TAIKI.S5"), pc98,
+                                                  tail=1100 if pk else SAN5_PC98_SNDATA_TAIL):
         if code in seen:
             continue
         seen.add(code)
@@ -735,11 +742,12 @@ def build_san5pk(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "san5pk-pc98" if pc98 else "san5pk-dos", "game": "SAN5PK",
-        "platform": "PC98" if pc98 else "DOS",
-        "title": {"ja": "三國志V with パワーアップキット", "zh": "三國志V 威力加強版"},
+        "format": FORMAT, "id": ("san5pk" if pk else "san5") + ("-pc98" if pc98 else "-dos"),
+        "game": "SAN5PK" if pk else "SAN5", "platform": "PC98" if pc98 else "DOS",
+        "title": {"ja": "三國志V with パワーアップキット", "zh": "三國志V 威力加強版"} if pk
+        else {"ja": "三國志V", "zh": "三國志V"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN5PK_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN5PK_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": SAN5PK_PALETTE}],
@@ -2990,6 +2998,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san4pk-dos": lambda game_dir: build_san4(game_dir, pk=True),
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
+            "san5-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True, pk=False),
             "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
@@ -3010,7 +3019,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san5-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
