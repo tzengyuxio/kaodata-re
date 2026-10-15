@@ -29,13 +29,13 @@ def get_codes(data: bytes) -> list[int]:
     return codes
 
 
-def recover(codes: list[int], dictionary: bytes) -> bytes:
+def recover(codes: list[int], dictionary: bytes, min_copy: int = 3) -> bytes:
     """從字典索引值與字典還原原始數據"""
     recover_data = bytearray()
     delta = 0
     for code in codes:
         if delta > 0:
-            nc = 3 + code  # number of copy
+            nc = min_copy + code  # number of copy
             for _ in range(nc):
                 pos = len(recover_data) - delta
                 try:
@@ -110,6 +110,16 @@ def cz11_decode(data: bytes) -> bytes:
         raise ValueError('not a CZ11 file')
     size = int.from_bytes(body[4:8], LS11_ENDIAN) + int.from_bytes(body[8:12], LS11_ENDIAN)
     return recover(get_codes(body[0x126:]), body[0x24:0x124])[:size]
+
+
+def cz10_decode(data: bytes) -> bytes:
+    """As cz11_decode, for CZ10 (三国志III, 太閤立志伝 MAIN.Z, unpacked by SYS/IPL101.R): the copy length is the
+    code itself, without the 3 added."""
+    body = data[0x1C:]
+    if body[:4] != b'CZ10':
+        raise ValueError('not a CZ10 file')
+    size = int.from_bytes(body[4:8], LS11_ENDIAN) + int.from_bytes(body[8:12], LS11_ENDIAN)
+    return recover(get_codes(body[0x126:]), body[0x24:0x124], min_copy=0)[:size]
 
 
 def lw11_decode_files(data: bytes) -> dict[str, bytes]:

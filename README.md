@@ -159,6 +159,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |
 | `taikoh-dos` | 太閤立志傳                     | DOS 中文版 |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh-pc98` | 太閤立志伝                    | PC-98      |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
+| `taikoh-x68`  | 太閤立志伝                    | X68000     |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `taikoh2-pc98` | 太閤立志伝II                 | PC-98      |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |

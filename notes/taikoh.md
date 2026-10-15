@@ -58,3 +58,11 @@
 - 色盤：類比模式（DGROUP [0xCCCE] ≠ 0）由 0x61D8 淡入 DGROUP 0x7E96 的 8 色，就是 DOS 版 DGROUP 0x8468 的同一張表（B、R、G 各 4 bit；0x6041 組成 `R << 4 | G << 8 | B`，0x14AC 寫 port 0xAE／0xAC／0xAA），換算 v × 17：`#000000 #2266aa #ff5500 #ff66bb #44cc44 #00ccff #ffdd00 #ffffff`。
 - 人物：開局 241 人在 DGROUP 0xB8C、女性在 DGROUP 0x776，記錄格式和 `TBS.DAT` 都同 DOS，姓名是 Shift-JIS，用半形／全形空白排版（「於  市」「美　称」），匯出時去掉（`koei_games.load_taikoh_pc98_persons`／`load_taikoh_pc98_women`）。713 筆的頭像碼和 DOS 版完全相同，匯出同樣是 739 人。
 - DOS 中文版缺字、錯字的名字在日文版都正確（畠山、北畠、榊原、垪和、脇坂、長束、宍戸、樋口），不填 `nameHistorical`。
+
+## X68000 版（`taikoh-x68`）
+
+- 來源：Internet Archive `taikou_risshiden_1992_koei_dis_x68k`（`games/archives/x68000/ia-softwarelibrary/`）。Disk A 的 MAIN.Z、VER68，Disk B 的 TBS.DAT，Disk C 的 KAO.PUT、MONTA.PUT、HIME.PUT 放在 `games/taikoh-x68/`。
+- MONTA.PUT、HIME.PUT、TBS.DAT 和 PC-98 版逐 byte 相同。KAO.PUT 的前 228 張也相同，後面多一格 1920 bytes 的花紋圖（不是臉），匯出時不收。
+- MAIN.Z 是 CZ10 壓縮（`ls11.cz10_decode`），解開的映像從 0x3FFFA 起算（由 `jsr` 目標推得）。
+- 人物：開局 241 人在映像 0x5FE7E，每筆 0x4A bytes，頭像碼是 +14 的大端序 u16；女性在 0x5FA32，每筆 14 bytes，頭像在 +8（大端序）。TBS.DAT 是 PC-98 的檔案，頭像碼照樣用小端序。姓名與頭像碼和 PC-98 版完全相同（`koei_games.load_taikoh_x68_persons`／`load_taikoh_x68_women`）。
+- 色盤：映像 0x5EB9E 是同一張 B、R、G 4 bit 表；0x43340（[$A9434] ≠ 0 的類比模式）淡入時組成 `G << 12 | R << 7 | B << 2`，寫到 E82200，也就是 5 bit 的 2v。換算 `2v << 3 | 2v >> 2`：`#000000 #2163A5 #F75200 #F763B5 #42C642 #00C6F7 #F7D600 #F7F7F7`。數位模式那條路徑沒有收。

@@ -107,7 +107,7 @@
 `dekoei.py export san3-x68` 用 `build_san3(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `sangokushi_iii_1992_koei_disk_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片 DIM，A 片另有一份 `[a]`，檔案相同）。A 片的 `KAODATA.DAT`、`MONTAGE.DAT`、`MAIN.Z`、`CONFIG.SYS` 與 C 片的 `SNDATA1–6.CIM` 放在 `games/san3-x68/`。`CONFIG.SYS` 寫 `三國志Ⅲ For X68000 Series MAY.29,1992 Ver 1.1`。
 
 - `KAODATA.DAT`、`MONTAGE.DAT` 和 PC-98 版逐 byte 相同。
-- `MAIN.Z` 是 CZ10 壓縮，由 `SYS/IPL101.R` 解開。格式同覇王伝的 CZ11（見 `notes/nobu5.md`），差別是 CZ10 以 32 bit 為單位讀位元，而且複製長度直接是碼值，不加 3。解開的映像從基底 0x514FA 起算。匯出不需要它，只用來查色盤。
+- `MAIN.Z` 是 CZ10 壓縮，由 `SYS/IPL101.R` 解開。格式同覇王伝的 CZ11（見 `notes/nobu5.md`），差別是 CZ10 以 32 bit 為單位讀位元，而且複製長度直接是碼值，不加 3。解開的映像從基底 0x514FA 起算。匯出不需要它，只用來查色盤（解碼見 `ls11.cz10_decode`，太閤立志伝 X68000 版用到）。
 - 色盤：映像 0x66E2C（`$B8326`，0x2A14 載入後由 0x2900 寫進文字色盤）是 16 組 B、R、G 各 5 bit 的值，色號 0–7 是 PC-98 那組 4 bit 色 v 換成 2v＋1，例如 `#0044FF` 變成 `#004aff`。
 - 人物：C 片的 `SNDATA1–6.CIM`（不是 `SNDATA?B.CIM`；X68000 的 `?B` 檔是別的資料）。這幾個檔是壓縮過的（`san3.unpack_x68_sndata`，MAIN.Z 0x15136）：位元從高位讀起，先讀 1 byte、1 byte 填充值、4 bytes LE 長度，之後每個 byte 是 1 bit 表示填充值，或 0 bit 加 8 bit。解開後的 600 筆記錄和 PC-98 `SNDATA?B.CIM` 相同，只是加了 68000 的補位：0x1B72 起每筆 72 bytes，頭像碼是 +2 的大端序 u16，姓名在 +0x39（`san3.load_san3_x68_persons`）。第 601 筆是全 0xFF 的終止記錄。
 - 和 PC-98 比：每個頭像碼對應的人都相同，但修正了 4 個錯字（鐘繇→鍾繇、鐘進→鍾進、鐘会→鍾会、諸葛謹→諸葛瑾），所以這 4 人不填 `nameHistorical`（`SAN3_X68_NAME_HISTORICAL`）。劇本 1 的車胄改用另一個組合臉碼（0x9831，PC-98 劇本 1 是 0x82CB），所以照首次出現排的人物 id 和 PC-98 版差一位。

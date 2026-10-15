@@ -1409,6 +1409,34 @@ def load_taikoh_pc98_women(main_exe) -> list[tuple[str, int]]:
     return [(_sjis_name(main[o + i * 12:o + i * 12 + 6]), main[o + i * 12 + 7]) for i in range(30)]
 
 
+# X68000 MAIN.Z is CZ10 packed; in the unpacked image the same records have 68000 padding and big-endian faces:
+# people 0x4A bytes from 0x5FE7E (face +14), women 14 bytes from 0x5FA32 (face +8, 0xFF none)
+TAIKOH_X68_PEOPLE = 0x5FE7E
+TAIKOH_X68_PERSON = 0x4A
+TAIKOH_X68_WOMEN = 0x5FA32
+
+
+def load_taikoh_x68_persons(main_z, tbs) -> list[tuple[str, int]]:
+    """As load_taikoh_pc98_persons; TBS.DAT is the PC-98 file, little-endian faces and all."""
+    import ls11
+    with open(main_z, "rb") as f:
+        main = ls11.cz10_decode(f.read())
+    with open(tbs, "rb") as f:
+        later = f.read()
+    people = [(_sjis_name(main[o:o + 6]) + _sjis_name(main[o + 7:o + 13]), int.from_bytes(main[o + 14:o + 16], "big"))
+              for o in range(TAIKOH_X68_PEOPLE, TAIKOH_X68_PEOPLE + 241 * TAIKOH_X68_PERSON, TAIKOH_X68_PERSON)]
+    return people + _taikoh_persons(later, 0, len(later) // TAIKOH_DOS_PERSON, _sjis_name)
+
+
+def load_taikoh_x68_women(main_z) -> list[tuple[str, int]]:
+    import ls11
+    with open(main_z, "rb") as f:
+        main = ls11.cz10_decode(f.read())
+    o = TAIKOH_X68_WOMEN
+    return [(_sjis_name(main[o + i * 14:o + i * 14 + 6]), int.from_bytes(main[o + i * 14 + 8:o + i * 14 + 10], "big"))
+            for i in range(30)]
+
+
 TAIKOH2_WIN_PERSON = 59  # BSDATA*.TR2 record: surname, given name, ..., u16 person number at +16
 TAIKOH2_WIN_DATA = 0x500000 - 0xFE800  # Taik2w95.exe .data: VA - this = file offset
 
