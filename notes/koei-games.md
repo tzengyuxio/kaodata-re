@@ -279,7 +279,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ### PC-88 版（`ishin-pc88`）
 
-`dekoei.py export ishin-pc88` 用到的差異（`build_ishin_pc98(pc88=True)`）。PC-88 是首發平台。
+`dekoei.py export ishin-pc88` 用到的差異（`build_ishin_pc98(pc88=True)`）。PC-88 版 1989 年 4 月（ja.wikipedia，在 PC-98 之後）。
 
 - 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Ishin no Arashi/`，用「[FD]」的 Disk A–C。「[FD] [Set 1]」只有 A 片的 `EXT.DAT`、`MAIN.OVL` 不同。
 - 磁碟：每軌 9 × 512 bytes，Disk A 是 YDOS 3.0，B、C 是 FAT12。檔案日期都是 1989-04-10，沒有版本字串。
@@ -290,7 +290,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - `MONDAT.DAT` 和 PC-98 逐 byte 相同。臉記錄是 5 bytes（`MAIN.COM` 0x3575）：w0–w7 是 b0–b3 的 nibble，w8＝b4 >> 4，鬍子＝b4 bit 3，鉢卷＝b4 bit 2，沒有 y 位移。匯出時換成 y 位移 0 的 PC-98 記錄（`ishin_pc88_record`）共用同一套部件，`face.code` 是 5 bytes 的十六進位，KAODAT 頭像的 `code` 是 `FFnn000000`。
 - 人物：`SHINARIO.OVL` 有 2 個劇本，名 9 bytes 在 0xA90／0x3490，臉記錄 5 bytes 在 0x275F／0x515F（兩劇本相同）；姓 7 bytes 在 `MAIN.COM` 0x47AB（`koei_games.load_ishin_pc88_persons`）。id 0–200 是史實人物，外字同 PC-98。
   - 劇本 2 有兩筆換成繼任者：53 松平春猷 → 松平定敬、63 浅野斎粛 → 浅野長訓，用同一張臉，匯出成另外的人物 201、202。
-  - id 順序和 PC-98 不同。201 人中 179 人的名字和 PC-98 相同；徳川慶勝、副島種臣、村田新八在 PC-98 寫成徳川義勝、福島種臣、村田信八，其他 19 人（大島高任、山本覚馬、永倉新八等）PC-98 沒有。
+  - id 順序和 PC-98 不同。201 人中 179 人的名字和 PC-98 相同；徳川慶勝、副島種臣、村田新八在 PC-98 寫成徳川義勝、福島種臣、村田信八（ishin-pc98 填 `nameHistorical`，`ISHIN_PC98_NAME_HISTORICAL`），其他 19 人（大島高任、山本覚馬、永倉新八等）PC-98 沒有。
 - 色盤：數位 8 色（同 `ISHIN_PC98_PALETTE`，palette id `pc88`）。
 
 ## ロイヤルブラッド（ROYAL, PC-98 日文版）

@@ -2194,6 +2194,8 @@ ISHIN_PC98_LAYERS = {
     "band": ("鉢卷", 0xB040, 1, 40, 0, 15, None),  # drawn when w15 is set
 }
 ISHIN_PC98_SHIFTS = range(-2, 2)  # y-offset fields are 2 bits - 2
+# misspelt names (the PC-88 version spells them right)
+ISHIN_PC98_NAME_HISTORICAL = {"徳川義勝": "徳川慶勝", "福島種臣": "副島種臣", "村田信八": "村田新八"}
 
 
 def ishin_pc98_fields(rec: bytes) -> list[int]:
@@ -2298,6 +2300,8 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
     for name, recs in [] if pc88 else koei_games.load_ishin_pc98_persons(os.path.join(game_dir, "ISIN.EXE"),
                                                          os.path.join(game_dir, "SHINARIO.DAT")):
         ch = {"id": len(characters), "name": name, "face": face(recs[0])}
+        if name in ISHIN_PC98_NAME_HISTORICAL:
+            ch["nameHistorical"] = ISHIN_PC98_NAME_HISTORICAL[name]
         # a few people have another face in a later scenario
         looks = []
         for s, rec in enumerate(recs):
