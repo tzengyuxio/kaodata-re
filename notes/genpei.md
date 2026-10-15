@@ -61,5 +61,5 @@
 
 - `MAINPAL.PLD`、`MONTAGE.GP`、`HAIKEI.GP`、`KAODATA.GP` 和 DOS 版逐 byte 相同，匯出的 `pixels.bin`、`portraits.bin` 也和 `genpei-dos` 相同。
 - `MAIN.EXE` 沒有壓縮（MZ 檔頭 0x5490 bytes），組合表（3 筆 × 0x26 bytes，格式同上）在檔案 0x5DAF4，內容和 DOS 的相同。
-- `SNDATA.GP` 格式相同，400 人的頭像碼和 DOS 完全一致；名字只有 393 不同：DOS「宋商人」、PC-98「宗商人」（照錄）。
+- `SNDATA.GP` 格式相同，400 人的頭像碼和 DOS 完全一致；名字只有 393 不同：DOS「宋商人」、PC-98「宗商人」（照錄，`nameHistorical` 填宋商人）。
 - 兩版的名字都有用空白補齊的（かむろ、賊、吉次、商人、静、政子、白拍子等），`load_generals` 現在會去掉尾端空白；本機沒有 DOS 原版檔，`genpei-dos` 還沒重新匯出。

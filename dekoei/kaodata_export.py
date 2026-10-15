@@ -180,6 +180,8 @@ GENPEI_PART_COUNT = {"head": 8, "body": 8, "eyes": 16, "mouth": 16}
 # PC-98: the same Mainpal/Montage/Haikei/Kaodata files; MAIN.EXE is not packed and has the composition table at
 # file 0x5DAF4; SNDATA.GP has the same layout and face codes
 GENPEI_PC98_MONTAGE_TABLE = 0x5DAF4
+# PC-98 393 is written 宗商人, a look-alike typo of 宋商人 (the Song merchant; DOS has it right)
+GENPEI_NAME_HISTORICAL = {"宗商人": "宋商人"}
 
 
 def build_genpei(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
@@ -216,6 +218,8 @@ def build_genpei(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     for g in scenarios[0]:
         ch = {"id": g["id"], "name": g["surname"] + g["given"],
               "reading": f"{kana_to_hiragana(g['surname_kana'])} {kana_to_hiragana(g['given_kana'])}".strip()}
+        if ch["name"] in GENPEI_NAME_HISTORICAL:
+            ch["nameHistorical"] = GENPEI_NAME_HISTORICAL[ch["name"]]
         code = g["face"]
         if code < len(portraits):
             ch["face"] = {"portrait": code, "bg": (g["id"] >> 1) % 5}
