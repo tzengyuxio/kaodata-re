@@ -1354,6 +1354,54 @@ def load_tk3_pc98_leaders(message_tk3: bytes) -> list[str]:
     return texts[start:start + TK3_PC98_LEADERS]
 
 
+# 信長の野望・覇王伝 (PC-98): SN1-3.NB5 are XOR 0xB4; people at 0xAE4, 460 slots of 39 bytes:
+# [family 7][given 7, Shift-JIS, NUL padded]...[0xFF at +22]...[face u16 at +29]; empty slots start with 0.
+# S1T-S3T.NB5 (not XORed) are the later arrivals of each scenario, 30-byte records:
+# [u8 year][...][family 7 at +4][given 7 at +11]...[face u16 at +26]; trailing records are blank.
+NOBU5_PC98_XOR = 0xB4
+NOBU5_PC98_PEOPLE = 0xAE4
+NOBU5_PC98_SLOTS = 460
+NOBU5_PC98_PRINCESSES = 0x6A9E  # SN copy of DS:0x6AE8, 36 x 14 bytes, 8-byte name at +8 (face 878 + index)
+NOBU5_PC98_PRINCESS_COUNT = 36
+# KOEI gaiji (KANJI.NB5, 16x16) used in family names
+NOBU5_PC98_GAIJI = {b"\xec\x8c\xec\x8d\xec\x8e": "長宗我部", b"\xec\x8f\xec\x8d\xec\x8e": "香宗我部"}
+
+
+def _nobu5_pc98_name(raw: bytes) -> str:
+    raw = raw.split(b"\0")[0]
+    for code, text in NOBU5_PC98_GAIJI.items():
+        if raw.startswith(code):
+            return text + raw[len(code):].decode("cp932")
+    return raw.decode("cp932")
+
+
+def load_nobu5_pc98_scenario(sn: bytes) -> list[tuple[str, int]]:
+    """(name, face) of a SN*.NB5 people table."""
+    data = bytes(b ^ NOBU5_PC98_XOR for b in sn)
+    persons = []
+    for o in range(NOBU5_PC98_PEOPLE, NOBU5_PC98_PEOPLE + NOBU5_PC98_SLOTS * 39, 39):
+        if data[o]:
+            persons.append((_nobu5_pc98_name(data[o:o + 7]) + _nobu5_pc98_name(data[o + 7:o + 14]),
+                            int.from_bytes(data[o + 29:o + 31], "little")))
+    return persons
+
+
+def load_nobu5_pc98_arrivals(st: bytes) -> list[tuple[str, int]]:
+    """(name, face) of a S*T.NB5 table of later arrivals."""
+    persons = []
+    for o in range(0, len(st) - 29, 30):
+        name = _nobu5_pc98_name(st[o + 4:o + 11]) + _nobu5_pc98_name(st[o + 11:o + 18])
+        if name:
+            persons.append((name, int.from_bytes(st[o + 26:o + 28], "little")))
+    return persons
+
+
+def load_nobu5_pc98_princesses(sn: bytes) -> list[str]:
+    """Names of the 36 princesses (faces 878-913); "" for the unnamed ones."""
+    data = bytes(b ^ NOBU5_PC98_XOR for b in sn)
+    return [_nobu5_pc98_name(data[NOBU5_PC98_PRINCESSES + i * 14 + 8:][:8]) for i in range(NOBU5_PC98_PRINCESS_COUNT)]
+
+
 # 信長の野望・天翔記 (PC-98): name records of 18 bytes, [surname 7][given 7, Shift-JIS][u16 face][u8][u8];
 # MAIN.EXE 0x2372C: person p (1-532) is record p - 1, 0x23824 reads the face at +0x0E
 NOBU6_PC98_PEOPLE = 0x6C8E  # SNDATA.NB6 part (one per scenario): 500 men, then the princesses

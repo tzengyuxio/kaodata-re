@@ -13,7 +13,7 @@
   - nibble 層（高 nibble 先）：
     - 每列開頭一個 mode：0–7 從 x − (mode + 1) 複製；8–15 從第 y − (mode − 7) 列同一欄複製。
     - 每個像素：nibble < 8 是色號；`10ab` 複製 ab + 2 個像素；`11ab` 再接 nibble n，複製 (ab << 4) + n + 6 個像素。
-  - 實作：`nobu6_pc98_face`。
+  - 實作：`nobu_pc98_face`（覇王伝 KAO.NB5 也是同一種壓縮）。
 
 ## 色盤
 
