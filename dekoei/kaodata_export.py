@@ -3879,6 +3879,66 @@ def build_taikoh2_win(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- AIR (PC-98, X68000)
+
+# face sheets in the order of the game's picture table (X68 AM.Z file 0x16F28); each 64x80 face is followed by
+# 3 eye (48x24) and 3 mouth (32x24) animation frames (the makers' only by mouth frames), which are left out
+AIR_FACES = [("FACE_ASI.GDT", "アジア"), ("FACE_USA.GDT", "アメリカ"), ("FACE_EUR.GDT", "ヨーロッパ"),
+             ("FACE_AFR.GDT", "アフリカ"), ("FACE_ARA.GDT", "中東"), ("FACE_MK.GDT", "メーカー")]
+# the makers in game order (AM.Z file 0x1C182, AM98.EXE file 0x41744), one per FACE_MK face
+AIR_MAKERS = ["ブルーウィング", "ダブルリンク", "ミリャーコフ", "エアライナー", "ワールドリース"]
+# PC-98 only: never named by AM98.EXE; 5 maker women drawn differently from FACE_MK
+AIR_PC98_UNUSED = "LADIES.GDT"
+# the in-game palette (0x9EA58 is called with it 17 times): 16 x (G, R, B) 4 bits, X68 AM.Z file 0x111E (words,
+# for colour c ^ 8: the X68 faces are the PC-98 ones with plane 3 inverted; 0x9EA58 doubles each value to 5 bits),
+# PC-98 AM98.EXE file 0x40582 (bytes, the same values for the PC-98 colour numbers)
+AIR_X68_PALETTE = 0x525FC - 0x514DE
+AIR_PC98_PALETTE = 0x40582
+
+
+def build_air(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
+    sheets = AIR_FACES + ([] if x68 else [(AIR_PC98_UNUSED, "未使用")])
+    inputs = [name for name, _ in sheets] + ["AM.Z" if x68 else "AM98.EXE"]
+    files = {}
+    for name in inputs:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    # no face codes or person names: each sheet is loaded as a picture
+    portraits = [{"img": store.add(w, h, px), "group": group}
+                 for name, group in sheets
+                 for w, h, px in koei_games.gdt_images(files[name], big=x68) if (w, h) == (64, 80)]
+    makers = [p for p in portraits if p["group"] == "メーカー"]
+    for p, name in zip(makers, AIR_MAKERS, strict=True):
+        p["name"] = name
+
+    if x68:
+        main = files["AM.Z"]
+        values = [int.from_bytes(main[AIR_X68_PALETTE + 2 * i:][:2], "big") for i in range(48)]
+        colors = ["#" + "".join(f"{v << 4 | v >> 1:02x}" for v in (values[i + 1], values[i], values[i + 2]))
+                  for i in range(0, 48, 3)]
+    else:
+        pal = files["AM98.EXE"][AIR_PC98_PALETTE:][:48]
+        colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i], pal[i + 2])) for i in range(0, 48, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "air-x68" if x68 else "air-pc98", "game": "AIR",
+        "platform": "X68" if x68 else "PC98",
+        "title": {"ja": "エアーマネージメント 大空に賭ける", "zh": "航空霸業"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
+                     {"id": "analog", "label": "類比 RGB", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": [],
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- AIR2 (DOS, Chinese)
 
 # face sheets in resource order; group names from the Chinese AM2IBM.EXE (幹部職員一覽, 秘書, 廠商名)
@@ -4859,7 +4919,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98,
