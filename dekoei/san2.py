@@ -434,17 +434,6 @@ def montage_record(data: bytes, head: int, area: int, record: int) -> bytes:
     return data[pos:pos + size]
 
 
-def compose_montage(data: bytes, code: int) -> bytes:
-    """The game's 960-byte face buffer for a composite code."""
-    face = bytearray(960)
-    for area, shift in enumerate(MONTAGE_SHIFTS):
-        _, size, dest = MONTAGE_AREAS[area]
-        rec = montage_record(data, code & 7, area, code >> shift & 3)
-        for i, b in enumerate(rec):
-            face[dest + i] = b if area < 2 else face[dest + i] | b
-    return bytes(face)
-
-
 # ---------------------------------------------------------------- PC-98 / X68000 (Japanese, see notes/san2.md)
 # KAODATA1/2/3.DAT: full-height 64x80 3bpp faces, 1920 bytes each (95 + 96 + 28 = 219); the montage parts
 # follow in KAODATA3 at 0xD200: 8 heads x 0x37E0 bytes, areas ORed the same way as DOS

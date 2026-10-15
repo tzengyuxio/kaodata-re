@@ -1509,8 +1509,9 @@ def build_nobu4_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes
     portraits = [{"img": store.add(64, 80, pixels(kao[i:i + 1920]), blob=1),
                   "code": f"{i // 1920:04X}"} for i in range(0, len(kao), 1920)]
     for i, (name, group) in NOBU4_DOS_PORTRAITS.items():
-        portraits[i].update(name=NOBU4_PC98_PORTRAITS[i], group="事件人物") if pc98 else \
-            portraits[i].update(name=name, group=group)
+        if pc98:
+            name, group = NOBU4_PC98_PORTRAITS[i], "事件人物"
+        portraits[i].update(name=name, group=group)
     for i in NOBU4_DOS_PRINCESSES:
         portraits[i]["group"] = "姫" if pc98 else "公主"
 
@@ -3320,6 +3321,7 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     }
     return meta, [bytes(b) for b in store.blobs]
 
+
 DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
@@ -3338,7 +3340,8 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu3-pc98": build_nobu3_pc98, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True), "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
+            "nobu3-pc98": build_nobu3_pc98, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
@@ -3349,7 +3352,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san5-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98, nobu6-pc98, nobu3-pc98, nobu4-pc98, nobu5-pc98)")
+@click.command(help=f"匯出 kaodata 統一格式資料集 (DATASET: {', '.join(DATASETS)})")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
