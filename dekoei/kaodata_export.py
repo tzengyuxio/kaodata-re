@@ -3267,6 +3267,13 @@ KOUKAIGD_WIN_OR = ("eyes", "nose", "mouth")
 # portraits 0-5 are the six heroes of 大航海時代II, who appear in the scenario events; names as the
 # speakers in Snr1.mes / Snr2.mes (阿蘭•維斯特 is Al Vezas, "在奧斯曼帝國做生意")
 KOUKAIGD_WIN_II_HEROES = ["約翰•法雷爾", "卡特琳娜•艾蘭茨", "奧托•斯賓諾拉", "恩斯特•洛佩斯", "皮耶德•康迪", "阿蘭•維斯特"]
+# faces only the scenario scripts show (Snr1/Snr2.dat `c0 <side> cc <face>` before a line), named after the
+# speaker; None: an unnamed speaker (152, 153 the heroine's father and mother, 156 劉魁星's mother)
+KOUKAIGD_WIN_SCRIPT_FACES = {
+    36: "馬休", 58: "雅各布•威爾維克", 88: "希爾頓", 135: "基爾•迪•洛伽", 136: "約克", 137: "里貝卡•卡特蘭德", 138: "加斯帕爾•比利",
+    139: "潮見風吉", 140: "劉魁星", 141: "長谷平藏", 142: "羅德里格斯•比戈爾", 143: "岡薩雷斯•比戈爾", 150: "卡秋帕",
+    151: "蒂諾卡托", 152: None, 153: None, 154: "艾絲米拉達", 155: "何塞", 156: None,
+}
 
 
 def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -3318,7 +3325,9 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
         characters.append(ch)
     used = {c["face"]["portrait"] for c in characters if "portrait" in c["face"]}
     for i, p in enumerate(portraits):
-        if i not in used:
+        if i in KOUKAIGD_WIN_SCRIPT_FACES:
+            p.update(group="事件人物", **({"name": KOUKAIGD_WIN_SCRIPT_FACES[i]} if KOUKAIGD_WIN_SCRIPT_FACES[i] else {}))
+        elif i not in used:
             p["group"] = "其他頭像"
 
     meta = {
