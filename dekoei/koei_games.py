@@ -1502,8 +1502,12 @@ TK_PC98_PEOPLE = 40  # 19-byte records: 0-19 Japan, 20-39 the Allies
 TK_PC98_GAIJI = (b"\xeb\xa4", "纒")  # KOEI gaiji in 宇垣纒; glyph in USKCG.SYS (JIS 0x7626)
 
 
-def load_tk_pc98_names(renmain_exe) -> list[str]:
-    """Admiral names from RENMAIN.EXE; the index is also the RENPIC.DAT face.
+TK_PC88_ADMIRALS = 0x7849  # PC-88 YSHELL.COM: the PC-98 records, byte for byte
+
+
+def load_tk_pc98_names(renmain_exe, offset=None) -> list[str]:
+    """Admiral names from RENMAIN.EXE; the index is also the RENPIC.DAT face. The PC-88 YSHELL.COM holds the same
+    records at `offset` TK_PC88_ADMIRALS.
 
     Half-width katakana become full-width; spaces (full-width in 吉川　潔, two half-width in 宇垣　纒) stay
     one full-width space."""
@@ -1511,7 +1515,7 @@ def load_tk_pc98_names(renmain_exe) -> list[str]:
         exe = f.read()
     names = []
     for i in range(TK_PC98_PEOPLE):
-        raw = exe[TK_PC98_ADMIRALS + i * 19:][:19].split(b"\0")[0]
+        raw = exe[(TK_PC98_ADMIRALS if offset is None else offset) + i * 19:][:19].split(b"\0")[0]
         text = TK_PC98_GAIJI[1].join(unicodedata.normalize("NFKC", p.decode("cp932")) for p in raw.split(TK_PC98_GAIJI[0]))
         names.append("　".join(text.split()))
     return names

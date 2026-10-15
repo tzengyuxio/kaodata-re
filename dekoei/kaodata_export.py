@@ -2267,33 +2267,45 @@ TK_PC98_INPUTS = ["RENPIC.DAT", "RENMAIN.EXE"]
 TK_PC98_FACE = 720  # 40x48, 3 bytes per 8 px, byte k = plane k (0xE644 reads one, 0x14dd:0x115 draws it)
 TK_PC98_ARMY = 40  # 0xE644: faces 40 (Japan) and 41 (the Allies) are the side's 陸軍参謀 (0x19F34)
 TK_PC98_PALETTE = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
+# PC-88: KAO.DAT (disk B, opened by HYOUSHI.CIM) is the same 42 people redrawn at 48x32, B, R, G bytes per 8 px
+TK_PC88_INPUTS = ["KAO.DAT", "YSHELL.COM"]
+TK_PC88_FACE = 576
 
 
-def build_tk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_tk_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (its own 48x32 faces, line-doubled; the PC-98 name records)."""
+    inputs = TK_PC88_INPUTS if pc88 else TK_PC98_INPUTS
     files = {}
-    for name in TK_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
-    pic = files["RENPIC.DAT"]
-    # the 288 bytes after the 42 faces are 32x24 icons (0x12410)
-    portraits = [{"img": store.add(40, 48, bytes(genpei.decode_planar(pic, i * TK_PC98_FACE, 40, 48, 3)))}
-                 for i in range(TK_PC98_ARMY + 2)]
+    if pc88:
+        kao = files["KAO.DAT"]
+        portraits = [{"img": store.add(48, 64, brg_pixels(kao[i * TK_PC88_FACE:(i + 1) * TK_PC88_FACE], 6))}
+                     for i in range(TK_PC98_ARMY + 2)]
+    else:
+        pic = files["RENPIC.DAT"]
+        # the 288 bytes after the 42 faces are 32x24 icons (0x12410)
+        portraits = [{"img": store.add(40, 48, bytes(genpei.decode_planar(pic, i * TK_PC98_FACE, 40, 48, 3)))}
+                     for i in range(TK_PC98_ARMY + 2)]
     for i in (TK_PC98_ARMY, TK_PC98_ARMY + 1):
         portraits[i].update(group="陸軍", name="陸軍参謀")
 
     # 0xE644: a face is the admiral's record index ((record - DS:0xC6FC) / 19)
-    characters = [{"id": i, "name": name, "face": {"portrait": i}}
-                  for i, name in enumerate(koei_games.load_tk_pc98_names(os.path.join(game_dir, "RENMAIN.EXE")))]
+    names = (koei_games.load_tk_pc98_names(os.path.join(game_dir, "YSHELL.COM"), koei_games.TK_PC88_ADMIRALS) if pc88
+             else koei_games.load_tk_pc98_names(os.path.join(game_dir, "RENMAIN.EXE")))
+    characters = [{"id": i, "name": name, "face": {"portrait": i}} for i, name in enumerate(names)]
 
     meta = {
-        "format": FORMAT, "id": "tk-pc98", "game": "TK", "platform": "PC98",
+        "format": FORMAT, "id": "tk-pc88" if pc88 else "tk-pc98", "game": "TK", "platform": "PC88" if pc88 else "PC98",
         "title": {"ja": "提督の決断", "zh": "提督之決斷"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TK_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": TK_PC98_PALETTE}],
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": TK_PC98_PALETTE} if pc88 else
+                     {"id": "pc98", "label": "PC98", "colors": TK_PC98_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -3920,6 +3932,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
             "koukai-pc88": lambda game_dir: build_koukai_dos(game_dir, pc88=True),
             "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
+            "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

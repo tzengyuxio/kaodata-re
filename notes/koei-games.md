@@ -306,6 +306,21 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 色盤：程式裡沒有寫色盤 port 0xA8–0xAE 的指令（只有 GDC 的 0xA2、0xA6），用的是預設的 8 色數位色盤。
 - PC-9801 版 1989-09-21（ja.wikipedia）。
 
+### PC-88 版（`tk-pc88`）
+
+`dekoei.py export tk-pc88` 用到的差異（`build_tk_pc98(pc88=True)`）。
+
+- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Teitoku no Ketsudan/`，用 `[FD]` 的 Disk A–D 主組。
+  - Alt 1 的 Disk A/B 只有 `SETTEI.CIM`、`RENMAIN.OVL` 不同（程式修正，沒看）。
+- 磁碟：每軌 9 × 512 bytes。Disk A 是 YDOS 3.0，B、C 是 FAT12。
+- `games/tk-pc88/` 放 Disk B 的 `KAO.DAT`、Disk A 的 `YSHELL.COM`，以及參考用的 `KOEI.C`、`HYOUSHI.CIM`。
+- 版本：`KOEI.C` 寫 `Copyright KOEI 1990. / Ver. 1.00 rel. 1`，檔案日期 1990-08～10-22。
+- 頭像：`KAO.DAT`（由 `HYOUSHI.CIM` 開啟）是 42 張 48×32、每 8 點 B、R、G 3 bytes，不壓縮。匯出用 `pc88.brg_pixels`，逐列加倍成 48×64。
+  - 人物、順序和 PC-98 `RENPIC.DAT` 相同（40、41 也是陸軍参謀），但是另外以 200 線重畫的，不是同一份圖。
+- 色盤：數位 8 色（同 PC-98 的 `TK_PC98_PALETTE`，palette id `pc88`）。沒有找到寫入類比色盤的程式。
+  - 平面順序 B、R、G 是和 PC-98 比對色差最小的排法，和其他 PC-88 作品一致，沒有追畫圖程式。
+- 名字：`YSHELL.COM` 0x7849 起 40 × 19 bytes，和 PC-98 `RENMAIN.EXE` DS:0xC6FC 逐 byte 相同（`load_tk_pc98_names(..., TK_PC88_ADMIRALS)`），`id` 一致。外字 EBA4 照 PC-98 當「纒」，PC-88 的字形沒有確認。
+
 ## 提督の決断II（TK2, PC-98 日文版）
 
 `dekoei.py export tk2-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/archives/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
