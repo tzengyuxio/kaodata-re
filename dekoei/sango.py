@@ -421,6 +421,40 @@ def load_san7_palette(palette) -> list[str]:
     return [f"#{data[4 + i * 4]:02x}{data[5 + i * 4]:02x}{data[6 + i * 4]:02x}" for i in range(256)]
 
 
+# 三國志VIII PK (Steam) "KOEI" archives (g_maindy.s8, p_main.s8): +8 u32 data base, +16 u32 size of the u32 offset
+# table at +0x18; entry n is at base + 12 + offset[n]. g_maindy entries 0-845 are 160x180 faces, 846-1691 the same
+# faces at 64x80; p_main entry 4 is the face palette (256 x RGBX).
+SAN8_FACES = 846
+# D_Sce.s8 (plain): 658 person records of 0x4F bytes from 0x2437; +0 u16 id, +2 surname 5 bytes, +7 its kana 11,
+# +0x12 given name 5, +0x17 its kana 11, +0x22 style name 5 (Shift-JIS, S8gaiji.tte EUDC), +0x27 u16 face number
+SAN8_PERSONS = 0x2437
+SAN8_PERSON_SIZE = 0x4F
+SAN8_GAIJI = {**SAN7_GAIJI, 0xE013: "顗", 0xE025: "璝", 0xE03D: "瓘", 0xE063: "淩"}
+
+
+def koei_archive(data: bytes) -> list[bytes]:
+    base, size = struct.unpack_from("<I", data, 8)[0], struct.unpack_from("<I", data, 16)[0]
+    offsets = list(struct.unpack_from(f"<{size // 4}I", data, 0x18)) + [len(data) - base - 12]
+    return [data[base + 12 + a:base + 12 + b] for a, b in zip(offsets, offsets[1:])]
+
+
+def load_san8_persons(sce) -> list[dict]:
+    """Person records of D_Sce.s8 in id order: id, name, surname/given kana, face number."""
+    with open(sce, "rb") as f:
+        data = f.read()
+
+    def text(b):
+        return "".join(SAN8_GAIJI.get(ord(c), c) for c in b.split(b"\0")[0].decode("cp932").strip())
+
+    persons = []
+    for k in range(658):
+        r = data[SAN8_PERSONS + k * SAN8_PERSON_SIZE:SAN8_PERSONS + (k + 1) * SAN8_PERSON_SIZE]
+        assert int.from_bytes(r[:2], "little") == k
+        persons.append({"id": k, "name": text(r[2:7]) + text(r[0x12:0x17]),
+                        "kana": (text(r[7:0x12]), text(r[0x17:0x22])), "face": int.from_bytes(r[0x27:0x29], "little")})
+    return persons
+
+
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
 # +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
 KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)
