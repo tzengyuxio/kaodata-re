@@ -961,6 +961,85 @@ def build_san1(game_dir: str, dos: bool = False) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN1 (X68000)
+
+SAN1_X68_INPUTS = ["KAODATA", "SAVEDATA", "SANGOKU.PAL"]
+# KAODATA: 48x80 faces of one byte per pixel; 0-64 the characters (6 is used by nobody, 程昱 and 曹丕 both use 7),
+# 65-84 the daughters (SANMAIN.Z 0x626FC: 65 + (... mod 20)); from 0x4FB00 the composite parts (SANMAIN.Z 0x62682)
+SAN1_X68_FACE = 3840
+SAN1_X68_PORTRAITS = 85
+SAN1_X68_PORTRAIT_GROUPS = {6: "未使用", **{i: "姫" for i in range(65, 85)}}
+SAN1_X68_PARTS = 0x4FB00
+# code 0xGTMEB (>= 100): group G 1-5; slot -> (label, part offset, group stride, item size, first row); the head
+# is put, the others ORed in; group 5 has only items 0-2 (the parts end there)
+SAN1_X68_SLOTS = {"head": ("頭", 0, 0x4B00, 0xF00, 0), "eyes": ("眼", 0x15900, 0xC30, 0x270, 25),
+                  "nose": ("鼻", 0x19110, 0xD20, 0x2A0, 34), "mouth": ("口", 0x1CD70, 0xF00, 0x300, 46)}
+SAN1_X68_GROUP_ITEMS = [5, 5, 5, 5, 3]
+
+
+def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN1_X68_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAODATA"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for g in range(len(SAN1_X68_GROUP_ITEMS)):
+        parts = {}
+        for slot, (_, start, stride, size, row) in SAN1_X68_SLOTS.items():
+            first = SAN1_X68_PARTS + start + g * stride
+            parts[slot] = {"at": [0, row], "items": [store.add(48, size // 48, kao[first + k * size:][:size])
+                                                     for k in range(SAN1_X68_GROUP_ITEMS[g])]}
+        variants.append({"id": str(g + 1), "label": f"類型 {g}", "parts": parts})
+
+    portraits = [{"img": store.add(48, 80, kao[i * SAN1_X68_FACE:][:SAN1_X68_FACE], blob=1), "code": f"{i:04X}"}
+                 for i in range(SAN1_X68_PORTRAITS)]
+    for i, group in SAN1_X68_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+
+    characters = []
+    for cid, (code, name) in enumerate(san1.load_san1_x68_persons(os.path.join(game_dir, "SAVEDATA")), 1):
+        ch = {"id": cid, "name": name}
+        if cid in SAN1_PC98_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN1_PC98_NAME_HISTORICAL[cid]
+        if code >= 100:
+            ch["face"] = {"variant": (code >> 16) - 1, "parts": [code >> s & 15 for s in (12, 8, 4, 0)],
+                          "code": f"{code:05X}"}
+        else:
+            ch["face"] = {"portrait": code}
+        characters.append(ch)
+
+    # SANGOKU.PAL: the 256 graphic palette words (G, R, B 5 bits each, then the intensity bit)
+    pal = files["SANGOKU.PAL"]
+    colors = []
+    for i in range(256):
+        w = int.from_bytes(pal[i * 2:i * 2 + 2], "big")
+        colors.append("#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31)))
+
+    meta = {
+        "format": FORMAT, "id": "san1-x68", "game": "SAN1", "platform": "X68",
+        "title": {"ja": "三國志", "zh": "三國志"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN1_X68_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [48, 80],
+            "slots": [{"id": slot, "label": label, **({} if slot == "head" else {"blend": "or"})}
+                      for slot, (label, *_) in SAN1_X68_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SAN1 (PC-88 V1)
 
 SAN1_PC88_INPUTS = ["DISK_A.D88", "DISK_B.D88"]
@@ -4438,7 +4517,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san5-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True, pk=False),
-            "san1-pc98": build_san1, "san1-pc88": build_san1_pc88, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
+            "san1-pc98": build_san1, "san1-pc88": build_san1_pc88, "san1-x68": build_san1_x68, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98,
             "suikoden-pc88": lambda game_dir: build_suikoden_pc98(game_dir, pc88=True),
             "suikoden-x68": lambda game_dir: build_suikoden_pc98(game_dir, x68=True), "suikoden-dos": build_suikoden_dos,

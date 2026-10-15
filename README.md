@@ -104,6 +104,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `san1-dos`   | 三國志                         | DOS 英文版 |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san1-pc98`  | 三國志                         | PC-98      |  255 |   84 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san1-pc88`  | 三國志                         | PC-88 V1   |  255 |   47 |   ○    | [notes/san1.md](notes/san1.md)     |
+| `san1-x68`   | 三國志                         | X68000     |  255 |   85 |   ○    | [notes/san1.md](notes/san1.md)     |
 | `san2-dos`   | 三國志II                       | DOS 中文版 |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san2-pc98`  | 三國志II                       | PC-98      |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san2-x68`   | 三國志II                       | X68000     |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |

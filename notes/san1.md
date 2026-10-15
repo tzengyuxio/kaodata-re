@@ -112,3 +112,25 @@ PC-9801 版 1986-04-30（ja.wikipedia〈三國志 (ゲーム)〉，和 FM-16β �
   - Home of the Underdogs、oldgames.sk 寫 1989。
   - 遊戲內版權年是 1988。
   - 沒有日文 DOS 版，英文 DOS 版就是該平台首發。
+
+## X68000 版（`san1-x68`）
+
+`dekoei.py export san1-x68` 用 `build_san1_x68`。
+
+- 來源：Internet Archive `sangokushi_1988_koei_disk_1_of_x68k`（`games/archives/x68000/ia-softwarelibrary/`），A、B 兩片 DIM，各有主檔、`[a]`、`[a2]` 三份。
+  - A 片三份只有 `SANMAIN.Z` 差十幾個 byte，`KAODATA` 相同。
+  - B 片 `[a]`、`[a2]` 的 `SAVEDATA` 有玩家存檔；主檔的 10 個槽都是「KOEI.GAME 1988-12-05」的原廠初始資料，所以用主檔。
+  - `games/san1-x68/` 放 A 片的 `KAODATA` 與參考用的 `SANMAIN.Z`，B 片的 `SAVEDATA`、`SANGOKU.PAL`。
+- `SANMAIN.Z` 沒有壓縮，執行位址＝檔案＋0x4FFDE。
+- 頭像全部重畫成 256 色：`KAODATA` 每張 48×80、每點 1 byte（3840 bytes），用 `SANGOKU.PAL` 的 256 色（X68000 圖形色盤字：G、R、B 各 5 bit 再接亮度 bit，0x6A69A 整份設進去）。
+  - 0–64 是武將（順序和 PC-98 不同），65–84 是 20 位女兒（0x626FC：`65 + (… mod 20)`，group「姫」）。
+  - 6 沒有人用（group「未使用」）；程昱、曹丕都用 7（PC-98 分別是 46、27）。
+- 組合臉（0x62682）：頭像碼 ≥ 100 時寫成 0xGTMEB，G 是組別 1–5，T、M、E、B 各 4 bit。`KAODATA` 0x4FB00 起整塊 0x21270 bytes：
+  - 頭：0x4B00 × (G − 1) ＋ 0xF00 × T，48×80 整張，五官處是 0。
+  - 眼：0x15900 起，每組 0xC30，每個 0x270（13 列），貼在第 25 列。
+  - 鼻：0x19110 起，每組 0xD20，每個 0x2A0（14 列），貼在第 34 列。
+  - 口：0x1CD70 起，每組 0xF00，每個 0x300（16 列），貼在第 46 列。
+  - 頭直接貼，眼鼻口用 OR（0x709C6 模式 3），匯出成 `blend: "or"`。各區都是 23 個，第 5 組只有 0–2，劇本也只用到 0–2。
+- 人物：`SAVEDATA` 前 300 bytes 是槽標頭，槽 0 的人物表在 0x1E42，第一筆是多出來的曹操，之後 255 筆 × 44 bytes（`san1.load_san1_x68_persons`）：+0 讀音 8 bytes、+8 姓名（3 個大端 32 位元 JIS 碼，外字同 PC-98）、+28 u32 頭像碼。
+  - 名字和 PC-98 逐筆相同（含錯字），`id`、`nameHistorical` 照 `san1-pc98`。
+  - 純頭像 64 人、組合臉 190 人（同 PC-98）。

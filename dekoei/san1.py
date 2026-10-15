@@ -163,6 +163,24 @@ def load_san1_pc98_persons(savedata):
     return persons
 
 
+# X68000 SAVEDATA (Disk B, all 10 slots the factory start): slot 0's table at 0x1E42 is an extra copy of 曹操,
+# then the 255 persons, 44 bytes each: +0 reading, +8 name (3 big-endian 32-bit JIS codes), +28 u32 face code
+X68_PERSONS = 0x1E42 + 44
+X68_PERSON_SIZE = 44
+
+
+def load_san1_x68_persons(savedata):
+    """(face code, name) of the 255 persons of the X68000 SAVEDATA, in the PC-98 order."""
+    with open(savedata, "rb") as f:
+        data = f.read()
+    persons = []
+    for i in range(255):
+        rec = data[X68_PERSONS + i * X68_PERSON_SIZE:][:X68_PERSON_SIZE]
+        name = b"".join(rec[k + 2:k + 4][::-1] for k in range(8, 20, 4))
+        persons.append((int.from_bytes(rec[28:32], "big"), pc98_name(name)))
+    return persons
+
+
 # ---------------------------------------------------------------- PC-88 V1 (Ver.1.1), see notes/san1.md
 # Disk B is read by track: face code n is slot n % 5 of track n // 5 (5 PC-98-format faces per 4 KB track);
 # composite group G is track G, its parts slots 0-4; daughters fill tracks 40-43 (16 faces)
