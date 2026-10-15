@@ -2128,6 +2128,173 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+NOBU6_PC98_INPUTS = ["KAODATA.NB6", "MONDATA.NB6", "MAIN.EXE", "SNDATA.NB6", "TAIKI.NB6"]
+# MAIN.EXE: 16-colour palettes from file 0x3870C, 48 bytes each (B, R, G, 4 bits each); colours 0-7 change
+# with the season, 8-15 are the faces and the same in all of them
+NOBU6_PC98_PALETTE = 0x38724
+# MONDATA.NB6 composite faces: 19 types of 6 LS11 parts each (0x11914 loads parts 6t..6t+5), drawn by 0x119E0
+# into a 64x80 canvas: top at row 0, bottom below it, then eyes and mouth as 1 bpp mask (8 bytes a row) +
+# picture, (screen AND mask) OR picture. Per-type tables in MAIN.EXE (segment 0x309B):
+NOBU6_PC98_HEIGHTS = 0x39D24  # 0x2F74: rows of top, bottom, eyes, mouth (4 bytes per type)
+NOBU6_PC98_EYES_ROW = 0x39D70  # 0x2FC0
+NOBU6_PC98_MOUTH_ROW = 0x39D84  # 0x2FD4
+NOBU6_PC98_TYPES = 19  # persons use 0-15
+# slot -> (label, code shift); each field is 2 bits, type = code & 0x1F, bit 15 marks a composite
+NOBU6_PC98_SLOTS = {"top": ("上", 5), "bottom": ("下", 7), "eyes": ("眼", 9), "mouth": ("口", 11)}
+# faces without a person record: the game fills the scratch person 0x213 with a name and one of these
+NOBU6_PC98_PORTRAITS = {
+    # 0x514C4: merchant n gets face 379 + n, name from DS:0x1108
+    **dict(zip(range(379, 389), ["神屋宗湛", "島井宗室", "津田宗及", "今井宗久", "呂宋助左衛門", "小西隆佐",
+                                  "末吉孫左衛門", "茶屋四郎次郎", "角倉了以", "灰屋紹由"])),
+    389: "フランシスコ・ザビエル",  # 0x93C87
+    # 0x5E367: 394 + n, names from DS:0x28EC / 0x28F2
+    394: "山科言継", 395: "観修寺晴豊", 396: "菊亭晴季",
+    # 0x66119: 397 + n, names from DS:0x1FD4 / 0x1FEC
+    **dict(zip(range(397, 409), ["住吉屋宗無", "長谷川宗仁", "武野紹鴎", "千利休", "宝蔵院胤栄", "小野忠明",
+                                  "塚原卜伝", "柳生石舟斎", "快川紹喜", "沢庵宗彭", "木食応其", "西笑承兌"])),
+    409: "農民",  # 0x803F3: surname 農民, a random given name from DS:0x2B0C
+}
+NOBU6_PC98_UNKNOWN = range(390, 394)  # Westerners; no code or data found that shows them
+# aliases sharing a face code (renamed in later scenarios); one character under the best-known name
+NOBU6_PC98_ALIASES = {"松平元康": "徳川家康", "武田晴信": "武田信玄", "長尾景虎": "上杉謙信", "上杉政虎": "上杉謙信",
+                      "大友義鎮": "大友宗麟", "長尾景信": "上杉景信",
+                      # the later scenarios use the 真田十勇士 names of the same men
+                      "三好清海": "三好政康", "三好伊三": "三好政勝", "根津甚八": "浅井井頼"}
+
+
+def nobu6_pc98_face(data: bytes) -> bytes:
+    """KAODATA.NB6 face (MAIN.EXE 0x11762): u16 width, u16 height, then nibbles (high first) from a byte
+    stream where FE n repeats the previous byte n times (FE 01 = FE, FE 00 = 256 times).
+
+    Each row starts with a mode: 0-7 copies from x - (mode + 1), 8-15 from row y - (mode - 7). Then per
+    pixel: 0-7 is the colour, 10ab copies a + 2 pixels, 11ab n copies (ab << 4) + n + 6 pixels."""
+    pos = last = rep = 0
+    half = None
+
+    def byte() -> int:
+        nonlocal pos, last, rep
+        if not rep:
+            b = data[pos]
+            pos += 1
+            if b != 0xFE:
+                last = b
+                return b
+            n = data[pos]
+            pos += 1
+            if n == 1:
+                last = 0xFE
+                return 0xFE
+            rep = n or 0x100
+        rep -= 1
+        return last
+
+    def nibble() -> int:
+        nonlocal half
+        if half is None:
+            b = byte()
+            half = b & 15
+            return b >> 4
+        v, half = half, None
+        return v
+
+    w, h = data[0] | data[1] << 8, data[2] | data[3] << 8
+    pos = 4
+    out = bytearray(w * h)
+    for y in range(h):
+        mode = nibble()
+        run = 0
+        for x in range(w):
+            if not run:
+                c = nibble()
+                if not c & 8:
+                    out[y * w + x] = c
+                    continue
+                run = ((c & 3) << 4) + nibble() + 6 if c & 4 else (c & 3) + 2
+            out[y * w + x] = out[(y - mode + 7) * w + x if mode & 8 else y * w + x - mode - 1]
+            run -= 1
+    return bytes(out)
+
+
+def build_nobu6_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU6_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    exe = files["MAIN.EXE"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    mon = ls11.ls11_decode_parts(files["MONDATA.NB6"])
+    variants = []
+    for t in range(NOBU6_PC98_TYPES):
+        heights = exe[NOBU6_PC98_HEIGHTS + t * 4:][:4]
+        rows = [0, heights[0], exe[NOBU6_PC98_EYES_ROW + t], exe[NOBU6_PC98_MOUTH_ROW + t]]
+        parts = {}
+        for k, slot in enumerate(NOBU6_PC98_SLOTS):
+            h = heights[k]
+            if k < 2:
+                items = [store.add(64, h, bytes(genpei.decode_planar(mon[6 * t + k], i * h * 24, 64, h, 3)))
+                         for i in range(4)]
+            else:
+                # kept screen pixels are transparent; the 3 kept pixels with colour (type 3 mouth 0) are the
+                # same colour as every top and bottom under them, so OR = copy
+                mask, pic = mon[6 * t + 2 * k - 2], mon[6 * t + 2 * k - 1]
+                items = []
+                for i in range(4):
+                    px = genpei.decode_planar(pic, i * h * 24, 64, h, 3)
+                    items.append(store.add(64, h, bytes(
+                        TRANSPARENT if mask[i * h * 8 + j // 8] >> (7 - j % 8) & 1 and not c else c
+                        for j, c in enumerate(px))))
+            parts[slot] = {"at": [0, rows[k]], "items": items}
+        variants.append({"id": str(t), "label": f"類型 {t}", "parts": parts})
+
+    faces = sango.san5_parts(os.path.join(game_dir, "KAODATA.NB6"))  # u16 count, (u32 offset, u16 size) each
+    portraits = [{"img": store.add(64, 80, nobu6_pc98_face(data), blob=1), "code": f"{i:04X}"}
+                 for i, data in enumerate(faces)]
+    for i, name in NOBU6_PC98_PORTRAITS.items():
+        portraits[i].update(group="事件人物", name=name)
+    for i in NOBU6_PC98_UNKNOWN:
+        portraits[i]["group"] = "不明"
+
+    # one character per face code, in order of first appearance (only aliases share a code)
+    names = {}
+    for name, code in koei_games.load_nobu6_pc98_persons(files["SNDATA.NB6"], files["TAIKI.NB6"]):
+        names.setdefault(code, NOBU6_PC98_ALIASES.get(name, name))
+    characters = []
+    for code, name in names.items():
+        if code & 0x8000:
+            face = {"variant": code & 0x1F, "parts": [code >> shift & 3 for _, shift in NOBU6_PC98_SLOTS.values()],
+                    "code": f"{code:04X}"}
+        else:
+            face = {"portrait": code}
+        characters.append({"id": len(characters), "name": name, "face": face})
+
+    pal = exe[NOBU6_PC98_PALETTE:][:24]
+    colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "nobu6-pc98", "game": "NOBU6", "platform": "PC98",
+        "title": {"ja": "信長の野望・天翔記", "zh": "信長之野望・天翔記"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU6_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label} for slot, (label, _) in NOBU6_PC98_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "mouth", "hi": 15, "lo": 11, "base": 16},  # 1 00 mm: bit 15 marks a composite
+                {"of": "eyes", "hi": 10, "lo": 9}, {"of": "bottom", "hi": 8, "lo": 7},
+                {"of": "top", "hi": 6, "lo": 5}, {"of": "$variant", "hi": 4, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -3009,6 +3176,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
+            "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
@@ -3019,7 +3187,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san5-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san5-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98, nobu6-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

@@ -1340,6 +1340,39 @@ def load_tk3_pc98_leaders(message_tk3: bytes) -> list[str]:
     return texts[start:start + TK3_PC98_LEADERS]
 
 
+# 信長の野望・天翔記 (PC-98): name records of 18 bytes, [surname 7][given 7, Shift-JIS][u16 face][u8][u8];
+# MAIN.EXE 0x2372C: person p (1-532) is record p - 1, 0x23824 reads the face at +0x0E
+NOBU6_PC98_PEOPLE = 0x6C8E  # SNDATA.NB6 part (one per scenario): 500 men, then the princesses
+NOBU6_PC98_SLOTS = 531  # slot 532 (0x213) is scratch, filled for merchants, monks etc. at run time
+NOBU6_PC98_TAIKI_STATS = 52  # TAIKI.NB6 part: n records of 52 bytes, then their n name records
+# GAIJI.NB6 glyphs 169-172 (EC8C-EC8F): 長, 宗, 我部, 香; only used in these surnames
+NOBU6_PC98_GAIJI = {b"\xec\x8c\xec\x8d\xec\x8e": "長宗我部", b"\xec\x8f\xec\x8d\xec\x8e": "香宗我部"}
+
+
+def _nobu6_pc98_text(raw: bytes) -> str:
+    for seq, text in NOBU6_PC98_GAIJI.items():
+        if seq in raw:
+            return text.join(_nobu6_pc98_text(p) for p in raw.split(seq))
+    return unicodedata.normalize("NFKC", raw.decode("cp932"))
+
+
+def load_nobu6_pc98_persons(sndata: bytes, taiki: bytes) -> list[tuple[str, int]]:
+    """(name, face code) of every name record: scenario 1, its later arrivals (TAIKI), scenario 2, ...
+
+    Face code bit 15 set: composite (MONDATA.NB6), else the KAODATA.NB6 face."""
+    persons = []
+    for scenario, waiting in zip(ls11_decode_parts(sndata), ls11_decode_parts(taiki)):
+        n = len(waiting) // (NOBU6_PC98_TAIKI_STATS + 18)
+        for data, offset, count in ((scenario, NOBU6_PC98_PEOPLE, NOBU6_PC98_SLOTS),
+                                    (waiting, n * NOBU6_PC98_TAIKI_STATS, n)):
+            for o in range(offset, offset + count * 18, 18):
+                if data[o]:  # empty slots are all 0 with face FFFF
+                    name = _nobu6_pc98_text(data[o:o + 7].split(b"\0")[0]) + \
+                        _nobu6_pc98_text(data[o + 7:o + 14].split(b"\0")[0])
+                    persons.append((name, int.from_bytes(data[o + 14:o + 16], "little")))
+    return persons
+
+
 ##############################################################################
 
 
