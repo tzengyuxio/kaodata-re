@@ -70,3 +70,16 @@
   - 蔡勳和獻帝同一張
 - `nameHistorical`：沙摩可→沙摩柯、劉貴→劉璝。劉瞱是劉曄的異體字，不填。
 - 0xE0（白鬚老人）、0xE3 沒有人物使用，標「未使用」。
+
+## PC-98 版（`eiketsu-pc98`）
+
+來源是 `games/archives/pc98/[PC98] 三国志・英傑伝.zip` 解出的 `eiketsu-pc98-src/SANEI_1–4.FDI`，每片解在 `games/archives/pc98/disks/eiketsu-pc98/`，合併放在 `games/eiketsu-pc98/`。`MAIN.EXE` 1995-01-25。
+
+- `FACEDAT.R3` 和 DOS 中文版逐 byte 相同。PC-98 的 `TFDED.COM`（1959 bytes）把 plane 0–3 寫到 0xA800、0xB000、0xB800、0xE000（表在 0x6B6），也就是 B、R、G、E，色號和 DOS 相同。
+- 色盤：`MAIN.EXE` 檔案 0x359AC 是 DOS DGROUP 0xB0A 的同一張 B、R、G 表，PC-98 類比色換算 v × 17：`#000000 #2244aa #ee6600 #cc77aa #00bb77 #88ccff #ffcc55 #ffffff`。
+- `BAKDATA.R3` 記錄位置、格式同 DOS，384 筆的頭像碼完全相同；名字是 Shift-JIS，光榮外字 `EB xx` 的字形在 `FONT.R3`（87 字 × 16×16）。外字對照（`koei_games.EIKETSU_PC98_GAIJI`）是拿 DOS 中文版同一筆的名字對齊，再看字形確認的：
+  - C4 是「璝」（中文版寫成劉貴，日文版是劉璝）。
+  - AE 的字形是「鷙」（鳥字底），日文版寫成歩鷙，中文版是步騭。
+  - E2 對齊是「邈」（張邈），但 `FONT.R3` 第 0xE2 − 0x9F 個字形不是邈（0xDF 那格才是），E0 之後的對應方式沒有查。
+- 兵種、一般人物用日文名稱（`EIKETSU_PC98_TROOPS`／`EIKETSU_PC98_FOLK`），共 264 人，分組和 DOS 相同。
+- `nameHistorical`：沙摩可→沙摩柯（日文版也是這樣寫）、歩鷙→歩騭。

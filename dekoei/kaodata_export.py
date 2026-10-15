@@ -2783,9 +2783,19 @@ EIKETSU_DOS_TROOPS = {"步兵隊", "弓兵隊", "騎兵隊", "賊兵", "軍樂�
 EIKETSU_DOS_FOLK = {"猛獸師", "妖術師", "武術家", "民眾", "宮吏", "農民", "商人", "旅客", "女子", "官差", "使者", "文官",
                     "武官", "夫人", "少女", "？？？", "道具屋", "童子"}
 EIKETSU_DOS_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "劉貴": "劉璝"}
+# PC-98: the same FACEDAT.R3; its TFDED.COM writes planes 0-2 to B, R, G (table at 0x6B6), so the same indexes;
+# the same B, R, G table (MAIN.EXE file 0x359AC) on the analog palette, as v * 17
+EIKETSU_PC98_PALETTE = ["#000000", "#2244aa", "#ee6600", "#cc77aa", "#00bb77", "#88ccff", "#ffcc55", "#ffffff"]
+EIKETSU_PC98_TROOPS = {"歩兵隊", "弓兵隊", "騎兵隊", "賊兵", "軍楽隊", "輸送隊", "異民族"}
+EIKETSU_PC98_FOLK = {"猛獣師", "妖術師", "武道家", "民衆", "宮使い", "農民", "商人", "旅人", "女の子", "役人", "使者", "文官",
+                     "武官", "夫人", "若い女", "？？？", "道具屋", "童子"}
+EIKETSU_PC98_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "歩鷙": "歩騭"}
 
 
-def build_eiketsu_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_eiketsu_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    """pc98=True: the Japanese PC-98 original (Shift-JIS names, PC-98 palette)."""
+    troops, folk, historical = ((EIKETSU_PC98_TROOPS, EIKETSU_PC98_FOLK, EIKETSU_PC98_NAME_HISTORICAL) if pc98 else
+                                (EIKETSU_DOS_TROOPS, EIKETSU_DOS_FOLK, EIKETSU_DOS_NAME_HISTORICAL))
     files = {}
     for name in EIKETSU_DOS_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -2794,8 +2804,9 @@ def build_eiketsu_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     faces = koei_games.load_eiketsu_dos_faces(os.path.join(game_dir, "FACEDAT.R3"))
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
 
-    records = koei_games.load_eiketsu_dos_persons(os.path.join(game_dir, "BAKDATA.R3"))
-    generic = EIKETSU_DOS_TROOPS | EIKETSU_DOS_FOLK
+    load = koei_games.load_eiketsu_pc98_persons if pc98 else koei_games.load_eiketsu_dos_persons
+    records = load(os.path.join(game_dir, "BAKDATA.R3"))
+    generic = troops | folk
     characters, users = [], {}  # users: face code -> names, in file order
     for name, code in records:
         if name not in users.setdefault(code, []):
@@ -2803,24 +2814,26 @@ def build_eiketsu_dos(game_dir: str) -> tuple[dict, list[bytes]]:
         if name in generic:
             continue
         ch = {"id": len(characters), "name": name, "face": {"portrait": code}}
-        if name in EIKETSU_DOS_NAME_HISTORICAL:
-            ch["nameHistorical"] = EIKETSU_DOS_NAME_HISTORICAL[name]
+        if name in historical:
+            ch["nameHistorical"] = historical[name]
         characters.append(ch)
     person_faces = {c["face"]["portrait"] for c in characters}
     for code, names in users.items():
         if code not in person_faces:
-            portraits[code].update(name=names[0], group="部隊" if names[0] in EIKETSU_DOS_TROOPS else "一般人物")
+            portraits[code].update(name=names[0], group="部隊" if names[0] in troops else "一般人物")
     for i, p in enumerate(portraits):
         if i not in users:
             p["group"] = "未使用"
 
     meta = {
-        "format": FORMAT, "id": "eiketsu-dos", "game": "EIKETSU", "platform": "DOS",
+        "format": FORMAT, "id": "eiketsu-pc98" if pc98 else "eiketsu-dos", "game": "EIKETSU",
+        "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "三國志英傑伝", "zh": "三國志英傑傳"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "vga", "label": "VGA", "colors": EIKETSU_DOS_PALETTE}],
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": EIKETSU_PC98_PALETTE} if pc98 else
+                     {"id": "vga", "label": "VGA", "colors": EIKETSU_DOS_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -3401,6 +3414,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
             "eiketsu3-win": build_eiketsu3_win,

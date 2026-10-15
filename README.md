@@ -69,7 +69,7 @@ Early KOEI Games Data Research
 | TK3PK     | 提督之決斷III 威力加強版    | 1996 |       PC98       |       |        |                     |
 | WINNING   | 光榮賽馬／賽馬大亨          | 1993 |       DOS        |       |        |                     |
 | AIR2      | 航空霸業II                  | 1993 |       DOS        |       |        |                     |
-| EIKETSU   | 三國志英傑傳                | 1995 |     DOS,WIN      |       |        |                     |
+| EIKETSU   | 三國志英傑傳                | 1995 |  DOS,PC98,WIN    |       |        |                     |
 | KOUMEI    | 三國志孔明傳                | 1996 |       WIN        |       |        |                     |
 | EIKETSU3  | 毛利元就 三矢之誓           | 1997 |       WIN        |       |        |                     |
 | EIKETSU4  | 織田信長傳                  | 1998 |       WIN        |       |        |                     |
@@ -114,6 +114,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `san5pk-pc98` | 三國志V 威力加強版            | PC-98      |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |
 | `san5-pc98`  | 三國志V                        | PC-98      |  500 |  733 |        | [notes/san5.md](notes/san5.md)     |
 | `eiketsu-dos` | 三國志英傑傳                 | DOS 中文版 |  264 |  240 |        | [notes/eiketsu.md](notes/eiketsu.md) |
+| `eiketsu-pc98` | 三国志英傑伝                | PC-98      |  264 |  240 |        | [notes/eiketsu.md](notes/eiketsu.md) |
 | `koumei-win` | 三國志孔明傳                   | Win 中文版 |  240 |  288 |        | [notes/koumei.md](notes/koumei.md) |
 | `eiketsu3-win` | 毛利元就傳                   | Win 中文版 |  201 |  332 |        | [notes/eiketsu3.md](notes/eiketsu3.md) |
 | `eiketsu4-win` | 織田信長傳                   | Win 中文版 |  186 |  219 |        | [notes/eiketsu4.md](notes/eiketsu4.md) |

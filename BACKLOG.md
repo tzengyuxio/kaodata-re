@@ -42,7 +42,7 @@
 ## 待分析遊戲（`games/archives/pc98/` 新增的 `[PC98]` 壓縮檔）
 
 - [x] 源平合戦（`[PC98] 源平合戦.zip`，5 片 FDI）— 解到 `games/genpei-pc98/`，用 `build_genpei(pc98=True)` 做 `genpei-pc98` 匯出（2026-10-15）
-- [ ] 三国志・英傑伝（`[PC98] 三国志・英傑伝.zip`）— 可和 `eiketsu-dos` 對照（2026-10-14）
+- [x] 三国志・英傑伝（`[PC98] 三国志・英傑伝.zip`）— 解到 `games/eiketsu-pc98/`，用 `build_eiketsu_dos(pc98=True)` 做 `eiketsu-pc98` 匯出（2026-10-15）
 - [x] 信長の野望・戦国群雄伝（`[PC98] 信長の野望・戦国群雄伝.zip`）— 解到 `games/nobu3-pc98/`，做 `nobu3-pc98` 匯出（2026-10-15）
 - [x] 信長の野望・武将風雲録（`[PC98] 信長の野望・風雲録.zip`）— 解到 `games/nobu4-pc98/`，用 `build_nobu4_dos(pc98=True)` 做 `nobu4-pc98` 匯出（2026-10-15）
 - [x] 信長の野望・覇王伝（`[PC98] 信長の野望・覇王伝o.zip`）— 解到 `games/nobu5-pc98/`，做 `nobu5-pc98` 匯出（2026-10-15）
