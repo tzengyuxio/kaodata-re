@@ -47,3 +47,16 @@ def cpm_files(image: bytes, base: int = 0x4000, block: int = 2048) -> dict[str, 
             data += chunk[:((ex % 2) * 128 + records) * 128]
         files[name] = data
     return files
+
+
+def brg_pixels(raw: bytes, w: int) -> bytes:
+    """Colour indexes (B = bit 0, R = bit 1, G = bit 2) of a picture stored as B, R, G plane bytes per 8 pixels
+    (the order the KOEI blitters write GVRAM planes 0x5C-0x5E), each row shown twice (200-line screen)."""
+    rows = []
+    for o in range(0, len(raw), w * 3):
+        row = bytearray()
+        for x in range(o, o + w * 3, 3):
+            b, r, g = raw[x:x + 3]
+            row += bytes((b >> k & 1) | (r >> k & 1) << 1 | (g >> k & 1) << 2 for k in range(7, -1, -1))
+        rows.append(bytes(row) * 2)
+    return b"".join(rows)

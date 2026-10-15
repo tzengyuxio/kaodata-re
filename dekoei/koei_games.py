@@ -1390,6 +1390,17 @@ def load_royal_pc98_names(main_exe) -> tuple[list[str], list[str]]:
     return _royal_pc98_names(main, 0xE52, 13, 64), _royal_pc98_names(main, 0x13CC, 16, 23)
 
 
+NOBU2_PC88_DATA = 0x1581  # DATA50S.DAT: 53 clan names (9 bytes), then 53 given names (5 bytes) at 0x175E
+NOBU2_PC88_LORDS = 53
+
+
+def load_nobu2_pc88_names(data50s: bytes) -> list[str]:
+    """Shift-JIS names of the 50 daimyo and 明智, 羽柴, 柴田; the index is also the face (ODAMAIN 0x3A67)."""
+    given = NOBU2_PC88_DATA + 9 * NOBU2_PC88_LORDS
+    return [data50s[NOBU2_PC88_DATA + 9 * i:][:9].split(b"\0")[0].decode("cp932")
+            + data50s[given + 5 * i:][:5].split(b"\0")[0].decode("cp932") for i in range(NOBU2_PC88_LORDS)]
+
+
 ISHIN_PC98_PEOPLE = 423  # 0x2F12: ids 0-422 are the historical people
 ISHIN_PC98_SCENARIO = 0xA770  # SHINARIO.DAT: 3 scenarios, each loaded to DS:0x930A
 ISHIN_PC98_FACES = 0x3C  # scenario offset of the 6-byte face records (DS:0x9346, 0x4AB1)
