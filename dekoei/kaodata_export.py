@@ -624,6 +624,8 @@ SAN3_WIN_NAME_HISTORICAL = {"桓楷": "桓階", "干糜": "于糜", "粱剛": "�
 SAN3_WIN_SHARED_FACE = 596
 SAN3_WIN_PORTRAIT_NAMES = {537: "鍾進"}
 SAN3_WIN_PORTRAIT_GROUPS = {537: "未使用"}
+SAN3_WIN_PORTRAIT_NOTES = {537: "鍾進的臉，劇本沒有用到"}
+SAN3_WIN_NOTES = {"鍾進": "劇本資料誤用曹宇的臉；他自己的臉見未使用的 P532"}
 
 
 def build_san3_win(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -653,6 +655,8 @@ def build_san3_win(game_dir: str) -> tuple[dict, list[bytes]]:
             p["group"] = group
         if name:
             p["name"] = name
+        if cell in SAN3_WIN_PORTRAIT_NOTES:
+            p["note"] = SAN3_WIN_PORTRAIT_NOTES[cell]
         portraits.append(p)
 
     # as san3-pc98: scenarios 1-6 in order, deduplicated by face code (by name too on the face two people share)
@@ -667,6 +671,8 @@ def build_san3_win(game_dir: str) -> tuple[dict, list[bytes]]:
         ch = {"id": cid, "name": name, "face": {"portrait": index[key[0]]}}
         if name in SAN3_WIN_NAME_HISTORICAL:
             ch["nameHistorical"] = SAN3_WIN_NAME_HISTORICAL[name]
+        if name in SAN3_WIN_NOTES:
+            ch["note"] = SAN3_WIN_NOTES[name]
         characters.append(ch)
 
     meta = {
