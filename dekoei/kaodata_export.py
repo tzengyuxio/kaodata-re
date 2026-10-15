@@ -2022,6 +2022,103 @@ def build_tk2_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- TK3 (PC-98)
+
+TK3_PC98_INPUTS = ["KAODATA.TK3", "MAIN.EXE", "MESSAGE.TK3"]
+TK3PK_PC98_INPUTS = TK3_PC98_INPUTS + ["KAODATA2.TK3", "SNDATA2.TK3"]
+TK3_PC98_PEOPLE = 0x538BE  # MAIN.EXE people table (PK: 0x5291E); face = record index 0-110
+TK3PK_PC98_PEOPLE = 0x5291E
+# MAIN.EXE 16 x (B, R, G) 4 bits each, set by root 0x2A6C4 from DS 0x36C5:0x0A0A (PK: file 0x3E6BA)
+TK3_PC98_PALETTE = 0x3F65A
+TK3PK_PC98_PALETTE = 0x3E6BA
+TK3_PC98_LEADER_FACES = 141  # the 24 heads of state, in MESSAGE order
+TK3_PC98_DOENITZ = (78, 152)  # K・デーニッツ: admiral record, and his face among the heads of state
+# SNDATA2.TK3 (PK) scenario tables with people of their own (record index, face):
+# ロンメル etc. at 0x238FF records 106-110, ジューコフ and ワシレフスキー at 0x3BBD9 records 109-110
+TK3PK_PC98_SCENARIO_PEOPLE = [(0x238FF, range(106, 111)), (0x3BBD9, range(109, 111))]
+# faces 111-140: 30 faces for 軍人登録 (GUNJIN.TK3 holds 30 records of 78 bytes)
+TK3_PC98_REGISTERED = range(111, 141)
+# faces shown by EVENTSEQ.TK3 (op 2), named from the caption that follows (op 8)
+TK3_PC98_EVENT_PEOPLE = {
+    165: "永野修身", 168: "E・J・キング", 174: "マレーネ・ディートリッヒ", 175: "ヨセフ・ゲッペルス",
+    176: "アーニー・パイル", 177: "有賀幸作", 178: "寺内正道", 179: "日本軍パイロット",
+    180: "ジョン・W・ミッチェル", 183: "デイヨー",
+}
+TK3PK_PC98_EVENT_PEOPLE = {204: "木梨鷹一"}  # PK event 79, 伊19 艦長
+# staff officers: 181 and 182 in events, then 作戦, 砲術, 航空, 航海, 情報, 補給 for each side
+# (194 is never shown by an event)
+TK3_PC98_STAFF = {181: "日本軍参謀", 182: "アメリカ軍参謀",
+                  **{185 + i: "日本軍" + s for i, s in enumerate(["作戦参謀", "砲術参謀", "航空参謀", "航海参謀", "情報参謀", "補給参謀"])},
+                  **{191 + i: "アメリカ軍" + s for i, s in enumerate(["作戦参謀", "砲術参謀", "航空参謀", "航海参謀", "情報参謀", "補給参謀"])}}
+
+
+def tk3_pc98_face(data: bytes) -> bytes:
+    """64x80, 4 planes interleaved per byte: byte (y * 8 + x // 8) * 4 + q is plane q, MSB = leftmost."""
+    out = bytearray(64 * 80)
+    for i in range(64 * 80 // 8):
+        planes = data[i * 4:i * 4 + 4]
+        for b in range(8):
+            out[i * 8 + b] = sum(((p >> (7 - b)) & 1) << q for q, p in enumerate(planes))
+    return bytes(out)
+
+
+def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = TK3PK_PC98_INPUTS if pk else TK3_PC98_INPUTS
+    files = {}
+    for name in inputs:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    exe = files["MAIN.EXE"]
+    store = ImageStore(["portraits.bin"])
+
+    faces = ls11.ls11_decode_parts(files["KAODATA.TK3"])
+    if pk:
+        faces += ls11.ls11_decode_parts(files["KAODATA2.TK3"])
+    portraits = [{"img": store.add(64, 80, tk3_pc98_face(data))} for data in faces]
+    for i in TK3_PC98_REGISTERED:
+        portraits[i]["group"] = "登録軍人"
+    for i, name in {**TK3_PC98_EVENT_PEOPLE, **(TK3PK_PC98_EVENT_PEOPLE if pk else {})}.items():
+        portraits[i].update(group="事件人物", name=name)
+    for i, name in TK3_PC98_STAFF.items():
+        portraits[i].update(group="参謀", name=name)
+    for i in (166, 167, 169, 170, 171, 172, 173, 184):  # not found in events or code
+        portraits[i]["group"] = "不明"
+
+    people = koei_games.load_tk3_pc98_persons(exe, TK3PK_PC98_PEOPLE if pk else TK3_PC98_PEOPLE)
+    if pk:
+        for offset, records in TK3PK_PC98_SCENARIO_PEOPLE:
+            people += koei_games.load_tk3_pc98_persons(files["SNDATA2.TK3"], offset)[records.start:records.stop]
+    leaders = koei_games.load_tk3_pc98_leaders(files["MESSAGE.TK3"])
+    people += [(name, TK3_PC98_LEADER_FACES + i) for i, name in enumerate(leaders)]
+    admiral, leader = TK3_PC98_DOENITZ
+    characters = []
+    for name, face in people:
+        if face == leader:
+            continue
+        ch = {"id": face, "name": name, "face": {"portrait": face}}
+        if face == admiral:
+            ch["expressions"] = [{"portrait": leader, "label": "総統"}]
+        characters.append(ch)
+
+    pal = exe[TK3PK_PC98_PALETTE if pk else TK3_PC98_PALETTE:][:48]
+    colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 48, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "tk3pk-pc98" if pk else "tk3-pc98", "game": "TK3PK" if pk else "TK3", "platform": "PC98",
+        "title": {"ja": "提督の決断III パワーアップキット", "zh": "提督之決斷III 威力加強版"} if pk
+        else {"ja": "提督の決断III", "zh": "提督之決斷III"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -2902,6 +2999,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
+            "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2911,7 +3009,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

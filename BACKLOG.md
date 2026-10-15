@@ -53,6 +53,6 @@
 - [ ] 太閤立志伝II（`[PC98] 太閤立志伝２.zip`、`[PC98] 太閤立志伝2(hdi+fdi)(anex動確).zip`，兩份）（2026-10-14）
 - [x] 提督の決断（`[PC98] 提督の決断.zip`）— 解到 `games/tk-pc98/`，做 `tk-pc98` 匯出（2026-10-15）
 - [x] 提督の決断II（`[PC98] 提督の決断２.zip`，7 片 FDI）— 解到 `games/tk2-pc98/`，做 `tk2-pc98` 匯出（2026-10-15）
-- [ ] 提督の決断III（`[PC98] 提督の決断３.zip`，7 片 FDI）— 只有 DPACK1–7.TK3＋INSTALL.EXE，和 san5-pc98 同一種未解的 DPACK（2026-10-15）
+- [x] 提督の決断III（`[PC98] 提督の決断３.zip`，7 片 FDI）— DPACK 用 `dekoei/dpack.py` 解到 `games/tk3-pc98/`，做 `tk3-pc98` 匯出（2026-10-15）
 - [x] 提督の決断II パワーアップキット（`[PC98] 提督の決断２　ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ.zip`）— PACK.LZW（LW11）解開，本體＋PACK.LZW 放 `games/tk2pk-pc98/`，做 `tk2pk-pc98` 匯出（2026-10-15）
-- [ ] 提督の決断III パワーアップキット（`[PC98] 提督の決断３　パワーアップキット.zip`）— P1–P3 是 DPACK1–3.T3P，和 san5-pc98 同一種未解的 DPACK 格式，要先逆向 INSTALL.EXE（2026-10-14）
+- [x] 提督の決断III パワーアップキット（`[PC98] 提督の決断３　パワーアップキット.zip`）— DPACK1–3.T3P 解開疊在本體上放 `games/tk3pk-pc98/`，做 `tk3pk-pc98` 匯出（2026-10-15）

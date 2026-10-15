@@ -1302,6 +1302,44 @@ def load_tk2_pc98_names(ardata: bytes, grdata: bytes, sjdata: bytes) -> tuple[li
                  for (name, size, count), data in zip(TK2_PC98_TABLES, (ardata, grdata, sjdata)))
 
 
+# 提督の決断III (PC-98): MAIN.EXE table of 111 admirals and generals, 26-byte records:
+# [u8][0][name 12, Shift-JIS][0][nation][0]...[face u8 at +25]
+TK3_PC98_PEOPLE = 111
+TK3_PC98_RECORD = 26
+TK3_PC98_LEADERS = 24  # MESSAGE.TK3 part 0, the strings after 索敵記録 (170-193; PK 172-195): faces 141-164
+
+
+def _tk3_pc98_name(raw: bytes) -> str:
+    return unicodedata.normalize("NFKC", raw.split(b"\0")[0].decode("cp932"))
+
+
+def load_tk3_pc98_persons(data: bytes, offset: int, count: int = TK3_PC98_PEOPLE) -> list[tuple[str, int]]:
+    """(name, face) of the people table at `offset` (MAIN.EXE, or a scenario copy in SNDATA*.TK3)."""
+    return [(_tk3_pc98_name(data[o + 2:o + 14]), data[o + 25])
+            for o in range(offset, offset + count * TK3_PC98_RECORD, TK3_PC98_RECORD)]
+
+
+def tk3_pc98_messages(message_tk3: bytes, part: int) -> list[str]:
+    """MESSAGE.TK3 strings of a part (message id 1000 * part + index): LS11 parts of u16 count, u16 offsets,
+    then the strings, ended by \\x05\\x05\\x05; \\x1bk, \\x1bH and \\x1bK switch the font."""
+    data = ls11_decode_parts(message_tk3)[part]
+    count = struct.unpack_from("<H", data)[0]
+    offsets = list(struct.unpack_from(f"<{count}H", data, 2)) + [len(data)]
+    texts = []
+    for a, b in zip(offsets, offsets[1:]):
+        raw = data[a:b].split(b"\x05")[0]
+        for esc in (b"\x1bk", b"\x1bH", b"\x1bK"):
+            raw = raw.replace(esc, b"")
+        texts.append(unicodedata.normalize("NFKC", raw.decode("cp932", "replace")).strip())
+    return texts
+
+
+def load_tk3_pc98_leaders(message_tk3: bytes) -> list[str]:
+    texts = tk3_pc98_messages(message_tk3, 0)
+    start = texts.index("索敵記録") + 1
+    return texts[start:start + TK3_PC98_LEADERS]
+
+
 ##############################################################################
 
 
