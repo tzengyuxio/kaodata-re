@@ -277,3 +277,18 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - 數位：標準 8 色，匯出成第二個色盤。
   - OPEN.EXE DS:0x8D6C 的色盤是開場用的染色，套到頭像會變綠。
 - PC-9801 版 1991-12-21（ja.wikipedia）。
+
+## 提督の決断（TK, PC-98 日文版）
+
+`dekoei.py export tk-pc98` 用到的格式。來源是 `games/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。
+
+- `RENMAIN.EXE` 的 header 是 0x4600 bytes，DGROUP 是段 0x3852（檔案 0x3CB20）。下文程式位址是去掉 header 後的 image 位址。
+- `RENPIC.DAT`：42 張 40×48，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），720 bytes，無壓縮。
+  - 0xE644 讀一張：參數 ≤ 1 時讀 0x7080＋n × 720（第 40、41 張），否則參數是提督記錄的位址，讀 (參數 − DS:0xC6FC) / 19 × 720。0x14dd:0x115 以寬 5 bytes、48 列畫出。
+  - 第 40、41 張：0x19F34 以陣營（[0x8360]，0 日本、1 盟軍）畫，旁邊印「陸軍参謀」（2F72:0009），是統合作戰會議的陸軍代表。
+  - 第 42 張的位置（0x7620 起 288 bytes）是 0x12410 等讀的 32×24 小圖示，不是頭像。
+- `SUGATA.DAT`（DS:0x2A3A 的 dword 位移表，0xE58A 讀）是艦影，`RENPACK.DAT` 是 640×400 的大圖，都沒有頭像。
+- 名字：DS:0xC6FC 起 40 筆 × 19 bytes（`koei_games.load_tk_pc98_names`），0–19 日本、20–39 盟軍。順序和 `tk-sfc` 相同，但 16、19 是吉川　潔、友長丈一（SFC 是草鹿龍之介、木村昌福），31 是「ﾄﾞｰﾙﾏﾝ」（SFC 是 C.ドールマン）。
+  - 盟軍是半形片假名，轉成全形。宇垣纒的「纒」是外字 EBA4（USKCG.SYS 的 JIS 0x7626），前面墊兩個半形空白，和「吉川　潔」一樣當一個全形空白。
+- 色盤：程式裡沒有寫色盤 port 0xA8–0xAE 的指令（只有 GDC 的 0xA2、0xA6），用的是預設的 8 色數位色盤。
+- PC-9801 版 1989-09-21（ja.wikipedia）。

@@ -1265,6 +1265,26 @@ def load_ishin_pc98_persons(isin_exe, shinario) -> list[tuple[str, list[bytes]]]
     return persons
 
 
+TK_PC98_ADMIRALS = 0x4600 + 0x38520 + 0xC6FC  # RENMAIN.EXE: header + DGROUP 0x3852, DS:0xC6FC
+TK_PC98_PEOPLE = 40  # 19-byte records: 0-19 Japan, 20-39 the Allies
+TK_PC98_GAIJI = (b"\xeb\xa4", "纒")  # KOEI gaiji in 宇垣纒; glyph in USKCG.SYS (JIS 0x7626)
+
+
+def load_tk_pc98_names(renmain_exe) -> list[str]:
+    """Admiral names from RENMAIN.EXE; the index is also the RENPIC.DAT face.
+
+    Half-width katakana become full-width; spaces (full-width in 吉川　潔, two half-width in 宇垣　纒) stay
+    one full-width space."""
+    with open(renmain_exe, "rb") as f:
+        exe = f.read()
+    names = []
+    for i in range(TK_PC98_PEOPLE):
+        raw = exe[TK_PC98_ADMIRALS + i * 19:][:19].split(b"\0")[0]
+        text = TK_PC98_GAIJI[1].join(unicodedata.normalize("NFKC", p.decode("cp932")) for p in raw.split(TK_PC98_GAIJI[0]))
+        names.append("　".join(text.split()))
+    return names
+
+
 ##############################################################################
 
 

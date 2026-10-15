@@ -1923,6 +1923,47 @@ def build_ishin_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- TK (PC-98)
+
+TK_PC98_INPUTS = ["RENPIC.DAT", "RENMAIN.EXE"]
+TK_PC98_FACE = 720  # 40x48, 3 bytes per 8 px, byte k = plane k (0xE644 reads one, 0x14dd:0x115 draws it)
+TK_PC98_ARMY = 40  # 0xE644: faces 40 (Japan) and 41 (the Allies) are the side's 陸軍参謀 (0x19F34)
+TK_PC98_PALETTE = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
+
+
+def build_tk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in TK_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    pic = files["RENPIC.DAT"]
+    # the 288 bytes after the 42 faces are 32x24 icons (0x12410)
+    portraits = [{"img": store.add(40, 48, bytes(genpei.decode_planar(pic, i * TK_PC98_FACE, 40, 48, 3)))}
+                 for i in range(TK_PC98_ARMY + 2)]
+    for i in (TK_PC98_ARMY, TK_PC98_ARMY + 1):
+        portraits[i].update(group="陸軍", name="陸軍参謀")
+
+    # 0xE644: a face is the admiral's record index ((record - DS:0xC6FC) / 19)
+    characters = [{"id": i, "name": name, "face": {"portrait": i}}
+                  for i, name in enumerate(koei_games.load_tk_pc98_names(os.path.join(game_dir, "RENMAIN.EXE")))]
+
+    meta = {
+        "format": FORMAT, "id": "tk-pc98", "game": "TK", "platform": "PC98",
+        "title": {"ja": "提督の決断", "zh": "提督之決斷"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TK_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": TK_PC98_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -2801,6 +2842,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "taikoh-dos": build_taikoh_dos,
             "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
+            "tk-pc98": build_tk_pc98,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2810,7 +2852,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
