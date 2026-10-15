@@ -292,3 +292,19 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - 盟軍是半形片假名，轉成全形。宇垣纒的「纒」是外字 EBA4（USKCG.SYS 的 JIS 0x7626），前面墊兩個半形空白，和「吉川　潔」一樣當一個全形空白。
 - 色盤：程式裡沒有寫色盤 port 0xA8–0xAE 的指令（只有 GDC 的 0xA2、0xA6），用的是預設的 8 色數位色盤。
 - PC-9801 版 1989-09-21（ja.wikipedia）。
+
+## 提督の決断II（TK2, PC-98 日文版）
+
+`dekoei.py export tk2-pc98` 用到的格式。來源是 `games/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
+
+- `MAIN.EXE` 的 header 是 0xD600 bytes，DGROUP 是段 0x5E15。下文程式位址是去掉 header 後的 image 位址。
+- `KAO.TK2`：103 張 48×64，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1152 bytes，無壓縮。0x2A9D2（另一份在 0x3577C）以 `n × 0x480` 讀第 n 張；KAIGI.EXE（0x1C620）、END.EXE（0x3286）也讀這個檔。
+- 頭像號：
+  - 提督（`ARDATA`，每劇本 60 筆 × 17 bytes，0–29 日本、30–59 盟軍）：提督序號＋（盟軍 15）（0x2F30D 取 `序號 × 0x11` 的記錄，0x2F33D 加 15）。
+  - 陸軍將領（`GRDATA`，每劇本 30 筆 × 18 bytes，0–14 日本、15–29 盟軍）：30＋序號＋（盟軍 15）（0x1F42D）。所以每邊都是「提督 30、將領 15」共 45 張連號，KAIGI.EXE 0x989B 也是「盟軍加 45」。
+  - 元首（`SJDATA`，每劇本 9 筆 × 31 bytes，+13 是序號）：90＋序號（東条英機、ルーズベルト、チャーチル、ウィルヘルミナ、カーティン、スターリン、蒋介石、ピブン、ヒトラー，看圖對過）。
+  - 99–102 沒有人物記錄，只在訊息框（0x31DAA，最後一個參數是頭像）出現：99 M.L.ケソン（0x331FA）、100 ホー・チ・ミン（0x3304C）、101 飛龍艦長 加来止男（0x32900）、102「英海軍　軍令部長」與「プリンス・オブ・ウェールズ艦長　J.C.リーチ」（0x32109、0x32235）。101、102 是背影。
+- 名字：每筆記錄開頭是 Shift-JIS 名字（ARDATA／GRDATA 14 bytes、SJDATA 13 bytes），盟軍是半形片假名。10 個劇本的名字相同，匯出用第 1 劇本（`koei_games.load_tk2_pc98_names`）。日本人的姓名間是半形空白（`東条　英機` 是全形），匯出統一成一個全形空白。
+  - `GRDATA` 前 5400 bytes 是 10 劇本 × 540；之後 3600 bytes 是 4 份 50 人的舊名單（多了小磯国昭、阿南惟幾、ルメイ等），程式沒有用到。
+- 色盤：GRPDRV.EXE 0x1085 以每色 B、R、G 三個 4 bit 值寫 port 0xA8–0xAE。頭像的 8 色在 MAIN.EXE 檔案 0x657F0（後面還有幾份相同或變暗的表，KAIGI.EXE 也有），匯出時 ×17。
+- PC-9801 版 1993 年。

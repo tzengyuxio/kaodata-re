@@ -1285,6 +1285,27 @@ def load_tk_pc98_names(renmain_exe) -> list[str]:
     return names
 
 
+# 提督の決断II (PC-98): scenario 1 of each table; the names are the same in every scenario
+TK2_PC98_TABLES = [("ARDATA", 17, 60), ("GRDATA", 18, 30), ("SJDATA", 31, 9)]  # admirals, generals, leaders
+
+
+def _tk2_pc98_name(raw: bytes) -> str:
+    text = unicodedata.normalize("NFKC", raw.split(b"\0")[0].decode("cp932"))
+    return "　".join(text.split())
+
+
+def load_tk2_pc98_names(game_dir) -> tuple[list[str], list[str], list[str]]:
+    """(60 admirals: 0-29 Japan, 30-59 the Allies; 30 generals: 0-14 Japan, 15-29 the Allies; 9 heads of state).
+
+    Each record starts with the name (Shift-JIS, half-width katakana for westerners, 14 bytes; 13 for SJDATA)."""
+    out = []
+    for name, size, count in TK2_PC98_TABLES:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = f.read()
+        out.append([_tk2_pc98_name(data[i * size:i * size + (13 if name == "SJDATA" else 14)]) for i in range(count)])
+    return tuple(out)
+
+
 ##############################################################################
 
 
