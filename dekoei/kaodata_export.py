@@ -1968,20 +1968,27 @@ def build_tk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
 
 TK2_PC98_INPUTS = ["KAO.TK2", "MAIN.EXE", "ARDATA", "GRDATA", "SJDATA"]
 TK2_PC98_FACE = 1152  # 48x64, 3 bytes per 8 px, byte k = plane k (0x2A9D2 reads face n at n * 0x480)
-# MAIN.EXE file 0x657F0: 8 x (B, R, G) 4 bits each, the face colours (the same table appears again after it)
+# MAIN.EXE file 0x657F0 (PK: 0x3D860 of the unpacked main.exe): 8 x (B, R, G) 4 bits each, the face colours
+# (the same table appears again after it)
 TK2_PC98_PALETTE = 0x657F0
-# faces per side: 30 admirals, then 15 generals (KAIGI.EXE 0x989B adds 45 for the Allies), then 9 heads of state
-TK2_PC98_SIDE = 45
-TK2_PC98_LEADERS = 90
+TK2PK_PC98_PALETTE = 0x3D860
+# faces: per side 30 admirals then 15 generals (KAIGI.EXE 0x989B adds 45 for the Allies), then 9 heads of state
 # faces only drawn by message boxes (0x31DAA): MAIN.EXE 0x331FA, 0x3304C, 0x32900, 0x32109 / 0x32235
 TK2_PC98_OTHERS = {99: "M.L.ケソン", 100: "ホー・チ・ミン", 101: "加来止男", 102: "J.C.リーチ"}
 
 
-def build_tk2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_tk2_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = ["KAO.TK2", "PACK.LZW", "GRDATA", "SJDATA"] if pk else TK2_PC98_INPUTS
     files = {}
-    for name in TK2_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
+    # the PK disk's PACK.LZW replaces main.exe and ardata (two Allied names fixed) when installed over the base game
+    if pk:
+        pack = ls11.lw11_decode_files(files["PACK.LZW"])
+        exe, ardata = pack["MAIN.EXE"], pack["ARDATA"]
+    else:
+        exe, ardata = files["MAIN.EXE"], files["ARDATA"]
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAO.TK2"]
@@ -1992,18 +1999,19 @@ def build_tk2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
 
     # admiral a: face a + 15 for the Allies (0x2F33D); general g: 30 + g + 15 for the Allies (0x1F42D);
     # so each side's admirals and generals are 45 faces in a row, ordered here by face
-    admirals, generals, leaders = koei_games.load_tk2_pc98_names(game_dir)
+    admirals, generals, leaders = koei_games.load_tk2_pc98_names(ardata, files["GRDATA"], files["SJDATA"])
     names = admirals[:30] + generals[:15] + admirals[30:] + generals[15:] + leaders
     characters = [{"id": i, "name": name, "face": {"portrait": i}} for i, name in enumerate(names)]
 
-    pal = files["MAIN.EXE"][TK2_PC98_PALETTE:][:24]
+    pal = exe[TK2PK_PC98_PALETTE if pk else TK2_PC98_PALETTE:][:24]
     colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
 
     meta = {
-        "format": FORMAT, "id": "tk2-pc98", "game": "TK2", "platform": "PC98",
-        "title": {"ja": "提督の決断II", "zh": "提督之決斷II"},
+        "format": FORMAT, "id": "tk2pk-pc98" if pk else "tk2-pc98", "game": "TK2PK" if pk else "TK2", "platform": "PC98",
+        "title": {"ja": "提督の決断II パワーアップキット", "zh": "提督之決斷II 威力加強版"} if pk
+        else {"ja": "提督の決断II", "zh": "提督之決斷II"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TK2_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
@@ -2893,6 +2901,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
+            "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2902,7 +2911,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

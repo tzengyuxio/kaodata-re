@@ -1294,16 +1294,12 @@ def _tk2_pc98_name(raw: bytes) -> str:
     return "　".join(text.split())
 
 
-def load_tk2_pc98_names(game_dir) -> tuple[list[str], list[str], list[str]]:
+def load_tk2_pc98_names(ardata: bytes, grdata: bytes, sjdata: bytes) -> tuple[list[str], list[str], list[str]]:
     """(60 admirals: 0-29 Japan, 30-59 the Allies; 30 generals: 0-14 Japan, 15-29 the Allies; 9 heads of state).
 
     Each record starts with the name (Shift-JIS, half-width katakana for westerners, 14 bytes; 13 for SJDATA)."""
-    out = []
-    for name, size, count in TK2_PC98_TABLES:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            data = f.read()
-        out.append([_tk2_pc98_name(data[i * size:i * size + (13 if name == "SJDATA" else 14)]) for i in range(count)])
-    return tuple(out)
+    return tuple([_tk2_pc98_name(data[i * size:i * size + (13 if name == "SJDATA" else 14)]) for i in range(count)]
+                 for (name, size, count), data in zip(TK2_PC98_TABLES, (ardata, grdata, sjdata)))
 
 
 ##############################################################################

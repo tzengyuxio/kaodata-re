@@ -308,3 +308,10 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - `GRDATA` 前 5400 bytes 是 10 劇本 × 540；之後 3600 bytes 是 4 份 50 人的舊名單（多了小磯国昭、阿南惟幾、ルメイ等），程式沒有用到。
 - 色盤：GRPDRV.EXE 0x1085 以每色 B、R、G 三個 4 bit 值寫 port 0xA8–0xAE。頭像的 8 色在 MAIN.EXE 檔案 0x657F0（後面還有幾份相同或變暗的表，KAIGI.EXE 也有），匯出時 ×17。
 - PC-9801 版 1993 年。
+
+### パワーアップキット（`tk2pk-pc98`）
+
+- PK 只有一片（`games/pc98/disks/tk2pk-pc98/1`）：INSTALL.EXE 把 PACK.LZW 解到已安裝的本體上（LWEXT.EXE 是解壓工具）。`games/tk2pk-pc98/` 是本體的檔案加上 PK 片的檔案，匯出時直接從 PACK.LZW 取檔。
+- PACK.LZW 是 LW11：檔頭「LW11」＋12 bytes、256 bytes 字典（同 LS11），接著每個檔 32 bytes 的目錄（16 bytes 檔名、big-endian 的壓縮大小、原始大小、位移、4 bytes 不明），檔名第一個 byte 是 0 結束。壓縮碼和 LS11 相同（`ls11.lw11_decode_files`）。共 27 個檔：main.exe、kaigi.exe、end.exe、ardata、newsce（新劇本）等，沒有頭像檔，KAO.TK2、GRDATA、SJDATA 沿用本體。
+- 和本體的差別只有 ARDATA 兩個盟軍提督名：C.A.スプレング → スプレイグ、W.A.C.クラッチレー → V.A.C.クラッチレー。NEWSCE 裡的人物表和 PK 的 ARDATA、本體的 GRDATA／SJDATA 相同。
+- 色盤：解開的 main.exe 0x3D860，值和本體相同。

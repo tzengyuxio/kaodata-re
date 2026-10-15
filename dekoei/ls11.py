@@ -99,3 +99,21 @@ def ls11_decode(data: bytes, print_only=False) -> bytes:
         return b''
 
     return b''.join(decoded_data)
+
+
+def lw11_decode_files(data: bytes) -> dict[str, bytes]:
+    """LW11 archive (提督の決断II PK PACK.LZW): LS11 coding, but each table entry is a 16-byte file name before
+    the (compressed size, uncompressed size, offset) triple, plus 4 more bytes. Names are upper-cased."""
+    dictionary = data[16:16+256]
+    pos = 16+256
+    files = {}
+    while data[pos] != 0:
+        name = data[pos:pos+16].split(b'\0')[0].decode('ascii').upper()
+        compressed_size, uncompressed_size, offset = (int.from_bytes(data[pos+k:pos+k+4], LS11_ENDIAN) for k in (16, 20, 24))
+        compressed_data = data[offset:offset+compressed_size]
+        if compressed_size == uncompressed_size:
+            files[name] = compressed_data
+        else:
+            files[name] = recover(get_codes(compressed_data), dictionary)[:uncompressed_size]
+        pos += 32
+    return files
