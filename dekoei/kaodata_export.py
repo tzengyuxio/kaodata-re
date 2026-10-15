@@ -2097,6 +2097,7 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
             continue
         ch = {"id": face, "name": name, "face": {"portrait": face}}
         if face == admiral:
+            ch["face"]["label"] = "提督"
             ch["expressions"] = [{"portrait": leader, "label": "総統"}]
         characters.append(ch)
 
