@@ -1434,6 +1434,7 @@ def load_progen_pc98_persons(main_exe) -> list[tuple[int, str]]:
 
 
 ROYAL_PC98_DGROUP = 0x27270  # MAIN.EXE file offset of DS (the name table DS:0xE52 is used by 0x5B0)
+ROYAL_PC88_SNDATA = 0x6EB  # PC-88 SNDATA1.CIM starts at PC-98 DS:0x6EB
 
 
 def _royal_pc98_names(main: bytes, offset: int, size: int, count: int) -> list[str]:
@@ -1443,10 +1444,13 @@ def _royal_pc98_names(main: bytes, offset: int, size: int, count: int) -> list[s
             for i in range(count)]
 
 
-def load_royal_pc98_names(main_exe) -> tuple[list[str], list[str]]:
-    """(64 lords, whose index is also the KAODATA.DAT face; 23 unit types, faces 68-90) from MAIN.EXE."""
+def load_royal_pc98_names(main_exe, pc88=False) -> tuple[list[str], list[str]]:
+    """(64 lords, whose index is also the KAODATA.DAT face; 23 unit types, faces 68-90) from MAIN.EXE.
+    pc88: `main_exe` is the PC-88 SNDATA1.CIM, a copy of the PC-98 data at DS - 0x6EB."""
     with open(main_exe, "rb") as f:
         main = f.read()
+    if pc88:
+        main = bytes(ROYAL_PC98_DGROUP + ROYAL_PC88_SNDATA) + main
     return _royal_pc98_names(main, 0xE52, 13, 64), _royal_pc98_names(main, 0x13CC, 16, 23)
 
 

@@ -2112,19 +2112,29 @@ ROYAL_PC98_ANALOG = 0x189E
 ROYAL_PC98_DIGITAL = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
 ROYAL_PC98_ADVISORS = range(64, 68)  # 0x6A4C, 0x10890: 0x40 + advisor
 ROYAL_PC98_UNITS = 68  # 0x8460: 0x44 + unit type
+# PC-88: KAODATA.DAT (disk C) has the same 91 faces at 64x40 (B, R, G bytes per 8 px); names in SNDATA1.CIM
+ROYAL_PC88_INPUTS = ["KAODATA.DAT", "SNDATA1.CIM"]
+ROYAL_PC88_FACE = 960
 
 
-def build_royal_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_royal_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (200-line faces, digital colours only)."""
+    inputs = ROYAL_PC88_INPUTS if pc88 else ROYAL_PC98_INPUTS
     files = {}
-    for name in ROYAL_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAODATA.DAT"]
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
-                  "code": f"{i // ROYAL_PC98_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC98_FACE)]
-    lords, units = koei_games.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
+    if pc88:
+        portraits = [{"img": store.add(64, 80, brg_pixels(kao[i:i + ROYAL_PC88_FACE], 8)),
+                      "code": f"{i // ROYAL_PC88_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC88_FACE)]
+        lords, units = koei_games.load_royal_pc98_names(os.path.join(game_dir, "SNDATA1.CIM"), pc88=True)
+    else:
+        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+                      "code": f"{i // ROYAL_PC98_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC98_FACE)]
+        lords, units = koei_games.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
     for i in ROYAL_PC98_ADVISORS:
         portraits[i]["group"] = "相談役"
     # same groups as royal-fc, whose 91 faces are in the same order
@@ -2135,17 +2145,23 @@ def build_royal_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     characters = [{"id": i, "name": name, "reading": kana_to_hiragana(name), "face": {"portrait": i}}
                   for i, name in enumerate(lords)]
 
-    pal = files["MAIN.EXE"][koei_games.ROYAL_PC98_DGROUP + ROYAL_PC98_ANALOG:][:24]
-    analog = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+    if pc88:
+        # MAIN.COM 0x1B7D fades the title in through analog colours, then switches back to digital (0x1BAD)
+        palettes = [{"id": "pc88", "label": "PC88", "colors": ROYAL_PC98_DIGITAL}]
+    else:
+        pal = files["MAIN.EXE"][koei_games.ROYAL_PC98_DGROUP + ROYAL_PC98_ANALOG:][:24]
+        analog = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+        palettes = [{"id": "analog", "label": "類比 RGB", "colors": analog},
+                    {"id": "digital", "label": "數位 8 色", "colors": ROYAL_PC98_DIGITAL}]
 
     meta = {
-        "format": FORMAT, "id": "royal-pc98", "game": "ROYAL", "platform": "PC98",
+        "format": FORMAT, "id": "royal-pc88" if pc88 else "royal-pc98", "game": "ROYAL",
+        "platform": "PC88" if pc88 else "PC98",
         "title": {"ja": "ロイヤルブラッド", "zh": "魔法皇冠"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ROYAL_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "analog", "label": "類比 RGB", "colors": analog},
-                     {"id": "digital", "label": "數位 8 色", "colors": ROYAL_PC98_DIGITAL}],
+        "palettes": palettes,
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -3956,6 +3972,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "koukai-pc88": lambda game_dir: build_koukai_dos(game_dir, pc88=True),
             "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
             "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
+            "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

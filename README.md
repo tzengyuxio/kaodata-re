@@ -161,6 +161,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `tk3-pc98`  | 提督の決断III                  | PC-98      |  134 |  197 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk3pk-pc98` | 提督の決断III パワーアップキット | PC-98    |  141 |  205 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `royal-pc98` | ロイヤルブラッド               | PC-98      |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
+| `royal-pc88` | ロイヤルブラッド               | PC-88      |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `progen-pc98` | プロジェネター               | PC-98      |   97 |  125 |   ○    | [notes/progen.md](notes/progen.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-pc88` | ランペルール                   | PC-88      |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |

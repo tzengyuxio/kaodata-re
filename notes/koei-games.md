@@ -291,6 +291,18 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - OPEN.EXE DS:0x8D6C 的色盤是開場用的染色，套到頭像會變綠。
 - PC-9801 版 1991-12-21（ja.wikipedia）。
 
+### PC-88 版（`royal-pc88`）
+
+`dekoei.py export royal-pc88` 用到的差異（`build_royal_pc98(pc88=True)`）。
+
+- 來源：Neo Kobe 2016-02-25 的 `Royal Blood [FD].7z`（只有這一組）。Disk A 是 YDOS 3.0，B、C 是 FAT12。
+- `games/royal-pc88/` 放 Disk C 的 `KAODATA.DAT`、Disk A 的 `SNDATA1.CIM`，以及參考用的 `MAIN.COM`、`ROYAL.VER`。
+- 版本：`ROYAL.VER` 寫「ロイアル・ブラッド For PC-8801SR TYPE - B Ver 1.1 Rel 1.0 09/11/1991」（`ROYAL_B.VER` 是 Ver 1.0 Rel 1.0 09/09/1991）。
+- 頭像：`KAODATA.DAT` 是 91 張 64×40、每 8 點 B、R、G 3 bytes，960 bytes，不壓縮。匯出用 `pc88.brg_pixels`，逐列加倍成 64×80。
+  - 順序和 PC-98 相同，但沒有一張逐 byte 相同：0–67、83–88 是同一張圖改成 200 線，68–82（部隊）和 89、90 是另外畫的。
+- 名字：`SNDATA1.CIM` 就是 PC-98 DS:0x6EB 起的資料，君主在檔案 0x767、部隊在 0xCE1（`koei_games.load_royal_pc98_names(..., pc88=True)`），和 PC-98 逐筆相同。
+- 色盤：平時是數位 8 色（`ROYAL_PC98_DIGITAL`，palette id `pc88`）；`MAIN.COM` 只在畫面切換淡入時暫用類比色。
+
 ## 提督の決断（TK, PC-98 日文版）
 
 `dekoei.py export tk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/archives/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。
