@@ -212,7 +212,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 人物：`SUIDATA1–4.CIM` 從 7124 起 255 筆 × 20 bytes（`koei_games.load_suikoden_pc98_persons`）：
   - +0 姓名 7 bytes Shift-JIS，+7 讀音 9 bytes 半形片假名（不匯出），+16 恆為 0，+17 頭像碼（0 起算），+19 旗標。
   - 4 個劇本的姓名和頭像碼相同，匯出用劇本 1。順序、姓名和 `suikoden-fc` 完全相同。
-  - 外字 SJIS 0xEBA0–0xEBAD 的字形在缺少的第 1 片上，字是用 FC 名字和讀音推出來的：鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩。
+  - 外字 SJIS 0xEBA0–0xEBAD 的字形在缺少的第 1 片上，字是用 FC 名字和讀音推出來的：鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩。X68000 版的 `FONT68K.DAT`（0xEB9F 起 28 字，16×16）證實了這份對照。
 - 沒有人物使用的頭像（對照 FC 的特殊頭像）：255 造船所、256 雑貨屋、257 武器屋（施設），258 徽宗皇帝、259 金国太宗（特殊人物）。
 - 發行年份：ja.wikipedia 只寫 PC-9801 版 1991 年，沒有月日，待查。
 - `nameHistorical`：盧俊儀→盧俊義、馬鱗→馬麟、成喜→成貴、潘功雲→潘巧雲（`SUIKODEN_PC98_NAME_HISTORICAL`，中文 DOS 版是對的）。
@@ -228,6 +228,15 @@ bitflag: 0xff66, cursor=98, dest_len=2012
   - 全部是 200 線原生畫：和 PC-98 同一個設計，但沒有一張是 400 線圖抽列；約 13 張到 PC-98 時改過或換色，明顯不同的是 167、172、230、251，252 在 PC-98 是另一張畫（DOS 保留 PC-88 的畫）。DOS 版的 165↔173、201↔240、207↔225 對調，PC-88 和 PC-98 一致。
 - 人物 `SUIDATA1–4.CIM`：0x1884 起 255 筆 × 19 bytes（PC-98 的記錄少了 +18 那個 byte，頭像碼同在 +17）。4 個劇本相同，姓名與頭像碼和 PC-98 逐筆相同，`nameHistorical` 也相同。
   - 外字 0xEBA0–0xEBAD 的碼和 PC-98 相同，名字和讀音對得上（鄧元覚 トウゲンカク、寇烕 コウケツ 等）。Disk A 的 `FONT.DAT`（45 字）、`FONT2.DAT`（15 字）是外字字形，但排列和碼不是一一對應（例如「俅」「烕」在 FONT2），沿用 PC-98 的對照。
+
+### X68000 版（`suikoden-x68`）
+
+來源是 Internet Archive `softwarelibrary-x68k` 的 `suikoden_tenmei_no_chikai_1989_x68k`（A、B、C 3 片 DIM），`build_suikoden_pc98(x68=True)`。`games/suikoden-x68/` 放 C 片的 `KAO98.DAT`、`SUIDATA1.CIM`，以及參考用的 A 片 `MAIN.Z`、`REL.VER`、`FONT68K.DAT`。`REL.VER` 寫「Ｘ６８０００版 水滸伝 ｖｅｒ． １．００」。
+
+- 頭像：C 片的 `KAO98.DAT` 和 PC-98 逐 byte 相同，B 片的 `FACE.DAT` 也是同一個檔。
+- 色盤：`MAIN.Z`（未壓縮）檔案 0x41102 起是數位文字色盤 `0000 003E 07C0 07FE F800 F83E FFC0 FFFE`（bit 0 藍、bit 1 紅、bit 2 綠），顯示結果和 PC-98 相同，沿用 `SAN2_JP_PALETTE`。
+- 人物：`SUIDATA1–4.CIM` 從 0x232C 起 255 筆 × 40 bytes，姓名、讀音同 PC-98，頭像碼在 +37。4 個劇本相同。和 PC-98 只差 210：X68000 寫「成貴」（PC-98 是「成喜」），所以這筆不填 `nameHistorical`（`SUIKODEN_X68_NAME_HISTORICAL`）。
+- 外字：`FONT68K.DAT` 是 0xEB9F 起 28 個 16×16 字形（鄆鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩鵰矮攔…），人名用的 0xEBA0–0xEBAD 和 PC-98 的推測一致。
 
 ## 水滸傳・天命之誓（SUIKODEN, DOS 中文版）
 

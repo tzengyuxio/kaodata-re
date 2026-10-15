@@ -1261,15 +1261,19 @@ def suikoden_person(game_dir, to, scenario, file):
 
 
 # PC-98 (Japanese) SUIDATA?.CIM: 255 x 20 bytes at 7124: Shift-JIS name (7), half-width kana (9), 0, face, ?, flags.
-# The gaiji glyphs are on disk 1 (not available); characters inferred from the FC names and the kana readings
+# The gaiji glyphs are on disk 1 (not available); characters inferred from the FC names and the kana readings,
+# and confirmed by the X68000 FONT68K.DAT (28 glyphs from 0xEB9F)
 SUIKODEN_PC98_GAIJI = dict(zip(range(0xEBA0, 0xEBAE), "鄧郝龔蔣玘鮑俅鄔烕燁褚貹龐戩"))
 
 
-def load_suikoden_pc98_persons(sndata, pc88: bool = False) -> list[tuple[int, str]]:
-    """(face, name) per person. pc88: 19-byte records from 0x1884 (no byte 18), the same gaiji codes."""
+def load_suikoden_pc98_persons(sndata, pc88: bool = False, x68: bool = False) -> list[tuple[int, str]]:
+    """(face, name) per person. pc88: 19-byte records from 0x1884 (no byte 18), the same gaiji codes.
+    x68: 40-byte records from 0x232C, the face at +37."""
     with open(sndata, 'rb') as f:
         data = f.read()
-    start, size = (0x1884, 19) if pc88 else (7124, 20)
+    if x68:
+        data = b''.join(data[0x232C + i * 40:][:17] + data[0x232C + i * 40 + 37:][:1] + b'\0' for i in range(255))
+    start, size = (0x1884, 19) if pc88 else (0, 19) if x68 else (7124, 20)
     persons = []
     for i in range(255):
         rec = data[start + i * size:start + (i + 1) * size]

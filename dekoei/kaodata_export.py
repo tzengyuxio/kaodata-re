@@ -1037,11 +1037,16 @@ SUIKODEN_PC98_PORTRAIT_GROUPS = {255: "施設", 256: "施設", 257: "施設", 25
 SUIKODEN_PC98_PORTRAIT_NAMES = {255: "造船所", 256: "雑貨屋", 257: "武器屋", 258: "徽宗皇帝", 259: "金国太宗"}
 # misspelt names (the Chinese DOS release has them right), by character id
 SUIKODEN_PC98_NAME_HISTORICAL = {35: "盧俊義", 128: "馬麟", 210: "成貴", 254: "潘巧雲"}
+# X68000: the same KAO98.DAT (FACE.DAT on disk B is a copy); MAIN.Z file 0x41102 is the digital text palette
+# (bit 0 B, bit 1 R, bit 2 G), the same colours as PC-98; SUIDATA has 68000 padding and 210 spelt 成貴
+SUIKODEN_X68_INPUTS = ["KAO98.DAT", "SUIDATA1.CIM"]
+SUIKODEN_X68_NAME_HISTORICAL = {k: v for k, v in SUIKODEN_PC98_NAME_HISTORICAL.items() if k != 210}
 
 
-def build_suikoden_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
-    """pc88=True: the PC-88 version (KAODATA.DAT: 258 64x40 faces, B, R, G per 8 pixels; 19-byte person records)."""
-    inputs = SUIKODEN_PC88_INPUTS if pc88 else SUIKODEN_PC98_INPUTS
+def build_suikoden_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (KAODATA.DAT: 258 64x40 faces, B, R, G per 8 pixels; 19-byte person records).
+    x68=True: the X68000 version."""
+    inputs = SUIKODEN_PC88_INPUTS if pc88 else SUIKODEN_X68_INPUTS if x68 else SUIKODEN_PC98_INPUTS
     files = {}
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1066,19 +1071,21 @@ def build_suikoden_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[b
 
     # the four scenarios have the same names and faces
     characters = [{"id": cid, "name": name, "face": {"portrait": code}} for cid, (code, name) in
-                  enumerate(koei_games.load_suikoden_pc98_persons(os.path.join(game_dir, "SUIDATA1.CIM"), pc88))]
+                  enumerate(koei_games.load_suikoden_pc98_persons(os.path.join(game_dir, "SUIDATA1.CIM"), pc88, x68))]
+    historical = SUIKODEN_X68_NAME_HISTORICAL if x68 else SUIKODEN_PC98_NAME_HISTORICAL
     for ch in characters:
-        if ch["id"] in SUIKODEN_PC98_NAME_HISTORICAL:
-            ch["nameHistorical"] = SUIKODEN_PC98_NAME_HISTORICAL[ch["id"]]
+        if ch["id"] in historical:
+            ch["nameHistorical"] = historical[ch["id"]]
 
     meta = {
-        "format": FORMAT, "id": "suikoden-pc88" if pc88 else "suikoden-pc98", "game": "SUIKODEN",
-        "platform": "PC88" if pc88 else "PC98",
+        "format": FORMAT, "id": "suikoden-pc88" if pc88 else "suikoden-x68" if x68 else "suikoden-pc98",
+        "game": "SUIKODEN", "platform": "PC88" if pc88 else "X68" if x68 else "PC98",
         "title": {"ja": "水滸伝・天命の誓い", "zh": "水滸傳・天命之誓"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
+                     {"id": "x68", "label": "X68", "colors": SAN2_JP_PALETTE} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -4214,7 +4221,8 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "san5-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True, pk=False),
             "san1-pc98": build_san1, "san1-pc88": build_san1_pc88, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98,
-            "suikoden-pc88": lambda game_dir: build_suikoden_pc98(game_dir, pc88=True), "suikoden-dos": build_suikoden_dos,
+            "suikoden-pc88": lambda game_dir: build_suikoden_pc98(game_dir, pc88=True),
+            "suikoden-x68": lambda game_dir: build_suikoden_pc98(game_dir, x68=True), "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "liberty-pc98": lambda game_dir: build_liberty_dos(game_dir, pc98=True),
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
