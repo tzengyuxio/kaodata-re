@@ -1133,50 +1133,63 @@ LEMPE_PC88_NAME_ZH = """
 """.split()
 
 
-def build_lempe(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
-    """pc88=True: the PC-88 original (the same KAODATA.DAT, Japanese names)."""
+# X68000: KAODATA.DAT is the same 260 faces redrawn at 64x80 (byte k = plane k); NPDATA1.DAT holds the PC-88
+# names and faces; the text palette (MAIN.Z 0x86C44) is the digital 8 colours
+LEMPE_X68_INPUTS = ["KAODATA.DAT", "NPDATA1.DAT"]
+
+
+def build_lempe(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 original (the same KAODATA.DAT, Japanese names).
+    x68=True: the X68000 version (its own full-height faces, the PC-88 names)."""
+    inputs = LEMPE_X68_INPUTS if x68 else LEMPE_INPUTS
+    kana = pc88 or x68
     files = {}
-    for name in LEMPE_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAODATA.DAT"]
-    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True)), "code": f"{i // SAN2_FACE:04X}"}
-                 for i in range(0, len(kao), SAN2_FACE)]
+    if x68:
+        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+                      "code": f"{i // 1920:04X}"} for i in range(0, len(kao), 1920)]
+    else:
+        portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True)), "code": f"{i // SAN2_FACE:04X}"}
+                     for i in range(0, len(kao), SAN2_FACE)]
     for i, group in LEMPE_PORTRAIT_GROUPS.items():
         portraits[i]["group"] = group
-    for i, name in (LEMPE_PC88_PORTRAIT_NAMES if pc88 else LEMPE_PORTRAIT_NAMES).items():
+    for i, name in (LEMPE_PC88_PORTRAIT_NAMES if kana else LEMPE_PORTRAIT_NAMES).items():
         portraits[i]["name"] = name
 
-    npdata = os.path.join(game_dir, "NPDATA.CIM")
-    if pc88:
-        people = [(cid, name, face) for cid, (name, face) in enumerate(koei_games.load_lempe_pc88_persons(npdata))]
+    npdata = os.path.join(game_dir, "NPDATA1.DAT" if x68 else "NPDATA.CIM")
+    if kana:
+        people = [(cid, name, face) for cid, (name, face) in enumerate(koei_games.load_lempe_pc88_persons(npdata, x68))]
     else:
         people = [(p.id, p["name"], p.face) for p in koei_games.load_lempe_persons(npdata)]
     characters = []
     # the five scenarios list the same 255 people in the same order
     for cid, name, face in people:
         ch = {"id": cid, "name": name}
-        if pc88:
+        if kana:
             ch["nameZh"] = LEMPE_PC88_NAME_ZH[cid]
-        if cid in LEMPE_NAME_HISTORICAL and not pc88:  # translation errors of the Chinese release
+        if cid in LEMPE_NAME_HISTORICAL and not kana:  # translation errors of the Chinese release
             ch["nameHistorical"] = LEMPE_NAME_HISTORICAL[cid]
         ch["face"] = {"portrait": face}
         if cid == 0:
-            (_, label), *rest = LEMPE_PC88_NAPOLEON_FACES if pc88 else LEMPE_NAPOLEON_FACES
+            (_, label), *rest = LEMPE_PC88_NAPOLEON_FACES if kana else LEMPE_NAPOLEON_FACES
             ch["face"]["label"] = label
             ch["expressions"] = [{"portrait": i, "label": label} for i, label in rest]
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "lempe-pc88" if pc88 else "lempe-dos", "game": "LEMPE",
-        "platform": "PC88" if pc88 else "DOS",
+        "format": FORMAT, "id": "lempe-pc88" if pc88 else "lempe-x68" if x68 else "lempe-dos", "game": "LEMPE",
+        "platform": "PC88" if pc88 else "X68" if x68 else "DOS",
         "title": {"ja": "ランペルール", "zh": "拿破崙"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in LEMPE_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
+                     {"id": "x68", "label": "X68000", "colors": ISHIN_PC98_PALETTE} if x68 else
                      {"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -4403,6 +4416,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
             "koukai-pc88": lambda game_dir: build_koukai_dos(game_dir, pc88=True),
             "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
+            "lempe-x68": lambda game_dir: build_lempe(game_dir, x68=True),
             "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
             "tk-x68": lambda game_dir: build_tk_pc98(game_dir, x68=True),
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),

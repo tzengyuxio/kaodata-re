@@ -1154,14 +1154,17 @@ def load_lempe_persons(file, scenario=0) -> list[LEMPEPerson]:
 
 
 LEMPE_PC88_PERSONS = 0x21BA  # PC-88 NPDATA.CIM: 5 scenarios of 0x3100 bytes; 255 x 15 bytes (name 12, face u8)
+LEMPE_X68_PERSONS = 0x2C92  # X68000 NPDATA1-5.DAT (one per scenario): the same records padded to 16 bytes
 
 
-def load_lempe_pc88_persons(npdata) -> list[tuple[str, int]]:
-    """(name, face) of the PC-88 NPDATA.CIM scenario 1 (half-width katakana, NFKC); the same order as DOS."""
+def load_lempe_pc88_persons(npdata, x68=False) -> list[tuple[str, int]]:
+    """(name, face) of the PC-88 NPDATA.CIM scenario 1 (half-width katakana, NFKC); the same order as DOS.
+    x68=True: the X68000 NPDATA1.DAT (the same names and faces in all 5 scenarios)."""
     with open(npdata, 'rb') as f:
         data = f.read()
+    start, size = (LEMPE_X68_PERSONS, 16) if x68 else (LEMPE_PC88_PERSONS, 15)
     return [(unicodedata.normalize("NFKC", data[o:o + 12].split(b'\0')[0].decode('cp932')), data[o + 12])
-            for o in range(LEMPE_PC88_PERSONS, LEMPE_PC88_PERSONS + 255 * 15, 15)]
+            for o in range(start, start + 255 * size, size)]
 
 @click.command(help='人物資料解析')
 @click.option('-f', '--file', 'file', help="劇本檔案", required=True)

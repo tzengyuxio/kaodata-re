@@ -84,3 +84,12 @@
 - `nameHistorical`：DOS 版的 11 筆是中文翻譯錯誤，日文版寫法是對的（ミロー、ウディノ等），不填。
 - `nameZh`：和 `lempe-fc` 的 `nameZh` 相同（`LEMPE_PC88_NAME_ZH`），讓兩個假名版顯示同樣的中文名。內容是 DOS 中文版的人名，換上 `LEMPE_NAME_HISTORICAL` 的 11 筆，並在 7 位君主的名字加上世號（如 122 腓特烈·威廉三世、147 弗朗茨二世）。
 - P255–P259：拿破崙的第一執政、皇帝臉沿用 DOS 的結論（PC-88 `MAIN.COM` 0x31A2 的官銜表有同樣的「第一執政」「皇帝」）。P257–P259 的名字照 PC-88 的字串：`MAIN.OVL` 0x4389 ジョゼフィーヌ、マリー・ルイーズ，`COMSUB.OVL` 0x1270 ネルソン。
+
+## X68000 版（`lempe-x68`）
+
+`dekoei.py export lempe-x68` 用 `build_lempe(x68=True)`。
+
+- 來源：Internet Archive `lempereur_19xx_koei_disk_1_of_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片 DIM），沒有版本字串。`games/lempe-x68/` 放 C 片的 `KAODATA.DAT`、`NPDATA1.DAT` 與參考用的 A 片 `MAIN.Z`。
+- `KAODATA.DAT`：260 張 64×80 全高、每 8 px 3 bytes，byte k＝plane k（1920 bytes）。順序同 DOS／PC-88，但是另外重畫的全高圖，不是把半高圖逐列加倍。
+- 人物：`NPDATA1–5.DAT` 一個劇本一檔，從 0x2C92 起 255 筆 × 16 bytes（PC-88 的 15 bytes 記錄加 1 byte 補位），名字 12 bytes 半形片假名、頭像在 +12。5 個劇本和 PC-88 劇本 1 逐筆相同，所以 id、名字、`nameZh`、拿破崙的三張臉、257–259 的名字都照 `lempe-pc88`（`load_lempe_pc88_persons(..., x68=True)`）。
+- 色盤：`MAIN.Z`（沒有壓縮，執行位址＝檔案＋0x514DE）由 0x81FD2 把 0x86C44 的 16 色設到文字色盤，0–7 是數位 8 色（palette id `x68`，同 `ISHIN_PC98_PALETTE`）。

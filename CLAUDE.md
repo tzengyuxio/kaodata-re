@@ -55,6 +55,7 @@ cd dekoei
 ../.venv/bin/python dekoei.py export suikoden-x68 --game-dir ../games/suikoden-x68 --out ~/works/kaodata/data-local/suikoden-x68
 ../.venv/bin/python dekoei.py export lempe-dos --game-dir ../games/lempe-dos --out ~/works/kaodata/data-local/lempe-dos
 ../.venv/bin/python dekoei.py export lempe-pc88 --game-dir ../games/lempe-pc88 --out ~/works/kaodata/data-local/lempe-pc88
+../.venv/bin/python dekoei.py export lempe-x68 --game-dir ../games/lempe-x68 --out ~/works/kaodata/data-local/lempe-x68
 ../.venv/bin/python dekoei.py export suikoden-dos --game-dir ../games/suikoden-dos --out ~/works/kaodata/data-local/suikoden-dos
 ../.venv/bin/python dekoei.py export kouryuuki-dos --game-dir ../games/kouryuuki-dos --out ~/works/kaodata/data-local/kouryuuki-dos
 ../.venv/bin/python dekoei.py export kouryuuki-x68 --game-dir ../games/kouryuuki-x68 --out ~/works/kaodata/data-local/kouryuuki-x68
@@ -160,7 +161,7 @@ Python 端沒有 linter／formatter 設定。
     - `build_nobu3_pc98`（信長の野望・戦国群雄伝 PC-98）：ORGKAO1–3 是 177 張 64×80 全高頭像（byte k＝plane k），MONKAO.DAT 是 4 組全高組合臉零件（DOS 版位置加倍），頭像碼 bit 0–1 選組（DOS 版只用第 0 組），眼鼻口 XOR；人物用 `koei_games.load_nobu3_pc98_people`（38 bytes 一筆，Shift-JIS），數位 8 色，見 `notes/nobu3.md`。`build_nobu3_pc88`：KAODATA.DAT 和 DOS 相同（半高），但和 PC-98 一樣用 bit 0–1 選 4 組零件（每組 0x1680），人物用 `load_nobu3_pc98_people(pc88=True)`（36 bytes 一筆），5 個 PC-88 錯字填 `nameHistorical`。
     - `build_nobu5_pc98`（信長の野望・覇王伝 PC-98）只有逐人頭像：KAO.NB5 是 929 張 64×80，索引在 MAIN.EXE 檔案 0x40630，壓縮和天翔記相同（`nobu_pc98_face`），色盤是 MAIN.EXE 檔案 0x4131E 的色號 8–15；人物是 SN1–3.NB5（XOR 0xB4）與 S1T–S3T.NB5（`koei_games.load_nobu5_pc98_scenario`／`load_nobu5_pc98_arrivals`），一個頭像號一人，見 `notes/nobu5.md`。
     - `build_nobu6_pc98`（信長の野望・天翔記 PC-98）：KAODATA.NB6 是有索引的 410 張 64×80 自訂壓縮頭像（`nobu_pc98_face`），MONDATA.NB6 是 LS11 的 19 種組合臉（上、下 3bpp，眼、口是遮罩＋圖，遮罩保留處匯出成透明），類型在頭像碼 bit 0–4；人物是 SNDATA.NB6／TAIKI.NB6 的姓名記錄（`koei_games.load_nobu6_pc98_persons`），一個頭像碼一人、別名合併（`NOBU6_PC98_ALIASES`），色盤在 MAIN.EXE 檔案 0x38724，見 `notes/nobu6.md`。
-    - `build_lempe` 只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`；`pc88=True` 的 KAODATA.DAT 和 DOS 相同，人物用 `load_lempe_pc88_persons`（半形片假名），見 `notes/lempe.md`。
+    - `build_lempe` 只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`；`pc88=True` 的 KAODATA.DAT 和 DOS 相同，人物用 `load_lempe_pc88_persons`（半形片假名）；`x68=True` 的 KAODATA.DAT 是重畫的 64×80 全高頭像（byte k＝plane k），人物讀 NPDATA1.DAT（和 PC-88 相同），數位 8 色，見 `notes/lempe.md`。
   - PK 資料集（本體完全包含在內、只保留 PK 版的）在 PK 才有的頭像與人物加 `"pk": true`，`group` 照原本的類別名稱、不自己加「PK」：`san4pk-*` 是 340 之後的頭像與 NBDATA.SUI 的人物，`san5pk-*` 是 733 之後的頭像，`tk3pk-pc98` 是 KAODATA2 的頭像 197–204 與用到它們的劇本人物。`tk2pk-pc98` 只改了兩個提督名的寫法，沒有標記。
   - `nameHistorical`（史書寫法）的規則：遊戲寫法讓人認不出或搜不到史書（或《三國演義》）的寫法時才填，用該資料集的字形（日文版用新字體）。
     - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
