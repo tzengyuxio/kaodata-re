@@ -102,6 +102,42 @@ def load_san3_pc98_persons(file):
     return persons
 
 
+# X68000 SNDATA?.CIM (MAIN.Z 0x15136): MSB-first bits; u8, u8 fill byte, u32 LE size, then for each byte
+# a 1 bit (the fill byte) or a 0 bit and 8 bits. Unpacked, the same 600 records as the PC-98 SNDATA?B.CIM,
+# with 68000 padding: 72 bytes each from 0x1B72, face code big-endian at +2, name at +0x39
+X68_PEOPLE = 0x1B72
+X68_RECORD_SIZE = 72
+
+
+def unpack_x68_sndata(data):
+    pos = 0
+
+    def bits(n):
+        nonlocal pos
+        v = 0
+        for _ in range(n):
+            v = v << 1 | (data[pos >> 3] >> (7 - (pos & 7)) & 1)
+            pos += 1
+        return v
+
+    bits(8)
+    fill = bits(8)
+    size = sum(bits(8) << (8 * k) for k in range(4))
+    return bytes(fill if bits(1) else bits(8) for _ in range(size))
+
+
+def load_san3_x68_persons(file):
+    """(face code, name) of every used record of an X68000 SNDATA?.CIM."""
+    with open(file, "rb") as f:
+        data = unpack_x68_sndata(f.read())
+    persons = []
+    for i in range(600):
+        rec = data[X68_PEOPLE + i * X68_RECORD_SIZE:][:X68_RECORD_SIZE]
+        if rec[0x39:0x3F] != bytes(6):
+            persons.append((struct.unpack_from(">H", rec, 2)[0], decode_pc98_name(rec[0x39:0x3F])))
+    return persons
+
+
 
 @click.group()
 def san3():

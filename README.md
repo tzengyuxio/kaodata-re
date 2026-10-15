@@ -16,7 +16,7 @@ Early KOEI Games Data Research
 | --------- | --------------------------- | ---: | :--------------: | :---: | ------ | ------------------- |
 | SAN1      | 三國志                      | 1985 |     DOS,PC98     |   ○   |        |                     |
 | SAN2      | 三國志II                    | 1989 | DOS,PC98,X68,WIN |   ○   |        |                     |
-| SAN3      | 三國志III                   | 1992 |   DOS,PC98,WIN   |   ○   |        |                     |
+| SAN3      | 三國志III                   | 1992 | DOS,PC98,X68,WIN |   ○   |        |                     |
 | SAN4      | 三國志IV                    | 1994 |     DOS,PC98     |   ○   |        |                     |
 | SAN5      | 三國志V                     | 1995 |     DOS,PC98     |   ○   |        |                     |
 | SAN6      | 三國志VI                    | 1998 |       WIN        |       |        |                     |
@@ -110,6 +110,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `san2-pc88`  | 三國志II                       | PC-88      |  352 |  219 |   ○    | [notes/san2.md](notes/san2.md)     |
 | `san3-dos`   | 三國志III                      | DOS 中文版 |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
 | `san3-pc98`  | 三國志III                      | PC-98      |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
+| `san3-x68`   | 三國志III                      | X68000     |  531 |  307 |   ○    | [notes/san3.md](notes/san3.md)     |
 | `san4pk-dos` | 三國志IV 威力加強版            | DOS 中文版 |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san4pk-pc98` | 三國志IV 威力加強版           | PC-98      |  579 |  660 |   ○    | [notes/san4.md](notes/san4.md)     |
 | `san5pk-dos` | 三國志V 威力加強版             | DOS 中文版 |  500 | 1165 |        | [notes/san5.md](notes/san5.md)     |

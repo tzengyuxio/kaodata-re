@@ -513,6 +513,11 @@ SAN3_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子將", 223: "�
                        227: "管輅", 228: "紫虛上人", 229: "李意", 306: "貂蟬"}
 # PC-98: palette at DGROUP 0x2A3A of MAIN.EXE (B, R, G, 4 bits each), widened as v * 17; names as the game spells them
 SAN3_PC98_PALETTE = ["#000000", "#0044FF", "#FF5500", "#FF55DD", "#11BB55", "#00CCFF", "#FFEE00", "#FFFFFF"]
+# X68000: the same KAODATA / MONTAGE; MAIN.Z (CZ10, image base 0x514FA) loads the palette from $B8326 (B, R, G,
+# 5 bits each), the PC-98 4-bit colours as 2v + 1, widened as v << 3 | v >> 2. The scenarios fix four PC-98 typos.
+SAN3_X68_INPUTS = ["KAODATA.DAT", "MONTAGE.DAT"] + [f"SNDATA{i}.CIM" for i in range(1, 7)]
+SAN3_X68_PALETTE = ["#000000", "#004aff", "#ff5a00", "#ff5ade", "#18bd5a", "#00ceff", "#ffef00", "#ffffff"]
+SAN3_X68_NAME_HISTORICAL = {k: v for k, v in SAN3_PC98_NAME_HISTORICAL.items() if k not in (86, 0x96A5, 53, 76)}
 SAN3_PC98_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子将", 223: "献帝", 224: "吉平", 225: "干吉", 226: "左慈",
                             227: "管輅", 228: "紫虚上人", 229: "李意", 306: "貂蝉"}
 # new rulers / new officers offered by the face picker at 0x116E3, by sex
@@ -532,12 +537,12 @@ def san3_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
     return 64, h, bytes(c if opaque or c else TRANSPARENT for c in px)
 
 
-def san3_characters(game_dir: str, pc98: bool = False) -> list[tuple[int, str]]:
+def san3_characters(game_dir: str, pc98: bool = False, x68: bool = False) -> list[tuple[int, str]]:
     """(face code, name) per person: scenarios 1-6 in order, deduplicated by face code."""
     spellings: dict[int, Counter] = {}
-    for name in SAN3_INPUTS[2:]:
+    for name in (SAN3_X68_INPUTS if x68 else SAN3_INPUTS)[2:]:
         path = os.path.join(game_dir, name)
-        persons = san3.load_san3_pc98_persons(path) if pc98 else \
+        persons = san3.load_san3_x68_persons(path) if x68 else san3.load_san3_pc98_persons(path) if pc98 else \
             [(p.face, p["name"].strip()) for p in san3.load_san3_persons(path)]
         for code, person_name in persons:
             spellings.setdefault(code, Counter())[person_name] += 1
@@ -545,9 +550,11 @@ def san3_characters(game_dir: str, pc98: bool = False) -> list[tuple[int, str]]:
     return [(code, pick.get(code) or names.most_common(1)[0][0]) for code, names in spellings.items()]
 
 
-def build_san3(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+def build_san3(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc98=True: the PC-98 version; x68=True with it: the X68000 version."""
+    inputs = SAN3_X68_INPUTS if x68 else SAN3_INPUTS
     files = {}
-    for name in SAN3_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["pixels.bin", "portraits.bin"])
@@ -570,9 +577,9 @@ def build_san3(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
         portraits[i]["name"] = name
 
     characters = []
-    for cid, (code, name) in enumerate(san3_characters(game_dir, pc98)):
+    for cid, (code, name) in enumerate(san3_characters(game_dir, pc98, x68)):
         ch = {"id": cid, "name": name}
-        historical = SAN3_PC98_NAME_HISTORICAL if pc98 else SAN3_NAME_HISTORICAL
+        historical = SAN3_X68_NAME_HISTORICAL if x68 else SAN3_PC98_NAME_HISTORICAL if pc98 else SAN3_NAME_HISTORICAL
         if code in historical:
             ch["nameHistorical"] = historical[code]
         if san3.is_montage_code(code):
@@ -584,12 +591,14 @@ def build_san3(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "san3-pc98" if pc98 else "san3-dos", "game": "SAN3", "platform": "PC98" if pc98 else "DOS",
+        "format": FORMAT, "id": "san3-x68" if x68 else "san3-pc98" if pc98 else "san3-dos", "game": "SAN3",
+        "platform": "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "三國志III", "zh": "三國志III"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN3_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN3_PC98_PALETTE} if pc98 else
+        "palettes": [{"id": "x68", "label": "X68", "colors": SAN3_X68_PALETTE} if x68 else
+                     {"id": "pc98", "label": "PC98", "colors": SAN3_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": SAN3_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -4186,7 +4195,8 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_genpei(game_dir, pc98=True), "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
             "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san2-pc88": build_san2_pc88, "san3-dos": build_san3,
-            "san3-pc98": lambda game_dir: build_san3(game_dir, pc98=True), "lempe-dos": build_lempe,
+            "san3-pc98": lambda game_dir: build_san3(game_dir, pc98=True),
+            "san3-x68": lambda game_dir: build_san3(game_dir, pc98=True, x68=True), "lempe-dos": build_lempe,
             "san4pk-dos": lambda game_dir: build_san4(game_dir, pk=True),
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
