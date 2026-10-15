@@ -1639,6 +1639,108 @@ def build_taikoh_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- PROGEN (PC-98)
+
+PROGEN_PC98_INPUTS = ["KAO.LZW", "MAIN.EXE"]
+PROGEN_PC98_PALETTE = 0x67BA  # MAIN.EXE DS: 8 words, 4-bit B (bits 0-3), R (4-7), G (8-11); 0x8B8A sets colours 0-7
+# composite parts follow the LS11 data of KAO.LZW, read raw by 0xCF6A: per variant 4 slots x 4 parts,
+# each part rows x (3 planes x width bytes); all are ORed into a cleared 64x80 buffer
+PROGEN_PC98_VARIANTS = [0x36FA3, 0x3A423]  # code bits 15-14 == 2 -> second set, else first
+PROGEN_PC98_SLOTS = {"top": ("頭盔上", 8, 40, 0), "bottom": ("頭盔下", 8, 40, 40), "eyes": ("眼", 6, 32, 16),
+                     "mouth": ("口", 6, 48, None)}
+PROGEN_PC98_MOUTH_ROW = [32, 16]
+PROGEN_PC98_OR = {"eyes", "mouth"}
+# faces no person record uses: shop and facility people (0x7968 table, fixed codes passed to 0xD1D2),
+# those only named by the O<n> command of EVENT.EVT, and two never shown
+PROGEN_PC98_FACILITY = {83, *range(107, 118)}
+PROGEN_PC98_UNUSED = {72, 106}
+
+
+def progen_pc98_pixels(data: bytes, width: int, rows: int) -> bytes:
+    """rows x (3 planes x width bytes), MSB = leftmost pixel, plane q = colour bit q."""
+    out = bytearray(width * 8 * rows)
+    for r in range(rows):
+        for q in range(3):
+            for c in range(width):
+                b = data[(r * 3 + q) * width + c]
+                for i in range(8):
+                    out[r * width * 8 + c * 8 + i] |= (b >> (7 - i) & 1) << q
+    return bytes(out)
+
+
+def build_progen_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in PROGEN_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    kao = files["KAO.LZW"]
+    variants = []
+    for v, base in enumerate(PROGEN_PC98_VARIANTS):
+        parts = {}
+        for slot, (_, width, rows, row) in PROGEN_PC98_SLOTS.items():
+            size = width * 3 * rows
+            items = [store.add(width * 8, rows, progen_pc98_pixels(kao[base + i * size:], width, rows))
+                     for i in range(4)]
+            parts[slot] = {"at": [0, PROGEN_PC98_MOUTH_ROW[v] if row is None else row], "items": items}
+            base += 4 * size
+        variants.append(parts)
+    # code bits 15-14: 1 and 3 draw the first set, 2 the second
+    variants = [{"id": str(k + 1), "label": f"類型{k + 1}", "parts": parts}
+                for k, parts in enumerate([variants[0], variants[1], variants[0]])]
+
+    portraits = [{"img": store.add(64, 80, progen_pc98_pixels(face, 8, 80), blob=1), "code": f"{i:04X}"}
+                 for i, face in enumerate(ls11.ls11_decode_parts(kao))]
+
+    characters = []
+    for code, name in koei_games.load_progen_pc98_persons(os.path.join(game_dir, "MAIN.EXE")):
+        ch = {"id": len(characters), "name": name}
+        if code < 0x4000:  # 0xD088
+            ch["face"] = {"portrait": code}
+        else:
+            ch["face"] = {"variant": (code >> 14) - 1, "parts": [code & 3, code >> 2 & 3, code >> 4 & 3, code >> 6 & 3],
+                          "code": f"{code:04X}"}
+        characters.append(ch)
+
+    used = {c["face"]["portrait"] for c in characters if "portrait" in c["face"]}
+    for i, p in enumerate(portraits):
+        if i in PROGEN_PC98_UNUSED:
+            p["group"] = "未使用"
+        elif i in PROGEN_PC98_FACILITY and i not in used:
+            p["group"] = "設施人物"
+        elif i not in used:
+            p["group"] = "事件人物"
+
+    pal = files["MAIN.EXE"][koei_games.PROGEN_PC98_DGROUP + PROGEN_PC98_PALETTE:][:16]
+    colours = []
+    for i in range(0, 16, 2):
+        w = int.from_bytes(pal[i:i + 2], "little")
+        colours.append("#" + "".join(f"{(w >> s & 15) * 17:02x}" for s in (4, 8, 0)))
+
+    meta = {
+        "format": FORMAT, "id": "progen-pc98", "game": "PROGEN", "platform": "PC98",
+        "title": {"ja": "プロジェネター"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in PROGEN_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "or"} if slot in PROGEN_PC98_OR else {})}
+                      for slot, (label, *_) in PROGEN_PC98_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "$variant", "hi": 15, "lo": 14, "base": 1}, {"of": "mouth", "hi": 7, "lo": 6},
+                {"of": "eyes", "hi": 5, "lo": 4}, {"of": "bottom", "hi": 3, "lo": 2}, {"of": "top", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
@@ -2516,7 +2618,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "koukai-dos": build_koukai_dos, "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos,
-            "taikoh2-win": build_taikoh2_win,
+            "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2526,7 +2628,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

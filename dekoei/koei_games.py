@@ -1195,6 +1195,22 @@ def load_taikoh2_win_others(exe, sndata) -> list[tuple[int, str, int]]:
     return others
 
 
+PROGEN_PC98_DGROUP = 0x4400 + 0x341F0  # MAIN.EXE: header + DGROUP segment 0x341F
+PROGEN_PC98_PERSONS = 0x33E4  # DS: 100 x 33 bytes (0xA95A); the last three are リザーブ１-３
+PROGEN_PC98_PEOPLE = 97
+
+
+def load_progen_pc98_persons(main_exe) -> list[tuple[int, str]]:
+    """(face code, name) of the MAIN.EXE person table: u16 face code, u8, Shift-JIS name, ..."""
+    with open(main_exe, "rb") as f:
+        main = f.read()
+    persons = []
+    for i in range(PROGEN_PC98_PEOPLE):
+        rec = main[PROGEN_PC98_DGROUP + PROGEN_PC98_PERSONS + i * 33:][:33]
+        persons.append((int.from_bytes(rec[:2], "little"), rec[3:19].split(b"\0")[0].decode("cp932")))
+    return persons
+
+
 ##############################################################################
 
 
