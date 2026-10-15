@@ -617,6 +617,43 @@ def load_nobu4_dos_people(game_dir) -> list[list[tuple[str, int]]]:
                        for o in range(0, len(data) - 27, 28) if data[o + 3]])
     return tables
 
+
+def nobu4_pc98_name(raw: bytes) -> str:
+    """Shift-JIS name with the same KOEI gaiji (EB xx) as the DOS version, cut at the first zero byte."""
+    out, i = '', 0
+    raw = raw.split(b'\0')[0]
+    while i < len(raw):
+        if raw[i] == 0xEB:
+            out += NOBU4_GAIJI[raw[i + 1]].replace("山內", "山内")
+            i += 2
+        else:
+            n = 2 if 0x81 <= raw[i] <= 0x9F or raw[i] >= 0xE0 else 1
+            out += unicodedata.normalize("NFKC", raw[i:i + n].decode('cp932'))
+            i += n
+    return out
+
+
+def load_nobu4_pc98_people(game_dir) -> list[list[tuple[str, int]]]:
+    """As load_nobu4_dos_people, but surname and given name are 7 bytes each (Shift-JIS, NUL padded)."""
+    tables = []
+    for n in range(1, 4):
+        with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+            data = f.read()
+        people = []
+        for o in range(0x1192, len(data) - 32, 33):
+            if not data[o]:
+                break
+            people.append((nobu4_pc98_name(data[o:o + 7]) + nobu4_pc98_name(data[o + 7:o + 14]),
+                           int.from_bytes(data[o + 0x15:o + 0x17], 'little')))
+        tables.append(people)
+        with open(f'{game_dir}/SNDATA{n}T.CIM', 'rb') as f:
+            data = f.read()
+        tables.append([(nobu4_pc98_name(data[o + 3:o + 10]) + nobu4_pc98_name(data[o + 10:o + 17]),
+                        int.from_bytes(data[o + 0x18:o + 0x1A], 'little'))
+                       for o in range(0, len(data) - 27, 28) if data[o + 3]])
+    return tables
+
+
 ##############################################################################
 
 

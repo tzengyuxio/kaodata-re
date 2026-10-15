@@ -49,3 +49,14 @@
 - 276–295 公主（「%s家 公主」，0x18566 `0x114 + rand(20)`；結束畫面 0x28D0F 用 `0x113 + rand(20)`，即 275–294）
 - 296 義姬（伊達、最上的事件，0x2C00C、0x2C0A5）
 - 297 田山義繼（畠山義繼，「二本松城主」，刺殺伊達輝宗的事件，0x2B81F、0x2BCD6）
+
+## PC-98 版（`nobu4-pc98`）
+
+來源是 `games/archives/pc98/[PC98] 信長の野望・風雲録.zip`（A、B 兩片），每片解在 `games/archives/pc98/disks/nobu4-pc98/`，合併放在 `games/nobu4-pc98/`。`VERSION`：For PC-9801 Series，Mar.07,1991 Ver 1.0 Rel 1.0 TYPE-A。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6E00 bytes）。
+
+- `KAODATA.DAT`、`MONDATA.DAT`、`GAIJI.DAT` 和 DOS 中文版逐 byte 相同，頭像碼、組合臉的排法也相同。但 PC-98 把每 8 點的 byte 0／1／2 寫到 B／R／G 平面（byte k＝bit k），所以用 `genpei.decode_planar`，不是 `to_3bpp_indexes`。
+- 色盤：類比色盤由 0x1099 設定，淡入讀 DS:0x39DA（檔案 0x4216A）的 B、R、G 表。基本表是標準 8 色，主要的淡入（0x4646，11 處呼叫）和初始化（0x469E）把色號 1、3、7 的藍改成 0xC：`#000000 #0000cc #ff0000 #ff00cc #00ff00 #00ffff #ffff00 #ffffcc`。（0x467C 另一組把 1、3 設成 0xF，只有 2 處呼叫，不收。）
+- 人物：劇本檔位置與記錄長度同 DOS 版，姓名是 Shift-JIS，姓、名各 7 bytes（DOS 是 6＋0）。外字 `EB xx` 照 `NOBU4_GAIJI` 對應，「山內」改寫成「山内」（`koei_games.load_nobu4_pc98_people`）。各劇本人數、頭像碼都和 DOS 相同，共 507 人。
+  - 同碼不同名的只有松平元康（劇本 1）／徳川家康（劇本 2、3），比照 `nobu5-pc98`、`nobu6-pc98` 取徳川家康。
+  - DOS 中文版的錯字在日文版只剩「四天王政孝」（四王天政孝），只填這一筆 `nameHistorical`。
+- 沒有人物使用的頭像：`MAIN.EXE` 裡畫臉的常數相同（0x8B、0x8C、0x111–0x113、0x128、0x129，公主 0x114＋rand(20)）。名字用日文版的寫法：139 今井宗久、140 千利休、273 沢彦、274 朝廷使者、275 ルイス＝フロイス、296 義姫、297 畠山義継，歸「事件人物」；276–295 歸「姫」。
