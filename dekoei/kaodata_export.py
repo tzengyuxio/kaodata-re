@@ -106,9 +106,10 @@ def portrait_display(meta: dict, blobs: list[bytes], index: int, bg=None) -> tup
     return over_background(meta, blobs, crop(img, p["window"]) if "window" in p else img, bg)
 
 
-def to_rgba(src: tuple[int, int, bytes], colors: list[str]) -> bytes:
+def to_rgba(src: tuple[int, int, bytes], colors: list[str], opaque: bool = False) -> bytes:
+    """With "opaque" (spec §4) 255 is an ordinary colour."""
     rgb = [bytes.fromhex(c[1:]) for c in colors]
-    return b"".join(b"\0\0\0\0" if c == TRANSPARENT else rgb[c] + b"\xff" for c in src[2])
+    return b"".join(b"\0\0\0\0" if c == TRANSPARENT and not opaque else rgb[c] + b"\xff" for c in src[2])
 
 
 def display_entries(meta: dict, blobs: list[bytes]):
@@ -132,7 +133,7 @@ def display_entries(meta: dict, blobs: list[bytes]):
 def checksums(meta: dict, blobs: list[bytes]) -> dict:
     colors = meta["palettes"][0]["colors"]
     return {"algo": "sha256-rgba",
-            "entries": {k: hashlib.sha256(to_rgba(img, colors)).hexdigest()
+            "entries": {k: hashlib.sha256(to_rgba(img, colors, meta.get("opaque", False))).hexdigest()
                         for k, img in display_entries(meta, blobs)}}
 
 
@@ -2096,8 +2097,6 @@ NOBU4_PC98_NAME_HISTORICAL = {"四天王政孝": "四王天政孝"}
 
 
 NOBU4_WIN_INPUTS = ["Facedata.nb4", "Mondata.nb4", "sndata1.nb4", "sndata2.nb4", "sndata3.nb4"]
-# all 256 colours are used; colour 243 (108 pixels) merges into the nearly equal 237, and 255 moves to 243
-NOBU4_WIN_REMAP = bytes([*range(243), 237, *range(244, 255), 243])
 NOBU4_WIN_NOTE = "後登場的武將在登場時才從同頭型、同上半部的 8 張大眾臉中分配一張還沒人用的，這裡取頭像碼指定的那張。"
 
 
@@ -2117,10 +2116,11 @@ def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
     # (eyes, nose and mouth are not separate). Both share the BMP palette.
     faces, mon = nobu4_win_bitmap(files["Facedata.nb4"]), nobu4_win_bitmap(files["Mondata.nb4"])
     pal = faces.getpalette()
-    colors = [f"#{pal[i * 3]:02x}{pal[i * 3 + 1]:02x}{pal[i * 3 + 2]:02x}" for i in [*range(243), 255, *range(244, 255)]]
+    # all 256 colours are used, so the dataset is opaque and keeps the BMP's indices
+    colors = [f"#{pal[i * 3]:02x}{pal[i * 3 + 1]:02x}{pal[i * 3 + 2]:02x}" for i in range(256)]
     portraits = []
     for i in range(faces.height // 80):
-        p = {"img": store.add(64, 80, faces.crop((0, i * 80, 64, i * 80 + 80)).tobytes().translate(NOBU4_WIN_REMAP)),
+        p = {"img": store.add(64, 80, faces.crop((0, i * 80, 64, i * 80 + 80)).tobytes()),
              "code": f"{i:04X}"}
         if i in NOBU4_PC98_PORTRAITS:
             p.update(name=NOBU4_PC98_PORTRAITS[i], group="事件人物")
@@ -2129,7 +2129,7 @@ def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
         portraits.append(p)
     first_mon = len(portraits)
     for i in range(mon.height // 80):
-        px = mon.crop((0, i * 80, 64, i * 80 + 80)).tobytes().translate(NOBU4_WIN_REMAP)
+        px = mon.crop((0, i * 80, 64, i * 80 + 80)).tobytes()
         portraits.append({"img": store.add(64, 80, px, blob=1), "group": f"大眾臉（{NOBU4_DOS_TYPES[i // 64]}）"})
 
     # as nobu4-pc98: one character per face code; a composite face is the one the scenario first assigned
@@ -2158,7 +2158,7 @@ def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
             characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "nobu4-win", "game": "NOBU4", "platform": "WIN",
+        "format": FORMAT, "id": "nobu4-win", "game": "NOBU4", "platform": "WIN", "opaque": True,
         "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_WIN_INPUTS]},
