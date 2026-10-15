@@ -47,7 +47,7 @@
 - [x] 信長の野望・武将風雲録（`[PC98] 信長の野望・風雲録.zip`）— 解到 `games/nobu4-pc98/`，用 `build_nobu4_dos(pc98=True)` 做 `nobu4-pc98` 匯出（2026-10-15）
 - [x] 信長の野望・覇王伝（`[PC98] 信長の野望・覇王伝o.zip`）— 解到 `games/nobu5-pc98/`，做 `nobu5-pc98` 匯出（2026-10-15）
 - [x] 信長の野望・天翔記（`[PC98] 信長の野望・天翔記.zip`）— 解到 `games/nobu6-pc98/`，做 `nobu6-pc98` 匯出（2026-10-15）
-- [ ] 水滸伝～天命の誓い～（`[PC98] 水滸伝～天命の誓い～.ZIP`）— 和既有 `suikoden-pc98` 比對是否同版（2026-10-14）
+- [x] 水滸伝～天命の誓い～（`[PC98] 水滸伝～天命の誓い～.ZIP`）— 第 2 片和既有 `suikoden-pc98` 相同，第 1 片的 MAIN.EXE 證實數位色盤，資料集不變（2026-10-15）
 - [x] 独立戦争（`[PC98] 独立戦争.zip`，3 片 D88）— 解到 `games/liberty-pc98/`，用 `build_liberty_dos(pc98=True)` 做 `liberty-pc98` 匯出（2026-10-15）
 - [x] 大航海時代（`[PC98] 大航海時代.zip`）— 解到 `games/koukai-pc98/`，用 `build_koukai_dos(pc98=True)` 做 `koukai-pc98` 匯出（2026-10-15）
 - [ ] 大航海時代II（`[PC98] 大航海時代２.zip`）（2026-10-14）

@@ -205,10 +205,10 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 水滸伝・天命の誓い（SUIKODEN, PC-98 日文版）
 
-`dekoei.py export suikoden-pc98` 用到的格式。來源是 `games/archives/pc98/SUIKODEN_PC98_水滸伝2.FDI`，只有第 2 片磁碟，解出放在 `games/suikoden-pc98/`。
+`dekoei.py export suikoden-pc98` 用到的格式。來源原本是 `games/archives/pc98/SUIKODEN_PC98_水滸伝2.FDI`（只有第 2 片）；後來的 `[PC98] 水滸伝～天命の誓い～.ZIP` 有兩片，第 2 片的檔案和它逐 byte 相同，是同一版（`REL.VER`：REL.1A，1989），第 1 片的 `MAIN.EXE` 等也補進 `games/suikoden-pc98/`，每片原樣在 `games/archives/pc98/disks/suikoden-pc98/`。
 
 - `KAO98.DAT`：260 張，64×80 全高、3bpp、每列 24 bytes，順序同 `utils.to_3bpp_indexes`，無壓縮、無組合臉。
-- 色盤：沒有執行檔（在第 1 片）可查，用 8 色數位色盤（每分量 0 或 FF）。理由：舊的 `suikoden face` FDI 分支也用這組；膚色是紅黃抖色，沒有專用膚色色號；同期的三國志II PC-98 也是數位色。屬推論。
+- 色盤：8 色數位色盤（每分量 0 或 FF）。第 1 片的 `MAIN.EXE`（MZ 檔頭 0x3000 bytes，DGROUP 段 0x299A）證實：數位色盤設定 0x8E4 用 DS:0xA30E 的標準 `37 15 26 04`；類比色盤 0xEEE 只用在把色 1–7 淡成藍色（0xF）的特效，沒有色表。
 - 人物：`SUIDATA1–4.CIM` 從 7124 起 255 筆 × 20 bytes（`koei_games.load_suikoden_pc98_persons`）：
   - +0 姓名 7 bytes Shift-JIS，+7 讀音 9 bytes 半形片假名（不匯出），+16 恆為 0，+17 頭像碼（0 起算），+19 旗標。
   - 4 個劇本的姓名和頭像碼相同，匯出用劇本 1。順序、姓名和 `suikoden-fc` 完全相同。
