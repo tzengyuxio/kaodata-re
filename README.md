@@ -30,7 +30,7 @@ Early KOEI Games Data Research
 | SAN14     | 三國志14                    | 2020 |                  |       |        |                     |
 | NOBU1     | 信長之野望                  | 1983 |                  |       |        |                     |
 | NOBU2     | 信長之野望 全國版           | 1986 |                  |       |        |                     |
-| NOBU3     | 信長之野望 戰國群雄傳       | 1988 |       DOS        |       |        | 台灣稱 信長之野望II |
+| NOBU3     | 信長之野望 戰國群雄傳       | 1988 |     DOS,PC98     |       |        | 台灣稱 信長之野望II |
 | NOBU4     | 信長之野望 武將風雲錄       | 1990 |       DOS        |       |        |                     |
 | NOBU5     | 信長之野望 霸王傳           | 1992 |                  |       |        |                     |
 | NOBU6     | 信長之野望 天翔記           | 1994 |       PC98       |       |        |                     |
@@ -128,6 +128,7 @@ python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaoda
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  836 |        | [notes/genghis4.md](notes/genghis4.md) |
 | `nobu3-dos`  | 信長之野望・戰國群雄傳         | DOS 中文版 |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
+| `nobu3-pc98` | 信長の野望・戦国群雄伝         | PC-98      |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |
 | `nobu4-dos`  | 信長之野望・武將風雲錄         | DOS 中文版 |  507 |  311 |   ○    | [notes/nobu4.md](notes/nobu4.md)   |
 | `nobu6-pc98` | 信長の野望・天翔記           | PC-98      | 1000 |  410 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |

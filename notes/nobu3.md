@@ -46,3 +46,16 @@
 ## 沒有人物使用的頭像（157–176）
 
 - 通婚（0x114A4）：`0x9D + rand(20)`，畫面是要嫁過去的女性，group「公主」。其他畫臉的呼叫都是用人物的頭像碼。
+
+## PC-98 版（`nobu3-pc98`）
+
+`dekoei.py export nobu3-pc98` 用到的差異（`build_nobu3_pc98`）。來源是 `games/archives/pc98/[PC98] 信長の野望・戦国群雄伝.zip`（A、B 兩片 FDI），解到 `games/archives/pc98/disks/nobu3-pc98/A`、`B`，合併到 `games/nobu3-pc98/`。MAIN.EXE 和劇本是 1989-05-08，頭像檔 1989-02-16。B 片的 `群雄伝.DIR` 是填滿 KOEI 版權字串的檔，不是目錄。
+
+- `MAIN.EXE` 的 header 是 0x3C00 bytes，DGROUP 在檔案 0x23EF0。下文是去掉 header 後的位址。
+- 頭像：`ORGKAO1–3.DAT` 接起來是 177 張 64×80 全高（400 線）頭像，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1920 bytes，順序和 DOS 版相同。0x1DE8 起的畫圖程式把 byte 0／1／2 寫到 A800／B000／B800。
+- 色盤：預設的數位 8 色。DS:0x5618 存 port A8–AE 的值 `37 15 26 04`（標準排列），0x2236 改單色，只在 0x5F5A 的閃爍特效用到，結束後還原。
+- 組合臉：`MONKAO.DAT` 是 4 組零件 × 0x2D00 bytes，每組是 DOS 版那一組的全高版（位置與列數加倍）：上 36 列、下 44 列（第 36 列起），眼 10 列（第 26 列）、鼻 12 列（第 36 列）、口 18 列（第 48 列），眼鼻口 XOR 疊上（0x4594）。
+  - 和 DOS 版不同，0x45B8 用頭像碼 bit 0–1 選組（`(碼 & 3) × 0x2D00`），所以 4 組都匯出成 variant。第 3 組是僧侶（下間一族等）。
+- 人物：`SNDATA1.CIM`、`SNDATA2.CIM` 0xD38 起 38 bytes 一筆：姓 9 bytes、名 7 bytes（Shift-JIS），+27 是 u16 頭像碼（`koei_games.load_nobu3_pc98_people`）。人數（240、212）和頭像碼都和 DOS 版相同，去重後同樣是 385 人（228 組合臉）。日文名沒有 DOS 版的錯字，不填 `nameHistorical`。
+- 通婚的公主頭像同樣是 `0x9D + rand(20)`（0x10CBE），即 157–176，group「姫」。
+

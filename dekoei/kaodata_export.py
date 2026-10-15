@@ -2295,6 +2295,80 @@ def build_nobu6_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU3 (PC-98)
+
+NOBU3_PC98_INPUTS = ["ORGKAO1.DAT", "ORGKAO2.DAT", "ORGKAO3.DAT", "MONKAO.DAT", "SNDATA1.CIM", "SNDATA2.CIM"]
+NOBU3_PC98_SET = 0x2D00  # MONKAO.DAT: 4 part sets, picked by face code bits 0-1 (MAIN.EXE 0x45B8)
+# the default digital palette (MAIN.EXE DS:0x5618 holds the port A8-AE bytes 37 15 26 04, only flashed)
+NOBU3_PC98_PALETTE = TK_PC98_PALETTE
+
+
+def build_nobu3_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU3_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["ORGKAO1.DAT"] + files["ORGKAO2.DAT"] + files["ORGKAO3.DAT"]
+    mon = files["MONKAO.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    # the DOS layout at full height: offsets and rows doubled, 24 bytes a row, byte k = plane k
+    variants = []
+    for v in range(4):
+        parts = {}
+        for slot, (_, offset, row, rows) in NOBU3_DOS_SLOTS.items():
+            size = rows * 48
+            o = v * NOBU3_PC98_SET + 2 * offset
+            parts[slot] = {"at": [0, 2 * row], "items": [
+                store.add(64, 2 * rows, bytes(genpei.decode_planar(mon, o + i * size, 64, 2 * rows, 3)))
+                for i in range(4)]}
+        variants.append({"id": str(v), "label": f"類型 {v}", "parts": parts})
+
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i * sango.SAN5_FACE, 64, 80, 3)), blob=1),
+                  "code": f"{i:04X}"} for i in range(NOBU3_DOS_PORTRAITS)]
+    for i in NOBU3_DOS_PRINCESSES:  # MAIN.EXE 0x10CBE: marriage shows 0x9D + rand(20)
+        portraits[i]["group"] = "姫"
+
+    # as nobu3-dos: scenario 1 then 2, one character per name and face code
+    characters, seen = [], set()
+    for table in koei_games.load_nobu3_pc98_people(game_dir):
+        for name, code in table:
+            if (name, code) in seen:
+                continue
+            seen.add((name, code))
+            if code & 0x8000:
+                face = {"variant": code & 3, "parts": [code >> 2 & 3, code >> 4 & 3, code >> 6 & 3, code >> 8 & 3,
+                                                       code >> 10 & 3], "code": f"{code:04X}"}
+            else:
+                face = {"portrait": code}
+            characters.append({"id": len(characters), "name": name, "face": face})
+
+    meta = {
+        "format": FORMAT, "id": "nobu3-pc98", "game": "NOBU3", "platform": "PC98",
+        "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": NOBU3_PC98_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "xor"} if slot in NOBU3_DOS_XOR else {})}
+                      for slot, (label, *_) in NOBU3_DOS_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "mouth", "hi": 15, "lo": 10, "base": 32},  # 1 000 mm: bit 15 marks a composite
+                {"of": "nose", "hi": 9, "lo": 8}, {"of": "eyes", "hi": 7, "lo": 6},
+                {"of": "bottom", "hi": 5, "lo": 4}, {"of": "top", "hi": 3, "lo": 2},
+                {"of": "$variant", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -3176,7 +3250,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu6-pc98": build_nobu6_pc98,
+            "nobu3-pc98": build_nobu3_pc98, "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
@@ -3187,7 +3261,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san5-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98, nobu6-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san5-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98, ishin-pc98, tk-pc98, tk2-pc98, tk2pk-pc98, tk3-pc98, tk3pk-pc98, nobu6-pc98, nobu3-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

@@ -566,6 +566,20 @@ def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
     return tables
 
 
+def load_nobu3_pc98_people(game_dir) -> list[list[tuple[str, int]]]:
+    """(name, face code) per scenario (SNDATA1, SNDATA2) of the PC-98 version: 38-byte records from 0xD38,
+    surname 9 bytes, given name 7 bytes (Shift-JIS), +27 face code; same people and codes as the DOS version."""
+    tables = []
+    for n in (1, 2):
+        with open(f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+            data = f.read()
+        tables.append([(unicodedata.normalize("NFKC", (data[o:o + 9].split(b'\0')[0] +
+                                                       data[o + 9:o + 16].split(b'\0')[0]).decode('cp932')),
+                         int.from_bytes(data[o + 27:o + 29], 'little'))
+                        for o in range(0xD38, len(data) - 37, 38) if data[o]])
+    return tables
+
+
 # NOBU4 DOS gaiji (GAIJI.DAT, glyph = code - 0x9F); 0xA0 0xA1 together draw 宗我部, 0xB3 0xB4 squeeze two characters
 NOBU4_GAIJI = {0x9F: "長", 0xA0: "宗", 0xA1: "我部", 0xA3: "蘆", 0xA4: "堯", 0xA5: "香", 0xA8: "瓊",
                0xB3: "山內", 0xB4: "深谷"}
