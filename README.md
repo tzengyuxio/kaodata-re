@@ -143,6 +143,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis-pc88` | 蒼き狼と白き牝鹿・ジンギスカン | PC-88    |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
+| `genghis-x68` | 蒼き狼と白き牝鹿・ジンギスカン | X68000   |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  836 |        | [notes/genghis4.md](notes/genghis4.md) |
 | `genchou-pc88` | 蒼き狼と白き牝鹿・元朝秘史   | PC-88      |  372 |   80 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `genchou-x68` | 蒼き狼と白き牝鹿・元朝秘史   | X68000     |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |

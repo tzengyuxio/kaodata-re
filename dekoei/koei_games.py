@@ -712,22 +712,31 @@ GENGHIS_PC88_TABLES = {"ruler": (0x1D1, 1, 0, 27, 33, 29), "family": (0x54C, 4, 
                        "woman": (0x1806, 1, 0, 40, 24, 18)}
 
 
-def load_genghis_pc88_people(cim) -> dict[str, list[tuple[str, list[int]]]]:
-    """As load_genghis_dos_people, for the PC-88 MDATA.CIM / SDATA.CIM (same people and face codes)."""
+# X68000 MDATA.DAT / SDATA.DAT: the same fields, with the numbers widened to 68000 longs; the name is 15 bytes,
+# the face code big-endian (the women's three faces are longs, the code in the low word)
+GENGHIS_X68_TABLES = {"ruler": (0x210, 1, 0, 27, 48, 44), "family": (0x720, 4, 230, 5, 46, 44),
+                      "son": (0xE10, 4, 140, 5, 28, 26), "general": (0xB04, 1, 0, 26, 30, 28),
+                      "woman": (0x279C, 1, 0, 40, 30, 20)}
+
+
+def load_genghis_pc88_people(cim, x68=False) -> dict[str, list[tuple[str, list[int]]]]:
+    """As load_genghis_dos_people, for the PC-88 MDATA.CIM / SDATA.CIM (same people and face codes),
+    or the X68000 MDATA.DAT / SDATA.DAT (`x68`: same people, face codes of the X68000 composite)."""
     with open(cim, 'rb') as f:
         data = f.read()
     out = {}
-    for kind, (off, groups, gsize, n, size, face) in GENGHIS_PC88_TABLES.items():
+    for kind, (off, groups, gsize, n, size, face) in (GENGHIS_X68_TABLES if x68 else GENGHIS_PC88_TABLES).items():
         out[kind] = []
         for g in range(groups):
             for i in range(n):
                 o = off + g * gsize + i * size
                 if data[o]:
                     faces = 3 if kind == "woman" else 1
-                    out[kind].append((unicodedata.normalize("NFKC", data[o:o + face].split(b'\0')[0].decode('cp932'))
-                                      .replace(" ", ""),
-                                      [int.from_bytes(data[o + face + 2 * j:o + face + 2 * j + 2], 'little')
-                                       for j in range(faces)]))
+                    step = 4 if x68 else 2
+                    out[kind].append((unicodedata.normalize("NFKC", data[o:o + (15 if x68 else face)]
+                                                            .split(b'\0')[0].decode('cp932')).replace(" ", ""),
+                                      [int.from_bytes(data[o + face + step * j:o + face + step * j + 2],
+                                                      'big' if x68 else 'little') for j in range(faces)]))
     return out
 
 def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:

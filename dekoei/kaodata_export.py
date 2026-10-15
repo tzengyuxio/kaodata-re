@@ -1684,6 +1684,35 @@ GENGHIS_DOS_NAME_HISTORICAL = {
 GENGHIS_PC88_NAME_HISTORICAL = {"江宗": "襄宗"}  # as GENGHIS_DOS_NAME_HISTORICAL; the others are right on PC-88
 
 
+def genghis_characters(m, s, face, name_historical) -> list[dict]:
+    """Characters from the Mongol (m) and world (s) people tables; face(code) gives the face entry."""
+    assert m["woman"] == s["woman"]
+    # genghis-fc order: Mongol rulers, family, sons; world rulers, family, sons; women;
+    # then the generals (not in FC), Mongol then world; a name already listed is skipped
+    order = [m["ruler"], m["family"], m["son"], s["ruler"], s["family"], s["son"], m["woman"],
+             m["general"], s["general"]]
+    characters, seen = [], {}
+    for table in order:
+        for name, faces in table:
+            if name in seen:
+                assert seen[name] == faces, name
+                continue
+            seen[name] = faces
+            ch = {"id": len(characters), "name": name}
+            if name in name_historical:
+                ch["nameHistorical"] = name_historical[name]
+            ch["face"] = face(faces[0])
+            extra = []
+            for f, label in zip(faces[1:], ("笑", "哭")):  # women: normal, smile, cry
+                if f != faces[0] and f not in [e["portrait"] for e in extra]:
+                    extra.append({"portrait": f, "label": label})
+            if extra:
+                ch["face"]["label"] = "平常"
+                ch["expressions"] = extra
+            characters.append(ch)
+    return characters
+
+
 def build_genghis_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
     """Also the PC-88 original (`pc88`): KAO.DAT and MONTER.DAT are the same files, the people tables differ."""
     files = {}
@@ -1728,32 +1757,8 @@ def build_genghis_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[byt
 
     load = koei_games.load_genghis_pc88_people if pc88 else koei_games.load_genghis_dos_people
     name_historical = GENGHIS_PC88_NAME_HISTORICAL if pc88 else GENGHIS_DOS_NAME_HISTORICAL
-    m = load(os.path.join(game_dir, "MDATA.CIM"))
-    s = load(os.path.join(game_dir, "SDATA.CIM"))
-    assert m["woman"] == s["woman"]
-    # genghis-fc order: Mongol rulers, family, sons; world rulers, family, sons; women;
-    # then the generals (not in FC), Mongol then world; a name already listed is skipped
-    order = [m["ruler"], m["family"], m["son"], s["ruler"], s["family"], s["son"], m["woman"],
-             m["general"], s["general"]]
-    characters, seen = [], {}
-    for table in order:
-        for name, faces in table:
-            if name in seen:
-                assert seen[name] == faces, name
-                continue
-            seen[name] = faces
-            ch = {"id": len(characters), "name": name}
-            if name in name_historical:
-                ch["nameHistorical"] = name_historical[name]
-            ch["face"] = face(faces[0])
-            extra = []
-            for f, label in zip(faces[1:], ("笑", "哭")):  # women: normal, smile, cry
-                if f != faces[0] and f not in [e["portrait"] for e in extra]:
-                    extra.append({"portrait": f, "label": label})
-            if extra:
-                ch["face"]["label"] = "平常"
-                ch["expressions"] = extra
-            characters.append(ch)
+    characters = genghis_characters(load(os.path.join(game_dir, "MDATA.CIM")), load(os.path.join(game_dir, "SDATA.CIM")),
+                                    face, name_historical)
 
     meta = {
         "format": FORMAT, "id": "genghis-pc88" if pc88 else "genghis-dos", "game": "GENGHIS",
@@ -1773,6 +1778,109 @@ def build_genghis_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[byt
             "variants": variants,
             "code": {"kind": "bitfield", "bits": 16, "fields": [
                 {"of": "$variant", "hi": 15, "lo": 10, "base": 32},  # 1 ccc vv: variant = c * 4 + v
+                {"of": "top", "hi": 9, "lo": 8}, {"of": "bottom", "hi": 7, "lo": 6},
+                {"of": "eyes", "hi": 5, "lo": 4}, {"of": "nose", "hi": 3, "lo": 2},
+                {"of": "mouth", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
+GENGHIS_X68_INPUTS = ["KAO.PAK", "MON.PIC", "MDATA.DAT", "SDATA.DAT", "JINMAIN.Z"]
+GENGHIS_X68_BASE = 0x514DE  # JINMAIN.Z is not packed: runtime address = file offset + this
+GENGHIS_X68_KAO_INDEX = 0x5F640  # 84 longs: the KAO.PAK offset of each face, then the file size
+GENGHIS_X68_PALETTE = 0x56442  # 256 longs, the graphic palette word in the low half
+# MON.PIC: 8 types x 4 items per slot; slot -> (label, offset, first row, rows); the game (JINMAIN.Z 0x8345C)
+# copies the top and bottom halves and ORs the eyes, nose and mouth in
+GENGHIS_X68_SLOTS = {"top": ("上", 0, 0, 41), "bottom": ("下", 0xF600, 41, 39), "eyes": ("眼", 0x1E000, 29, 13),
+                     "nose": ("鼻", 0x22E00, 38, 17), "mouth": ("口", 0x29400, 50, 16)}
+GENGHIS_X68_OR = ("eyes", "nose", "mouth")
+# 255 (white) is used, but is transparent in kaodata: it moves to 247, which nothing uses; 255 only ever meets 0
+# in the ORed parts, so the OR results stay the same
+GENGHIS_X68_WHITE = 247
+
+
+def genghis_x68_face(pak: bytes, start: int, end: int) -> bytes:
+    """A KAO.PAK face (JINMAIN.Z 0x9452A): 48x80, one byte per pixel; row 0 raw, then FE n copies n pixels from
+    the row above (FE 01 is a literal FE)."""
+    d = pak[start:end]
+    out, p = bytearray(d[:48]), 48
+    while len(out) < 48 * 80:
+        b = d[p]
+        p += 1
+        if b == 0xFE:
+            n = d[p]
+            p += 1
+            if n == 1:
+                out.append(0xFE)
+            else:
+                for _ in range(n):
+                    out.append(out[-48])
+        else:
+            out.append(b)
+    assert p == len(d)
+    return bytes(out)
+
+
+def build_genghis_x68(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in GENGHIS_X68_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    main = files["JINMAIN.Z"]
+    remap = bytearray(range(256))
+    remap[255] = GENGHIS_X68_WHITE
+    mon = files["MON.PIC"].translate(remap)
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for t in range(8):
+        parts = {}
+        for slot, (_, offset, row, rows) in GENGHIS_X68_SLOTS.items():
+            size = rows * 48
+            parts[slot] = {"at": [0, row], "items": [store.add(48, rows, mon[offset + (t * 4 + i) * size:][:size])
+                                                     for i in range(4)]}
+        variants.append({"id": str(t), "label": f"類型 {t}", "parts": parts})
+
+    index = struct.unpack_from(">84I", main, GENGHIS_X68_KAO_INDEX - GENGHIS_X68_BASE)
+    portraits = [{"img": store.add(48, 80, genghis_x68_face(files["KAO.PAK"], a, b).translate(remap), blob=1),
+                  "code": f"{i:04X}"} for i, (a, b) in enumerate(zip(index, index[1:]))]
+
+    def face(code):
+        if code & 0x8000:
+            return {"variant": code >> 10 & 7,
+                    "parts": [code >> 8 & 3, code >> 6 & 3, code >> 4 & 3, code >> 2 & 3, code & 3],
+                    "code": f"{code:04X}"}
+        return {"portrait": code}
+
+    load = lambda path: koei_games.load_genghis_pc88_people(path, x68=True)
+    characters = genghis_characters(load(os.path.join(game_dir, "MDATA.DAT")), load(os.path.join(game_dir, "SDATA.DAT")),
+                                    face, GENGHIS_PC88_NAME_HISTORICAL)
+
+    colors = []
+    for i in range(256):
+        w = int.from_bytes(main[GENGHIS_X68_PALETTE - GENGHIS_X68_BASE + 4 * i + 2:][:2], "big")
+        colors.append("#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31)))
+    colors[GENGHIS_X68_WHITE] = colors.pop()
+
+    meta = {
+        "format": FORMAT, "id": "genghis-x68", "game": "GENGHIS", "platform": "X68",
+        "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS_X68_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [48, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "or"} if slot in GENGHIS_X68_OR else {})}
+                      for slot, (label, *_) in GENGHIS_X68_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "bitfield", "bits": 16, "fields": [
+                {"of": "$variant", "hi": 15, "lo": 10, "base": 32},  # 1 00 ttt: bits 13-14 are always 0
                 {"of": "top", "hi": 9, "lo": 8}, {"of": "bottom", "hi": 7, "lo": 6},
                 {"of": "eyes", "hi": 5, "lo": 4}, {"of": "nose", "hi": 3, "lo": 2},
                 {"of": "mouth", "hi": 1, "lo": 0}]},
@@ -4632,7 +4740,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98,

@@ -51,6 +51,28 @@
 - 人數、頭像碼和 DOS 版逐筆相同，排序與去重規則也相同：152 人，`id` 和 `genghis-dos` 一致。
 - `nameHistorical`：只填江宗→襄宗。DOS 版的其他幾筆在 PC-88 版是對的（フィリップ2世、北条政子、畠山重忠、ムハンマド）。トオリオルカン是音譯的寫法不同，不填。
 
+## X68000 版（`genghis-x68`）
+
+`dekoei.py export genghis-x68` 用到的格式（`build_genghis_x68`）。來源是 Internet Archive 的 `games/archives/x68000/ia-softwarelibrary/aoki_ookami_to_shiroki_meshika_x68k/`（3 片 XDF，標題寫 1989），`games/genghis-x68/` 放 Disk 1 的 `JINMAIN.Z`、`KAO.PAK`，Disk 2 的 `MON.PIC`、`MDATA.DAT`，Disk 3 的 `SDATA.DAT`。檔案日期 1989-01-20～1989-03-07。
+
+- `JINMAIN.Z` 沒有壓縮，執行位址＝檔案位置＋0x514DE。下文是執行位址。
+- 頭像 `KAO.PAK`：重畫的 83 張 48×80、每像素 1 byte（256 色）。偏移表在 0x5F640（84 個 long，最後一個是檔案大小）。第 0 列原樣，之後 `FE n` 是從上一列抄 n 個像素，`FE 01` 是字面的 FE（0x9452A，`genghis_x68_face`）。頭像號和 PC-88 相同（0–20 君主、21–82 女性），全部有人用。
+- 組合臉 `MON.PIC`（0x8345C）：碼 `1 00 ttt TT BB EE NN MM`，`ttt` 是 8 種類型（bit 13–14 一律是 0），各 4 筆：
+  - 上：offset 0，41 列，放第 0 列
+  - 下：0xF600，39 列，放第 41 列
+  - 眼：0x1E000，13 列，第 29 列
+  - 鼻：0x22E00，17 列，第 38 列
+  - 口：0x29400，16 列，第 50 列
+  - 每筆是 `列數 × 48` bytes，第 t 型第 i 筆在 `offset + (t × 4 + i) × 大小`。上下直接蓋上，眼鼻口以 OR 疊上（`blend: "or"`）。用遊戲的組法逐像素比對過 8 × 4⁵ 種組合，全部一致。
+- 色盤：0x56442 的 256 個 long，低 16 bit 是 X68000 調色盤字（G、R、B 各 5 bit＋亮度 bit）。色號 255（白）有用到，但在 kaodata 是透明，所以移到沒人用的 247。眼鼻口裡的 255 只會和 0 做 OR，OR 的結果不變。
+- 人物：`MDATA.DAT`／`SDATA.DAT` 的欄位同 PC-88，但數值擴成 68000 的 long。姓名 15 bytes（Shift-JIS），頭像碼是大端序（`load_genghis_pc88_people(x68=True)`）：
+  - 君主 0x210，27 × 48 bytes，頭像碼 +44
+  - 繼承人 0x720，4 組 × 5 × 46 bytes（每組 230），+44
+  - 部將 0xB04，26 × 30 bytes，+28
+  - 子女 0xE10，4 組 × 5 × 28 bytes（每組 140），+26
+  - 女性 0x279C，40 × 30 bytes，+20／+24／+28（long 的低 word）
+- 姓名、人數、頭像號都和 PC-88 逐筆相同。只有組合臉碼換成 X68 的新編碼，另外ゴータマ的笑、哭兩張臉和 PC-88 對調。共 152 人（91 組合臉、61 頭像），`id` 和 `genghis-dos` 一致，`nameHistorical` 同 PC-88（江宗→襄宗）。
+
 ## 發行年份
 
-- 英文 DOS 版 1989（部分資料 1990）；原版 PC-98 1987-12；PC-88 1988-01（說明檔，with サウンドウェア版）；中文版 MAIN.EXE 1993-04。
+- 英文 DOS 版 1989（部分資料 1990）；原版 PC-98 1987-12；PC-88 1988-01（說明檔，with サウンドウェア版）；X68000 1989（IA 標題；檔案日期到 1989-03-07）；中文版 MAIN.EXE 1993-04。
