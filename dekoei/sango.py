@@ -1,3 +1,4 @@
+import collections
 import click
 import genpei
 from rich.console import Console
@@ -361,6 +362,63 @@ def load_san6_palette(palette) -> list[str]:
         data = f.read()
     assert data[:4] == b"\x00\x03\x00\x01"
     return [f"#{data[4 + i * 4]:02x}{data[5 + i * 4]:02x}{data[6 + i * 4]:02x}" for i in range(246)]
+
+
+# 三國志VII PK (Steam) D_Sn???.s7: a plain 0x4C-byte header (+0x1A u16 scenario number), then every byte goes
+# through one of four 256-byte substitution tables in San7WPK.exe (file 0x4E5500 + 0x100 k; the file's most common
+# byte is the encoded 0). The person table starts at 0x30A: 620 records of 0x78 bytes (520 officers, then 100
+# new-officer slots with id 0xFFFF); +0 u16 id = face number into Kaodata.s7 (again at +0x24), +0x2A surname 6 bytes,
+# +0x30 given name 6, +0x36 style name 6, +0x3C kana 12 (half-width, no separator), Shift-JIS with S7gaiji.tte EUDC.
+SAN7_TABLES = 0x4E5500
+SAN7_PERSONS = 0x30A
+SAN7_PERSON_SIZE = 0x78
+SAN7_SCENARIOS = ["D_Sn001.s7", "D_Sn002.s7", "D_Sn003.s7", "D_Sn004.s7", "D_Sn005.s7", "D_Sn006.s7", "D_Sn007.s7",
+                  "D_Sn101.s7", "D_Sn102.s7", "D_Sn103.s7", "D_Sn104.s7", "D_Sn105.s7"]
+# S7gaiji.tte glyphs used in names, by private-use code point
+SAN7_GAIJI = dict(zip(
+    [0xE000, 0xE003, 0xE004, 0xE006, 0xE007, 0xE009, 0xE00C, 0xE00D, 0xE00E, 0xE00F, 0xE011, 0xE012, 0xE014,
+     0xE015, 0xE016, 0xE018, 0xE019, 0xE01A, 0xE01C, 0xE01D, 0xE027, 0xE02E, 0xE032, 0xE037, 0xE038, 0xE039,
+     0xE03A, 0xE03B, 0xE03E, 0xE03F, 0xE040, 0xE043, 0xE044, 0xE04D, 0xE04F, 0xE051, 0xE056, 0xE05C],
+    "瓚郃蒯傕邕詡龐繇邈騭闞玠邢歆闓譙琬郝伷褚肜磾綝笮祜蕤璜毌靚琰頎龔眭毗宓禕蹋勑"))
+
+
+def decode_san7_scenario(exe: bytes, data: bytes) -> bytes:
+    tables = [exe[SAN7_TABLES + 0x100 * k:SAN7_TABLES + 0x100 * (k + 1)] for k in range(4)]
+    zero = collections.Counter(data[0x4C:]).most_common(1)[0][0]
+    table = next(t for t in tables if t[0] == zero)
+    inv = bytearray(256)
+    for i, b in enumerate(table):
+        inv[b] = i
+    return data[:0x4C] + bytes(inv[c] for c in data[0x4C:])
+
+
+def load_san7_persons(game_dir) -> dict[int, str]:
+    """Officer id (= face number) -> name, the same in all twelve scenarios."""
+    with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
+        exe = f.read()
+
+    def text(b):
+        return "".join(SAN7_GAIJI.get(ord(c), c) for c in b.split(b"\0")[0].decode("cp932"))
+
+    persons = {}
+    for name in SAN7_SCENARIOS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = decode_san7_scenario(exe, f.read())
+        for o in range(SAN7_PERSONS, SAN7_PERSONS + 620 * SAN7_PERSON_SIZE, SAN7_PERSON_SIZE):
+            pid = int.from_bytes(data[o:o + 2], "little")
+            if pid != 0xFFFF:
+                assert pid == int.from_bytes(data[o + 0x24:o + 0x26], "little")
+                full = text(data[o + 0x2A:o + 0x30]) + text(data[o + 0x30:o + 0x36])
+                assert persons.setdefault(pid, full) == full
+    return persons
+
+
+def load_san7_palette(palette) -> list[str]:
+    """P_Kao.s7: a Windows LOGPALETTE (256 x RGBX). Index 0 is the unused key colour #FF00FF."""
+    with open(palette, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"\x00\x03\x00\x01"
+    return [f"#{data[4 + i * 4]:02x}{data[5 + i * 4]:02x}{data[6 + i * 4]:02x}" for i in range(256)]
 
 
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);

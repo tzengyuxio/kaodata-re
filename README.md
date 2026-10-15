@@ -124,6 +124,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `eiketsu4-win` | 織田信長傳                   | Win 中文版 |  186 |  219 |        | [notes/eiketsu4.md](notes/eiketsu4.md) |
 | `eiketsu5-win` | 三國志曹操傳                 | Win 中文版 |  162 |  228 |        | [notes/eiketsu5.md](notes/eiketsu5.md) |
 | `san6pk-win` | 三國志VI 威力加強版            | Win 中文版 |  532 |  666 |        | [notes/san6.md](notes/san6.md)     |
+| `san7pk-win` | 三國志VII with パワーアップキット | Win 日文版（Steam） |  520 |  678 |        | [notes/san7.md](notes/san7.md)     |
 | `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-pc88` | 水滸伝・天命の誓い          | PC-88      |  255 |  258 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-x68`  | 水滸伝・天命の誓い          | X68000     |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |

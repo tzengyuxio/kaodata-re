@@ -5,6 +5,7 @@ as dataset.json + its pixel blobs (raw deflate, named in "blobs") +
 checksums.json; the checksums
 come from the reference renderer below, which implements spec §6.
 """
+import bisect
 import hashlib
 import json
 import os
@@ -4101,6 +4102,62 @@ def build_san6pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN7 PK (Windows, Japanese, Steam)
+
+SAN7PK_WIN_INPUTS = ["Kaodata.s7", "P_Kao.s7", "San7WPK.exe"] + sango.SAN7_SCENARIOS
+# face number = officer id for 0-519; the new-officer face lists (San7WPK.exe 0x408050) add men 520-589,
+# women 590-619, and the PK's men 648-668 and women 669-677; 620-647 are in no list (event faces, untraced)
+SAN7PK_WIN_PORTRAIT_GROUPS = {
+    **{i: "新武將（男）" for i in [*range(520, 590), *range(648, 669)]},
+    **{i: "新武將（女）" for i in [*range(590, 620), *range(669, 678)]},
+    **{i: "事件人物" for i in range(620, 648)},
+}
+SAN7PK_WIN_PK = range(648, 678)
+# faces 0-647 in face order, cut at about 1 MB compressed; the PK faces go last in extra.bin
+SAN7PK_WIN_CUTS = [115, 231, 350, 465, 580, 648]
+SAN7PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "portraits4.bin", "portraits5.bin",
+                    "portraits6.bin", "extra.bin"]
+
+
+def build_san7pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN7PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(SAN7PK_WIN_BLOBS)
+
+    # colour 255 is used; the key colour 0 is not, so 255 moves to 0
+    colors = sango.load_san7_palette(os.path.join(game_dir, "P_Kao.s7"))
+    colors = [colors[255]] + colors[1:255]
+    remap = bytes(range(255)) + b"\0"
+    portraits = []
+    for code, px in enumerate(sango.load_san6_faces(os.path.join(game_dir, "Kaodata.s7"))):
+        blob = bisect.bisect_right(SAN7PK_WIN_CUTS, code)
+        p = {"img": store.add(96, 120, px.translate(remap), blob=blob), "code": f"{code:04X}"}
+        if code in SAN7PK_WIN_PORTRAIT_GROUPS:
+            p["group"] = SAN7PK_WIN_PORTRAIT_GROUPS[code]
+        if code in SAN7PK_WIN_PK:
+            p["pk"] = True
+        portraits.append(p)
+
+    characters = [{"id": pid, "name": name, "face": {"portrait": pid}}
+                  for pid, name in sorted(sango.load_san7_persons(game_dir).items())]
+
+    meta = {
+        "format": FORMAT, "id": "san7pk-win", "game": "SAN7PK", "platform": "WIN",
+        "title": {"ja": "三國志VII with パワーアップキット", "zh": "三國志VII 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN7PK_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- KOUMEI (Windows, Chinese)
 
 KOUMEI_WIN_INPUTS = ["KAO.E2", "PALET.E2", "BAKDATA.E2"]
@@ -4925,7 +4982,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
-            "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
