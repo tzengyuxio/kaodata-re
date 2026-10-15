@@ -1501,6 +1501,28 @@ def load_ishin_pc98_persons(isin_exe, shinario) -> list[tuple[str, list[bytes]]]
     return persons
 
 
+
+ISHIN_PC88_PEOPLE = 201
+ISHIN_PC88_SURNAMES = 0x47AB  # MAIN.COM: 7 bytes each
+ISHIN_PC88_SCENARIOS = [(0xA90, 0x275F), (0x3490, 0x515F)]  # SHINARIO.OVL: given names (9 bytes), face records
+
+
+def load_ishin_pc88_persons(main_com, shinario) -> list[tuple[list[str], bytes]]:
+    """(name in each scenario, 5-byte face record) of the historical people of the PC-88 version.
+
+    The face records are the same in both scenarios (0xFF and a KAODAT.DAT face, or a composite, MAIN.COM 0x37C9);
+    two given names change in scenario 2, where the domain has passed to the successor."""
+    with open(main_com, "rb") as f:
+        main = f.read()
+    with open(shinario, "rb") as f:
+        sc = f.read()
+    persons = []
+    for i in range(ISHIN_PC88_PEOPLE):
+        surname = _ishin_pc98_text(main[ISHIN_PC88_SURNAMES + i * 7:][:7].split(b"\0")[0])
+        names = [surname + _ishin_pc98_text(sc[o + i * 9:][:9].split(b"\0")[0]) for o, _ in ISHIN_PC88_SCENARIOS]
+        persons.append((names, sc[ISHIN_PC88_SCENARIOS[0][1] + i * 5:][:5]))
+    return persons
+
 TK_PC98_ADMIRALS = 0x4600 + 0x38520 + 0xC6FC  # RENMAIN.EXE: header + DGROUP 0x3852, DS:0xC6FC
 TK_PC98_PEOPLE = 40  # 19-byte records: 0-19 Japan, 20-39 the Allies
 TK_PC98_GAIJI = (b"\xeb\xa4", "纒")  # KOEI gaiji in 宇垣纒; glyph in USKCG.SYS (JIS 0x7626)

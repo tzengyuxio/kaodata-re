@@ -2203,24 +2203,46 @@ def ishin_pc98_fields(rec: bytes) -> list[int]:
             + [(rec[5] >> s & 3) - 2 for s in (6, 4, 2)] + [rec[5] >> 1 & 1, rec[5] & 1])
 
 
-def build_ishin_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+# PC-88: same KAODAT faces in another order plus 3 more (no corner mask), the same MONDAT.DAT, and 5-byte face
+# records without y offsets (MAIN.COM 0x3575); YKAO.DAT has the 4 girls of the pleasure quarter (YCSUB.OVL)
+ISHIN_PC88_INPUTS = ["KAODAT.DAT", "MONDAT.DAT", "YKAO.DAT", "MAIN.COM", "SHINARIO.OVL"]
+ISHIN_PC88_CROWD = 94  # MAIN.COM 0x37C9: KAODAT 0x10860 for ids 0xD0 and up
+
+
+def ishin_pc88_record(rec: bytes) -> bytes:
+    """The PC-98 6-byte record of a PC-88 composite (y offsets 0; beard b4 bit 3, head band b4 bit 2)."""
+    return rec[:4] + bytes([rec[4] & 0xF0 | 0x0A, 0xA8 | (rec[4] >> 3 & 1) << 1 | rec[4] >> 2 & 1])
+
+
+def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 version (the first platform)."""
+    inputs = ISHIN_PC88_INPUTS if pc88 else ISHIN_PC98_INPUTS
     files = {}
-    for name in ISHIN_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["pixels.bin", "portraits.bin"])
     kao, mon = files["KAODAT.DAT"], files["MONDAT.DAT"]
-    mask = [kao[ISHIN_PC98_MASK + i // 8] >> (7 - i % 8) & 1 for i in range(48 * 40)]
+    if pc88:
+        mask = [1] * (48 * 40)
+    else:
+        mask = [kao[ISHIN_PC98_MASK + i // 8] >> (7 - i % 8) & 1 for i in range(48 * 40)]
+    crowd = ISHIN_PC88_CROWD if pc88 else ISHIN_PC98_CROWD
 
     def doubled(px: list[int], rows: int, blob: int = 0) -> int:
         return store.add(48, rows * 2, bytes(c for r in range(rows) for _ in range(2) for c in px[r * 48:r * 48 + 48]), blob)
 
     portraits = []
-    for i in range(0, ISHIN_PC98_MASK, ISHIN_PC98_FACE):
+    for i in range(0, len(kao) if pc88 else ISHIN_PC98_MASK, ISHIN_PC98_FACE):
         px = [c if m else 0 for c, m in zip(genpei.decode_planar(kao, i, 48, 40, 3), mask)]
         face = i // ISHIN_PC98_FACE
-        portraits.append({"img": doubled(px, 40, 1), **({} if face == ISHIN_PC98_CROWD else {"code": f"FF{face:02X}00000000"})})
-    portraits[ISHIN_PC98_CROWD]["group"] = "一般人物"
+        code = f"FF{face:02X}000000" if pc88 else f"FF{face:02X}00000000"
+        portraits.append({"img": doubled(px, 40, 1), **({} if face == crowd else {"code": code})})
+    portraits[crowd]["group"] = "一般人物"
+    if pc88:
+        ykao = files["YKAO.DAT"]
+        for i in range(0, len(ykao), ISHIN_PC98_FACE):
+            portraits.append({"img": doubled(genpei.decode_planar(ykao, i, 48, 40, 3), 40, 1), "group": "遊郭の娘"})
 
     # composite parts; the corners the mask clears are colour 0 in the background and left out of the others
     none = store.add(1, 1, bytes([TRANSPARENT]))
@@ -2264,7 +2286,16 @@ def build_ishin_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
         return {"portrait": rec[1]} if rec[0] == 0xFF else composite(rec)
 
     characters = []
-    for name, recs in koei_games.load_ishin_pc98_persons(os.path.join(game_dir, "ISIN.EXE"),
+    if pc88:
+        later = []
+        for names, rec in koei_games.load_ishin_pc88_persons(os.path.join(game_dir, "MAIN.COM"),
+                                                             os.path.join(game_dir, "SHINARIO.OVL")):
+            f = face(rec) if rec[0] == 0xFF else {**composite(ishin_pc88_record(rec)), "code": rec.hex().upper()}
+            characters.append({"id": len(characters), "name": names[0], "face": f})
+            # in scenario 2 the successor takes over the record (and the face)
+            later += [{"name": n, "face": dict(f)} for n in names[1:] if n != names[0]]
+        characters += [{"id": len(characters) + k, **ch} for k, ch in enumerate(later)]
+    for name, recs in [] if pc88 else koei_games.load_ishin_pc98_persons(os.path.join(game_dir, "ISIN.EXE"),
                                                          os.path.join(game_dir, "SHINARIO.DAT")):
         ch = {"id": len(characters), "name": name, "face": face(recs[0])}
         # a few people have another face in a later scenario
@@ -2280,12 +2311,14 @@ def build_ishin_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "ishin-pc98", "game": "ISHIN", "platform": "PC98",
+        "format": FORMAT, "id": "ishin-pc88" if pc88 else "ishin-pc98", "game": "ISHIN",
+        "platform": "PC88" if pc88 else "PC98",
         "title": {"ja": "維新の嵐", "zh": "維新之嵐"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ISHIN_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": ISHIN_PC98_PALETTE}],
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": ISHIN_PC98_PALETTE} if pc88 else
+                     {"id": "pc98", "label": "PC98", "colors": ISHIN_PC98_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -3973,6 +4006,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
             "tk-pc88": lambda game_dir: build_tk_pc98(game_dir, pc88=True),
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
+            "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

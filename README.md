@@ -154,6 +154,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `taikoh2-pc98` | 太閤立志伝II                 | PC-98      |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
+| `ishin-pc88` | 維新の嵐                       | PC-88      |  203 |  102 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `tk2-pc98`  | 提督の決断II                   | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk2pk-pc98` | 提督の決断II パワーアップキット | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk-pc98`   | 提督の決断                     | PC-98      |   40 |   42 |        | [notes/koei-games.md](notes/koei-games.md) |
