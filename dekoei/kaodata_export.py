@@ -4092,7 +4092,7 @@ def build_san6pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "title": {"ja": "三國志VI with パワーアップキット", "zh": "三國志VI 威力加強版"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN6PK_WIN_INPUTS]},
-        "display": {"scale": 4},
+        "display": {"scale": 2},
         "palettes": [{"id": "win", "label": "Windows", "colors": sango.load_san6_palette(os.path.join(game_dir, "PALETTE.S6"))}],
         "blobs": store.names,
         "images": store.refs,
