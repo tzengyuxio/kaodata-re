@@ -502,6 +502,25 @@ def load_kohryuki_dos_names(main_exe) -> list[str]:
         image = pklite.depklite(f.read())
     return [koei_tw_name(image[KOHRYUKI_DOS_NAMES + i * 17:KOHRYUKI_DOS_NAMES + i * 17 + 6]) for i in range(92)]
 
+
+# X68000 MAIN.Z (not packed): 92 x 18-byte records from 0x50F1A, Shift-JIS name +0 (7 bytes), kana +7 (8 bytes)
+KOHRYUKI_X68_NAMES = 0x50F1A
+KOHRYUKI_X68_GAIJI = {0xEBB7: "蒯", 0xEBE1: "酈", 0xEBE2: "噲", 0xEBE3: "芮", 0xEBE5: "卬", 0xEBE6: "靳"}
+
+
+def load_kohryuki_x68_names(main_z) -> list[str]:
+    with open(main_z, 'rb') as f:
+        main = f.read()
+    names = []
+    for i in range(92):
+        raw = main[KOHRYUKI_X68_NAMES + i * 18:][:7].split(b'\0')[0]
+        name = ''
+        for j in range(0, len(raw), 2):
+            code = int.from_bytes(raw[j:j + 2], 'big')
+            name += KOHRYUKI_X68_GAIJI.get(code) or raw[j:j + 2].decode('cp932')
+        names.append(name)
+    return names
+
 ##############################################################################
 
 

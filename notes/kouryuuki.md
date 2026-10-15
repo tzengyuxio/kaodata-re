@@ -36,3 +36,14 @@
 
 - 1ECD:2692 對 face 0x5C–0x60 查 DGROUP 0x7D6E 的指標表 `[(face − 0x5C) / 2]`：長老、士兵、虞姬。
 - 92、93 長老；94、95 士兵（映像 0x2ECF2：部隊沒有將領時用 0x5E＋n，n 是楚／漢是推測）；96 虞姬（group「事件人物」）。
+
+## X68000 版（`kouryuuki-x68`）
+
+- 來源：Internet Archive `kouryuuki_1993_koei_disk_1_of_x68k`（`games/archives/x68000/ia-softwarelibrary/`），Disk A 的 KAO.KR1、MAIN.Z、VERSION（「項劉記」 Ｘ６８０００ Ｖｅｒ． １．０）放在 `games/kouryuuki-x68/`。
+- KAO.KR1 和 DOS 中文版逐 byte 相同。
+- MAIN.Z 沒有壓縮（X 格式，base 0x514FA）。
+- 人名表在檔案 0x50F1A，92 筆 × 18 bytes：+0 姓名 7 bytes（Shift-JIS），+7 讀音 8 bytes（半形片假名），+15 年齡、+16 旗標（同 DOS），+17 補位。
+- 外字（`koei_games.KOHRYUKI_X68_GAIJI`）：EBB7 蒯、EBE1 酈、EBE2 噲、EBE3 芮、EBE5 卬、EBE6 靳。依 DOS 版同一人的名字對出來；KNJ1.KR1（512 bytes）沒有解讀。
+- 日文版的寫法都對得上史書：臧荼、司馬卬、靳彊，所以不填 `nameHistorical`。
+- 色盤：檔案 0x52552 是和 DOS DGROUP 0x5E5A 相同的 4 bit B、R、G 表；0x4AF92 的寫入程式把每色 `<< 2`、`<< 7`、`<< 12` 寫到 E82200，也就是 5 bit 的 2v，換算 `2v << 3 | 2v >> 2`。
+- 92–96 的名字在 MAIN.Z 0x596B0：虞姫、兵卒、長老。group 用日文寫法（長老、兵卒、事件人物）。
