@@ -3025,9 +3025,10 @@ NOBU3_PC98_INPUTS = ["ORGKAO1.DAT", "ORGKAO2.DAT", "ORGKAO3.DAT", "MONKAO.DAT", 
 NOBU3_PC98_SET = 0x2D00  # MONKAO.DAT: 4 part sets, picked by face code bits 0-1 (MAIN.EXE 0x45B8)
 # the default digital palette (MAIN.EXE DS:0x5618 holds the port A8-AE bytes 37 15 26 04, only flashed)
 NOBU3_PC98_PALETTE = TK_PC98_PALETTE
+# X68000: the same face files; the GRB text palette at MAIN.Z file 0x412D2 (0000 003E 07C0 ... FFFE) is the same colours
 
 
-def build_nobu3_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_nobu3_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     files = {}
     for name in NOBU3_PC98_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -3055,7 +3056,7 @@ def build_nobu3_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
 
     # as nobu3-dos: scenario 1 then 2, one character per name and face code
     characters, seen = [], set()
-    for table in koei_games.load_nobu3_pc98_people(game_dir):
+    for table in koei_games.load_nobu3_pc98_people(game_dir, x68=x68):
         for name, code in table:
             if (name, code) in seen:
                 continue
@@ -3068,12 +3069,14 @@ def build_nobu3_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
             characters.append({"id": len(characters), "name": name, "face": face})
 
     meta = {
-        "format": FORMAT, "id": "nobu3-pc98", "game": "NOBU3", "platform": "PC98",
+        "format": FORMAT, "id": "nobu3-x68" if x68 else "nobu3-pc98", "game": "NOBU3",
+        "platform": "X68" if x68 else "PC98",
         "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_PC98_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": NOBU3_PC98_PALETTE}],
+        "palettes": [{"id": "x68", "label": "X68", "colors": NOBU3_PC98_PALETTE} if x68 else
+                     {"id": "pc98", "label": "PC98", "colors": NOBU3_PC98_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -4183,7 +4186,8 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98, "nobu3-pc88": build_nobu3_pc88,
+            "nobu2-pc88": build_nobu2_pc88, "nobu3-pc98": build_nobu3_pc98,
+            "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,

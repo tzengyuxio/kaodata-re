@@ -59,6 +59,14 @@
 - 人物：`SNDATA1.CIM`、`SNDATA2.CIM` 0xD38 起 38 bytes 一筆：姓 9 bytes、名 7 bytes（Shift-JIS），+27 是 u16 頭像碼（`koei_games.load_nobu3_pc98_people`）。人數（240、212）和頭像碼都和 DOS 版相同，去重後同樣是 385 人（228 組合臉）。日文名沒有 DOS 版的錯字，不填 `nameHistorical`。
 - 通婚的公主頭像同樣是 `0x9D + rand(20)`（0x10CBE），即 157–176，group「姫」。
 
+## X68000 版（`nobu3-x68`）
+
+`dekoei.py export nobu3-x68` 用 `build_nobu3_pc98(x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_sengoku_guny_x68k`（`games/archives/x68000/ia-softwarelibrary/`，3 片 DIM），Disk A（`ORGKAO1–3.DAT`、`MONKAO.DAT`、`MAIN.Z`、`VERSION`）與 Disk C（`SNDATA1/2.CIM`）的檔案放在 `games/nobu3-x68/`。`MAIN.Z` 的版本字串是 `Rel.1A ***Feb.15, 1989***`。
+
+- 頭像與組合臉檔和 PC-98 版逐 byte 相同。
+- 色盤：`MAIN.Z`（未壓縮，檔頭 0x1C bytes）檔案 0x412D2 起的 GRB 文字色盤（每色 4 bytes）`0000 003E 07C0 07FE F800 F83E FFC0 FFFE`，各分量是 0 或最大，和 PC-98 的數位 8 色同序。
+- 人物：`SNDATA1/2.CIM` 0x11F8 起 44 bytes 一筆，姓名欄同 PC-98，頭像碼是 +30 的大端序 u16（中間多了 68000 的補位）。兩個劇本的姓名與頭像碼和 PC-98 版完全相同，匯出結果除了 id、平台與色盤 id 之外一樣。
+
 ## PC-88 原版（`nobu3-pc88`）
 
 `dekoei.py export nobu3-pc88` 用到的差異（`build_nobu3_pc88`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Sengoku Gunyuuden/Nobunaga no Yabou - Sengoku Gunyuuden [FD].7z`。檔案放在 `games/nobu3-pc88/`：Disk C（FAT12）的 `KAODATA.DAT`，Disk A（YDOS 3.0）的 `SNDATA1/2.CIM`、`VERSION`，以及參考用的 `MAIN.COM`。
