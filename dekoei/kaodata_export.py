@@ -4149,7 +4149,7 @@ def build_san7pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "title": {"ja": "三國志VII with パワーアップキット", "zh": "三國志VII 威力加強版"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN7PK_WIN_INPUTS]},
-        "display": {"scale": 4},
+        "display": {"scale": 2},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
         "images": store.refs,
