@@ -37,7 +37,7 @@
 
 來源是 `games/archives/pc98/[PC98] 大航海時代.zip`（SYSTEM、海 兩片 FDI），每片解在 `games/archives/pc98/disks/koukai-pc98/`（`SYSTEM/`、`UMI/`），合併放在 `games/koukai-pc98/`（兩片的 `OPEN.EXE` 不同，用 SYSTEM 片的，匯出用不到）。檔案日期 1990-07-20。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6A00 bytes），DGROUP 段值 0x39F1；下文是映像（檔案 − 0x6A00）位址。
 
-- `KAO.PUT` 160512 bytes，是 DOS 版的兩倍：排法相同，但全高 64×80（每列 24 bytes，byte 0／1／2 畫到 B／R／G 平面，即 `san2_jp_pixels`）。DOS 版的頭像是同一批圖縮成半高。
+- `KAO.PUT` 160512 bytes，是 DOS 版的兩倍：排法相同，但全高 64×80（每列 24 bytes，byte 0／1／2 畫到 B／R／G 平面，即 `san2_jp_pixels`）。DOS 版的頭像是另外以 64×40 EGA 重畫的（人物、順序相同，但姿勢、表情不同，不是縮小）。
   - 組合臉 0x7292：每國 0x5D00 bytes（表 DS:0x2B32），零件位置、大小、畫到的列都是 DOS 的兩倍（上 0x3F0、下 0x4080／0x390、眼 0x1F80／0x180、鼻 0x2B80／0x180、口 0x3180／0x1E0），組成 1920 bytes 的全高臉。五官 OR 疊上，檢查過全部組合，和上下及彼此都不重疊。
   - 頭像 0x749C：`seek(0x17400 + n × 0x780)`；女性 i 用頭像 13＋i，男性 0xFF 用頭像 8，同 DOS。
 - 色盤：類比色盤（0x11AC，B、R、G 各 4 bit）初始值 DS:0x2800 就是標準 8 色，數位模式（0x812）同樣，所以用 `SAN2_JP_PALETTE`。
