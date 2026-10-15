@@ -1325,10 +1325,19 @@ EUROPE_PC88_FACE = 960
 EUROPE_PC88_PORTRAITS = {100: ("替補指揮官", None), 101: ("替補指揮官", None), 102: ("事件人物", "村娘"),
                          103: ("事件人物", "修道女")}
 
+# X68000: FACE.DAT is the DOS file (120 faces) followed by zeros; MAIN.Z 0x9A536 (file 0x49058) is the text
+# palette for colours 0-7 (X68000 GRB words in longs, set by 0x55DCC)
+EUROPE_X68_INPUTS = ["FACE.DAT", "SCEDATA", "MAIN.Z"]
+EUROPE_X68_FACES = 120
+EUROPE_X68_PALETTE = 0x49058
+EUROPE_X68_PORTRAITS = {**{i: ("替補指揮官", None) for i in range(106, 118)}, 118: ("事件人物", "村娘"),
+                        119: ("事件人物", "修道女")}  # MAIN.Z strings
 
-def build_europe_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
-    """pc88=True: the Japanese PC-88 version (digital colours)."""
-    inputs = EUROPE_PC88_INPUTS if pc88 else EUROPE_DOS_INPUTS
+
+def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the Japanese PC-88 version (digital colours). x68=True: the X68000 version (DOS faces,
+    PC-88 style names)."""
+    inputs = EUROPE_PC88_INPUTS if pc88 else EUROPE_X68_INPUTS if x68 else EUROPE_DOS_INPUTS
     files = {}
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1343,6 +1352,15 @@ def build_europe_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
             portraits[i].update(group=group, **({"name": name} if name else {}))
         names = koei_games.load_europe_pc88_names(os.path.join(game_dir, "SCEDATA.CIM"),
                                                   os.path.join(game_dir, "MAIN.COM"))
+    elif x68:
+        face = files["FACE.DAT"][:EUROPE_X68_FACES * EUROPE_DOS_FACE]
+        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+                      "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
+        for i, (group, name) in EUROPE_X68_PORTRAITS.items():
+            portraits[i].update(group=group, **({"name": name} if name else {}))
+        names = koei_games.load_europe_x68_names(os.path.join(game_dir, "SCEDATA"), os.path.join(game_dir, "MAIN.Z"))
+        colours = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31))
+                   for w in struct.unpack_from(">8I", files["MAIN.Z"], EUROPE_X68_PALETTE)]
     else:
         face = files["FACE.DAT"]
         portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
@@ -1356,13 +1374,14 @@ def build_europe_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
     characters = [{"id": cid, "name": names[cid], "face": {"portrait": cid}} for cid in sorted(names)]
 
     meta = {
-        "format": FORMAT, "id": "europe-pc88" if pc88 else "europe-dos", "game": "EUROPE",
-        "platform": "PC88" if pc88 else "DOS",
+        "format": FORMAT, "id": "europe-pc88" if pc88 else "europe-x68" if x68 else "europe-dos", "game": "EUROPE",
+        "platform": "PC88" if pc88 else "X68" if x68 else "DOS",
         "title": {"ja": "ヨーロッパ戦線", "zh": "歐陸戰線"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
+                     {"id": "x68", "label": "X68000", "colors": colours} if x68 else
                      {"id": "vga", "label": "VGA", "colors": EUROPE_DOS_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -4381,6 +4400,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
             "ishin-x68": build_ishin_x68,
             "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
+            "europe-x68": lambda game_dir: build_europe_dos(game_dir, x68=True),
             "genchou-pc88": build_genchou_pc88,
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,

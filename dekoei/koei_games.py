@@ -421,6 +421,38 @@ def load_europe_pc88_names(scedata, main_com) -> dict[int, str]:
         names[rec[20]] = name(rec)
     return names
 
+
+# X68000: the PC-88 records (half-width katakana) in SCEDATA scenarios of 0x2E21 bytes from 0x1518 (MAIN.Z 0x52930),
+# commanders at +0x302; MAIN.Z (not packed) holds the 12 leaders (faces 94-105) at file 0x4369C. In the only
+# dump (IA europe_sensen_1992_koei_disk_1_x68k) the sectors of scenarios 1-4 hold MSGRP.DAT data, so only
+# scenarios 0, 5 and 6 can be read.
+EUROPE_X68_SCENARIOS = (0x181A, 0x2E21, (0, 5, 6))
+EUROPE_X68_LEADERS = (0x4369C, 12)
+
+
+def load_europe_x68_names(scedata, main_z) -> dict[int, str]:
+    """Name per face/person number from the readable scenarios and the leaders."""
+    with open(scedata, 'rb') as f:
+        sce = f.read()
+    with open(main_z, 'rb') as f:
+        main = f.read()
+
+    def name(rec):
+        return unicodedata.normalize('NFKC', rec[:8].split(b'\0')[0].decode('cp932')).strip()
+
+    first, stride, scenarios = EUROPE_X68_SCENARIOS
+    names = {}
+    for s in scenarios:
+        for r in range(40):
+            rec = sce[first + s * stride + r * 22:first + s * stride + (r + 1) * 22]
+            if rec[9] != 0xFF:
+                names.setdefault(rec[20], name(rec))
+    offset, count = EUROPE_X68_LEADERS
+    for r in range(count):
+        rec = main[offset + r * 22:offset + (r + 1) * 22]
+        names[rec[20]] = name(rec)
+    return names
+
 ##############################################################################
 
 

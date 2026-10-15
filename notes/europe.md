@@ -49,3 +49,15 @@
 - 人物：記錄格式同 DOS（22 bytes，名字 8 bytes，國籍 +9，頭像 +20），名字是半形片假名（轉全形）。`SCEDATA.CIM` 0x229 起 7 個劇本、間隔 0x1D64、各 40 筆；領袖 6 人在 `MAIN.COM` 0x264（頭像 94–99）。DOS 的 100–105（戈林等）PC-88 版沒有（`koei_games.load_europe_pc88_names`）。
   - 共 100 人，id 和名字與 `europe-sfc` 逐筆相同（11 ラフェンシュタイ 是 8 字截斷）。
 - 色盤：`MAIN.OVL` 0x555A 在數位模式下把 8 個暫存器設成恆等對應，就是數位 8 色（palette id `pc88`）。
+
+## X68000 版（`europe-x68`）
+
+`dekoei.py export europe-x68` 用 `build_europe_dos(x68=True)`。
+
+- 來源：Internet Archive `europe_sensen_1992_koei_disk_1_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片 DIM）。`games/europe-x68/` 放 A 片的 `FACE.DAT`、`SCEDATA`、`MAIN.Z`。
+- `MAIN.Z` 沒有壓縮，執行位址＝檔案位址＋0x514DE。
+- `FACE.DAT`：前 120 張（230400 bytes）和 DOS 中文版逐 byte 相同，後面 52480 bytes 全是 0。分類照 PC-88：106–117「替補指揮官」，118「事件人物」村娘、119「事件人物」修道女（`MAIN.Z` 有這兩個字串）。
+- 色盤：0x55DCC 把 0x9A536（檔案 0x49058）的 8 個長字（X68000 GRB）設到文字色盤 0–7：`#000000 #184A9C #DE3939 #DE7BBD #4A9C4A #7BBDBD #FFCE6B #FFFFFF`，和 DOS 的 VGA 值接近但不同。
+- 人物：22 bytes 記錄、半形片假名，格式同 PC-88。`SCEDATA` 的劇本由 0x52930 讀：第 s 個在 0x1518 ＋ s × 0x2E21，長 0x2E21，指揮官 40 筆在劇本 +0x302。領袖 12 人（頭像 94–105，和 DOS 一樣有 100–105）在 `MAIN.Z` 檔案 0x4369C（`koei_games.load_europe_x68_names`）。
+  - 這份映像的劇本 1–4（劇本 2–5「北アフリカ」到「ノルマンディー」）的磁區內容是 `MSGRP.DAT` 的資料，FAT 沒有交叉連結（第二份 FAT 是沒維護的舊內容），應該是原片或傾印就壞了。所以只讀得到劇本 0、5、6：58 名指揮官加 12 名領袖，共 70 人，名字和 PC-88 逐筆相同。
+  - 只在劇本 1–4 出現的 36 張臉（4–6、8、11–13、15–19、21、23、25、26、50–63、66、67、69–72）沒有人物，留作無名頭像。
