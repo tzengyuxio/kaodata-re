@@ -971,15 +971,13 @@ SAN1_X68_PORTRAITS = 85
 SAN1_X68_PORTRAIT_GROUPS = {6: "未使用", **{i: "姫" for i in range(65, 85)}}
 SAN1_X68_PARTS = 0x4FB00
 # code 0xGTMEB (>= 100): group G 1-5; slot -> (label, part offset, group stride, item size, first row); the game
-# puts the head and ORs the others in; group 5 has only items 0-2 (the parts end there). The parts never overlap
-# each other and fill the head's hole of 0s, except one edge pixel each of mouths 3 (group 1), 4 (group 3) and
-# 3 (group 4), which the game ORs into the head; kaodata's check would reject an 8-bit OR slot, so the parts are
-# put with 0 as transparent and those three pixels show the part's colour
+# puts the head and ORs the others in; group 5 has only items 0-2 (the parts end there)
 SAN1_X68_SLOTS = {"head": ("頭", 0, 0x4B00, 0xF00, 0), "eyes": ("眼", 0x15900, 0xC30, 0x270, 25),
                   "nose": ("鼻", 0x19110, 0xD20, 0x2A0, 34), "mouth": ("口", 0x1CD70, 0xF00, 0x300, 46)}
 SAN1_X68_GROUP_ITEMS = [5, 5, 5, 5, 3]
 # all 256 colours are distinct and 255 (white) is used, but 255 is transparent in kaodata: it moves to 250, which no
-# image uses
+# image uses; the ORed parts only ever meet nonzero pixels of 106, 108, 110, 112, 153, 156, 174, 190 and 222, so
+# the OR results stay the same
 SAN1_X68_WHITE = 250
 
 
@@ -998,10 +996,8 @@ def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         parts = {}
         for slot, (_, start, stride, size, row) in SAN1_X68_SLOTS.items():
             first = SAN1_X68_PARTS + start + g * stride
-            items = [kao[first + k * size:][:size] for k in range(SAN1_X68_GROUP_ITEMS[g])]
-            if slot != "head":
-                items = [bytes(TRANSPARENT if v == 0 else v for v in item) for item in items]
-            parts[slot] = {"at": [0, row], "items": [store.add(48, size // 48, item) for item in items]}
+            parts[slot] = {"at": [0, row], "items": [store.add(48, size // 48, kao[first + k * size:][:size])
+                                                     for k in range(SAN1_X68_GROUP_ITEMS[g])]}
         variants.append({"id": str(g + 1), "label": f"類型 {g}", "parts": parts})
 
     portraits = [{"img": store.add(48, 80, kao[i * SAN1_X68_FACE:][:SAN1_X68_FACE], blob=1), "code": f"{i:04X}"}
@@ -1040,7 +1036,8 @@ def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "composite": {
             "canvas": [48, 80],
-            "slots": [{"id": slot, "label": label} for slot, (label, *_) in SAN1_X68_SLOTS.items()],
+            "slots": [{"id": slot, "label": label, **({} if slot == "head" else {"blend": "or"})}
+                      for slot, (label, *_) in SAN1_X68_SLOTS.items()],
             "variants": variants,
             "code": {"kind": "tuple"},
         },
