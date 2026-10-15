@@ -2593,20 +2593,29 @@ NOBU5_PC98_EVENT_PEOPLE = {917: "ルイス＝フロイス", 918: "オルガン�
 NOBU5_PC98_UNKNOWN = [139, 140, *range(820, 878), 914, 915, 916, 921, 922, 923, 924, 927, 928]
 # aliases sharing a face code (renamed in later scenarios); one character under the best-known name
 NOBU5_PC98_ALIASES = {"長尾景虎": "上杉謙信", "武田晴信": "武田信玄", "松平元康": "徳川家康"}
+# X68000: MAIN.Z is CZ11-packed (ls11.cz11_decode, image base 0x47FFA). The face index is 930 u32 (big-endian)
+# at image 0x5FC80; the palette set at start (0x500E: colours 0-15 from $A8BF0) holds GRB words, and colours 8-15
+# are the PC-98 4-bit faces colours as 5-bit 2v + 1
+NOBU5_X68_INPUTS = ["KAO.NB5", "MAIN.Z", "SN1.NB5", "S1T.NB5", "SN2.NB5", "S2T.NB5", "SN3.NB5", "S3T.NB5"]
+NOBU5_X68_INDEX = 0x5FC80
+NOBU5_X68_PALETTE = 0xA8BF0 - 0x47FFA + 8 * 4
 
 
-def build_nobu5_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_nobu5_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = NOBU5_X68_INPUTS if x68 else NOBU5_PC98_INPUTS
     files = {}
-    for name in NOBU5_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
-    exe, kao = files["MAIN.EXE"], files["KAO.NB5"]
+    exe = ls11.cz11_decode(files["MAIN.Z"]) if x68 else files["MAIN.EXE"]
+    kao = files["KAO.NB5"]
     store = ImageStore(["portraits.bin"])
 
-    index = struct.unpack_from(f"<{NOBU5_PC98_FACES + 1}H", exe, NOBU5_PC98_INDEX)
+    index = struct.unpack_from(f">{NOBU5_PC98_FACES + 1}I", exe, NOBU5_X68_INDEX) if x68 else \
+        struct.unpack_from(f"<{NOBU5_PC98_FACES + 1}H", exe, NOBU5_PC98_INDEX)
     portraits = [{"img": store.add(64, 80, nobu_pc98_face(kao[a * 20:b * 20])), "code": f"{i:04X}"}
                  for i, (a, b) in enumerate(zip(index, index[1:]))]
-    for i, name in zip(NOBU5_PC98_PRINCESSES, koei_games.load_nobu5_pc98_princesses(files["SN1.NB5"])):
+    for i, name in zip(NOBU5_PC98_PRINCESSES, koei_games.load_nobu5_pc98_princesses(files["SN1.NB5"], x68)):
         portraits[i]["group"] = "姫"
         if name:
             portraits[i]["name"] = name
@@ -2618,8 +2627,8 @@ def build_nobu5_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     # scenario 1, its later arrivals, then scenarios 2 and 3 (as nobu4-dos); one character per face code
     characters, seen = [], set()
     for n in "123":
-        for table in (koei_games.load_nobu5_pc98_scenario(files[f"SN{n}.NB5"]),
-                      koei_games.load_nobu5_pc98_arrivals(files[f"S{n}T.NB5"])):
+        for table in (koei_games.load_nobu5_pc98_scenario(files[f"SN{n}.NB5"], x68),
+                      koei_games.load_nobu5_pc98_arrivals(files[f"S{n}T.NB5"], x68)):
             for name, face in table:
                 if face in seen:
                     continue
@@ -2627,16 +2636,23 @@ def build_nobu5_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
                 characters.append({"id": len(characters), "name": NOBU5_PC98_ALIASES.get(name, name),
                                    "face": {"portrait": face}})
 
-    pal = exe[NOBU5_PC98_PALETTE:][:24]
-    colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+    if x68:
+        grb = struct.unpack_from(">8I", exe, NOBU5_X68_PALETTE)
+        colors = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31))
+                  for w in grb]
+    else:
+        pal = exe[NOBU5_PC98_PALETTE:][:24]
+        colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
 
     meta = {
-        "format": FORMAT, "id": "nobu5-pc98", "game": "NOBU5", "platform": "PC98",
+        "format": FORMAT, "id": "nobu5-x68" if x68 else "nobu5-pc98", "game": "NOBU5",
+        "platform": "X68" if x68 else "PC98",
         "title": {"ja": "信長の野望・覇王伝", "zh": "信長之野望・霸王傳"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU5_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
+                     {"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -4196,7 +4212,8 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88,
-            "nobu5-pc98": build_nobu5_pc98, "nobu6-pc98": build_nobu6_pc98,
+            "nobu5-pc98": build_nobu5_pc98,
+            "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),

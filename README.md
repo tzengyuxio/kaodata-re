@@ -32,7 +32,7 @@ Early KOEI Games Data Research
 | NOBU2     | 信長之野望 全國版           | 1986 |                  |       |        |                     |
 | NOBU3     | 信長之野望 戰國群雄傳       | 1988 |   DOS,PC98,X68   |       |        | 台灣稱 信長之野望II |
 | NOBU4     | 信長之野望 武將風雲錄       | 1990 |   DOS,PC98,X68   |       |        |                     |
-| NOBU5     | 信長之野望 霸王傳           | 1992 |       PC98       |       |        |                     |
+| NOBU5     | 信長之野望 霸王傳           | 1992 |     PC98,X68     |       |        |                     |
 | NOBU6     | 信長之野望 天翔記           | 1994 |       PC98       |       |        |                     |
 | NOBU7     | 信長之野望 將星錄           | 1997 |       WIN        |       |        |                     |
 | NOBU8     | 信長之野望 烈風傳           | 1999 |                  |       |        |                     |
@@ -150,6 +150,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu4-pc98` | 信長の野望・武将風雲録         | PC-98      |  507 |  311 |   ○    | [notes/nobu4.md](notes/nobu4.md)   |
 | `nobu4-x68`  | 信長の野望・武将風雲録         | X68000     |  507 |  311 |   ○    | [notes/nobu4.md](notes/nobu4.md)   |
 | `nobu5-pc98` | 信長の野望・覇王伝           | PC-98      |  818 |  929 |        | [notes/nobu5.md](notes/nobu5.md)   |
+| `nobu5-x68`  | 信長の野望・覇王伝           | X68000     |  818 |  929 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu6-pc98` | 信長の野望・天翔記           | PC-98      | 1000 |  410 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |

@@ -101,6 +101,17 @@ def ls11_decode(data: bytes, print_only=False) -> bytes:
     return b''.join(decoded_data)
 
 
+def cz11_decode(data: bytes) -> bytes:
+    """Text and data of a KOEI CZ11-packed X68000 executable (信長の野望・覇王伝 MAIN.Z, unpacked by SYS/IPL113.R):
+    a 0x1C-byte X header, then 'CZ11', u32 text size, u32 data size, ..., the 256-byte dictionary at +0x24 and
+    LS11 codes from +0x126. The result starts at the X header's base address."""
+    body = data[0x1C:]
+    if body[:4] != b'CZ11':
+        raise ValueError('not a CZ11 file')
+    size = int.from_bytes(body[4:8], LS11_ENDIAN) + int.from_bytes(body[8:12], LS11_ENDIAN)
+    return recover(get_codes(body[0x126:]), body[0x24:0x124])[:size]
+
+
 def lw11_decode_files(data: bytes) -> dict[str, bytes]:
     """LW11 archive (提督の決断II PK PACK.LZW): LS11 coding, but each table entry is a 16-byte file name before
     the (compressed size, uncompressed size, offset) triple, plus 4 more bytes. Names are upper-cased."""
