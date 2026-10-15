@@ -2487,6 +2487,73 @@ def build_royal_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tu
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- ININDOU (PC-98, X68000)
+
+ININDOU_PC98_INPUTS = ["KAOGRP.DAT", "SDATA.CIM", "MAIN.EXE"]
+ININDOU_X68_INPUTS = ["KAOGRP.DAT", "SDATA.DAT", "IMAIN.Z"]
+ININDOU_FACE = 1920  # 64x80, B, R, G bytes per 8 px; the same file on both platforms
+# the person (SDATA record) shown with faces 2h and 2h + 1: X68 IMAIN.Z 0x9C02E (0x771D2 matches the person
+# id, 0x7677E draws face 2h + arg), PC-98 MAIN.EXE file 0x47BDC; face 2h + 1 has the eyes closed
+ININDOU_X68_HEROINES = 0x9C02E - 0x514DE
+ININDOU_PC98_HEROINES = 0x47BDC
+# SDATA: person records with the name (Shift-JIS) at X68 0xBD + 0x42 i, PC-98 0xAD + 51 i
+ININDOU_X68_NAMES = (0xBD, 0x42)
+ININDOU_PC98_NAMES = (0xAD, 51)
+# the 8 colours, B, R, G: PC-98 MAIN.EXE file 0x4385A entries 8-15 (4 bits), X68 IMAIN.Z 0x9A514 entries 0-7
+# (graphic palette longs, the same values widened to 5 bits)
+ININDOU_PC98_PALETTE = 0x4385A + 24
+ININDOU_X68_PALETTE = 0x9A514 - 0x514DE
+
+
+def build_inindou(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = ININDOU_X68_INPUTS if x68 else ININDOU_PC98_INPUTS
+    files = {}
+    for name in inputs:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    main = files[inputs[2]]
+    store = ImageStore(["portraits.bin"])
+
+    kao = files["KAOGRP.DAT"]
+    portraits = [{"img": store.add(64, 80, brg_pixels(kao[i:i + ININDOU_FACE], 8, double=False)),
+                  "code": f"{i // ININDOU_FACE:04X}"} for i in range(0, len(kao), ININDOU_FACE)]
+
+    sdata = files[inputs[1]]
+    first, size = ININDOU_X68_NAMES if x68 else ININDOU_PC98_NAMES
+    heroines = main[ININDOU_X68_HEROINES if x68 else ININDOU_PC98_HEROINES:][:len(portraits) // 2]
+    characters = []
+    for h, person in enumerate(heroines):
+        o = first + person * size
+        characters.append({"id": h, "name": sdata[o:o + 16].split(b"\0")[0].decode("cp932"),
+                           "face": {"portrait": 2 * h},
+                           "expressions": [{"portrait": 2 * h + 1, "label": "閉眼"}]})
+
+    if x68:
+        o = ININDOU_X68_PALETTE
+        words = [int.from_bytes(main[o + 4 * i + 2:o + 4 * i + 4], "big") for i in range(8)]
+        colors = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31))
+                  for w in words]
+    else:
+        pal = main[ININDOU_PC98_PALETTE:][:24]
+        colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "inindou-x68" if x68 else "inindou-pc98", "game": "ININDOU",
+        "platform": "X68" if x68 else "PC98",
+        "title": {"ja": "伊忍道 打倒信長", "zh": "伊忍道 打倒信長"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
+                     {"id": "analog", "label": "類比 RGB", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- ISHIN (PC-98)
 
 ISHIN_PC98_INPUTS = ["KAODAT.DAT", "MONDAT.DAT", "ISIN.EXE", "SHINARIO.DAT"]
@@ -4740,7 +4807,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88,
             "nobu5-pc98": build_nobu5_pc98,

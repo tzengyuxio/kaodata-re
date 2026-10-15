@@ -181,6 +181,8 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `royal-pc88` | ロイヤルブラッド               | PC-88      |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `royal-x68`  | ロイヤルブラッド               | X68000     |   64 |   91 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `progen-pc98` | プロジェネター               | PC-98      |   97 |  125 |   ○    | [notes/progen.md](notes/progen.md) |
+| `inindou-pc98` | 伊忍道 打倒信長             | PC-98      |    7 |   14 |        | [notes/inindou.md](notes/inindou.md) |
+| `inindou-x68` | 伊忍道 打倒信長              | X68000     |    7 |   14 |        | [notes/inindou.md](notes/inindou.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-pc88` | ランペルール                   | PC-88      |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-x68`  | ランペルール                   | X68000     |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
