@@ -308,6 +308,30 @@ def load_koukaigd_win_tavern(sdata) -> list[tuple[str, int]]:
     return [(data[o:o + 12].split(b"\0")[0].decode("big5"), KOUKAIGD_WIN_TAVERN_FACE + k)
             for k, o in enumerate(range(start, start + count * size, size))]
 
+
+# DATA1.LZW part 15 (the starting state; Sdata.dat of 大航海時代外伝): (offset, count, record size)
+KOUKAI2_PC98_MATES = (0x612, 120, 50)  # given 13, surname 13, u16 face code, ..., +49 low nibble = face type
+KOUKAI2_PC98_EVENT = (0x1D82, 20, 22)  # name 16, ..., +18 portrait
+KOUKAI2_PC98_TAVERN = (0x1F3A, 30, 19)  # name 12, ...; the face is 0x61 + index (MAIN.EXE 0x25F15)
+
+
+def load_koukai2_pc98_people(data1) -> tuple[list, list, list]:
+    """Mates (name, face code, face type), event people and tavern women (name, portrait) of DATA1.LZW."""
+    with open(data1, "rb") as f:
+        data = ls11_decode_parts(f.read())[15]
+
+    def name(raw):
+        return raw.split(b"\0")[0].decode("cp932")
+
+    start, count, size = KOUKAI2_PC98_MATES
+    mates = [(name(data[o:o + 13]) + "・" + name(data[o + 13:o + 26]), int.from_bytes(data[o + 26:o + 28], "little"),
+              data[o + 49] & 0xF) for o in range(start, start + count * size, size)]
+    start, count, size = KOUKAI2_PC98_EVENT
+    events = [(name(data[o:o + 16]), data[o + 18]) for o in range(start, start + count * size, size)]
+    start, count, size = KOUKAI2_PC98_TAVERN
+    tavern = [(name(data[o:o + 12]), 0x61 + k) for k, o in enumerate(range(start, start + count * size, size))]
+    return mates, events, tavern
+
 ##############################################################################
 
 

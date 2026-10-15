@@ -50,7 +50,7 @@
 - [x] 水滸伝～天命の誓い～（`[PC98] 水滸伝～天命の誓い～.ZIP`）— 第 2 片和既有 `suikoden-pc98` 相同，第 1 片的 MAIN.EXE 證實數位色盤，資料集不變（2026-10-15）
 - [x] 独立戦争（`[PC98] 独立戦争.zip`，3 片 D88）— 解到 `games/liberty-pc98/`，用 `build_liberty_dos(pc98=True)` 做 `liberty-pc98` 匯出（2026-10-15）
 - [x] 大航海時代（`[PC98] 大航海時代.zip`）— 解到 `games/koukai-pc98/`，用 `build_koukai_dos(pc98=True)` 做 `koukai-pc98` 匯出（2026-10-15）
-- [ ] 大航海時代II（`[PC98] 大航海時代２.zip`）（2026-10-14）
+- [x] 大航海時代II（`[PC98] 大航海時代２.zip`）— `koukai2-pc98`（2026-10-15）
 - [x] 維新の嵐（`[PC98] 維新の嵐.zip`）— B 片補齊，做 `ishin-pc98` 匯出（2026-10-15）
 - [x] ロイヤルブラッド（`[PC98] [光栄] ロイヤルブラッド(FDI).zip`）— A 片補齊，做 `royal-pc98` 匯出（2026-10-15）
 - [x] プロジェネター（`[PC98] [光栄] プロジェネター（FDI).zip`）— 解到 `games/progen-pc98/`，做 `progen-pc98` 匯出（2026-10-15）

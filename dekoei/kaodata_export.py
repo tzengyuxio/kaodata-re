@@ -2958,6 +2958,84 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOUKAI2 (PC-98)
+
+# KAO.LZW is byte-identical to Monkao.dat of 大航海時代外伝: 128 faces, then the 7 part types (KOUKAIGD_WIN_*)
+KOUKAI2_PC98_INPUTS = ["KAO.LZW", "MAIN.EXE", "DATA1.LZW"]
+KOUKAI2_PC98_PORTRAITS = 128  # the rest of the LS11 parts are 48x48 discovery pictures
+# MAIN.EXE 0x42BF8 (B, R, G, 4 bits each), colours 0-7; same values as KOUKAIGD_WIN_PALETTE
+KOUKAI2_PC98_PALETTE = ["#000000", "#0044dd", "#dd4400", "#dd66aa", "#00aa66", "#00aaff", "#ffaa66", "#ffeedd"]
+# the type is the low nibble of person record +0x31 (0x6FD0), which follows the nationality; MAIN.EXE 0x3A17F
+KOUKAI2_PC98_TYPES = ["ポルトガル", "イスパニア", "オスマン帝国", "イギリス", "イタリア", "オランダ", "海賊"]
+# faces only drawn by the scenario scripts (SNRDAT.LZW: c0 0n cc <face> c8 <message>); names from the § speaker
+# labels and the dialogue in SNRMES.LZW. 92 is not used by any script
+KOUKAI2_PC98_EVENT_FACES = {18: "フェレロ公爵", 19: "フェレロ公爵夫人", 21: "アルベルト皇太子", 22: "ファブリス・フェレロ",
+                            23: "マルティネス侯爵", 25: "エゼキエル", 59: "手下", 93: "シャイロック頭取",
+                            94: "タファリ１世", 95: "メコンベ", 96: "プレット・ペロー"}
+
+
+def build_koukai2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOUKAI2_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    kao = files["KAO.LZW"]
+    variants = []
+    for v, label in enumerate(KOUKAI2_PC98_TYPES):
+        parts = {}
+        for slot, (_, offset, size, count, row, _, _) in KOUKAIGD_WIN_SLOTS.items():
+            base = KOUKAIGD_WIN_PARTS + v * KOUKAIGD_WIN_TYPE + offset
+            items = [store.add(64, size // 24, bytes(genpei.decode_planar(kao, base + i * size, 64, size // 24, 3)))
+                     for i in range(count)]
+            parts[slot] = {"at": [0, row], "items": items}
+        variants.append({"id": str(v), "label": label, "parts": parts})
+
+    faces = ls11.ls11_decode_parts(kao)[:KOUKAI2_PC98_PORTRAITS]
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(p, 0, 64, 80, 3)), blob=1), "code": f"{i:04X}"}
+                 for i, p in enumerate(faces)]
+
+    mates, events, tavern = koei_games.load_koukai2_pc98_people(os.path.join(game_dir, "DATA1.LZW"))
+    characters = []
+    for name, code, variant in mates:
+        if code & 0xC000:
+            face = {"variant": variant, "parts": [code >> shift & mask for *_, shift, mask in KOUKAIGD_WIN_SLOTS.values()],
+                    "code": f"{code:04X}"}
+        else:
+            face = {"portrait": code}
+        characters.append({"id": len(characters), "name": name, "face": face})
+    characters += [{"id": len(characters) + i, "name": name, "face": {"portrait": face}}
+                   for i, (name, face) in enumerate(events + tavern)]
+    for i, name in KOUKAI2_PC98_EVENT_FACES.items():
+        portraits[i].update(name=name, group="事件人物")
+    used = {c["face"]["portrait"] for c in characters if "portrait" in c["face"]}
+    for i, p in enumerate(portraits):
+        if i not in used and "group" not in p:
+            p["group"] = "未使用"
+
+    meta = {
+        "format": FORMAT, "id": "koukai2-pc98", "game": "KOUKAI2", "platform": "PC98",
+        "title": {"ja": "大航海時代II", "zh": "大航海時代II"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI2_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": KOUKAI2_PC98_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label, **({"blend": "or"} if slot in KOUKAIGD_WIN_OR else {})}
+                      for slot, (label, *_) in KOUKAIGD_WIN_SLOTS.items()],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- KOUKAI3 (Win, Chinese)
 
 KOUKAI3_WIN_INPUTS = ["MALE.CDS", "FEMALE.CDS", "CDS95.EXE.pec2bac", "OCEAN.CDS"]
@@ -3437,7 +3515,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
-            "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
+            "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
