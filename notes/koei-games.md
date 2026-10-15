@@ -306,11 +306,11 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 `dekoei.py export ishin-x68` 用 `build_ishin_x68`。
 
-- 來源：Internet Archive `ishin_no_arashi_1990_koei_disk_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片）。`games/ishin-x68/` 放 A 片的 `ISINMAIN.Z`，C 片的 `KAODAT.DAT`、`MONDAT.DAT`、`SDATA1.DAT`、`SDATA2.DAT`。
+- 來源：Internet Archive `ishin_no_arashi_1990_koei_disk_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片）。`games/ishin-x68/` 放 A 片的 `ISINMAIN.Z`，C 片的 `KAODAT.DAT`、`MONDAT.DAT`、`SDATA1.DAT`、`SDATA2.DAT`、`YKAO.DAT`。
 - `ISINMAIN.Z` 沒有壓縮，執行位址＝檔案位址＋0x514DE，下文是執行位址。
 - 人物是 PC-88 版的：姓在檔案 0x4548（和 PC-88 `MAIN.COM` 0x47AB 逐 byte 相同），名在 `SDATA1/2.DAT` 0x1DBE，臉記錄 5 bytes 在 0x2B18（兩個劇本相同）（`koei_games.load_ishin_x68_persons`）。id 和名字同 `ishin-pc88`，劇本 2 的繼任者也一樣匯出成 201、202。
 - `KAODAT.DAT`：96 張重畫的 48×80 全高頭像（1440 bytes，byte k＝plane k），順序同 PC-88 的 0–93；94 是芹沢鴨（PC-88 用組合臉），95 是一般人物（0x7F9B6：id ≥ 0xD0）。PC-88 的 95–97（池内蔵太、新宮馬之助、近藤長次郎）在 X68000 改用組合臉。
-- C 片也有 `YKAO.DAT`（和 PC-88 逐 byte 相同），但沒有程式開它，不匯出。
+- C 片也有 `YKAO.DAT`（和 PC-88 逐 byte 相同，4 張 48×40），但 `ISINMAIN.Z` 沒有開它（沒有這個檔名字串），X68000 上的顯示方式無從確定。照使用者決定仍匯出：格式同 `ishin-pc88`（byte k＝plane k，逐列加倍成 48×80），色盤用 X68000 的數位 8 色，成為頭像 96–99，分類「遊郭の娘」，不命名。
 - 組合臉（0x7F5EE）：0x7F52C 把 5 bytes 拆成 w0–w9 十個 nibble，w9 &= 7，髷＝b4 bit 3。先把背景（`MONDAT.DAT` w0 × 0x5A0，48×80）放進 48×80 的緩衝，之後每層「AND 1bpp 遮罩（每列 6 bytes，作用在 3 個平面）、OR 圖（每列 18 bytes）」；只有遮罩的層畫出色號 0 的線。部件位置寫在 0x659C2 起的表：
 
 | 圖層 | 欄位 | 遮罩 | 圖 | 項數 | 高 | y |

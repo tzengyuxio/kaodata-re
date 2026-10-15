@@ -2448,7 +2448,8 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
 # (0x7F52C: w0-w9 are the nibbles, w9 &= 7, mage = b4 bit 3) into a 48x80 buffer; each layer ANDs a 1 bpp mask
 # (6 bytes a row, over all 3 planes) and ORs a picture (18 bytes a row); mask-only layers draw colour 0 lines.
 # The buffer goes to text planes 0-2 (0x9D6EE, byte k = plane k); the text palette (0x571D6) is the digital 8.
-ISHIN_X68_INPUTS = ["KAODAT.DAT", "MONDAT.DAT", "ISINMAIN.Z", "SDATA1.DAT", "SDATA2.DAT"]
+ISHIN_X68_INPUTS = ["KAODAT.DAT", "MONDAT.DAT", "ISINMAIN.Z", "SDATA1.DAT", "SDATA2.DAT", "YKAO.DAT"]
+# YKAO.DAT (disk C) is the PC-88 file, 4 faces of 48x40; ISINMAIN.Z never opens it, kept as on PC-88 (line-doubled)
 ISHIN_X68_FACE = 1440
 ISHIN_X68_CROWD = 95  # 0x7F9B6: ids 0xD0 and up
 # slot -> (label, field, count (the "none" value when one is left out), mask, mask step, picture, picture step,
@@ -2481,6 +2482,11 @@ def build_ishin_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         img = store.add(48, 80, bytes(genpei.decode_planar(kao, face * ISHIN_X68_FACE, 48, 80, 3)), 1)
         portraits.append({"img": img, **({} if face == ISHIN_X68_CROWD else {"code": f"FF{face:02X}000000"})})
     portraits[ISHIN_X68_CROWD]["group"] = "一般人物"
+    ykao = files["YKAO.DAT"]
+    for i in range(0, len(ykao), ISHIN_PC98_FACE):
+        px = genpei.decode_planar(ykao, i, 48, 40, 3)
+        doubled = bytes(c for r in range(40) for _ in range(2) for c in px[r * 48:r * 48 + 48])
+        portraits.append({"img": store.add(48, 80, doubled, 1), "group": "遊郭の娘"})
 
     # a masked-off pixel is the picture's colour (OR onto 0); a kept one shows through unless the picture has a
     # colour, which only happens with colour 7, so OR = copy there too
@@ -2515,7 +2521,7 @@ def build_ishin_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         return {"variant": 0, "parts": picks, "code": rec.hex().upper()}
 
     characters, later = [], []
-    for names, rec in koei_games.load_ishin_x68_persons(*(os.path.join(game_dir, n) for n in ISHIN_X68_INPUTS[2:])):
+    for names, rec in koei_games.load_ishin_x68_persons(*(os.path.join(game_dir, n) for n in ISHIN_X68_INPUTS[2:5])):
         characters.append({"id": len(characters), "name": names[0], "face": face(rec)})
         # in scenario 2 the successor takes over the record (and the face)
         later += [{"name": n, "face": face(rec)} for n in names[1:] if n != names[0]]
