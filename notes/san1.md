@@ -35,6 +35,45 @@
 
 PC-9801 版 1986-04-30（ja.wikipedia〈三國志 (ゲーム)〉，和 FM-16β 同日）。另有 1995 年 3 月的 PC-9801 復刻版。
 
+## PC-88 V1 版（`san1-pc88`）
+
+`dekoei.py export san1-pc88` 用到的格式。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Sangokushi/Sangokushi [FD].7z`，取其中 V1 模式的 Disk A、B（`Sangokushi (Disk A|B) {V1 mode}.d88`），原樣放在 `games/san1-pc88/DISK_A.D88`、`DISK_B.D88`。
+
+### 版本
+
+- Disk A 標題字串 `[Ver.1.1(86/1/6)]`。同一包的 Alt 2（16-Apr-1986）是 `[Ver.1.2(86/3/14)]`，Set 1 沒有版號字串。
+- 各版本的 SN1.EXT 人物表、Disk B 的頭像磁軌都相同，匯出用 FD 主檔。
+- Disk C（YDOS 3.0，「SANGOKUSHI 10-Nov-86」）的 SAVEDATA 用的是 PC-98 式的頭像碼 0–64，和 V1 本體不同，不採用。
+- 發行年份：PC-8801 版 1985-12-10（ja.wikipedia〈三國志 (ゲーム)〉），是系列首發。
+- `Sangokushi (SR)`（PC-8801mkIISR 版）Disk A 的頭像和 PC-98 PICDATA 0–112 逐 byte 相同（0x18C00 起，每 9 磁區一軌放 6 張），不另做資料集，只在 `san1-pc98` 標記。
+
+### 磁碟
+
+- 2D D88，40 cylinder × 2 head × 16 × 256 bytes。依 (c, h, r) 排序串成線性映像（`pc88.d88_image`）。
+- Disk A 第 1–9 cylinder 的 head 0 多了 id 245–247 的磁區（拷貝保護），要略過，否則檔案會錯位。
+- Disk A 0x4000 是 CP/M 式目錄（YDOS 2.2），2 KB 一個 block（`pc88.cpm_files`）：PACKDATA、SANMAIN.COM、MAIN.OVL、KANJIF.DAT、SN1.EXT 等。
+- Disk B 沒有可用的目錄，遊戲直接以磁軌讀。
+
+### 頭像（Disk B）
+
+- 格式和 PC-98 PICDATA 相同：每張 720 bytes，48×40 半高、3bpp（`to_3bpp_indexes`），逐列重複成 48×80。
+- 一軌 4 KB 放 5 張：頭像碼 n 在第 n // 5 軌第 n % 5 張，offset ＝ 軌 × 4096 ＋ 張 × 720（`san1.pc88_face_by_code`）。
+- 人物用到的頭像碼是 0–29 和 43（劉表），共 31 張；第 8 軌第 4 張是劉表的複本，沒有人用，不收。
+- 和 PC-98 比：16 張相同、12 張修過；兩張是 PC-98 沒有的畫（碼 8 孫策、碼 19）。PC-98 有頭像而 V1 沒有的人（夏侯淵、荀彧等）在 V1 是組合臉。
+- 女兒：第 40–43 軌（43 只有第 0 張）共 16 張，和 PC-98 的 66–81 相同。沒有找到頭像碼，匯出成 group「姫」、不填 `code`。
+- 色盤：數位 8 色，同 PC-98。
+
+### 組合臉
+
+- 頭像碼規則同 PC-98（0xGTMB，三段橫條）。組別 G 的素材是第 G 軌的 5 張；第 8 軌後兩張是劉表，所以組別 8 只有 0–2，碼也只用到 0–2。
+- 224 人是組合臉；PC-98 的 190 個組合臉在 V1 的碼都相同。
+
+### 人物（SN1.EXT）
+
+- 34 bytes 一筆，格式同 PC-98 SAVEDATA。0x104D 是多出來的一筆曹操，255 人從 0x104D ＋ 34 起（`san1.load_san1_pc88_persons`）。
+- 姓名是 3 個 little-endian JIS word（+8），部分 byte 的 bit 7 有設（張勲、太史慈、陸績等），讀的時候每 byte `& 0x7F`。+22 是 u16 頭像碼。
+- 這份表和 V1 Disk A 的 SAVEDATA（0x106F）完全相同。姓名、順序和 PC-98 的 255 人一致，所以 `id` 從 1 起算，`nameHistorical` 沿用 `SAN1_PC98_NAME_HISTORICAL`。
+
 ## DOS 英文版（`san1-dos`）
 
 `dekoei.py export san1-dos` 用到的差異。來源是 `games/archives/dos/三國志_英文版_romance-of-the-three-kingdoms.zip`，解開放在 `games/san1-dos/`（檔案日期 1996-06-06，應是重新包裝的日期）。`MAIN.EXE` 標題字串「(C)1988 KOEI CORPORATION」「Ver.2.4(87/4/20)」，和 PC-98 版號相同。

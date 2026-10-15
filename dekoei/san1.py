@@ -163,6 +163,35 @@ def load_san1_pc98_persons(savedata):
     return persons
 
 
+# ---------------------------------------------------------------- PC-88 V1 (Ver.1.1), see notes/san1.md
+# Disk B is read by track: face code n is slot n % 5 of track n // 5 (5 PC-98-format faces per 4 KB track);
+# composite group G is track G, its parts slots 0-4; daughters fill tracks 40-43 (16 faces)
+PC88_FACES_PER_TRACK = 5
+PC88_DAUGHTER_TRACK = 40
+PC88_DAUGHTERS = 16
+# SN1.EXT: 34-byte records as in the PC-98 SAVEDATA; the first record is an extra copy of 曹操
+PC88_PERSONS = 0x104D + PC98_PERSON_SIZE
+
+
+def pc88_face(disk_b, track, slot):
+    """720-byte PICDATA-format face from the linear disk B image."""
+    start = track * 4096 + slot * PC98_FACE
+    return disk_b[start:start + PC98_FACE]
+
+
+def pc88_face_by_code(disk_b, code):
+    return pc88_face(disk_b, code // PC88_FACES_PER_TRACK, code % PC88_FACES_PER_TRACK)
+
+
+def load_san1_pc88_persons(sn1):
+    """(face code, name) of the 255 persons of SN1.EXT; bit 7 of some name bytes is a flag."""
+    persons = []
+    for i in range(255):
+        rec = sn1[PC88_PERSONS + i * PC98_PERSON_SIZE:PC88_PERSONS + (i + 1) * PC98_PERSON_SIZE]
+        persons.append((int.from_bytes(rec[22:24], "little"), pc98_name(bytes(c & 0x7F for c in rec[8:14]))))
+    return persons
+
+
 # ---------------------------------------------------------------- DOS (English), see notes/san1.md
 # PICDATA.DAT: 48x40 half-height 2bpp faces (to_2bpp_indexes order), same face order and composite rule as PC-98
 DOS_FACE = 480

@@ -21,6 +21,7 @@ import genpei
 import koei_games
 import liberty
 import ls11
+import pc88
 import san1
 import san2
 import san3
@@ -872,6 +873,72 @@ def build_san1(game_dir: str, dos: bool = False) -> tuple[dict, list[bytes]]:
         "display": {"scale": 6},
         "palettes": [{"id": "ega", "label": "EGA", "colors": SAN1_DOS_PALETTE} if dos else
                      {"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [48, 80],
+            "slots": [{"id": i, "label": label} for i, label in SAN1_PC98_SLOTS],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
+# ---------------------------------------------------------------- SAN1 (PC-88 V1)
+
+SAN1_PC88_INPUTS = ["DISK_A.D88", "DISK_B.D88"]
+# portrait codes used by SN1.EXT; disk B track 8 slot 4 repeats 43 (劉表) and is left out
+SAN1_PC88_CODES = [*range(30), 43]
+# group 8 has only parts 0-2 (track 8 slots 3-4 are portraits)
+SAN1_PC88_GROUP_PARTS = {8: 3}
+
+
+def build_san1_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN1_PC88_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    disk_b = pc88.d88_image(files["DISK_B.D88"])
+    sn1 = pc88.cpm_files(pc88.d88_image(files["DISK_A.D88"]))["SN1.EXT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for group in range(6, 11):
+        faces = [san1.pc88_face(disk_b, group, i) for i in range(SAN1_PC88_GROUP_PARTS.get(group, 5))]
+        parts = {}
+        for (slot, _), rows in zip(SAN1_PC98_SLOTS, san1.PC98_BANDS):
+            parts[slot] = {"at": [0, 2 * rows[0]], "items": [store.add(*san1_rows(face, 0, rows, False)) for face in faces]}
+        variants.append({"id": str(group), "label": f"類型 {group - 6}", "parts": parts})
+
+    full = (0, san1.PC98_FACE_ROWS)
+    portraits = [{"img": store.add(*san1_rows(san1.pc88_face_by_code(disk_b, c), 0, full, False), blob=1),
+                  "code": f"{c:04X}"} for c in SAN1_PC88_CODES]
+    for i in range(san1.PC88_DAUGHTERS):
+        face = san1.pc88_face(disk_b, san1.PC88_DAUGHTER_TRACK + i // 5, i % 5)
+        portraits.append({"img": store.add(*san1_rows(face, 0, full, False), blob=1), "group": "姫"})
+    portrait_of = {c: i for i, c in enumerate(SAN1_PC88_CODES)}
+
+    characters = []
+    for cid, (code, name) in enumerate(san1.load_san1_pc88_persons(sn1), 1):
+        ch = {"id": cid, "name": name}
+        if cid in SAN1_PC98_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN1_PC98_NAME_HISTORICAL[cid]
+        if san1.is_pc98_composite(code):
+            ch["face"] = {"variant": (code >> 12) - 6, "parts": san1.pc98_composite_parts(code), "code": f"{code:04X}"}
+        else:
+            ch["face"] = {"portrait": portrait_of[code]}
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san1-pc88", "game": "SAN1", "platform": "PC88",
+        "title": {"ja": "三國志", "zh": "三國志"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN1_PC88_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
@@ -3501,7 +3568,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),
             "san5pk-dos": build_san5pk, "san5pk-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True),
             "san5-pc98": lambda game_dir: build_san5pk(game_dir, pc98=True, pk=False),
-            "san1-pc98": build_san1, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
+            "san1-pc98": build_san1, "san1-pc88": build_san1_pc88, "san1-dos": lambda game_dir: build_san1(game_dir, dos=True),
             "suikoden-pc98": build_suikoden_pc98, "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos, "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
             "liberty-pc98": lambda game_dir: build_liberty_dos(game_dir, pc98=True),
