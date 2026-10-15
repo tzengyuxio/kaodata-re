@@ -1,5 +1,6 @@
 import bitarray
 import click
+import unicodedata
 from ls11 import *
 from rich.table import Table
 from PIL import ImageFile
@@ -1209,6 +1210,23 @@ def load_progen_pc98_persons(main_exe) -> list[tuple[int, str]]:
         rec = main[PROGEN_PC98_DGROUP + PROGEN_PC98_PERSONS + i * 33:][:33]
         persons.append((int.from_bytes(rec[:2], "little"), rec[3:19].split(b"\0")[0].decode("cp932")))
     return persons
+
+
+ROYAL_PC98_DGROUP = 0x27270  # MAIN.EXE file offset of DS (the name table DS:0xE52 is used by 0x5B0)
+
+
+def _royal_pc98_names(main: bytes, offset: int, size: int, count: int) -> list[str]:
+    """Half-width katakana names, as full-width."""
+    o = ROYAL_PC98_DGROUP + offset
+    return [unicodedata.normalize("NFKC", main[o + i * size:o + i * size + 10].split(b"\0")[0].decode("cp932"))
+            for i in range(count)]
+
+
+def load_royal_pc98_names(main_exe) -> tuple[list[str], list[str]]:
+    """(64 lords, whose index is also the KAODATA.DAT face; 23 unit types, faces 68-90) from MAIN.EXE."""
+    with open(main_exe, "rb") as f:
+        main = f.read()
+    return _royal_pc98_names(main, 0xE52, 13, 64), _royal_pc98_names(main, 0x13CC, 16, 23)
 
 
 ##############################################################################

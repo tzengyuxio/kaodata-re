@@ -1742,6 +1742,57 @@ def build_progen_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- ROYAL (PC-98)
+
+ROYAL_PC98_INPUTS = ["KAODATA.DAT", "MAIN.EXE"]
+ROYAL_PC98_FACE = 1920  # 64x80, 3 bytes per 8 px, byte k = plane k
+# MAIN.EXE DS:0x189E, 8 x (B, R, G) 4 bits each: faded in (0xDAA) when analog RGB was chosen at start
+ROYAL_PC98_ANALOG = 0x189E
+ROYAL_PC98_DIGITAL = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
+ROYAL_PC98_ADVISORS = range(64, 68)  # 0x6A4C, 0x10890: 0x40 + advisor
+ROYAL_PC98_UNITS = 68  # 0x8460: 0x44 + unit type
+
+
+def build_royal_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in ROYAL_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    kao = files["KAODATA.DAT"]
+    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+                  "code": f"{i // ROYAL_PC98_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC98_FACE)]
+    lords, units = koei_games.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
+    for i in ROYAL_PC98_ADVISORS:
+        portraits[i]["group"] = "相談役"
+    # same groups as royal-fc, whose 91 faces are in the same order
+    for i, name in enumerate(units, ROYAL_PC98_UNITS):
+        portraits[i].update(group="第5部隊", name=name)
+
+    # 0x59C: a lord's face is its index
+    characters = [{"id": i, "name": name, "reading": kana_to_hiragana(name), "face": {"portrait": i}}
+                  for i, name in enumerate(lords)]
+
+    pal = files["MAIN.EXE"][koei_games.ROYAL_PC98_DGROUP + ROYAL_PC98_ANALOG:][:24]
+    analog = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "royal-pc98", "game": "ROYAL", "platform": "PC98",
+        "title": {"ja": "ロイヤルブラッド", "zh": "魔法皇冠"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ROYAL_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "analog", "label": "類比 RGB", "colors": analog},
+                     {"id": "digital", "label": "數位 8 色", "colors": ROYAL_PC98_DIGITAL}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TAIKOH2 (Windows, Chinese)
 
 TAIKOH2_WIN_INPUTS = ["Taik2w95.exe", "FACE.LZW", "EXTFACE.PK8", "BSDATA1.TR2", "BSDATA2.TR2", "SNDATA1.TR2"]
@@ -2619,6 +2670,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos,
             "taikoh2-win": build_taikoh2_win, "progen-pc98": build_progen_pc98,
+            "royal-pc98": build_royal_pc98,
             "san6pk-win": build_san6pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
@@ -2628,7 +2680,7 @@ DATASETS = {"genpei-dos": build_genpei, "san2-dos": build_san2,
             "genghis4pk-win": build_genghis4pk_win}
 
 
-@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98)")
+@click.command(help="匯出 kaodata 統一格式資料集 (DATASET: genpei-dos, san1-dos, san1-pc98, san2-dos, san2-pc98, san2-x68, san3-dos, san3-pc98, san4pk-dos, san4pk-pc98, san5pk-dos, san5pk-pc98, san6pk-win, suikoden-pc98, suikoden-dos, kouryuuki-dos, europe-dos, liberty-dos, koukai-dos, genghis-dos, genghis4pk-win, nobu3-dos, nobu4-dos, nobu7-win, air2-dos, koumei-win, eiketsu-dos, eiketsu3-win, eiketsu4-win, eiketsu5-win, koukaigd-win, koukai3-win, lempe-dos, taikoh-dos, taikoh2-win, progen-pc98, royal-pc98)")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

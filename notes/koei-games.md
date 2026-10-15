@@ -257,10 +257,16 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 確定的頭像對照只有開場點名的 14 人（OPENNING.EXE DS:0x244／0x252）：坂本 0、島津斉彬 1、西郷 2、吉田 3、高杉 4、桂 5、井伊 6、勝 8、松平容保 10、河井 18、松平慶永 19、岩倉 76、小栗 81、近藤勇 100。看起來頭像依 id 遞增分配。
 - PC-9801 版 1988 年 6 月（ja.wikipedia）。
 
-## ロイヤルブラッド（ROYAL, PC-98 日文版，未匯出）
+## ロイヤルブラッド（ROYAL, PC-98 日文版）
 
-只有 B 片，解出放在 `games/royal-pc98/`，主程式和人物資料在缺少的 A 片。
+`dekoei.py export royal-pc98` 用到的格式。來源是 `games/pc98/[PC98] [光栄] ロイヤルブラッド(FDI).zip`（A、B 片和使用者片），每片解到 `games/pc98/disks/royal-pc98/A`、`B`、`user`，A、B 合併到 `games/royal-pc98/`。使用者片的 KAODATA.DAT／SENFIEDA.DAT 和 B 片相同。
 
-- `KAODATA.DAT`：91 張 64×80，byte k＝bit k，1920 bytes，無壓縮（OPEN.EXE image 0x12D9 以 idx × 0x780 讀，0x29B0 依序寫 A800／B000／B800）。順序和 `royal-fc` 的 91 張逐張相同：0–63 武將、64–67 相談役、68–90 部隊／魔獸／召喚。
-- 色盤：遊戲啟動時問是否用類比 RGB。數位模式是標準 8 色；遊戲本體的類比色盤在 A 片主程式，無法確認。OPEN.EXE DS:0x8D6C 的色盤是開場用的染色，套到頭像會變綠。
+- `MAIN.EXE` 的 header 是 0x3200 bytes；DS 在檔案 0x27270（0x5B0 用 `index × 13 + 0xE52` 找名字）。下文程式位址是去掉 header 後的 image 位址。
+- `KAODATA.DAT`：91 張 64×80，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1920 bytes，無壓縮（OPEN.EXE image 0x12D9 以 idx × 0x780 讀，0x29B0 依序寫 A800／B000／B800；MAIN.EXE 是 0x8D06）。順序和 `royal-fc` 的 91 張逐張相同：0–63 君主、64–67 相談役、68–90 部隊／魔獸／召喚。
+  - 0x59C：君主的頭像號就是君主序號。相談役是 0x40＋n（0x6A4C、0x10890），部隊是 0x44＋種類（0x8460）。
+- 名字是半形片假名：DS:0xE52 君主 64 筆 × 13 bytes（名字 10 bytes），DS:0x13CC 部隊 23 筆 × 16 bytes（`koei_games.load_royal_pc98_names`）。兩者都和 FC 版逐筆相同。
+- 色盤：遊戲啟動時問是否用類比 RGB（旗標 DS:0x1942）。
+  - 類比：0xE74 把 DS:0x189E 的 8 色淡入（0xDAA），每色 B、R、G 各 4 bit，由 0x2300 寫 port 0xAE／0xAC／0xAA。匯出時 ×17，當預設色盤。
+  - 數位：標準 8 色，匯出成第二個色盤。
+  - OPEN.EXE DS:0x8D6C 的色盤是開場用的染色，套到頭像會變綠。
 - PC-9801 版 1991-12-21（ja.wikipedia）。
