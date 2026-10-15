@@ -1064,6 +1064,17 @@ def load_lempe_persons(file, scenario=0) -> list[LEMPEPerson]:
     return load_person(lempe_person_loader(file, scenario), lempe_format, LEMPEPerson)
 
 
+
+LEMPE_PC88_PERSONS = 0x21BA  # PC-88 NPDATA.CIM: 5 scenarios of 0x3100 bytes; 255 x 15 bytes (name 12, face u8)
+
+
+def load_lempe_pc88_persons(npdata) -> list[tuple[str, int]]:
+    """(name, face) of the PC-88 NPDATA.CIM scenario 1 (half-width katakana, NFKC); the same order as DOS."""
+    with open(npdata, 'rb') as f:
+        data = f.read()
+    return [(unicodedata.normalize("NFKC", data[o:o + 12].split(b'\0')[0].decode('cp932')), data[o + 12])
+            for o in range(LEMPE_PC88_PERSONS, LEMPE_PC88_PERSONS + 255 * 15, 15)]
+
 @click.command(help='人物資料解析')
 @click.option('-f', '--file', 'file', help="劇本檔案", required=True)
 @click.option('-t', '--to', 'to', help="Specify output format", default='rich', type=click.Choice(['rich', 'csv', 'json', 'markdown', 'md']))

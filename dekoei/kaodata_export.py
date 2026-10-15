@@ -1091,9 +1091,13 @@ LEMPE_PORTRAIT_GROUPS = {257: "事件人物", 258: "事件人物", 259: "事件�
 LEMPE_PORTRAIT_NAMES = {257: "約瑟芬", 258: "瑪麗路易斯", 259: "尼爾森"}
 # Napoleon (character 0) by rank: <=5, 6, 7; labels are the Chinese MAIN.EXE titles
 LEMPE_NAPOLEON_FACES = [(0, "司令官"), (255, "第一執政"), (256, "皇帝")]
+# PC-88 (the original; KAODATA.DAT is the DOS file): MAIN.OVL / COMSUB.OVL names, MAIN.COM rank titles
+LEMPE_PC88_PORTRAIT_NAMES = {257: "ジョゼフィーヌ", 258: "マリー・ルイーズ", 259: "ネルソン"}
+LEMPE_PC88_NAPOLEON_FACES = [(0, "司令官"), (255, "第一執政"), (256, "皇帝")]
 
 
-def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_lempe(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
+    """pc88=True: the PC-88 original (the same KAODATA.DAT, Japanese names)."""
     files = {}
     for name in LEMPE_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1105,29 +1109,36 @@ def build_lempe(game_dir: str) -> tuple[dict, list[bytes]]:
                  for i in range(0, len(kao), SAN2_FACE)]
     for i, group in LEMPE_PORTRAIT_GROUPS.items():
         portraits[i]["group"] = group
-    for i, name in LEMPE_PORTRAIT_NAMES.items():
+    for i, name in (LEMPE_PC88_PORTRAIT_NAMES if pc88 else LEMPE_PORTRAIT_NAMES).items():
         portraits[i]["name"] = name
 
+    npdata = os.path.join(game_dir, "NPDATA.CIM")
+    if pc88:
+        people = [(cid, name, face) for cid, (name, face) in enumerate(koei_games.load_lempe_pc88_persons(npdata))]
+    else:
+        people = [(p.id, p["name"], p.face) for p in koei_games.load_lempe_persons(npdata)]
     characters = []
     # the five scenarios list the same 255 people in the same order
-    for p in koei_games.load_lempe_persons(os.path.join(game_dir, "NPDATA.CIM")):
-        ch = {"id": p.id, "name": p["name"]}
-        if p.id in LEMPE_NAME_HISTORICAL:
-            ch["nameHistorical"] = LEMPE_NAME_HISTORICAL[p.id]
-        ch["face"] = {"portrait": p.face}
-        if p.id == 0:
-            (_, label), *rest = LEMPE_NAPOLEON_FACES
+    for cid, name, face in people:
+        ch = {"id": cid, "name": name}
+        if cid in LEMPE_NAME_HISTORICAL and not pc88:  # translation errors of the Chinese release
+            ch["nameHistorical"] = LEMPE_NAME_HISTORICAL[cid]
+        ch["face"] = {"portrait": face}
+        if cid == 0:
+            (_, label), *rest = LEMPE_PC88_NAPOLEON_FACES if pc88 else LEMPE_NAPOLEON_FACES
             ch["face"]["label"] = label
             ch["expressions"] = [{"portrait": i, "label": label} for i, label in rest]
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "lempe-dos", "game": "LEMPE", "platform": "DOS",
+        "format": FORMAT, "id": "lempe-pc88" if pc88 else "lempe-dos", "game": "LEMPE",
+        "platform": "PC88" if pc88 else "DOS",
         "title": {"ja": "ランペルール", "zh": "拿破崙"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in LEMPE_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
+                     {"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -3908,6 +3919,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "liberty-pc98": lambda game_dir: build_liberty_dos(game_dir, pc98=True),
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
             "koukai-pc88": lambda game_dir: build_koukai_dos(game_dir, pc88=True),
+            "lempe-pc88": lambda game_dir: build_lempe(game_dir, pc88=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

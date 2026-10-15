@@ -65,3 +65,21 @@
   - 官階 7：0x6CFC 成立時是 Emperor，否則是 King（King 的人若是 Carolina／Victoria 改成 Queen）
 - 所以 P255＝第一執政、P256＝皇帝。匯出時放在人物 0 的 `expressions`，`label` 用中文版 `MAIN.EXE` 的官銜：P000「司令官」（官階 ≤5，也用在「總司令官」）、P255「第一執政」、P256「皇帝」。中文版官銜表依序是 戰俘（未解碼）、預備軍官、現役軍官、司令官、總司令官、督政官、第一執政、國王、皇帝。
 - P257–P259 的名稱用中文版 `MAIN.EXE` 的寫法：「約瑟芬」「瑪麗路易斯」「尼爾森」。
+
+## PC-88 版（`lempe-pc88`）
+
+`dekoei.py export lempe-pc88` 用到的差異（`build_lempe(pc88=True)`）。
+
+- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/L'Empereur/`，用 `[FD] [Set 1]`（REL.1C）。
+  - 基本的 `[FD]` 是 REL.1A，Disk C 少了第 33 軌，`KAODATA.DAT` 從 0x12200 起錯位，不能用。
+  - `[Set 2]` 的資料檔和 Set 1 相同。
+- 磁碟：A、B、C 三片都是 YDOS 3.0，每軌 9 × 512 bytes。
+- `games/lempe-pc88/` 放 Disk C 的 `KAODATA.DAT`、`NPDATA.CIM`，以及參考用的 Disk A `MAIN.COM`、`MAIN.OVL`。
+- 版本：`NAPO.DIR` 寫 `REL.1C ****** L'EMPEREUR ******* KOEI`，遊戲檔日期 1990-05-17～06-28。
+- `KAODATA.DAT` 和 DOS 版**逐 byte 相同**，DOS 版沿用了 PC-88 的 200 線圖。
+- 色盤：數位 8 色（`SAN2_JP_PALETTE`，palette id `pc88`）。YSHELL 清掉 port 0x32 bit 5（數位模式）。
+- 人物：`NPDATA.CIM` 每個劇本 0x3100 bytes，人物從 0x21BA 起，255 × 15 bytes：姓名 12 bytes（半形片假名，NFKC 轉全形），+12 是頭像（`koei_games.load_lempe_pc88_persons`）。
+  - 5 個劇本相同。
+  - 順序和頭像逐筆同 DOS，`id` 一致。
+- `nameHistorical`：DOS 版的 11 筆是中文翻譯錯誤，日文版寫法是對的（ミロー、ウディノ等），不填。
+- P255–P259：拿破崙的第一執政、皇帝臉沿用 DOS 的結論（PC-88 `MAIN.COM` 0x31A2 的官銜表有同樣的「第一執政」「皇帝」）。P257–P259 的名字照 PC-88 的字串：`MAIN.OVL` 0x4389 ジョゼフィーヌ、マリー・ルイーズ，`COMSUB.OVL` 0x1270 ネルソン。
