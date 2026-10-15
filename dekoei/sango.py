@@ -392,8 +392,8 @@ def decode_san7_scenario(exe: bytes, data: bytes) -> bytes:
     return data[:0x4C] + bytes(inv[c] for c in data[0x4C:])
 
 
-def load_san7_persons(game_dir) -> dict[int, str]:
-    """Officer id (= face number) -> name, the same in all twelve scenarios."""
+def load_san7_persons(game_dir) -> dict[int, tuple[str, str]]:
+    """Officer id (= face number) -> (name, half-width kana), the same in all twelve scenarios."""
     with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
         exe = f.read()
 
@@ -408,7 +408,7 @@ def load_san7_persons(game_dir) -> dict[int, str]:
             pid = int.from_bytes(data[o:o + 2], "little")
             if pid != 0xFFFF:
                 assert pid == int.from_bytes(data[o + 0x24:o + 0x26], "little")
-                full = text(data[o + 0x2A:o + 0x30]) + text(data[o + 0x30:o + 0x36])
+                full = (text(data[o + 0x2A:o + 0x30]) + text(data[o + 0x30:o + 0x36]), text(data[o + 0x3C:o + 0x48]))
                 assert persons.setdefault(pid, full) == full
     return persons
 

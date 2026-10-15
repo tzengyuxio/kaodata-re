@@ -4140,8 +4140,9 @@ def build_san7pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
             p["pk"] = True
         portraits.append(p)
 
-    characters = [{"id": pid, "name": name, "face": {"portrait": pid}}
-                  for pid, name in sorted(sango.load_san7_persons(game_dir).items())]
+    # the kana has no break between surname and given name, so the reading has no space
+    characters = [{"id": pid, "name": name, "reading": kana_to_hiragana(kana), "face": {"portrait": pid}}
+                  for pid, (name, kana) in sorted(sango.load_san7_persons(game_dir).items())]
 
     meta = {
         "format": FORMAT, "id": "san7pk-win", "game": "SAN7PK", "platform": "WIN",
