@@ -366,6 +366,70 @@ def build_san2_jp(game_dir: str, platform: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+SAN2_PC88_INPUTS = ["KAODATA.DAT"] + [f"SNDATA{i}.CIM" for i in range(1, 7)] + ["TAIKI.DAT"]
+
+
+def build_san2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN2_PC88_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAODATA.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    variants = []
+    for head in range(8):
+        parts = {}
+        for area, (slot, _) in enumerate(SAN2_JP_SLOTS):
+            items = [store.add(*san2_pixels(san2.pc88_montage_record(kao, head, area, rec), area < 2)) for rec in range(4)]
+            parts[slot] = {"at": [0, san2.PC88_MONTAGE_AREAS[area][2] // 24 * 2], "items": items}
+        variants.append({"id": str(head), "label": f"類型 {head}", "parts": parts})
+
+    portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True), blob=1), "code": f"{i // SAN2_FACE + 1:04X}"}
+                 for i in range(0, san2.PC88_MONTAGE_OFFSET, SAN2_FACE)]
+    for i, group in SAN2_PORTRAIT_GROUPS.items():
+        portraits[i]["group"] = group
+    for i, name in SAN2_JP_PORTRAIT_NAMES.items():
+        portraits[i]["name"] = name
+
+    def face(code):
+        if san2.is_montage_code(code):
+            return {"variant": code & 7, "parts": [code >> s & 3 for s in san2.MONTAGE_SHIFTS], "code": f"{code:04X}"}
+        return {"portrait": code - 1}
+
+    # five persons have another composite code in some scenarios: one character, the later code as an expression
+    characters, by_name = [], {}
+    for code, name, sources in san2.load_san2_pc88_persons(game_dir):
+        label = "、".join(dict.fromkeys(f"劇本 {s}" if s.isdigit() else s for s in sources))
+        if name in by_name:
+            by_name[name].setdefault("expressions", []).append({**face(code), "label": label})
+            continue
+        ch = by_name[name] = {"id": len(characters), "name": name}
+        if ch["id"] in SAN2_JP_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN2_JP_NAME_HISTORICAL[ch["id"]]
+        ch["face"] = face(code)
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san2-pc88", "game": "SAN2", "platform": "PC88",
+        "title": {"ja": "三國志II", "zh": "三國志II"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN2_PC88_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": i, "label": label} for i, label in SAN2_JP_SLOTS],
+            "variants": variants,
+            "code": {"kind": "tuple"},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
     files = {}
     for name in SAN2_INPUTS:
@@ -3733,7 +3797,7 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 
 DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_genpei(game_dir, pc98=True), "san2-dos": build_san2,
             "san2-pc98": lambda game_dir: build_san2_jp(game_dir, "PC98"),
-            "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san3-dos": build_san3,
+            "san2-x68": lambda game_dir: build_san2_jp(game_dir, "X68"), "san2-pc88": build_san2_pc88, "san3-dos": build_san3,
             "san3-pc98": lambda game_dir: build_san3(game_dir, pc98=True), "lempe-dos": build_lempe,
             "san4pk-dos": lambda game_dir: build_san4(game_dir, pk=True),
             "san4pk-pc98": lambda game_dir: build_san4(game_dir, pc98=True, pk=True),

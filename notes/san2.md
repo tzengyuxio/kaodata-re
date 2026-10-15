@@ -6,7 +6,7 @@
 
 - 3bpp byte-interleaved planar，`utils.to_3bpp_indexes` 的順序（第一個 byte 是色號 bit 2）。
 - 半高：每列 64 px＝24 bytes，畫面上每列重複兩次，所以 64×40 的資料顯示成 64×80。
-- 色盤：EGA `#000000 #55FF55 #FF5555 #FFFF55 #5555FF #55FFFF #FF55FF #FFFFFF`。匯出只放這一組。PC-98 版的頭像是重畫的，把 PC-98 色值套在 DOS 的像素上，會得到一張從來不存在的圖；PC-98 版另外從原檔匯出成 `san2-pc98`。
+- 色盤：EGA `#000000 #55FF55 #FF5555 #FFFF55 #5555FF #55FFFF #FF55FF #FFFFFF`。匯出只放這一組。DOS 版的頭像沿用 PC-88 原版的 200 線圖（`san2-pc88`），PC-98 版是重畫成 400 線的，把 PC-98 色值套在 DOS 的像素上，會得到一張從來不存在的圖；PC-98 版另外從原檔匯出成 `san2-pc98`。
 
 ## 頭像碼
 
@@ -54,7 +54,7 @@
 - `KAODATA1/2/3.DAT`：64×80 全高、3bpp、每 8 px 3 bytes、不壓縮，每張 1920 bytes。95＋96＋KAODATA3 開頭 28 張（0xD200 bytes），共 219 張。
 - 頭像碼 → 檔案（PC-98 0x8D9C／X68 `$6DEF4`）：碼 < 0x60 讀 KAODATA1 第 碼−1 張，< 0xC0 讀 KAODATA2 第 碼−0x60 張，其餘讀 KAODATA3 第 碼−0xC0 張。三段接起來就是「第 碼−1 張」，和 DOS 編號一致。
 - 每組 3 bytes 的第 k 個 byte 是色號 bit k（PC-98 0x5F0A 依序寫 A800 藍、B000 紅、B800 綠平面；X68 `$85E3C` 寫文字 VRAM 平面 0/1/2）。匯出照 DOS 用 `to_3bpp_indexes`（第一個 byte 當 bit 2），色號意義就和 san2-dos 一樣，色盤也照這個順序排。
-- 和 DOS 比：同一編號是同一人，但畫完全不同（DOS 中文版重畫成半高）。X68000 和 PC-98 有 42 張重畫，其餘逐 byte 相同：2 13 20 28 29 38 42 56 63 64 70 73 75 76 77 78 108 110 114 115 116 119 121 127 133 137 155 156 159 160 162 163 165 166 188 191 192 193 194 208 213 216。
+- 和 DOS 比：同一編號是同一人，但畫完全不同。PC-98 是把 PC-88 原版的 200 線半高圖重畫成全高，DOS 則直接沿用 PC-88 的半高圖（見下方 PC-88 一節）。X68000 和 PC-98 有 42 張重畫，其餘逐 byte 相同：2 13 20 28 29 38 42 56 63 64 70 73 75 76 77 78 108 110 114 115 116 119 121 127 133 137 155 156 159 160 162 163 165 166 188 191 192 193 194 208 213 216。
 - 色盤：
   - PC-98 用預設的 8 色數位色盤（DGROUP 0x3420 的初值 `37 15 26 04`），改色盤的函式 0x6358 沒有呼叫者。
   - X68000 文字色盤表在 `$9F88E`（`$76F3C` 經 `$85F34` 寫進 E82200），0–7 是 `0000 003F 07C1 07FF F801 F83F FFC1 FFFF`，各分量是 0 或 31。
@@ -92,3 +92,31 @@
 ### 發行年份
 
 ja.wikipedia〈三國志II〉：PC-9801 版 1990-03-23（1989-12 是 PC-8801 原版），X68000 版 1990-08-27（`VERSION` 寫 Jul.16, 1990）。
+
+## PC-88 原版（`san2-pc88`）
+
+`dekoei.py export san2-pc88` 用到的格式（`kaodata_export.build_san2_pc88`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Sangokushi II/Sangokushi II [FD].7z`（Disk A、B、C、D、U），解出的檔案放在 `games/san2-pc88/`：Disk C 的 `KAODATA.DAT`，Disk B 的 `SNDATA1–6.CIM`，Disk A 的 `TAIKI.DAT`，以及參考用的 `MAIN.COM`。
+
+### 版本與磁碟
+
+- `TAIKI.DAT`（以及 Disk A 開機區）的字串：`For PC-8801SR 1989.12.11 Ver1.0 Rel1.0 TYPE-A`。磁碟上的檔案日期是 1989-12-10。
+- 發行年份：PC-8801 版 1989-12（ja.wikipedia〈三國志II〉），是系列首發。
+- D88 每軌 9 個 512 bytes 磁區。Disk B、C 是 FAT12（`NEC 2.00` 開機區），Disk A、U 是 YDOS 3.0。
+
+### 頭像與組合臉
+
+- `KAODATA.DAT`（260928 bytes）＝219 張 960 bytes 的頭像（格式同 DOS：64×40 半高、`to_3bpp_indexes`），後面接 50688 bytes 的組合臉零件。
+- **DOS 中文版沿用了這份圖**：219 張頭像中 218 張和 DOS `KAODATA.DAT` 逐 byte 相同，只有 P029（關羽）不同；組合臉零件和 DOS `MONTAGE.DAT` 相同，只有每個頭型裡最後兩個區域的順序對調。
+- 零件表在 `MAIN.COM` 0x3665（每筆 bytes、在臉上的 offset、頭型內 offset 各 5 個 u16）：區域 3 是鼻（頭型內 4608，192 bytes，第 16 列），區域 4 是口（5376，240 bytes，第 22 列）。也就是說 PC-88 和 PC-98／SFC 一樣是 bit 9–10 鼻、bit 11–12 口，是 DOS 移植時把兩區對調（`san2.PC88_MONTAGE_AREAS`）。
+- 色盤：數位 8 色，色號意義同 PC-98（`#000000 #00FF00 #FF0000 #FFFF00 #0000FF #00FFFF #FF00FF #FFFFFF`，`to_3bpp_indexes` 順序），palette id `pc88`。
+
+### 人物
+
+- `SNDATAn.CIM` 是 PC-98 的劇本記錄往前 1 byte（表頭 0x15），`TAIKI.DAT` 和 PC-98 相同的版面（`san2.load_san2_pc88_persons`）。
+- 以頭像碼去重得 357 個碼，比 PC-98 多 5 個：有 5 人在某些劇本用了另一個組合臉碼（大多只差一個 bit，PC-98 已改成一致）。匯出把同名的合成一人，第一次出現的碼當 `face`，另一個放 `expressions`，標上用到它的劇本：
+  - 30 審配：P077，劇本 2 是組合臉 9618
+  - 103 陳蘭：88E5，劇本 3 是 98E5
+  - 114 糜芳：9CED，劇本 3 是 8CED
+  - 259 徐盛：9CA8，劇本 6 是 8CA8
+  - 295 劉延：8AEB，待機是 8A2B
+- 合併後 352 人，姓名、`id`、`face` 和 `san2-pc98` 完全相同，`nameHistorical` 沿用 `SAN2_JP_NAME_HISTORICAL`。沒有人物使用的頭像和名字也同 PC-98。

@@ -501,6 +501,51 @@ def load_san2_jp_persons(game_dir: str, x68: bool = False) -> list[tuple[int, st
     return persons
 
 
+# ---------------------------------------------------------------- PC-88 (Japanese, see notes/san2.md)
+# KAODATA.DAT (disk C): 219 faces in the DOS KAODATA.DAT layout, then the montage heads of the DOS MONTAGE.DAT
+# with the last two areas swapped: as on PC-98, area 3 (code bits 9-10) is the nose and area 4 the mouth
+PC88_MONTAGE_OFFSET = 219 * 960
+# (offset in the head block, bytes per record, offset in the face buffer), MAIN.COM 0x3665
+PC88_MONTAGE_AREAS = [(0, 432, 0), (1728, 528, 432), (3840, 192, 240), (4608, 192, 384), (5376, 240, 528)]
+# SNDATA1-6.CIM (disk B) hold the PC-98 records one byte earlier; TAIKI.DAT (disk A) is the PC-98 layout
+PC88_SNDATA_HEADER = 0x15
+
+
+def pc88_montage_record(data: bytes, head: int, area: int, record: int) -> bytes:
+    """`data` is the PC-88 KAODATA.DAT."""
+    base, size, _ = PC88_MONTAGE_AREAS[area]
+    pos = PC88_MONTAGE_OFFSET + head * MONTAGE_HEAD_SIZE + base + record * size
+    return data[pos:pos + size]
+
+
+def load_san2_pc88_persons(game_dir: str) -> list[tuple[int, str, list[str]]]:
+    """(face code, name, sources) deduplicated by face code in the DOS order; sources are "1"-"6" for the
+    scenarios and "待機" for TAIKI.DAT. Five persons have a different composite code in some scenarios."""
+    persons = {}
+
+    def add(rec, face_at, source):
+        if rec[face_at + 2:face_at + 6] == bytes(4):
+            return False
+        face = int.from_bytes(rec[face_at:face_at + 2], "little")
+        persons.setdefault(face, (face, jp_name(rec[face_at + 2:face_at + 16]), []))[2].append(source)
+        return True
+
+    size = struct.calcsize(s2_format)
+    for n in range(1, 7):
+        with open(os.path.join(game_dir, f"SNDATA{n}.CIM"), "rb") as f:
+            d = f.read()
+        for i in range(215):
+            if not add(d[PC88_SNDATA_HEADER + i * size:PC88_SNDATA_HEADER + (i + 1) * size], 26, str(n)):
+                break
+    with open(os.path.join(game_dir, "TAIKI.DAT"), "rb") as f:
+        d = f.read()
+    size = struct.calcsize(s2_format_taiki)
+    for i in range(420):
+        if not add(d[6 + i * size:6 + (i + 1) * size], 29, "待機"):
+            break
+    return list(persons.values())
+
+
 san2.add_command(san2_face, "face")
 san2.add_command(san2_grp, "grp")
 san2.add_command(san2_grpa, "grpa")
