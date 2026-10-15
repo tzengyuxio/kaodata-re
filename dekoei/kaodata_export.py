@@ -3871,7 +3871,7 @@ def build_nobu3_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes
 
 NOBU3_WIN_INPUTS = ["Kao.nb3", "Kao2.nb3", "Kao3.nb3", "palette.nb3", "sndata1.nb3", "sndata2.nb3"]
 # Nobunaga3.exe 0x432DD0: the bride's face is 0x800 | rand(22), so the two men at the end of Kao2 can show up too
-NOBU3_WIN_KAO2_NOTE = "婚姻時從 Kao2 的 22 張臉隨機選一張，最後兩張男性的臉也在其中。"
+NOBU3_WIN_KAO2_NOTE = "結婚時從姫的 22 張臉隨機選一張，最後兩張男性的臉也可能被選中。"
 
 
 def build_nobu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
