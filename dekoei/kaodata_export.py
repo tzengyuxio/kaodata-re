@@ -615,6 +615,75 @@ def build_san3(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[di
     return meta, [bytes(b) for b in store.blobs]
 
 
+SAN3_WIN_INPUTS = ["FACES.BMP"] + [f"SCEDATA{i}.S3" for i in range(1, 7)]
+SAN3_WIN_EMPTY = {307, 308, 309, 310, 311, 623}  # magenta-filled cells
+# the Windows release fixed 鐘繇, 鐘会, 鐘進, 諸葛謹; the other PC-98 misspellings remain
+SAN3_WIN_NAME_HISTORICAL = {"桓楷": "桓階", "干糜": "于糜", "粱剛": "梁剛", "尚挙": "向挙", "龐義": "龐羲", "沙摩可": "沙摩柯",
+                            "毋丘倹": "毌丘倹", "金環結": "金環三結", "董荼奴": "董荼那", "朶思王": "朶思大王"}
+# 鍾進's records point at 曹宇's face 596; his own repainted composite, cell 537, is used by no one
+SAN3_WIN_SHARED_FACE = 596
+SAN3_WIN_PORTRAIT_NAMES = {537: "鍾進"}
+SAN3_WIN_PORTRAIT_GROUPS = {537: "未使用"}
+
+
+def build_san3_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN3_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin", "portraits2.bin"])
+
+    # all 256 colours are used, but colour 0 is the magenta key: it fills the empty cells and is one stray pixel
+    # of face 139, exported as transparent; colour 255 moves to 0
+    bmp = Image.open(os.path.join(game_dir, "FACES.BMP"))
+    pal = bmp.getpalette()
+    colors = [f"#{pal[i * 3]:02x}{pal[i * 3 + 1]:02x}{pal[i * 3 + 2]:02x}" for i in [255, *range(1, 255)]]
+    remap = bytes([TRANSPARENT, *range(1, 255), 0])
+    portraits, index = [], {}
+    for cell in range(12 * 52):
+        if cell in SAN3_WIN_EMPTY:
+            continue
+        x, y = cell % 12 * 64, cell // 12 * 80
+        px = bmp.crop((x, y, x + 64, y + 80)).tobytes().translate(remap)
+        index[cell + 1] = len(portraits)
+        p = {"img": store.add(64, 80, px, blob=int(cell > 311)), "code": f"{cell + 1:04X}"}
+        group = SAN3_PORTRAIT_GROUPS.get(cell) if cell < 307 else SAN3_WIN_PORTRAIT_GROUPS.get(cell)
+        name = SAN3_PC98_PORTRAIT_NAMES.get(cell) if cell < 307 else SAN3_WIN_PORTRAIT_NAMES.get(cell)
+        if group:
+            p["group"] = group
+        if name:
+            p["name"] = name
+        portraits.append(p)
+
+    # as san3-pc98: scenarios 1-6 in order, deduplicated by face code (by name too on the face two people share)
+    spellings: dict[tuple, Counter] = {}
+    for name in SAN3_WIN_INPUTS[1:]:
+        for code, person_name in san3.load_san3_win_persons(os.path.join(game_dir, name)):
+            key = (code, person_name) if code == SAN3_WIN_SHARED_FACE else (code,)
+            spellings.setdefault(key, Counter())[person_name] += 1
+    characters = []
+    for cid, (key, names) in enumerate(spellings.items()):
+        name = names.most_common(1)[0][0]
+        ch = {"id": cid, "name": name, "face": {"portrait": index[key[0]]}}
+        if name in SAN3_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN3_WIN_NAME_HISTORICAL[name]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san3-win", "game": "SAN3", "platform": "WIN",
+        "title": {"ja": "三國志III", "zh": "三國志III"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN3_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 SAN4_INPUTS = ["KAODATA.S4", "MONDATA.S4", "SNDATA.S4", "TAIKI.S4"]
 # DGROUP 0xF52 of MAIN.EXE (B, R, G, 4 bits each), colours 8-15 are the faces; widened as (v << 4) | (v >> 2)
 SAN4_PALETTE = ["#302000", "#204182", "#B24120", "#C38251", "#417120", "#418292", "#D3B282", "#D3D3B2"]
@@ -5127,7 +5196,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
-            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,

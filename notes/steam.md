@@ -30,6 +30,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 
 | 遊戲 | appid | depot | build／日期 | 備註 |
 | ---- | ----: | ----: | ----------- | ---- |
+| 三國志III | 521710 | 521711（manifest 7000839481615475769） | build 1637863／Readme 2017年2月 | 日文 Windows 版，`games/steam/521710/` |
 | 三國志VII with パワーアップキット | 628030 | 628031（manifest 4009306806308534811） | build 2278666／Readme 2017年7月 | 日文版，`games/steam/628030/` |
 | 三國志VIII with パワーアップキット | 628040 | 628041（manifest 8731655521113835098） | build 6784390／Readme 2017年8月 | 日文版，`games/steam/628040/` |
 | 三國志IX with パワーアップキット | 628050 | 628051（manifest 8109141869183570646） | build 3717947／Readme 2017年10月 | 日文版，`games/steam/628050/` |

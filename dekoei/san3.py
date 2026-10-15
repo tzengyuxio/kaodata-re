@@ -138,6 +138,39 @@ def load_san3_x68_persons(file):
     return persons
 
 
+# Windows (Steam) SCEDATA?.S3: the PC-98 records from 0x46B; the face code is the 1-based cell of FACES.BMP
+# (12 x 52 cells of 64x80; 1-307 the PC-98 faces repainted, 313-623 the composites drawn whole).
+# S3GAIJI.TTE (Shift-JIS F040-) has the PC-98 FONT.DAT glyphs in JIS order 0x7621-, plus 0x765C 毌, 0x765D 晙
+WIN_PEOPLE = 0x46B
+WIN_GAIJI = {**dict(zip(PC98_GAIJI_JIS, PC98_GAIJI_CHARS)), 0x765C: "毌", 0x765D: "晙"}
+
+
+def decode_win_name(raw):
+    raw = raw.split(b"\0", 1)[0]
+    out, i = [], 0
+    while i < len(raw):
+        n = 2 if 0x81 <= raw[i] <= 0x9F or 0xE0 <= raw[i] <= 0xFC else 1
+        if raw[i] == 0xF0:
+            low = raw[i + 1]
+            out.append(WIN_GAIJI[0x7621 + low - 0x40 - (low > 0x7F)])
+        else:
+            out.append(raw[i:i + n].decode("cp932"))
+        i += n
+    return "".join(out)
+
+
+def load_san3_win_persons(file):
+    """(face code, name) of every used record of a Windows SCEDATA?.S3."""
+    with open(file, "rb") as f:
+        data = f.read()
+    persons = []
+    for i in range(600):
+        rec = data[WIN_PEOPLE + i * PC98_RECORD_SIZE:][:PC98_RECORD_SIZE]
+        if rec[0x31:0x37] != bytes(6):
+            persons.append((struct.unpack_from("<H", rec, 2)[0], decode_win_name(rec[0x31:0x37])))
+    return persons
+
+
 
 @click.group()
 def san3():
