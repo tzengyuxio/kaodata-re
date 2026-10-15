@@ -2814,7 +2814,7 @@ EIKETSU_PC98_PALETTE = ["#000000", "#2244aa", "#ee6600", "#cc77aa", "#00bb77", "
 EIKETSU_PC98_TROOPS = {"歩兵隊", "弓兵隊", "騎兵隊", "賊兵", "軍楽隊", "輸送隊", "異民族"}
 EIKETSU_PC98_FOLK = {"猛獣師", "妖術師", "武道家", "民衆", "宮使い", "農民", "商人", "旅人", "女の子", "役人", "使者", "文官",
                      "武官", "夫人", "若い女", "？？？", "道具屋", "童子"}
-EIKETSU_PC98_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "歩鷙": "歩騭"}
+EIKETSU_PC98_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "歩鷙": "歩騭", "宋謙": "宋憲", "蔡仲": "蔡中"}  # 謙, 仲: plain Shift-JIS
 
 
 def build_eiketsu_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
