@@ -28,3 +28,11 @@
 ## 人物
 
 - 沒有人物資料：`AM2NAME.STR`、`AM2CITY.STR`、`AM2PLANE.STR` 等是航空公司、城市、機型的名字和說明，幹部、秘書、廠商代表都沒有名字。`characters` 是空的。
+
+## PC-98 版（`air2-pc98`）
+
+`dekoei.py export air2-pc98` 用 `build_air2_dos(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Air Management 2 [FD]`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`），Disk B 的 9 個頭像 GDT 與 Disk A 的 `AM2PC98.EXE`、`VERSION` 放在 `games/air2-pc98/`。`VERSION` 寫「エアーマネジメントⅡ For PC-9801 Series September.14,1993 Ver. 1.0 Rel 1.0」。
+
+- 9 個頭像 GDT 和 DOS 中文版逐 byte 相同。
+- 色盤：`AM2PC98.EXE` 檔案 0x458AC 起 16 色，每色 3 bytes（G、R、B，4 bit），數值和 DOS 版那張表相同；PC-98 類比色換成 8 bit 是 v × 17（DOS 是 VGA DAC 的 v << 2），所以顏色略有不同，照收錄規則另做一份。
+- group 用日文版的寫法：秘書、幹部社員（`AM2PC98.EXE` 的選單字串）、メーカー、都市。

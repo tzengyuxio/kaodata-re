@@ -4294,25 +4294,38 @@ AIR2_DOS_PALETTE = ["#000000", "#6182b2", "#f3d300", "#30a261", "#d3a282", "#c37
                     "#000000", "#204182", "#f35100", "#107141", "#f3c3a2", "#82a2d3", "#828282", "#f3f3f3"]
 
 
-def build_air2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+# PC-98: the same GDT files; AM2PC98.EXE file 0x458AC is the same 4-bit G, R, B table on the analog palette (v * 17);
+# group names from AM2PC98.EXE (幹部社員, 秘書) and the screens
+AIR2_PC98_GROUPS = {"秘書": "秘書", "幹部職員": "幹部社員", "廠商": "メーカー", "城市": "都市"}
+AIR2_PC98_PALETTE = 0x458AC
+
+
+def build_air2_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = [name for name, _ in AIR2_DOS_FACES] + (["AM2PC98.EXE"] if pc98 else [])
     files = {}
-    for name, _ in AIR2_DOS_FACES:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["portraits.bin"])
 
     # no face codes or person names: each sheet is loaded by file
     portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(files[name], i + 16, 64, 80, 4))),
-                  "group": group}
+                  "group": AIR2_PC98_GROUPS[group] if pc98 else group}
                  for name, group in AIR2_DOS_FACES for i in range(0, len(files[name]), AIR2_DOS_FACE)]
+    if pc98:
+        pal = files["AM2PC98.EXE"][AIR2_PC98_PALETTE:][:48]
+        palette = {"id": "pc98", "label": "PC98", "colors": [
+            "#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i], pal[i + 2])) for i in range(0, 48, 3)]}
+    else:
+        palette = {"id": "vga", "label": "VGA", "colors": AIR2_DOS_PALETTE}
 
     meta = {
-        "format": FORMAT, "id": "air2-dos", "game": "AIR2", "platform": "DOS",
+        "format": FORMAT, "id": "air2-pc98" if pc98 else "air2-dos", "game": "AIR2", "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "エアーマネジメントII 航空王をめざせ", "zh": "航空霸業II"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n, _ in AIR2_DOS_FACES]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "vga", "label": "VGA", "colors": AIR2_DOS_PALETTE}],
+        "palettes": [palette],
         "blobs": store.names,
         "images": store.refs,
         "portraits": portraits,
@@ -5549,6 +5562,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "genchou-pc98": lambda game_dir: build_genchou_pc88(game_dir, pc98=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
+            "air2-pc98": lambda game_dir: build_air2_dos(game_dir, pc98=True),
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),
             "taikoh-x68": lambda game_dir: build_taikoh_dos(game_dir, pc98=True, x68=True),
             "taikoh2-win": build_taikoh2_win, "taikoh2-pc98": lambda game_dir: build_taikoh2_win(game_dir, pc98=True),

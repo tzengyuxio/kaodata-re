@@ -175,6 +175,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `air-pc98`   | エアーマネージメント 大空に賭ける | PC-98   |    0 |   38 |        | [notes/air.md](notes/air.md)       |
 | `air-x68`    | エアーマネージメント 大空に賭ける | X68000  |    0 |   33 |        | [notes/air.md](notes/air.md)       |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |
+| `air2-pc98`  | エアーマネジメントII           | PC-98      |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |
 | `taikoh-dos` | 太閤立志傳                     | DOS 中文版 |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh-pc98` | 太閤立志伝                    | PC-98      |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh-x68`  | 太閤立志伝                    | X68000     |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
