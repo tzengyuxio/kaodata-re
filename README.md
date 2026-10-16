@@ -57,6 +57,7 @@ Early KOEI Games Data Research
 | (TAIKOH3) | 太閤立志傳III               | 1999 |                  |       |        |                     |
 | EUROPE    | 歐陸戰線                    | 1991 |       DOS        |       |        |                     |
 | ISHIN     | 維新之嵐                    | 1988 |       PC98       |       |        |                     |
+| ISHIN2    | 維新之嵐 幕末志士傳         | 1997 |       WIN        |       |        |                     |
 | KOHRYUKI  | 項劉記                      | 1993 |       DOS        |   ○   |        |                     |
 | LEMPE     | 拿破崙                      | 1990 |       DOS        |   ○   |        |                     |
 | ROYAL     | 魔法皇冠                    | 1991 |   DOS,PC98,X68   |       |        |                     |
@@ -191,6 +192,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `ishin-pc88` | 維新の嵐                       | PC-88      |  203 |  102 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `ishin-x68`  | 維新の嵐                       | X68000     |  203 |  100 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
+| `ishin2-win` | 維新の嵐 幕末志士伝             | Win 日文版 |  522 |  609 |        | [notes/ishin2.md](notes/ishin2.md) |
 | `tk2-pc98`  | 提督の決断II                   | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk2pk-pc98` | 提督の決断II パワーアップキット | PC-98      |   99 |  103 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `tk-pc98`   | 提督の決断                     | PC-98      |   40 |   42 |        | [notes/koei-games.md](notes/koei-games.md) |

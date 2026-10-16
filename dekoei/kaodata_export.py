@@ -3025,6 +3025,88 @@ def build_ishin_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- ISHIN2 (維新の嵐 幕末志士伝, Win)
+
+ISHIN2_WIN_INPUTS = ["FACE.I2", "ISHIN2.EXE"]
+# FACE.I2 is LS12 (the LS11 decoder works): 609 faces of 93 x 98, top-down, colours 172-235 and 255 (background)
+ISHIN2_WIN_FACE = (93, 98)
+ISHIN2_WIN_PALETTE = 0x18B9BC  # ISHIN2.EXE: colours 172-235 as R, G, B (the same as the JINBUTSU.HLP bitmaps)
+# person records: 0-507 and 573-586 are named people; 508-572, 587, 588 and 590 are generic roles (軽格武士 1-3,
+# 町娘, フリーキャラ, ...); 589 山田藤吉 has face 0, which is 徳川家定's
+ISHIN2_WIN_GENERIC = {*range(508, 573), 587, 588, 590}
+ISHIN2_WIN_SKIP = {589}
+ISHIN2_WIN_TITLES = {"芸妓", "花魁"}  # given in the surname field: the name is the given name alone
+# the main cast have a run of faces (normal first, then smiles, anger, other clothes); the records use up to four
+# of them and the faces no record uses below this one belong to the person of the nearest lower face
+ISHIN2_WIN_RUNS_END = 560
+ISHIN2_WIN_PER_BLOB = 305  # about 0.9 MB compressed
+
+
+def build_ishin2_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in ISHIN2_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = ls11.ls11_decode_parts(files["FACE.I2"])
+    w, h = ISHIN2_WIN_FACE
+    assert all(len(px) == w * h for px in faces)
+    pal = files["ISHIN2.EXE"][ISHIN2_WIN_PALETTE:ISHIN2_WIN_PALETTE + 64 * 3]
+    colours = ["#000000"] * 172 + [f"#{pal[i]:02x}{pal[i + 1]:02x}{pal[i + 2]:02x}" for i in range(0, 64 * 3, 3)]
+
+    records = koei_games.load_ishin2_win_persons(os.path.join(game_dir, "ISHIN2.EXE"))
+    owner = {}  # face -> the named person whose run it is in
+    for i, (_, _, slots) in enumerate(records):
+        if i not in ISHIN2_WIN_GENERIC | ISHIN2_WIN_SKIP:
+            for face in slots:
+                owner.setdefault(face, set()).add(i)
+    used = {face for _, _, slots in records for face in slots}
+    for face in range(ISHIN2_WIN_RUNS_END):
+        if face not in used:
+            owner[face] = owner[max(f for f in owner if f < face)]
+    characters = []
+    for i, (surname, given, slots) in enumerate(records):
+        if i in ISHIN2_WIN_GENERIC | ISHIN2_WIN_SKIP:
+            continue
+        run = sorted(f for f, who in owner.items() if who == {i})
+        base = run[0] if run else slots[0]
+        assert run == [] or base == min(slots)
+        name = given if surname in ISHIN2_WIN_TITLES else surname + given
+        characters.append({"id": i, "name": name, "face": {"portrait": base}})
+        if len(run) > 1:
+            characters[-1]["expressions"] = [{"portrait": f} for f in run[1:]]
+
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // ISHIN2_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = [{"img": store.add(w, h, bytes(px), blob=i // ISHIN2_WIN_PER_BLOB), "code": f"{i:04X}"}
+                 for i, px in enumerate(faces)]
+    roles = {}
+    for i in sorted(ISHIN2_WIN_GENERIC):
+        surname, given, slots = records[i]
+        role = surname if given.strip("０１２３４５６７８９") == "" else surname + given
+        for face in slots:
+            if face not in owner and role not in roles.setdefault(face, []):
+                roles[face].append(role)
+    for i, p in enumerate(portraits):
+        if i in roles:
+            p.update(name="／".join(roles[i]), group="一般人物")
+        elif i not in owner:
+            p["group"] = "其他頭像"
+
+    meta = {
+        "format": FORMAT, "id": "ishin2-win", "game": "ISHIN2", "platform": "WIN",
+        "title": {"ja": "維新の嵐 幕末志士伝", "zh": "維新之嵐 幕末志士傳"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ISHIN2_WIN_INPUTS]},
+        "display": {"scale": 3},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- TK (PC-98)
 
 TK_PC98_INPUTS = ["RENPIC.DAT", "RENMAIN.EXE"]
@@ -6107,7 +6189,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc88": lambda game_dir: build_royal_pc98(game_dir, pc88=True),
             "royal-x68": lambda game_dir: build_royal_pc98(game_dir, x68=True),
             "ishin-pc88": lambda game_dir: build_ishin_pc98(game_dir, pc88=True),
-            "ishin-x68": build_ishin_x68,
+            "ishin-x68": build_ishin_x68, "ishin2-win": build_ishin2_win,
             "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
             "europe-x68": lambda game_dir: build_europe_dos(game_dir, x68=True),
             "europe-pc98": lambda game_dir: build_europe_dos(game_dir, pc98=True),

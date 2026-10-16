@@ -1883,6 +1883,36 @@ def load_ishin_x68_persons(main_z, sdata1, sdata2) -> list[tuple[list[str], byte
     return persons
 
 
+# 維新の嵐 幕末志士伝 (Win): ISHIN2.EXE (the expanded ISHIN2.EX_ of the CD) has 591 people of 480 bytes at file
+# 0x18BC88: +0 surname, given name, alias surname, alias given name, nickname (char * into .data, cp932),
+# +20 birth and death year, +28 1 = man, +464 four FACE.I2 numbers
+ISHIN2_WIN_PERSONS = (0x18BC88, 480, 591)
+
+
+def load_ishin2_win_persons(exe_path) -> list[tuple[str, str, tuple[int, ...]]]:
+    """(surname, given name or "", four face numbers) of each person record."""
+    with open(exe_path, "rb") as f:
+        exe = f.read()
+    pe = struct.unpack_from("<I", exe, 0x3C)[0]
+    nsec, opt = struct.unpack_from("<HH", exe, pe + 6)[0], struct.unpack_from("<H", exe, pe + 20)[0]
+    image_base = struct.unpack_from("<I", exe, pe + 52)[0]
+    secs = [struct.unpack_from("<IIII", exe, pe + 24 + opt + 40 * i + 8) for i in range(nsec)]
+
+    def text(va):
+        if not va:
+            return ""
+        o = next(va - image_base - rva + raw for _, rva, size, raw in secs if 0 <= va - image_base - rva < size)
+        return exe[o:exe.index(b"\0", o)].decode("cp932")
+
+    start, size, count = ISHIN2_WIN_PERSONS
+    persons = []
+    for i in range(count):
+        r = start + i * size
+        surname, given = (text(v) for v in struct.unpack_from("<2I", exe, r))
+        persons.append((surname, given, struct.unpack_from("<4I", exe, r + 464)))
+    return persons
+
+
 # 元朝秘史 PC-88: GENDATA<s>.DAT has the men (109 x 27 bytes from 1, face code at +25) and the women (33 x 23 bytes
 # from 0x1A23, face code at +21); empty records have no name (or "　"); USDATA<s>.DAT is blocks of 351 bytes, each
 # 8 men (27 bytes) and then 5 children (23 bytes, face code at +21, 0 for the daughters, who have no face)
