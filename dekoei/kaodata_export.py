@@ -4386,6 +4386,56 @@ def build_leading(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- TOPMAN2 (トップマネジメントII, PC-98)
+
+# 64x64 face sheets (koei_games.gdt_images): one person per run of `looks` faces; no names, only the posts
+# (TOP2.EXE string table at file 0x5FB00: 社長, 社長室長 and the 8 部長, 秘書, 会長, 株主)
+TOPMAN2_FACES = [("SYAHISYO.GDT", 3, ["社長"] + ["秘書"] * 3), ("BUTYO1.GDT", 3, ["部長"] * 12),
+                 ("BUTYO2.GDT", 3, ["部長"] * 12), ("KAIHOLD.GDT", 4, ["会長・株主"] * 12)]
+# TOP2.EXE file 0x62F5E: 16 x (G, R, B) 4 bits. These sheets have GDT header byte 3 set and show colour c ^ 8 of
+# this table (so do the other pictures with the flag, e.g. KAIGI.GDT); after that 8 (pure green) is the background
+TOPMAN2_PALETTE = 0x62F5E
+
+
+def build_topman2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    inputs = [name for name, _, _ in TOPMAN2_FACES] + ["TOP2.EXE"]
+    files = {}
+    for name in inputs:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin"])
+
+    portraits, counts = [], Counter()
+    for name, looks, posts in TOPMAN2_FACES:
+        assert files[name][3] == 1
+        images = koei_games.gdt_images(files[name])
+        assert len(images) == looks * len(posts)
+        for k, (w, h, px) in enumerate(images):
+            post = posts[k // looks]
+            if k % looks == 0:
+                counts[post] += 1
+            label = post if posts.count(post) == 1 and post == "社長" else f"{post} {counts[post]}"
+            portraits.append({"img": store.add(w, h, bytes(TRANSPARENT if v == 0 else v ^ 8 for v in px)),
+                              "group": post, "name": label})
+
+    pal = files["TOP2.EXE"][TOPMAN2_PALETTE:][:48]
+    colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i], pal[i + 2])) for i in range(0, 48, 3)]
+
+    meta = {
+        "format": FORMAT, "id": "topman2-pc98", "game": "TOPMAN2", "platform": "PC98",
+        "title": {"ja": "トップマネジメントII"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": [],
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SAN6 PK (Windows, Chinese)
 
 SAN6PK_WIN_INPUTS = ["KAODATA.S6", "PALETTE.S6"] + [f"SNDATA{n:02}.S6" for n in range(1, 24)]
@@ -5572,7 +5622,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,

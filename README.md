@@ -199,6 +199,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `inindou-x68` | 伊忍道 打倒信長              | X68000     |    7 |   14 |        | [notes/inindou.md](notes/inindou.md) |
 | `leading-pc98` | リーディングカンパニー      | PC-98      |    0 |   44 |        | [notes/leading.md](notes/leading.md) |
 | `leading-x68` | リーディングカンパニー       | X68000     |    0 |   44 |        | [notes/leading.md](notes/leading.md) |
+| `topman2-pc98` | トップマネジメントII        | PC-98      |    0 |  132 |        | [notes/topman2.md](notes/topman2.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-pc88` | ランペルール                   | PC-88      |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-x68`  | ランペルール                   | X68000     |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
