@@ -5334,6 +5334,70 @@ def build_nobu10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU8 PK (烈風伝 with PK, Win, Steam)
+
+NOBU8PK_WIN_INPUTS = ["KaoData.nb8", "HimeData.nb8", "palette.nb8", "SCEDA09.NB8"]
+# KaoData.nb8 / HimeData.nb8: u32 count, count x (u32 offset, size, width, height), then the 96x120 8-bit pixels
+# (top-down); palette.nb8 is a Windows LOGPALETTE (u16 0x300, u16 256, R, G, B, flags). The faces use colours 10-245
+NOBU8PK_WIN_GROUPS = [(range(900, 908), "姫武将"), (range(908, 916), "一向一揆"), (range(916, 1677), "其他頭像")]
+NOBU8PK_WIN_OFFICERS = 900  # officer ids 0-899 have their own face, the face number being the id
+NOBU8PK_WIN_PER_BLOB = 105  # about 1 MB compressed
+
+
+def build_nobu8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU8PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    pal = files["palette.nb8"]
+    assert struct.unpack_from("<2H", pal) == (0x300, 256)
+    colors = [f"#{pal[4 + 4 * c]:02x}{pal[5 + 4 * c]:02x}{pal[6 + 4 * c]:02x}" for c in range(255)]  # 255 = transparent
+
+    faces = []
+    for name in ["KaoData.nb8", "HimeData.nb8"]:
+        data = files[name]
+        count, = struct.unpack_from("<I", data)
+        base = 4 + 16 * count
+        for i in range(count):
+            offset, size, w, h = struct.unpack_from("<4I", data, 4 + 16 * i)
+            assert (w, h, size) == (96, 120, w * h)
+            faces.append((name, i, data[base + offset:base + offset + size]))
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // NOBU8PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = []
+    for k, (name, i, px) in enumerate(faces):
+        assert 255 not in px
+        p = {"img": store.add(96, 120, px, blob=k // NOBU8PK_WIN_PER_BLOB)}
+        if name == "KaoData.nb8":
+            p["code"] = f"{i:04X}"
+            for ids, group in NOBU8PK_WIN_GROUPS:
+                if i in ids:
+                    p["group"] = group
+        else:
+            p["group"] = "姫"  # the princesses' faces; their records are not traced
+        portraits.append(p)
+
+    # all 10 scenarios hold the same 918 officers; the last one has the latest names (豊臣秀吉, 徳川家康)
+    characters = [{"id": oid, "name": name, "face": {"portrait": oid}}
+                  for oid, name in koei_games.load_nobu8_win_persons(os.path.join(game_dir, "SCEDA09.NB8"))
+                  if oid < NOBU8PK_WIN_OFFICERS]
+    assert [c["id"] for c in characters] == list(range(NOBU8PK_WIN_OFFICERS))
+
+    meta = {
+        "format": FORMAT, "id": "nobu8pk-win", "game": "NOBU8PK", "platform": "WIN",
+        "title": {"ja": "信長の野望・烈風伝 with パワーアップキット", "zh": "信長之野望・烈風傳 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU8PK_WIN_INPUTS]},
+        "display": {"scale": 2},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- NOBU12 PK (革新 with PK, Win, Steam)
 
 NOBU12PK_WIN_INPUTS = ["KAO_M.N12", "sceda12.n12"]
@@ -5811,6 +5875,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
             "nobu7pk-win": lambda game_dir: build_nobu7_win(game_dir, pk=True),
+            "nobu8pk-win": build_nobu8pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu12pk-win": build_nobu12pk_win,
             "eiketsu3-win": build_eiketsu3_win,

@@ -1074,6 +1074,26 @@ def load_nobu10_win_persons(path) -> tuple[list[tuple[int, str, str, int]], list
              for o in range(start, start + count * size, size)]
     return officers, women
 
+# NOBU8 PK (烈風伝 with PK, Win, Steam): SCEDA??.NB8 is a 0x60-byte header and data XORed with df 73 54 51 from 0x60.
+# 918 officer records of 254 bytes start at 0x68: +0 surname (10 bytes), +10 given name (10, Shift-JIS), +166 u16
+# officer id (= KaoData.nb8 face). 900-915 are the generic 姫武将 / 一向一揆 slots and 916-917 dummies
+NOBU8_WIN_KEY = bytes.fromhex("df735451")
+NOBU8_WIN_OFFICERS = (0x68, 918, 254)
+
+
+def load_nobu8_win_persons(path) -> list[tuple[int, str]]:
+    """(officer id, name) of every officer record of one SCEDA??.NB8."""
+    with open(path, "rb") as f:
+        data = bytearray(f.read())
+    for i in range(0x60, len(data)):
+        data[i] ^= NOBU8_WIN_KEY[(i - 0x60) % 4]
+    start, count, size = NOBU8_WIN_OFFICERS
+    persons = []
+    for o in range(start, start + count * size, size):
+        name = data[o:o + 10].split(b"\0")[0] + data[o + 10:o + 20].split(b"\0")[0]
+        persons.append((struct.unpack_from("<H", data, o + 166)[0], name.decode("cp932")))
+    return persons
+
 # NOBU12 PK (革新 with PK, Win, Steam): scenario/sceda??.n12 is a 'NOBU12SCENARIOVERSION02' header and one LWC block.
 # Unpacked, 0x9BA6 holds 1940 name records of 213 bytes (+0 surname, +11 given name, +22 surname reading, +41 given
 # name reading, Shift-JIS, hiragana); the person records follow the u32 pair (0x13, 1940): each is four arrays of
