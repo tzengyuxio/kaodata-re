@@ -4382,6 +4382,89 @@ def build_taikoh2_win(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
     return meta, [bytes(b) for b in store.blobs]
 
 
+
+# ---------------------------------------------------------------- TAIKOH3 (Windows, Chinese)
+
+TAIKOH3_WIN_INPUTS = ["FACE.DAT", "PALET.DAT", "TPEDATA.DAT", "FPEDATA.DAT", "TAIKOU3.EXE"]
+# FACE.DAT: 281 small faces of 56 x 56, then 354 busts of 280 x 248 (TAIKOU3.EXE 0x46CAD0), 8-bit, uncompressed,
+# colours 10-127 and 0 (background)
+TAIKOH3_WIN_BUSTS = (0xD7240, 280, 248, 354)
+TAIKOH3_WIN_PER_BLOB = 64  # about 1 MB compressed
+# TPEDATA (藤吉郎 scenario) / FPEDATA (粱田政勝 scenario): 250 records of 22 bytes, surname at +2 (9 bytes), given
+# name at +11 (7 bytes), Big5; the bust of person n is n. Ids from 250 are the town people, named from the
+# 11-byte table at TAIKOU3.EXE file 0xE4EF0 (0x464C6C)
+TAIKOH3_WIN_PERSONS = 250
+TAIKOH3_WIN_ROLES = (0xE4EF0, 11, 26)
+# FPEDATA replaces 4 people: 0 粱田政勝 and 230 小夜 (their busts are picked in code, 0x46F910), 1 羽柴秀長 (=木下小一郎)
+# and 14 羽柴秀吉 (the 藤吉郎 of the other scenario, who takes his busts)
+TAIKOH3_WIN_FREE = {0: 345, 230: 346}
+# the other looks of a person: expressions and the rank-up clothes of 藤吉郎 and 寧寧 (0x46F910), and event looks
+# matched by eye (same clothes)
+TAIKOH3_WIN_LOOKS = {
+    0: [*range(316, 333)], 1: [276, 277], 2: [278, 279, 280], 3: [281, 282, 350], 4: [283, 284], 5: [285, 286, 287],
+    6: [288], 7: [289, 290], 9: [351], 16: [308, 309, 310], 19: [291, 292, 293], 33: [294, 295], 50: [296],
+    59: [297, 298], 63: [299], 136: [313, 314], 185: [300], 225: [302, 303], 230: [*range(335, 344)],
+    231: [304, 305, 306], 235: [307], 241: [311], 242: [312], 345: [347, 348, 352, 353], 346: [349]}
+TAIKOH3_WIN_REPEATS = {315: 0, 334: 230}  # the same picture as the person's face
+
+
+def build_taikoh3_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in TAIKOH3_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    start, w, h, count = TAIKOH3_WIN_BUSTS
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((count - 1) // TAIKOH3_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = []
+    for i in range(count):
+        px = files["FACE.DAT"][start + i * w * h:start + (i + 1) * w * h].replace(b"\0", bytes([TRANSPARENT]))
+        portraits.append({"img": store.add(w, h, px, blob=i // TAIKOH3_WIN_PER_BLOB), "code": f"{i:04X}"})
+    # PALET.DAT: 57 palettes of 256 x B, R, G; the busts use colours 10-127, the same in the first 55
+    pal = files["PALET.DAT"]
+    colours = ["#000000"] * 10 + [f"#{pal[i + 1]:02x}{pal[i + 2]:02x}{pal[i]:02x}" for i in range(30, 128 * 3, 3)]
+
+    def names(data):
+        return [(data[r + 2:r + 11].split(b"\0")[0] + data[r + 11:r + 18].split(b"\0")[0]).decode("big5")
+                for r in range(0, TAIKOH3_WIN_PERSONS * 22, 22)]
+
+    characters = []
+    for i, name in enumerate(names(files["TPEDATA.DAT"])):
+        characters.append({"id": i, "name": name, "face": {"portrait": i}})
+    free = names(files["FPEDATA.DAT"])
+    for k, (i, face) in enumerate(TAIKOH3_WIN_FREE.items()):
+        characters.append({"id": TAIKOH3_WIN_PERSONS + k, "name": free[i], "face": {"portrait": face}})
+    for ch in characters:
+        looks = TAIKOH3_WIN_LOOKS.get(ch["face"]["portrait"])
+        if looks:
+            ch["expressions"] = [{"portrait": p} for p in looks]
+
+    roles_at, size, roles = TAIKOH3_WIN_ROLES
+    exe = files["TAIKOU3.EXE"]
+    for k in range(roles):
+        portraits[TAIKOH3_WIN_PERSONS + k].update(
+            name=exe[roles_at + k * size:roles_at + (k + 1) * size].split(b"\0")[0].decode("big5"), group="一般人物")
+    used = {look["portrait"] for ch in characters for look in [ch["face"]] + ch.get("expressions", [])}
+    for i, p in enumerate(portraits):
+        if i not in used and "group" not in p:
+            p["group"] = "其他頭像"
+        if i in TAIKOH3_WIN_REPEATS:
+            p["name"] = characters[TAIKOH3_WIN_REPEATS[i]]["name"]
+
+    meta = {
+        "format": FORMAT, "id": "taikoh3-win", "game": "TAIKOH3", "platform": "WIN",
+        "title": {"ja": "太閤立志伝III", "zh": "太閤立志傳III"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH3_WIN_INPUTS]},
+        "display": {"scale": 1},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 # ---------------------------------------------------------------- AIR (PC-98, X68000)
 
 # face sheets in the order of the game's picture table (X68 AM.Z file 0x16F28); each 64x80 face is followed by
@@ -6205,7 +6288,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "air2-pc98": lambda game_dir: build_air2_dos(game_dir, pc98=True),
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),
             "taikoh-x68": lambda game_dir: build_taikoh_dos(game_dir, pc98=True, x68=True),
-            "taikoh2-win": build_taikoh2_win, "taikoh2-pc98": lambda game_dir: build_taikoh2_win(game_dir, pc98=True),
+            "taikoh2-win": build_taikoh2_win, "taikoh3-win": build_taikoh3_win, "taikoh2-pc98": lambda game_dir: build_taikoh2_win(game_dir, pc98=True),
             "progen-pc98": build_progen_pc98,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,

@@ -54,7 +54,7 @@ Early KOEI Games Data Research
 | KOUKAI3   | 大航海時代III Costa del Sol | 1996 |       WIN        |       |        |                     |
 | TAIKOH    | 太閤立志傳                  | 1992 |     DOS,PC98     |       |        |                     |
 | TAIKOH2   | 太閤立志傳II                | 1995 |     PC98,WIN     |       |        |                     |
-| (TAIKOH3) | 太閤立志傳III               | 1999 |                  |       |        |                     |
+| TAIKOH3   | 太閤立志傳III               | 1999 |       WIN        |       |        |                     |
 | EUROPE    | 歐陸戰線                    | 1991 |       DOS        |       |        |                     |
 | ISHIN     | 維新之嵐                    | 1988 |       PC98       |       |        |                     |
 | ISHIN2    | 維新之嵐 幕末志士傳         | 1998 |       WIN        |       |        |                     |
@@ -189,6 +189,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `taikoh-x68`  | 太閤立志伝                    | X68000     |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `taikoh2-pc98` | 太閤立志伝II                 | PC-98      |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
+| `taikoh3-win` | 太閤立志傳III                 | Win 中文版 |  252 |  354 |        | [notes/taikoh3.md](notes/taikoh3.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `ishin-pc88` | 維新の嵐                       | PC-88      |  203 |  102 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `ishin-x68`  | 維新の嵐                       | X68000     |  203 |  100 |   ○    | [notes/koei-games.md](notes/koei-games.md) |

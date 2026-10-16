@@ -30,7 +30,7 @@
 - [x] 大航海時代III Win 中文版（`大航海時代_III (中文).zip`）— 解到 `games/koukai3-win/`（不含 AVI），做 `koukai3-win` 匯出（2026-10-14）
 - [x] 成吉思汗 蒼狼與白鹿IV 威力加強版（`成吉思汗 IV-威力加強版/`）— 複製到 `games/genghis4pk-win/`，做 `genghis4pk-win` 匯出（2026-10-15）
 - [x] 英傑傳系列（`[系列] 英傑傳/`）— 毛利元就傳中文版已做 `eiketsu3-win`（2026-10-15）；三國志英傑傳 威力加強版是 2012 年的同人改版（只改 MAIN.EXE／BAKDATA／SNR*D，FACEDAT 和 `eiketsu-dos` 相同），不另做；Win31 版和 `eiketsu-pc98` 同圖同色，不另做資料集（2026-10-15，見 `notes/eiketsu.md`）；織田信長傳／毛利元就傳日文版的頭像與頭像色盤和中文版相同，只有人名語言不同，依規則不另收（2026-10-16，見 `notes/eiketsu3.md`、`notes/eiketsu4.md`）（2026-10-14）
-- [ ] 太閤立志傳系列（`[系列] 太閣立志傳 (pw 可能也是 Old-Games）/`）— 1 代 DOS 中文版已做 `taikoh-dos`、2 代 Win 中文版已做 `taikoh2-win`（2026-10-15）；剩 3–5 代、SEGA MD 版（2026-10-14）
+- [ ] 太閤立志傳系列（`[系列] 太閣立志傳 (pw 可能也是 Old-Games）/`）— 1 代 DOS 中文版已做 `taikoh-dos`、2 代 Win 中文版已做 `taikoh2-win`（2026-10-15）；3 代 Win 中文版已做 `taikoh3-win`（2026-10-16）；剩 4–5 代、SEGA MD 版（2026-10-14）
 - [x] 維新之嵐 PC 版（`維新之嵐[PC版].rar`）與維新之嵐2（`ISHIN2.mdx`）— 兩者都是日文版 維新の嵐 幕末志士伝，用光碟版做 `ishin2-win` 匯出（2026-10-16，見 `notes/ishin2.md`）
 - [ ] 太閤立志傳IV（`taiko4.rar`）（2026-10-14）
 
