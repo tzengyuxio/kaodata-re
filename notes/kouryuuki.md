@@ -47,3 +47,12 @@
 - 日文版的寫法都對得上史書：臧荼、司馬卬、靳彊，所以不填 `nameHistorical`。
 - 色盤：檔案 0x52552 是和 DOS DGROUP 0x5E5A 相同的 4 bit B、R、G 表；0x4AF92 的寫入程式把每色 `<< 2`、`<< 7`、`<< 12` 寫到 E82200，也就是 5 bit 的 2v，換算 `2v << 3 | 2v >> 2`。
 - 92–96 的名字在 MAIN.Z 0x596B0：虞姫、兵卒、長老。group 用日文寫法（長老、兵卒、事件人物）。
+
+## PC-98 版（`kouryuuki-pc98`）
+
+`dekoei.py export kouryuuki-pc98` 用 `build_kouryuuki_dos(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Kouryuuki [FD]`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`，4 片），Disk A 的 `KAO.KR1`、`MAIN.EXE`、`VERSION` 放在 `games/kouryuuki-pc98/`。`VERSION` 寫「項劉記 (PC-9801VM/UV) Ver 1.0」，檔案日期 1993-07-07。
+
+- `KAO.KR1` 和 DOS、X68000 版逐 byte 相同。
+- 人名表在 `MAIN.EXE` 檔案 0x45D24，92 筆 × 17 bytes（X68000 是 18 bytes，多一個補位），姓名與讀音和 X68000 版逐 byte 相同，外字碼也相同（`koei_games.load_kohryuki_x68_names(pc98=True)`）。
+- 色盤：檔案 0x48116 是和 DOS、X68000 相同的 4 bit B、R、G 表，PC-98 類比色換成 8 bit 是 v × 17。
+- 92–96 的名字在 `MAIN.EXE`（虞姫 0x4A856、兵卒 0x4A851、長老 0x48F15），group 同 X68000 版。

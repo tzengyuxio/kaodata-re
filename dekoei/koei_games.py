@@ -546,12 +546,18 @@ KOHRYUKI_X68_NAMES = 0x50F1A
 KOHRYUKI_X68_GAIJI = {0xEBB7: "蒯", 0xEBE1: "酈", 0xEBE2: "噲", 0xEBE3: "芮", 0xEBE5: "卬", 0xEBE6: "靳"}
 
 
-def load_kohryuki_x68_names(main_z) -> list[str]:
+# PC-98 MAIN.EXE: the same records in 17 bytes from file 0x45D24
+KOHRYUKI_PC98_NAMES = 0x45D24
+
+
+def load_kohryuki_x68_names(main_z, pc98=False) -> list[str]:
+    """pc98=True: read the PC-98 MAIN.EXE."""
     with open(main_z, 'rb') as f:
         main = f.read()
+    offset, size = (KOHRYUKI_PC98_NAMES, 17) if pc98 else (KOHRYUKI_X68_NAMES, 18)
     names = []
     for i in range(92):
-        raw = main[KOHRYUKI_X68_NAMES + i * 18:][:7].split(b'\0')[0]
+        raw = main[offset + i * size:][:7].split(b'\0')[0]
         name = ''
         for j in range(0, len(raw), 2):
             code = int.from_bytes(raw[j:j + 2], 'big')

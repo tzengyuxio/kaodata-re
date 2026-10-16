@@ -1447,10 +1447,14 @@ KOURYUUKI_X68_PALETTE = 0x52552
 # MAIN.Z 0x596B0: 虞姫, 兵卒, 長老
 KOURYUUKI_X68_PORTRAIT_GROUPS = {92: "長老", 93: "長老", 94: "兵卒", 95: "兵卒", 96: "事件人物"}
 KOURYUUKI_X68_PORTRAIT_NAMES = {96: "虞姫"}
+# PC-98: KAO.KR1 is the DOS file; MAIN.EXE file 0x48116 holds the same 4-bit B, R, G table on the analog palette
+# (v * 17); the names are the X68000 ones, and so are the portrait groups (MAIN.EXE strings)
+KOURYUUKI_PC98_INPUTS = ["KAO.KR1", "MAIN.EXE"]
+KOURYUUKI_PC98_PALETTE = 0x48116
 
 
-def build_kouryuuki_dos(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
-    inputs = KOURYUUKI_X68_INPUTS if x68 else KOURYUUKI_DOS_INPUTS
+def build_kouryuuki_dos(game_dir: str, x68: bool = False, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = KOURYUUKI_PC98_INPUTS if pc98 else KOURYUUKI_X68_INPUTS if x68 else KOURYUUKI_DOS_INPUTS
     files = {}
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1460,9 +1464,9 @@ def build_kouryuuki_dos(game_dir: str, x68: bool = False) -> tuple[dict, list[by
     kao = files["KAO.KR1"]
     portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
                   "code": f"{i // KOURYUUKI_DOS_FACE:04X}"} for i in range(0, len(kao), KOURYUUKI_DOS_FACE)]
-    for i, group in (KOURYUUKI_X68_PORTRAIT_GROUPS if x68 else KOURYUUKI_DOS_PORTRAIT_GROUPS).items():
+    for i, group in (KOURYUUKI_X68_PORTRAIT_GROUPS if x68 or pc98 else KOURYUUKI_DOS_PORTRAIT_GROUPS).items():
         portraits[i]["group"] = group
-    for i, name in (KOURYUUKI_X68_PORTRAIT_NAMES if x68 else KOURYUUKI_DOS_PORTRAIT_NAMES).items():
+    for i, name in (KOURYUUKI_X68_PORTRAIT_NAMES if x68 or pc98 else KOURYUUKI_DOS_PORTRAIT_NAMES).items():
         portraits[i]["name"] = name
 
     if x68:
@@ -1471,6 +1475,11 @@ def build_kouryuuki_dos(game_dir: str, x68: bool = False) -> tuple[dict, list[by
         colors = ["#" + "".join(f"{2 * v << 3 | 2 * v >> 2:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
                   for i in range(0, 24, 3)]
         palettes = [{"id": "x68", "label": "X68000", "colors": colors}]
+    elif pc98:
+        names = koei_games.load_kohryuki_x68_names(os.path.join(game_dir, "MAIN.EXE"), pc98=True)
+        pal = files["MAIN.EXE"][KOURYUUKI_PC98_PALETTE:][:24]
+        palettes = [{"id": "pc98", "label": "PC98", "colors": [
+            "#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]}]
     else:
         names = koei_games.load_kohryuki_dos_names(os.path.join(game_dir, "MAIN.EXE"))
         palettes = [{"id": "vga", "label": "VGA", "colors": KOURYUUKI_DOS_PALETTE}]
@@ -1478,14 +1487,14 @@ def build_kouryuuki_dos(game_dir: str, x68: bool = False) -> tuple[dict, list[by
     # face = person number (MAIN.EXE reads KAO.KR1 at face * 0x780)
     for cid, name in enumerate(names):
         ch = {"id": cid, "name": name}
-        if not x68 and cid in KOURYUUKI_DOS_NAME_HISTORICAL:
+        if not x68 and not pc98 and cid in KOURYUUKI_DOS_NAME_HISTORICAL:
             ch["nameHistorical"] = KOURYUUKI_DOS_NAME_HISTORICAL[cid]
         ch["face"] = {"portrait": cid}
         characters.append(ch)
 
     meta = {
-        "format": FORMAT, "id": "kouryuuki-x68" if x68 else "kouryuuki-dos", "game": "KOURYUUKI",
-        "platform": "X68" if x68 else "DOS",
+        "format": FORMAT, "id": "kouryuuki-pc98" if pc98 else "kouryuuki-x68" if x68 else "kouryuuki-dos",
+        "game": "KOURYUUKI", "platform": "PC98" if pc98 else "X68" if x68 else "DOS",
         "title": {"ja": "項劉記", "zh": "項劉記"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
@@ -5520,6 +5529,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "suikoden-x68": lambda game_dir: build_suikoden_pc98(game_dir, x68=True), "suikoden-dos": build_suikoden_dos,
             "kouryuuki-dos": build_kouryuuki_dos,
             "kouryuuki-x68": lambda game_dir: build_kouryuuki_dos(game_dir, x68=True), "europe-dos": build_europe_dos, "liberty-dos": build_liberty_dos,
+            "kouryuuki-pc98": lambda game_dir: build_kouryuuki_dos(game_dir, pc98=True),
             "liberty-pc98": lambda game_dir: build_liberty_dos(game_dir, pc98=True),
             "koukai-dos": build_koukai_dos, "koukai-pc98": lambda game_dir: build_koukai_dos(game_dir, pc98=True),
             "koukai-pc88": lambda game_dir: build_koukai_dos(game_dir, pc88=True),
