@@ -3250,6 +3250,82 @@ NOBU5_X68_INDEX = 0x5FC80
 NOBU5_X68_PALETTE = 0xA8BF0 - 0x47FFA + 8 * 4
 
 
+# 覇王伝 with PK (Windows, Steam): Kao.dll has the faces as 8-bit DIB resources 1000 + face (64x80, bottom-up,
+# colours 0-7; 0-928 are the PC-98 KAO.NB5 pixels and colours, 929-1066 the PK's; 2067 is not a face)
+NOBU5_WIN_INPUTS = ["Kao.dll", "Nobunaga5WPK.exe"] + koei_games.NOBU5_WIN_SCENARIOS
+NOBU5_WIN_FACES = 1067
+NOBU5_WIN_PK_FACES = range(929, NOBU5_WIN_FACES)
+# PK-only faces no person uses; 1057-1066 are the ones Nobunaga5WPK.exe 0x4039A0 singles out (usage not traced)
+NOBU5_WIN_UNKNOWN = [139, 140, 914, 915, 916, 921, 922, 923, 924, 927, 928, 1049, 1050, 1051, 1052, 1054, 1055,
+                     *range(1057, NOBU5_WIN_FACES)]
+# the base scenarios (PC-98 1-3) come first so their characters keep the PC-98 names; then the PK's 1 and 5
+NOBU5_WIN_ORDER = [1, 2, 3, 0, 4]
+NOBU5_WIN_ALIASES = {**NOBU5_PC98_ALIASES, "長井新九郎": "斎藤道三", "大友義鎮": "大友宗麟"}
+# faces up to 928 fit one blob (under 1 MB compressed); the PK's faces go last in extra.bin
+NOBU5_WIN_BLOBS = ["portraits.bin", "extra.bin"]
+
+
+def build_nobu5pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU5_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(NOBU5_WIN_BLOBS)
+
+    dibs = {rid: data for rid, data in utils.pe_resources(files["Kao.dll"], 2)}
+    portraits = []
+    for i in range(NOBU5_WIN_FACES):
+        dib = dibs[1000 + i]
+        assert struct.unpack_from("<IiiHH", dib) == (40, 64, 80, 1, 8)
+        px = dib[40 + 1024:]
+        p = {"img": store.add(64, 80, b"".join(px[(79 - y) * 64:(80 - y) * 64] for y in range(80)),
+                              blob=int(i in NOBU5_WIN_PK_FACES)), "code": f"{i:04X}"}
+        if i in NOBU5_WIN_PK_FACES:
+            p["pk"] = True
+        portraits.append(p)
+    pal = dibs[1000][40:40 + 32]
+    colors = [f"#{pal[i * 4 + 2]:02x}{pal[i * 4 + 1]:02x}{pal[i * 4]:02x}" for i in range(8)]
+
+    scenarios = [files[n] for n in koei_games.NOBU5_WIN_SCENARIOS]
+    for i, name in zip(NOBU5_PC98_PRINCESSES, koei_games.load_nobu5_win_princesses(scenarios[1])):
+        portraits[i]["group"] = "姫"
+        if name:
+            portraits[i]["name"] = name
+    for i, name in NOBU5_PC98_EVENT_PEOPLE.items():
+        portraits[i].update(group="事件人物", **({"name": name} if name else {}))
+    for i in NOBU5_WIN_UNKNOWN:
+        portraits[i]["group"] = "不明"
+
+    # each scenario, then its later arrivals; one character per face code
+    characters, seen = [], set()
+    for n in NOBU5_WIN_ORDER:
+        for name, face in (koei_games.load_nobu5_win_scenario(scenarios[n]) +
+                           koei_games.load_nobu5_win_arrivals(files["Nobunaga5WPK.exe"], n)):
+            if face in seen:
+                continue
+            seen.add(face)
+            assert "group" not in portraits[face]
+            ch = {"id": len(characters), "name": NOBU5_WIN_ALIASES.get(name, name), "face": {"portrait": face}}
+            if n in (0, 4):
+                ch["pk"] = True
+            characters.append(ch)
+    assert all("group" in p or i in seen for i, p in enumerate(portraits))
+
+    meta = {
+        "format": FORMAT, "id": "nobu5pk-win", "game": "NOBU5PK", "platform": "WIN",
+        "title": {"ja": "信長の野望・覇王伝 with パワーアップキット", "zh": "信長之野望・霸王傳 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU5_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 def build_nobu5_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     inputs = NOBU5_X68_INPUTS if x68 else NOBU5_PC98_INPUTS
     files = {}
@@ -5450,7 +5526,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
-            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "san10pk-win": build_san10pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "san10pk-win": build_san10pk_win, "nobu5pk-win": build_nobu5pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,

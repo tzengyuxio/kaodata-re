@@ -1916,6 +1916,50 @@ def load_nobu5_pc98_princesses(sn: bytes, x68=False) -> list[str]:
     return [_nobu5_pc98_name(data[start + i * size + 8:][:8]) for i in range(NOBU5_PC98_PRINCESS_COUNT)]
 
 
+# 覇王伝 with PK (Windows, Steam): the five scenarios are SV10.N5S-SV14.N5S (Nobunaga5WPK.exe 0x42E520 builds
+# "SV%02d.N5S"; SV11-13 are the PC-98 SN1-3, SV10 and SV14 the PK's earlier and later scenarios). After a 26-byte
+# header and a 656-byte global block, 460 people slots of 39 bytes: face u16 at +17, family 9 bytes at +23, given
+# 7 at +32 (Shift-JIS, no gaiji); empty slots have 0 at +23 (unpacked into 51-byte records by 0x42CB30).
+# Princesses: 36 x 14 bytes at 0x533E, name 9 bytes at +0 (face 878 + index, 0x40B480).
+# The later arrivals are in the EXE (.data, not encrypted by the SteamStub): file 0xC3C68, 0x3AEC bytes per
+# scenario, 36-byte records up to the first with 0 at +0: family 9 at +4, given 7 at +13, face u16 at +28
+NOBU5_WIN_SCENARIOS = ["SV10.N5S", "Sv11.n5s", "Sv12.n5s", "Sv13.n5s", "SV14.N5S"]
+NOBU5_WIN_PEOPLE = 0x2AA
+NOBU5_WIN_PRINCESSES = 0x533E
+NOBU5_WIN_ARRIVALS = (0xC3C68, 0x3AEC, 36)
+
+
+def _nobu5_win_name(raw: bytes) -> str:
+    return raw.split(b"\0")[0].decode("cp932").replace("\u3000", "").strip()
+
+
+def load_nobu5_win_scenario(sv: bytes) -> list[tuple[str, int]]:
+    """(name, face) of the people of a SV1n.N5S scenario."""
+    persons = []
+    for o in range(NOBU5_WIN_PEOPLE, NOBU5_WIN_PEOPLE + NOBU5_PC98_SLOTS * 39, 39):
+        if sv[o + 23]:
+            persons.append((_nobu5_win_name(sv[o + 23:o + 32]) + _nobu5_win_name(sv[o + 32:o + 39]),
+                            int.from_bytes(sv[o + 17:o + 19], "little")))
+    return persons
+
+
+def load_nobu5_win_arrivals(exe: bytes, scenario: int) -> list[tuple[str, int]]:
+    """(name, face) of the later arrivals of scenario 0-4 (Nobunaga5WPK.exe)."""
+    start, stride, size = NOBU5_WIN_ARRIVALS
+    persons = []
+    for o in range(start + scenario * stride, start + (scenario + 1) * stride - size + 1, size):
+        if not exe[o]:
+            break
+        persons.append((_nobu5_win_name(exe[o + 4:o + 13]) + _nobu5_win_name(exe[o + 13:o + 20]),
+                        int.from_bytes(exe[o + 28:o + 30], "little")))
+    return persons
+
+
+def load_nobu5_win_princesses(sv: bytes) -> list[str]:
+    """Names of the 36 princesses (faces 878-913); "" for the unnamed ones."""
+    return [_nobu5_win_name(sv[NOBU5_WIN_PRINCESSES + i * 14:][:9]) for i in range(NOBU5_PC98_PRINCESS_COUNT)]
+
+
 # 信長の野望・天翔記 (PC-98): name records of 18 bytes, [surname 7][given 7, Shift-JIS][u16 face][u8][u8];
 # MAIN.EXE 0x2372C: person p (1-532) is record p - 1, 0x23824 reads the face at +0x0E
 NOBU6_PC98_PEOPLE = 0x6C8E  # SNDATA.NB6 part (one per scenario): 500 men, then the princesses

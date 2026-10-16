@@ -653,3 +653,30 @@ def unpack_npk_3bits(src: bytes, line, height) -> bytes:
     if data_len - data.tell() > 0:
         print(f'    used: {data.tell():6d} left: {data_len-data.tell():6d}')
     return bytes(dest)
+
+
+def pe_resources(data: bytes, rtype: int) -> list[tuple[int, bytes]]:
+    """(id, bytes) of each resource of numeric type `rtype` in a PE file (first language only)."""
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    nsec, opt = struct.unpack_from("<H", data, pe + 6)[0], struct.unpack_from("<H", data, pe + 20)[0]
+    secs = [struct.unpack_from("<IIII", data, pe + 24 + opt + 40 * i + 8) for i in range(nsec)]
+    rsrc = struct.unpack_from("<I", data, pe + 24 + (96 if opt == 0xE0 else 112) + 8 * 2)[0]
+
+    def offset(rva):
+        return next(rva - va + raw for vsize, va, rsize, raw in secs if va <= rva < va + max(vsize, rsize))
+
+    base = offset(rsrc)
+
+    def entries(o):
+        named, ids = struct.unpack_from("<HH", data, base + o + 12)
+        return [struct.unpack_from("<II", data, base + o + 16 + 8 * i) for i in range(named + ids)]
+
+    out = []
+    for tid, tdir in entries(0):
+        if tid != rtype:
+            continue
+        for rid, rdir in entries(tdir & 0x7FFFFFFF):
+            _, leaf = entries(rdir & 0x7FFFFFFF)[0]
+            rva, size = struct.unpack_from("<II", data, base + leaf)
+            out.append((rid, data[offset(rva):offset(rva) + size]))
+    return out

@@ -48,3 +48,16 @@
 - 頭像索引：映像 0x5FC80 起 930 個大端序 u32，數值和 PC-98 的 u16 索引相同。
 - 色盤：開機時 0x500E 把 `$A8BF0` 的 16 個 GRB 值寫進文字色盤（E82200，0xB174），色號 8–15 是頭像色。這組顏色就是 PC-98 那組 4 bit 值 v 換成 5 bit 的 2v＋1，例如 `#0066aa` 變成 `#086bad`；設計相同，只是 X68000 的量化不同。換成 8 bit 是 v << 3 | v >> 2。
 - 人物：欄位同 PC-98，但沒有 XOR，而且有 68000 的補位。`SN*.NB5` 從 0xC2A 起 460 格，每格 50 bytes，頭像是 +32 的大端序 u16；`S*T.NB5` 每筆 34 bytes，頭像是 +28；公主表在 0x8D2C，每筆 18 bytes，名字在 +8。三個劇本和登場表的人與頭像都和 PC-98 版相同，只有劇本 1、2 的頭像 432 寫成「楽巌寺雅方」（PC-98 是「楽厳寺雅方」，`nobu5-pc98` 把史書寫法填進 `nameHistorical`）。
+
+## Windows 版 with パワーアップキット（`nobu5pk-win`）
+
+`dekoei.py export nobu5pk-win` 用 `build_nobu5pk_win`。來源是 Steam 版（appid 628090，見 `notes/steam.md`），`Kao.dll`、`Nobunaga5WPK.exe` 與 5 個劇本 `SV10.N5S`、`Sv11–13.n5s`、`SV14.N5S` 放在 `games/nobu5pk-win/`。`Nobunaga5WPK.exe` 有 SteamStub，但只加密 `.text`，`.data` 可以直接讀。
+
+- 頭像：`Kao.dll` 的 BMP 資源（type 2）1000–2067，頭像號 n 是資源 1000＋n，64×80 8 bit 由下往上的 DIB（40 bytes 檔頭＋1024 bytes 色盤＋5120 bytes 像素，`utils.pe_resources`）。只用色號 0–7，色盤和 PC-98 版相同。0–928 和 PC-98 `KAO.NB5` 解開後逐點相同，929–1066 是 PK 新增的 138 張（標 `pk`）；資源 2067 不是臉，不收。930 和 413 是同一張圖，但分別是山名誠通（PK）和岩上朝堅用的，兩張都留。
+- 劇本：`Sv11–13.n5s` 是 PC-98 的劇本 1–3（`SN1–3.NB5`，已解開 XOR），`SV10.N5S`、`SV14.N5S` 是 PK 新增的較早與較晚的劇本。人物 460 格 × 39 bytes 從 0x2AA 起（頭像 u16 在 +17，姓 9 bytes 在 +23，名 7 bytes 在 +32），公主表 36 筆 × 14 bytes 從 0x533E 起（名字 9 bytes），`koei_games.load_nobu5_win_scenario`／`load_nobu5_win_princesses`。
+- 登場表在 EXE 的 `.data`（檔案 0xC3C68 起，每個劇本相隔 0x3AEC），36 bytes 一筆，byte 0 是 0 時結束（姓在 +4，名在 +13，頭像在 +28），名字可能帶全形空白，`koei_games.load_nobu5_win_arrivals`。
+- 本體三個劇本與登場表的人和頭像都和 PC-98 相同，只有頭像 432 寫成「楽巌寺雅方」（PC-98 是「楽厳寺雅方」），所以這版不用填 `nameHistorical`。
+- `id`：先排本體的劇本 1–3（同 PC-98 的順序，所以前 818 人和 `nobu5-pc98` 相同），再排 PK 的兩個劇本；同一頭像號只收一次。PK 劇本才有的 180 人標 `pk`。別名除了 PC-98 的三組，PK 劇本另有長井新九郎→斎藤道三、大友義鎮→大友宗麟（`NOBU5_WIN_ALIASES`）。
+- PC-98 版沒人用的 820–877 是 PK 劇本的人（較早劇本的武將）用到的，所以 PC-98 的「不明」少了這 58 張。
+- 沒人用的頭像：姫、事件人物同 PC-98；139、140、914–916、921–924、927、928 與 PK 的 1049–1052、1054、1055、1057–1066 歸「不明」。1057–1066 由 EXE 0x4039A0 特別檢查，呼叫處只有一個清空欄位的對話框（0x4018F0），用途沒追到。
+- 頭像 0–928 放 `portraits.bin`，PK 的 929–1066 放 `extra.bin`。

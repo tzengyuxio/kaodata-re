@@ -44,7 +44,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 信長の野望 | 544990 | 544991（manifest 2677895693165515782） | build 1500360 | `games/steam/544990/` |
 | 信長の野望･全国版 | 521660 | 521661（manifest 2989037137317738632） | build 1580548 | `games/steam/521660/` |
 | 信長の野望・戦国群雄伝 | 521700 | 521701（manifest 6101076817046192910） | build 1634932／Readme 2017年2月 | 日文 Windows 版，`games/steam/521700/` |
-| 信長の野望・覇王伝 with パワーアップキット | 628090 | 628091（manifest 200612931628158698） | build 4567847 | `games/steam/628090/` |
+| 信長の野望・覇王伝 with パワーアップキット | 628090 | 628091（manifest 200612931628158698） | build 4567847／Readme 2017年6月 | 日文版，`games/steam/628090/`；匯出用的檔案在 `games/nobu5pk-win/` |
 | 信長の野望・将星録 with パワーアップキット | 628100 | 628101（manifest 7230281957580437517） | build 2282008 | `games/steam/628100/` |
 | 信長の野望・烈風伝 with パワーアップキット | 628110 | 628111（manifest 5760261918083599286） | build 2056798 | `games/steam/628110/` |
 | 信長の野望・嵐世記 with パワーアップキット | 628120 | 628121（manifest 4732022678497012738） | build 5042351 | `games/steam/628120/` |
