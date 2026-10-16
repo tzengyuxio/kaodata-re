@@ -43,6 +43,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 三國志12 with パワーアップキット | 628080 | 628081（manifest 7158590995384440669） | build 4476690 | 日文版，`games/steam/628080/`；只分析，見 `notes/san12.md` |
 | 三國志13 with パワーアップキット | 363150 | 363151（manifest 9060727473611169245）等 16 個 depot | build 4670615 | 多語，PK 在 `pk/`，`games/steam/363150/`；只分析，見 `notes/san13.md` |
 | 三國志14 with パワーアップキット | 872410 | 872411（manifest 247060224827963761）等 24 個 depot | build 25094285 | 多語，`games/steam/872410/`；`ScreenLayout.rdb.bin12` 不在下載裡；只分析，見 `notes/san14.md` |
+| 信長の野望・大志 with パワーアップキット | 628890 | 628891（manifest 7841214841290072598）等 14 個 depot | build 3876132 | 日、英、繁中，PK 在 `RES_PK/` 等，`games/steam/628890/`；只分析，見 `notes/nobu15.md` |
 | 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（內容未查），`games/steam/397720/` |
 | 信長の野望・武将風雲録 | 521740 | 521741（manifest 4318626338706197183） | build 1691564／Readme 2017年3月 | 日文 Windows 版，`games/steam/521740/` |
 | 信長の野望 | 544990 | 544991（manifest 2677895693165515782） | build 1500360 | `games/steam/544990/` |
