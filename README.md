@@ -37,9 +37,9 @@ Early KOEI Games Data Research
 | NOBU7     | 信長之野望 將星錄           | 1997 |       WIN        |       |        |                     |
 | NOBU8     | 信長之野望 烈風傳           | 1999 |                  |       |        |                     |
 | NOBU9     | 信長之野望 嵐世紀           | 2001 |                  |       |        |                     |
-| NOBU10    | 信長之野望 蒼天錄           | 2002 |                  |       |        |                     |
+| NOBU10    | 信長之野望 蒼天錄           | 2002 |       WIN        |       |        |                     |
 | NOBU11    | 信長之野望 天下創世         | 2003 |                  |       |        |                     |
-| NOBU12    | 信長之野望 革新             | 2005 |                  |       |        |                     |
+| NOBU12    | 信長之野望 革新             | 2005 |       WIN        |       |        |                     |
 | NOBU13    | 信長之野望 天道             | 2009 |                  |       |        |                     |
 | NOBU14    | 信長之野望 創造             | 2013 |                  |       |        |                     |
 | NOBU15    | 信長之野望 大志             | 2017 |                  |       |        |                     |
@@ -174,6 +174,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `nobu7pk-win`  | 信長の野望・将星録 with パワーアップキット | Win 日文版（Steam） |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `nobu10pk-win` | 信長の野望・蒼天録 with パワーアップキット | Win 日文版（Steam） | 1990 | 2184 |        | [notes/nobu10.md](notes/nobu10.md) |
+| `nobu12pk-win` | 信長の野望・革新 with パワーアップキット | Win 日文版（Steam） | 1100 | 1379 |        | [notes/nobu12.md](notes/nobu12.md) |
 | `air-pc98`   | エアーマネージメント 大空に賭ける | PC-98   |    0 |   38 |        | [notes/air.md](notes/air.md)       |
 | `air-x68`    | エアーマネージメント 大空に賭ける | X68000  |    0 |   33 |        | [notes/air.md](notes/air.md)       |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |

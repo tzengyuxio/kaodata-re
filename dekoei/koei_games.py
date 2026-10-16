@@ -1074,6 +1074,44 @@ def load_nobu10_win_persons(path) -> tuple[list[tuple[int, str, str, int]], list
              for o in range(start, start + count * size, size)]
     return officers, women
 
+# NOBU12 PK (革新 with PK, Win, Steam): scenario/sceda??.n12 is a 'NOBU12SCENARIOVERSION02' header and one LWC block.
+# Unpacked, 0x9BA6 holds 1940 name records of 213 bytes (+0 surname, +11 given name, +22 surname reading, +41 given
+# name reading, Shift-JIS, hiragana); the person records follow the u32 pair (0x13, 1940): each is four arrays of
+# (u32 count, count x u16), u16 slot (0xFFFF for an empty slot), and a body whose last 68 bytes start with the u32 face
+# (KAO_?.N12 entry). The body is 174 or 176 bytes, so the face is found from the next record's start.
+NOBU12_WIN_NAMES = (0x9BA6, 1940, 213)
+
+
+def load_nobu12_win_persons(path) -> list[tuple[int, str, str, int]]:
+    """(slot, name, reading, face) of every filled slot of one sceda??.n12."""
+    with open(path, "rb") as f:
+        packed = f.read()
+    data = lwc_decode(packed[packed.index(b"LWC\x1a"):])
+    start, count, size = NOBU12_WIN_NAMES
+
+    def head(p, slot):
+        # start of the body if a record for slot (or an empty one) starts at p
+        for k in range(4):
+            n, = struct.unpack_from("<I", data, p)
+            if (k < 2 and n != 3) or n >= 32:
+                return None
+            p += 4 + 2 * n
+        return p if struct.unpack_from("<H", data, p)[0] in (slot, 0xFFFF) else None
+
+    p = data.index(struct.pack("<2I", 0x13, count), 0x80000) + 8
+    persons = []
+    for slot in range(count):
+        body = head(p, slot)
+        nxt = body + 170
+        while slot + 1 < count and head(nxt, slot + 1) is None:
+            nxt += 1
+        o = start + slot * size
+        name = [data[o + a:o + a + n].split(b"\0")[0].decode("cp932") for a, n in ((0, 11), (11, 11), (22, 19), (41, 19))]
+        if struct.unpack_from("<H", data, body)[0] != 0xFFFF and slot + 1 < count:
+            persons.append((slot, name[0] + name[1], name[2] + name[3], struct.unpack_from("<I", data, nxt - 68)[0]))
+        p = nxt
+    return persons
+
 # EIKETSU4 (織田信長傳, Win, Chinese): DATA.E4 part 0 holds 645 person records of 77 bytes;
 # +0 name (12-byte Big5), +28 u16 face (also written as ASCII at +13)
 EIKETSU4_WIN_PERSON = 77

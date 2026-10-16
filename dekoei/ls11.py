@@ -138,3 +138,12 @@ def lw11_decode_files(data: bytes) -> dict[str, bytes]:
             files[name] = recover(get_codes(compressed_data), dictionary)[:uncompressed_size]
         pos += 32
     return files
+
+
+def lwc_decode(data: bytes) -> bytes:
+    """LWC block (信長の野望・革新 scenario files): 'LWC\\x1a', u32 raw size, u32 compressed size (little endian),
+    the 256-byte dictionary at +12 and LS11 codes from +0x10C."""
+    if data[:4] != b'LWC\x1a':
+        raise ValueError('not an LWC block')
+    size, compressed_size = int.from_bytes(data[4:8], 'little'), int.from_bytes(data[8:12], 'little')
+    return recover(get_codes(data[0x10C:0x10C+compressed_size]), data[12:0x10C])[:size]
