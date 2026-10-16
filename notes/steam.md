@@ -50,5 +50,5 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 信長の野望・烈風伝 with パワーアップキット | 628110 | 628111（manifest 5760261918083599286） | build 2056798 | 日文版，`games/steam/628110/`；匯出用的檔案在 `games/nobu8pk-win/` |
 | 信長の野望・嵐世記 with パワーアップキット | 628120 | 628121（manifest 4732022678497012738） | build 5042351 | `games/steam/628120/` |
 | 信長の野望・蒼天録 with パワーアップキット | 628130 | 628131（manifest 7451064036601565840） | build 2476690 | 日文版，`games/steam/628130/`；匯出用的檔案在 `games/nobu10pk-win/` |
-| 信長の野望・天下創世 with パワーアップキット | 628140 | 628141（manifest 6058273930614473722） | build 2431466 | `games/steam/628140/` |
+| 信長の野望・天下創世 with パワーアップキット | 628140 | 628141（manifest 6058273930614473722） | build 2431466 | 日文版，`games/steam/628140/`；匯出用的檔案在 `games/nobu11pk-win/` |
 | 信長の野望・天翔記 with パワーアップキット HD Version | 370730 | — | — | 沒有安裝任何 depot（帳號應該沒有這款），`games/steam/370730/` 只有 manifest |

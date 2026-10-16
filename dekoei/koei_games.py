@@ -1094,6 +1094,30 @@ def load_nobu8_win_persons(path) -> list[tuple[int, str]]:
         persons.append((struct.unpack_from("<H", data, o + 166)[0], name.decode("cp932")))
     return persons
 
+# NOBU11 PK (天下創世 with PK, Win, Steam): scenario/DBSCEDA??.N11 (the SCEDA??.N11 twins have no names) is a
+# 'NOBU11PKSCENARIOVERSI02' header and one LWC block. Unpacked, 0x1E884C holds 1216 person records of 123 bytes:
+# +0 surname (9 bytes), +9 its reading (17, hiragana), +26 given name, +35 its reading, +52 u16 face (KAO_?.N11
+# entry, 0xFFFF = none), +54 u16 birth, coming of age and death years
+NOBU11_WIN_PERSONS = (0x1E884C, 1216, 123)
+
+
+def load_nobu11_win_persons(path) -> list[tuple[int, str, str, int]]:
+    """(slot, name, reading, face) of every person record of one DBSCEDA??.N11."""
+    with open(path, "rb") as f:
+        packed = f.read()
+    data = lwc_decode(packed[packed.index(b"LWC\x1a"):])
+    start, count, size = NOBU11_WIN_PERSONS
+
+    def text(o, n):
+        return data[o:o + n].split(b"\0")[0].decode("cp932")
+
+    persons = []
+    for slot in range(count):
+        o = start + slot * size
+        persons.append((slot, text(o, 9) + text(o + 26, 9), text(o + 9, 17) + text(o + 35, 17),
+                        struct.unpack_from("<H", data, o + 52)[0]))
+    return persons
+
 # NOBU12 PK (革新 with PK, Win, Steam): scenario/sceda??.n12 is a 'NOBU12SCENARIOVERSION02' header and one LWC block.
 # Unpacked, 0x9BA6 holds 1940 name records of 213 bytes (+0 surname, +11 given name, +22 surname reading, +41 given
 # name reading, Shift-JIS, hiragana); the person records follow the u32 pair (0x13, 1940): each is four arrays of

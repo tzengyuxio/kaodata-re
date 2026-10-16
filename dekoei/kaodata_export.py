@@ -5398,6 +5398,96 @@ def build_nobu8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU11 PK (天下創世 with PK, Win, Steam)
+
+NOBU11PK_WIN_INPUTS = ["KAO_M.N11", "DBSCEDA10.N11"]
+# KAO_M.N11 is an F11N container like 革新's (notes/nobu12.md), but each T11N entry holds 8-bit pixels: after the
+# 22-byte header, a 256 x (B, G, R, X) palette and the 128x128 texture of colour numbers. All faces are 96x120;
+# 405 of them use all 256 colours, so the dataset is opaque. 620-999 are blank and left out
+NOBU11PK_WIN_BLANK = range(620, 1000)
+NOBU11PK_WIN_PK = range(1501, 1601)  # faces of the 100 officers in slots 1112-1211, after the base 1000-1500 block
+NOBU11PK_WIN_WOMEN = list(range(500, 520)) + [565, 566, 567]  # princesses' faces (500-519 are each shared by 4)
+NOBU11PK_WIN_SHARED = range(500, 520)
+NOBU11PK_WIN_OFFICERS = [*range(1000), *range(1112, 1212)]
+NOBU11PK_WIN_PER_BLOB = 105  # about 1 MB compressed
+
+
+def build_nobu11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU11PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAO_M.N11"]
+    assert kao[:4] == b"F11N"
+    count, = struct.unpack_from("<I", kao, 4)
+    faces = [i for i in range(count) if i not in NOBU11PK_WIN_BLANK]
+    base = [i for i in faces if i not in NOBU11PK_WIN_PK]
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(base) - 1) // NOBU11PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs + ["extra.bin", "palettes.bin"])
+
+    palettes, palette_index = bytearray(), {}
+    portraits, portrait_of = [], {}
+    for i in faces:
+        offset, = struct.unpack_from("<I", kao, 0x14 + 20 * i + 8)
+        assert kao[offset:offset + 4] == b"T11N"
+        w, h, tw, _ = struct.unpack_from("<4I", kao, offset + 4)
+        bgrx = kao[offset + 22:offset + 22 + 1024]
+        px = b"".join(kao[offset + 1046 + y * tw:offset + 1046 + y * tw + w] for y in range(h))
+        pal = bytes(v for c in range(256) for v in (bgrx[c * 4 + 2], bgrx[c * 4 + 1], bgrx[c * 4]))
+        if pal not in palette_index:
+            palette_index[pal] = len(palette_index)
+            palettes.extend(pal)
+        blob = len(blobs) if i in NOBU11PK_WIN_PK else base.index(i) // NOBU11PK_WIN_PER_BLOB
+        portrait_of[i] = len(portraits)
+        portraits.append({"img": store.add(w, h, px, blob=blob), "code": f"{i:04X}", "palette": palette_index[pal]})
+        if i in NOBU11PK_WIN_PK:
+            portraits[-1]["pk"] = True
+    store.blobs[-1] = palettes
+
+    # all 7 scenarios hold the same people with the same faces; the last one (1599) has the latest names. Slots
+    # 0-999 and 1112-1211 are officers, 1000-1082 princesses, the rest forebears without a face
+    persons = koei_games.load_nobu11_win_persons(os.path.join(game_dir, "DBSCEDA10.N11"))
+    characters = []
+    for slot, name, reading, face in persons:
+        if slot in NOBU11PK_WIN_OFFICERS:
+            characters.append({"id": slot, "name": name, "reading": reading, "face": {"portrait": portrait_of[face]}})
+            if face in NOBU11PK_WIN_PK:
+                characters[-1]["pk"] = True
+    used = {persons[slot][3] for slot in NOBU11PK_WIN_OFFICERS}
+    assert len(used) == len(NOBU11PK_WIN_OFFICERS)
+    women = {}
+    for slot, name, _, face in persons:
+        if 1000 <= slot < 1083:
+            assert face in NOBU11PK_WIN_WOMEN
+            women.setdefault(face, name)
+    for i in faces:
+        if i in used:
+            continue
+        p = portraits[portrait_of[i]]
+        if i in NOBU11PK_WIN_WOMEN:
+            p["group"] = "姫"
+            if i not in NOBU11PK_WIN_SHARED:
+                p["name"] = women[i]
+        else:
+            p["group"] = "其他頭像"
+
+    meta = {
+        "format": FORMAT, "id": "nobu11pk-win", "game": "NOBU11PK", "platform": "WIN",
+        "title": {"ja": "信長の野望・天下創世 with パワーアップキット", "zh": "信長之野望・天下創世 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU11PK_WIN_INPUTS]},
+        "display": {"scale": 2},
+        "opaque": True,
+        "palettes": [],
+        "portraitPalettes": {"blob": len(blobs) + 1},
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- NOBU12 PK (革新 with PK, Win, Steam)
 
 NOBU12PK_WIN_INPUTS = ["KAO_M.N12", "sceda12.n12"]
@@ -5877,6 +5967,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu7pk-win": lambda game_dir: build_nobu7_win(game_dir, pk=True),
             "nobu8pk-win": build_nobu8pk_win,
             "nobu10pk-win": build_nobu10pk_win,
+            "nobu11pk-win": build_nobu11pk_win,
             "nobu12pk-win": build_nobu12pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,

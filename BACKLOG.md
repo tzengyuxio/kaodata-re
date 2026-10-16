@@ -78,6 +78,6 @@
 
 ## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
 
-- [ ] 嵐世記、天下創世、天道 with PK（将星録、烈風伝、蒼天録、革新已匯出）；大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（2026-10-16）
+- [ ] 嵐世記、天道 with PK（将星録、烈風伝、蒼天録、天下創世、革新已匯出）；大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（2026-10-16）
 - [ ] 嵐世記 PK（628120）— 頭像好解（KaoCG／KaoCG2 LWC 96×120、palette.NB9），但劇本 SCEDA??.NB9 不是單純 XOR 0x49，要追 EXE（SteamStub 解開的在 scratch）的讀檔；人名只在 RETSUDEN.NB9（LS11 列傳，順序和頭像不同）（2026-10-16）
 - [ ] 三國志11 with PK（628070，已下載）（2026-10-16）
