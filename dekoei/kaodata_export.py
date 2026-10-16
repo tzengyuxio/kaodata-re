@@ -6379,6 +6379,58 @@ def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SANTSUKURU (三国志ツクール, Steam)
+
+SANTSUKURU_WIN_INPUTS = ["LINKDATA.IDX", "LINKDATA0.BIN"] + [f"RES/{f}.bin" for f in koei_games.SANTSUKURU_WIN_DLC.values()]
+# the face categories (LINKDATA item 135); 254 is その他 (generic new officers, ancient people, the default face)
+SANTSUKURU_WIN_CATEGORIES = {2: "三國志", 3: "三國志Ⅱ", 4: "三國志Ⅲ", 5: "三國志Ⅳ", 6: "三國志Ⅴ", 7: "三國志Ⅵ",
+                             8: "三國志Ⅶ", 9: "三國志Ⅷ", 10: "三國志Ⅸ", 11: "三國志Ⅹ", 12: "三國志11", 13: "三國志12",
+                             14: "三國志13", 15: "蒼き狼と白き牝鹿", 17: "維新の嵐", 18: "Winning Post", 22: "真・三國無双",
+                             23: "水滸伝", 24: "戦国無双", 25: "大航海時代", 26: "太閤立志伝", 30: "信長の野望",
+                             33: "無双OROCHI", 254: "その他"}
+SANTSUKURU_WIN_PER_BLOB = 40
+
+
+def build_santsukuru_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    inputs = []
+    for name in SANTSUKURU_WIN_INPUTS:
+        h = hashlib.sha1()
+        with open(os.path.join(game_dir, name), "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 24), b""):
+                h.update(chunk)
+        inputs.append({"path": name, "sha1": h.hexdigest()})
+    faces = koei_games.load_santsukuru_win_faces(game_dir)
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // SANTSUKURU_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits, characters = [], []
+    for i, (face, category, name, reading, (w, h, rgba)) in enumerate(faces):
+        p = {"img": store.add(w, h, rgba, blob=i // SANTSUKURU_WIN_PER_BLOB, rgba=True),
+             "group": SANTSUKURU_WIN_CATEGORIES[category]}
+        portraits.append(p)
+        if face is None:
+            p["name"] = "預設頭像"
+            continue
+        p["code"] = str(face)
+        # the 大航海時代 DLC names are half-width katakana
+        if any("\uff61" <= c <= "\uff9f" for c in name):
+            name = unicodedata.normalize("NFKC", name)
+        characters.append({"id": face, "name": name, "reading": kana_to_hiragana(reading), "face": {"portrait": i}})
+
+    meta = {
+        "format": FORMAT, "id": "santsukuru-win", "game": "SANTSUKURU", "platform": "WIN",
+        "title": {"ja": "三国志ツクール"},
+        "source": {"producer": "kaodata-re", "revision": revision(), "inputs": inputs},
+        "display": {"scale": 2},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blobs))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- EIKETSU3 (毛利元就傳, Win, Chinese)
 
 EIKETSU3_WIN_INPUTS = ["KAO.E3", "PMPALET.E3", "DATA.E3"]
@@ -6772,7 +6824,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu9pk-win": build_nobu9pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
-            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win,
+            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win,
             "taikoh5dx-win": build_taikoh5dx_win, "koukai4pk-win": build_koukai4pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
@@ -6781,7 +6833,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
 
 
 # full-colour datasets written as lossless WebP files (spec §5) instead of RGBA blobs
-WEBP_DATASETS = {"san11pk-win", "nobu13pk-win"}
+WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win"}
 
 
 @click.command(help=f"匯出 kaodata 統一格式資料集 (DATASET: {', '.join(DATASETS)})")

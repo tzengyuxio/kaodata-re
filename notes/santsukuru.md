@@ -1,6 +1,6 @@
 # 三国志ツクール（Steam）頭像格式
 
-只做了分析，還沒有匯出（2026-10-16）。來源是 Steam 397720（`games/steam/397720/`，日文版，build 1022864）。本體 depot 397721，顏CG DLC 的 depot 413590、420540、426740–426742 都已裝。
+已匯出成 `santsukuru-win`（2026-10-16），先留在 kaodata 的 data-local、不上網站。來源是 Steam 397720（`games/steam/397720/`，日文版，build 1022864）。本體 depot 397721，顏CG DLC 的 depot 413590、420540、426740–426742 都已裝。
 
 ## 封裝：LINKDATA.IDX／LINKDATA0.BIN
 
@@ -81,3 +81,11 @@
 - 82988 bytes 範例劇本各屬哪個 DLC、劇本其餘欄位。
 - Winning Post、大航海時代的出處版本。
 - 使用者自製頭像 `Face****.dat`（存在文件資料夾）沒看。
+
+## 匯出（`santsukuru-win`）
+
+- 遊戲目錄 `games/santsukuru-win/` 是 `LINKDATA.IDX`、`LINKDATA0.BIN` 與 `RES/` 裡 10 個有頭像的 DLC 檔（硬連結到 `games/steam/397720/`）。
+- 7823 張頭像依頭像號排，最後是預設臉（`group` 「その他」、名「預設頭像」）。`group` 是類別名，`code` 是頭像號。
+- 一張臉一個角色（7822 人，id＝頭像號）。同一人在不同代是不同角色，沒有合併。
+- 大航海時代 DLC 的半形片假名名字轉成全形；讀音轉成平假名。
+- 全彩，寫出成逐張無損 WebP（`WEBP_DATASETS`）。

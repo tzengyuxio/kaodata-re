@@ -2594,3 +2594,89 @@ def load_taikoh4_win_persons(raw: bytes, exe: bytes) -> list[tuple[str, int, int
     names = ["", ""] + [big5(part[o + 6:o + 15]) + big5(part[o + 15:o + 22])
                         for o in range(0, (TAIKOH4_WIN_PERSONS - 2) * 32, 32)]
     return [(names[p],) + struct.unpack_from("<Hh", exe, TAIKOH4_WIN_FACES + 4 * p) for p in range(TAIKOH4_WIN_PERSONS)]
+
+
+# ---------------------------------------------------------------- 三国志ツクール (Steam)
+
+# face category (the list in LINKDATA item 135) -> the DLC file holding its faces, for the installed DLC
+SANTSUKURU_WIN_DLC = {14: "D01129J", 15: "D01130J", 17: "D01132J", 18: "D01133J", 22: "D01137J", 23: "D01138J",
+                      24: "D01139J", 25: "D01140J", 26: "D01141J", 33: "D01147J"}
+SANTSUKURU_WIN_DEFAULT_FACE = 131  # LINKDATA item with the single unnamed face
+
+
+def _santsukuru_table(b: bytes, base: int = 0) -> list[tuple[int, int]]:
+    """A "u32 count, count x (u32 offset, u32 size)" archive; offsets are relative to base."""
+    n = struct.unpack_from("<I", b, base)[0]
+    v = struct.unpack_from(f"<{2 * n}I", b, base + 4)
+    return [(base + v[2 * i], v[2 * i + 1]) for i in range(n)]
+
+
+def _santsukuru_bmp(b: bytes) -> tuple[int, int, bytes]:
+    """(w, h, RGBA) of a bottom-up 24 or 32 bit BMP (the 32 bit ones have alpha 255)."""
+    assert b[:2] == b"BM"
+    data, w, h, bpp = struct.unpack_from("<I", b, 10)[0], *struct.unpack_from("<iiH", b, 18)[:2], \
+        struct.unpack_from("<H", b, 28)[0]
+    step = bpp // 8
+    stride = (w * step + 3) & ~3
+    out = bytearray()
+    for y in range(h - 1, -1, -1):
+        row = b[data + y * stride:data + y * stride + w * step]
+        for x in range(0, w * step, step):
+            out += bytes((row[x + 2], row[x + 1], row[x], 255))
+    return w, h, bytes(out)
+
+
+def load_santsukuru_win_faces(game_dir: str) -> list[tuple[int | None, int, str, str, tuple[int, int, bytes]]]:
+    """(face id, category, name, reading, (w, h, RGBA)) of the faces of 三国志ツクール, Steam, in face-id order, then
+    the unnamed default face (id None, category 254). LINKDATA.IDX is 32-byte (u64 offset, size, stored size,
+    flags) entries into LINKDATA0.BIN; item 0 holds two XL tables of 6 i32 per row: face id, index in its pack,
+    category, pack (a LINKDATA item; DLC packs are RES/D0xxxxJ.bin), name and reading offsets (Shift-JIS, from
+    +0x18). A face whose DLC is not installed is left out."""
+    with open(os.path.join(game_dir, "LINKDATA.IDX"), "rb") as f:
+        idx = f.read()
+    link = open(os.path.join(game_dir, "LINKDATA0.BIN"), "rb")
+
+    def item(i):
+        o, _, stored, _ = struct.unpack_from("<4Q", idx, 32 * i)
+        link.seek(o)
+        return link.read(stored)
+
+    names = item(0)
+    rows = []
+    for base, _ in _santsukuru_table(names):
+        assert names[base:base + 4] == b"XL\x13\0"
+        count, size = struct.unpack_from("<HH", names, base + 8)
+
+        def text(o):
+            o += base + 0x18
+            return names[o:names.index(b"\0", o)].decode("cp932")
+
+        for r in range(count):
+            face, k, category, pack, name, reading = struct.unpack_from("<6i", names, base + 0x18 + size * r)
+            rows.append((face, k, category, pack, text(name), text(reading)))
+    packs = {}
+
+    def pack_of(category, pack):
+        key = SANTSUKURU_WIN_DLC.get(category) if pack < 0 or category in SANTSUKURU_WIN_DLC else pack
+        if key is not None and key not in packs:
+            if isinstance(key, str):
+                with open(os.path.join(game_dir, "RES", key + ".bin"), "rb") as f:
+                    b = f.read()
+            else:
+                b = item(key)
+            packs[key] = (b, _santsukuru_table(b))
+        return packs.get(key)
+
+    out = []
+    for face, k, category, pack, name, reading in sorted(rows):
+        p = pack_of(category, pack)
+        if p is None:
+            continue
+        b, table = p
+        o, s = table[k]
+        out.append((face, category, name, reading, _santsukuru_bmp(b[o:o + s])))
+    b = item(SANTSUKURU_WIN_DEFAULT_FACE)
+    (o, s), = _santsukuru_table(b)
+    out.append((None, 254, "", "", _santsukuru_bmp(b[o:o + s])))
+    link.close()
+    return out
