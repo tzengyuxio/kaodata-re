@@ -6398,7 +6398,7 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     faces = sango.load_san12_faces(game_dir)
-    # the base game's faces: Data/KAO_W_S.S12 and AddKao00
+    # the base game's faces: Data/KAO_F_M.S12 and AddKao00
     base_faces = set(sango.load_san12_faces(game_dir, sango.SAN12_FACE_FILES[:2]))
     codes = sorted(faces)
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(codes) - 1) // SAN12PK_WIN_PER_BLOB + 1)]
@@ -6458,7 +6458,7 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "title": {"ja": "三國志12 with パワーアップキット", "zh": "三國志12 威力加強版"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN12PK_WIN_INPUTS]},
-        "display": {"scale": 3},
+        "display": {"scale": 4},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
         "blobs": store.names,

@@ -642,13 +642,14 @@ def load_san11_persons(scenario) -> list[dict]:
     return persons
 
 
-# 三國志12 PK (Steam): Data/KAO_W_S.S12 is a LINK of 2000 GT1G0500 textures (+0x26 log2 height << 4 | log2 width,
-# B, G, R, A from +0x2C), each cropped by the 12-byte rect table (u16 x, y, w, h) at +0x10 to its 90 x 128 face;
-# an empty slot is 1 x 1. The added faces are LINKs of the same kind whose face numbers are a .dat (u32 count, u32s).
-SAN12_FACE_FILES = [("Data/KAO_W_S.S12", None), ("AddKao00/ADD00_KAO_W_S.S12", "AddKao00/ADD00.dat"),
-                    ("PK/AddKao20/ADD20_KAO_W_S.S12", "PK/AddKao20/ADD20.dat"),
-                    ("PK/AddKao21/ADD21_KAO_W_S.S12", "PK/AddKao21/ADD21.dat"),
-                    ("PK/AddKao21/SP0_KAO_W_S.S12", "PK/AddKao21/SP0.dat")]
+# 三國志12 PK (Steam): Data/KAO_*.S12 are LINKs of 2000 GT1G0500 textures (+0x26 log2 height << 4 | log2 width,
+# B, G, R, A from +0x2C), each cropped by the 12-byte rect table (u16 x, y, w, h) at +0x10 to its face (KAO_W_L
+# 360 x 512, KAO_W_S 90 x 128, KAO_F_M 48 x 60); an empty slot is 1 x 1. The added faces are LINKs of the same kind
+# whose face numbers are a .dat (u32 count, u32s). The collected size is KAO_F_M (the user's choice).
+SAN12_FACE_FILES = [("Data/KAO_F_M.S12", None), ("AddKao00/ADD00_KAO_F_M.S12", "AddKao00/ADD00.dat"),
+                    ("PK/AddKao20/ADD20_KAO_F_M.S12", "PK/AddKao20/ADD20.dat"),
+                    ("PK/AddKao21/ADD21_KAO_F_M.S12", "PK/AddKao21/ADD21.dat"),
+                    ("PK/AddKao21/SP0_KAO_F_M.S12", "PK/AddKao21/SP0.dat")]
 # Scenario*.dat: ILNK; every part but 0 is encrypted from seed 0xE0A (San12WPK.exe 0x5F8D90). The person part is
 # 1500 bit-field records of 292 bytes (PK) or 264 (base): +4 given name 5 bytes, +9 surname 5, +0xE reading
 # (half-width katakana, full name), cp932 with gaiji at F040- (read as U+E000-); bit 482 is the 11-bit face number
@@ -663,7 +664,7 @@ SAN12_GAIJI = {0xE000: "瓚", 0xE003: "郃", 0xE004: "蒯", 0xE006: "傕", 0xE00
 
 
 def load_san12_faces(game_dir, files=SAN12_FACE_FILES) -> dict[int, tuple[int, int, bytes]]:
-    """Face number -> (w, h, top-down RGBA) of every 90 x 128 face in files."""
+    """Face number -> (w, h, top-down RGBA) of every face in files."""
     faces = {}
     for name, numbers in files:
         with open(os.path.join(game_dir, name), "rb") as f:
