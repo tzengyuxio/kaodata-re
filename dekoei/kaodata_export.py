@@ -3802,6 +3802,8 @@ GENCHOU_DOS_NAME_HISTORICAL = {
     "摩柯末": "摩訶末",    # as GENGHIS_DOS_NAME_HISTORICAL, 《元史》
     "耶木罕": "那木罕",    # Nomuqan, 《元史》
     "蒙哥": "忙哥剌",      # Manggala, 《元史》
+    "脫里脫": "塔塔統阿",  # Tata-tonga, 《元史》
+    "普西重": "普西里",    # al-Busiri; 重 for 里
 }
 GENCHOU_DOS_SPLIT = {("艾伯克", 4), ("亦納勒赤", 2), ("阿合馬", 3), ("席拉", 3), ("脫劣勒赤", 3)}
 
