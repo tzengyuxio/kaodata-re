@@ -3603,6 +3603,10 @@ GENCHOU_X68_SLOTS = {"top": ("上", (6, 960, 960), (6, 1152, 1152)), "bottom": (
                      "eyes": ("眼", (0x1E06, 288, 1152), (0x1E06, 288, 1152)), "mouth": ("口", (0x3006, 192, 576), (0x3006, 192, 576))}
 # MAIN.Z (CZ10, image base 0x514FA) sets the graphic palette from file 0x44924 (16 x B, R, G, 0-31); faces use 0-7
 GENCHOU_X68_PALETTE = ["#000000", "#004a8c", "#bd4a29", "#ef6b8c", "#398c39", "#6badce", "#ffbd8c", "#efefef"]
+# PC-98: KAODATA.DAT is the X68000 file and the people are the X68000 ones; MAIN.EXE file 0x3E93A is the analog
+# palette for colours 0-7 (4-bit B, R, G bytes)
+GENCHOU_PC98_INPUTS = GENCHOU_X68_INPUTS + ["MAIN.EXE"]
+GENCHOU_PC98_PALETTE = 0x3E93A
 
 
 def genchou_pc88_or(buf: bytearray, x: int, y: int, width: int, data: bytes, rows: int = 8) -> None:
@@ -3624,16 +3628,18 @@ def genchou_pc88_features(buf: bytearray, head: bytes, eyes: bytes, mouth: bytes
     genchou_pc88_or(buf, head[4], head[5], 12, mouth[:12 * rows], rows)
 
 
-def build_genchou_pc88(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
-    """x68=True: the X68000 version (full-height faces, 24 more men's faces, its own palette)."""
-    inputs = GENCHOU_X68_INPUTS if x68 else GENCHOU_PC88_INPUTS
+def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    """x68=True: the X68000 version (full-height faces, 24 more men's faces, its own palette). pc98=True: the PC-98
+    version (the X68000 faces and people, its own palette)."""
+    inputs = GENCHOU_PC98_INPUTS if pc98 else GENCHOU_X68_INPUTS if x68 else GENCHOU_PC88_INPUTS
+    full = x68 or pc98
     files = {}
-    for name in inputs + ([] if x68 else ["VERSION"]):
+    for name in inputs + ([] if full else ["VERSION"]):
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
-    if x68:
+    if full:
         kao = files["KAODATA.DAT"]
         men = len(kao) - GENCHOU_X68_FACES[1] * GENCHOU_X68_FACE - GENCHOU_X68_TYPES[1] * GENCHOU_X68_TYPE
         sources = [(kao[:men], GENCHOU_X68_FACES[0]), (kao[men:], GENCHOU_X68_FACES[1])]
@@ -3645,7 +3651,7 @@ def build_genchou_pc88(game_dir: str, x68: bool = False) -> tuple[dict, list[byt
     eyes_at, mouth_at = 6 + picture, 6 + picture + 72 * rows  # frame 0 of the eyes and the mouth
 
     def pixels(raw: bytes) -> bytes:
-        return brg_pixels(raw, 8, double=not x68)
+        return brg_pixels(raw, 8, double=not full)
 
     portraits, variants, type_counts = [], [], []
     for woman, (kao, count) in enumerate(sources):
@@ -3689,7 +3695,7 @@ def build_genchou_pc88(game_dir: str, x68: bool = False) -> tuple[dict, list[byt
 
     # one character per name (women apart), numbered as genchou-fc: the men of GENDATA1, USDATA1 block 0,
     # GENDATA2-4 from 0, the women from 1000, the children who are nobody else from 2000; then the other USDATA men
-    records = koei_games.load_genchou_pc88_people(game_dir, x68)
+    records = koei_games.load_genchou_pc88_people(game_dir, x68, pc98)
     people = {}
     def key(sc: int, kind: str, name: str) -> tuple:
         return kind == "woman", name, (name, sc) in GENCHOU_PC88_SPLIT
@@ -3724,13 +3730,16 @@ def build_genchou_pc88(game_dir: str, x68: bool = False) -> tuple[dict, list[byt
     characters.sort(key=lambda c: c["id"])
 
     meta = {
-        "format": FORMAT, "id": "genchou-x68" if x68 else "genchou-pc88", "game": "GENCHOU",
-        "platform": "X68" if x68 else "PC88",
+        "format": FORMAT, "id": "genchou-pc98" if pc98 else "genchou-x68" if x68 else "genchou-pc88", "game": "GENCHOU",
+        "platform": "PC98" if pc98 else "X68" if x68 else "PC88",
         "title": {"ja": "蒼き狼と白き牝鹿・元朝秘史", "zh": "蒼狼與白鹿・元朝秘史"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
-        "palettes": [{"id": "x68", "label": "X68", "colors": GENCHOU_X68_PALETTE} if x68 else
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": [
+                         "#" + "".join(f"{files['MAIN.EXE'][GENCHOU_PC98_PALETTE + 3 * c + k] * 17:02x}" for k in (1, 2, 0))
+                         for c in range(8)]} if pc98 else
+                     {"id": "x68", "label": "X68", "colors": GENCHOU_X68_PALETTE} if x68 else
                      {"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -5527,6 +5536,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "europe-pc98": lambda game_dir: build_europe_dos(game_dir, pc98=True),
             "genchou-pc88": build_genchou_pc88,
             "genchou-x68": lambda game_dir: build_genchou_pc88(game_dir, x68=True),
+            "genchou-pc98": lambda game_dir: build_genchou_pc88(game_dir, pc98=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),

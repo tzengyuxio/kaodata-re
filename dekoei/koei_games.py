@@ -1740,11 +1740,15 @@ GENCHOU_PC88_PLACEHOLDER = "モンゴル統一者"  # scenario 4: the player's o
 GENCHOU_X68_MEN = (0x66A, 30, 109)
 GENCHOU_X68_WOMEN = (0x1E46, 26, 33)
 GENCHOU_X68_BLOCK = 410
+# PC-98: the PC-88 layout one byte later in GENDATA (it starts FF 00), USDATA as on PC-88; the face codes are the
+# X68000 ones (the same KAODATA.DAT)
+GENCHOU_PC98_MEN = (2, 27, 109)
+GENCHOU_PC98_WOMEN = (0x1A26, 23, 33)
 
 
-def load_genchou_pc88_people(game_dir, x68=False) -> list[tuple[int, int, str, str, int]]:
+def load_genchou_pc88_people(game_dir, x68=False, pc98=False) -> list[tuple[int, int, str, str, int]]:
     """(scenario, USDATA block or -1 for GENDATA, kind "man" / "woman" / "child", NFKC name, face code) of every
-    record, in file order. x68=True: the X68000 files."""
+    record, in file order. x68=True: the X68000 files. pc98=True: the PC-98 files."""
     from san3 import unpack_x68_sndata
 
     def name(rec):
@@ -1757,6 +1761,8 @@ def load_genchou_pc88_people(game_dir, x68=False) -> list[tuple[int, int, str, s
 
     if x68:
         men, women, block, first_block, order = GENCHOU_X68_MEN, GENCHOU_X68_WOMEN, GENCHOU_X68_BLOCK, 2, "big"
+    elif pc98:
+        men, women, block, first_block, order = GENCHOU_PC98_MEN, GENCHOU_PC98_WOMEN, GENCHOU_PC88_BLOCK, 0, "little"
     else:
         men, women, block, first_block, order = GENCHOU_PC88_MEN, GENCHOU_PC88_WOMEN, GENCHOU_PC88_BLOCK, 0, "little"
     man_size, woman_size = men[1], women[1]
@@ -1774,7 +1780,7 @@ def load_genchou_pc88_people(game_dir, x68=False) -> list[tuple[int, int, str, s
             rec = gen[first + i * size:][:size]
             if name(rec):
                 people.append((sc, -1, "woman", name(rec), int.from_bytes(rec[size - 2:size], order)))
-        for b in range(first_block, len(us), block):
+        for b in range(first_block, len(us) - block + 1, block):  # PC-98 files end with slack
             for i in range(8):
                 rec = us[b + i * man_size:][:man_size]
                 if name(rec):

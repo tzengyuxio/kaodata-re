@@ -58,3 +58,11 @@
   - 名字、記錄順序與 PC-88 逐筆相同（445 筆），只有頭像碼不同（上述 24 人，以及イァティマード用女性 P32，PC-88 是 P33），並修正兩個錯字：「考宗」→孝宗、「畠山重定」→畠山重忠。所以 id 照 `genchou-pc88`，不需要 `nameHistorical`。
 - 色盤：`MAIN.Z` 0x38D6E 是寫圖形色盤（$E82200）的程式，0x2724 把檔案 0x44924 的 16 色（B、R、G 各 0–31）設進去；頭像用 0–7（palette id `x68`）。
 - 104 張頭像全部用到；女性類型 3 同 PC-88 沒用到。
+
+## PC-98 版（`genchou-pc98`）
+
+`dekoei.py export genchou-pc98` 用 `build_genchou_pc88(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Genchou Hishi [FD]`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`），Disk A 的 `KAODATA.DAT`、`MAIN.EXE`、`VERSION` 與 Disk C 的 `GENDATA1–4.DAT`、`USDATA1–4.DAT` 放在 `games/genchou-pc98/`。`VERSION` 寫「ＰＣ９８０１ＶＭ『元朝秘史』Type B Ver 1.0 Rel 1」，檔案日期 1992-09-16。
+
+- `KAODATA.DAT` 和 X68000 版逐 byte 相同（全高、男性 64 張），所以頭像與組合臉和 `genchou-x68` 相同。
+- 色盤：`MAIN.EXE` 檔案 0x3E93A 起是色號 0–7 的類比色，每色 3 bytes（B、R、G，4 bit），換成 8 bit 是 v × 17。設計和 X68000 版相同，只是量化不同（例：`#004488`，X68000 是 `#004a8c`）。
+- 人物：`GENDATA` 是 PC-88 的排法往後挪 1 byte（檔頭是 `FF 00`，男性從 2 起、女性從 0x1A26 起），`USDATA` 同 PC-88，但檔尾接著磁碟殘留的垃圾，所以只讀完整的 351 bytes 區塊。頭像碼是 X68000 版的碼（男性 40–63 是獨立頭像）。445 筆記錄的劇本、姓名、頭像碼和 X68000 版完全相同，包括 PC-88 的兩個錯字已改正（畠山重忠、孝宗）。

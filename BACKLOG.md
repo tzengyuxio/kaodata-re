@@ -66,7 +66,7 @@
 
 和已收的其他平台版比對：一模一樣就只加版本標記，不同才做 `<game>-pc98`。
 
-- [ ] 蒼き狼と白き牝鹿・元朝秘史（`Genchou Hishi [FD]`）— 對 `genchou-pc88`／`genchou-x68`（2026-10-16）
+- [x] 蒼き狼と白き牝鹿・元朝秘史（`Genchou Hishi [FD]`）— 頭像、人物同 X68，色盤不同，做 `genchou-pc98`（2026-10-16）
 - [x] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 和 `genghis-pc88` 相同，kaodata 加版本標記（2026-10-16）
 - [x] ヨーロッパ戦線（`Europe Sensen [FD]`）— 色盤是類比色，做 `europe-pc98`（2026-10-16）
 - [ ] 項劉記（`Kouryuuki [FD]`／`[HD]`）— 對 `kouryuuki-dos`／`kouryuuki-x68`（2026-10-16）
