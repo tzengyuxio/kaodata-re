@@ -1895,13 +1895,14 @@ def genghis_characters(m, s, face, name_historical) -> list[dict]:
 
 def genghis_name_zh(game_dir: str, characters: list[dict]) -> None:
     """Give the characters of a Japanese version the genghis-dos (Chinese) names of the same ids, from the DOS
-    MDATA.CIM / SDATA.CIM in `dos/`."""
+    MDATA.CIM / SDATA.CIM in `dos/`; the right spelling (nameHistorical) where the Chinese version has it wrong."""
     load = koei_games.load_genghis_dos_people
     zh = genghis_characters(load(os.path.join(game_dir, "dos", "MDATA.CIM")),
-                            load(os.path.join(game_dir, "dos", "SDATA.CIM")), lambda code: {}, {})
+                            load(os.path.join(game_dir, "dos", "SDATA.CIM")), lambda code: {},
+                            GENGHIS_DOS_NAME_HISTORICAL)
     assert len(zh) == len(characters)
     for ch, z in zip(characters, zh):
-        ch["nameZh"] = z["name"]
+        ch["nameZh"] = z.get("nameHistorical", z["name"])
         ch.update({k: ch.pop(k) for k in [k for k in ch if k not in ("id", "name", "nameZh")]})  # keep the key order
 
 
@@ -3794,6 +3795,14 @@ GENCHOU_DOS_NAMES = {
     "易卜阿拉比": "阿拉比", "里拉瓦赤": "亞拉瓦赤", "阿佩路德倫": "阿佩汝典", "古達尼斯克大公": "古塔尼斯庫大公",
     "班盧克巴恩": "巴音庫伴", "茶哥": "恰凱", "蘇白答": "蘇白塔",
 }
+# Chinese names that are wrong (the font lacks 畠 and 梶, 蒙哥 is Möngke): nameHistorical of genchou-dos, and the
+# nameZh of the Japanese versions
+GENCHOU_DOS_NAME_HISTORICAL = {
+    "偪山重忠": "畠山重忠", "浘原景時": "梶原景時", "籐原定家": "藤原定家", "阿興道": "陳興道",
+    "摩柯末": "摩訶末",    # as GENGHIS_DOS_NAME_HISTORICAL, 《元史》
+    "耶木罕": "那木罕",    # Nomuqan, 《元史》
+    "蒙哥": "忙哥剌",      # Manggala, 《元史》
+}
 GENCHOU_DOS_SPLIT = {("艾伯克", 4), ("亦納勒赤", 2), ("阿合馬", 3), ("席拉", 3), ("脫劣勒赤", 3)}
 
 
@@ -3919,7 +3928,8 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False, dos
         people, ids = genchou_ids(koei_games.load_genchou_pc88_people(game_dir, x68, pc98), GENCHOU_PC88_SPLIT, {})
         _, zh_ids = genchou_ids(koei_games.load_genchou_pc88_people(os.path.join(game_dir, "dos"), dos=True),
                                 GENCHOU_DOS_SPLIT, dos_aliases)
-        name_zh = {i: GENCHOU_DOS_NAMES.get(k[1], k[1]) for k, i in zh_ids.items()}
+        name_zh = {i: GENCHOU_DOS_NAME_HISTORICAL.get(n, n) for k, i in zh_ids.items()
+                   for n in [GENCHOU_DOS_NAMES.get(k[1], k[1])]}
         assert sorted(name_zh) == sorted(ids.values())
     characters = []
     for k, p in people.items():
@@ -3930,8 +3940,9 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False, dos
         ch = {"id": ids[k], "name": name, "face": face(woman, looks[0][0])}
         if not dos:
             ch["nameZh"] = name_zh[ids[k]]
-        if name in GENCHOU_PC88_NAME_HISTORICAL:
-            ch["nameHistorical"] = GENCHOU_PC88_NAME_HISTORICAL[name]
+        name_historical = GENCHOU_DOS_NAME_HISTORICAL if dos else GENCHOU_PC88_NAME_HISTORICAL
+        if name in name_historical:
+            ch["nameHistorical"] = name_historical[name]
         if len(looks) > 1:
             ch["face"]["label"] = "劇本" + "、".join(map(str, sorted(set(looks[0][1]))))
             ch["expressions"] = [{**face(woman, c), "label": "劇本" + "、".join(map(str, sorted(set(ss))))}
