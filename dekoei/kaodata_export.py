@@ -4460,7 +4460,7 @@ def build_taikoh3_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "title": {"ja": "太閤立志伝III", "zh": "太閤立志傳III"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH3_WIN_INPUTS]},
-        "display": {"scale": 1},
+        "display": {"scale": 3},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
         "images": store.refs,
