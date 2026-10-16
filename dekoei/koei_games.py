@@ -1047,6 +1047,33 @@ def load_nobu7_win_persons(path, encoding="big5") -> list[tuple[int, str, str, i
         persons.append((pid, text(data[o:o + 8]), text(data[o + 8:o + 16]), face))
     return persons
 
+# NOBU10 PK (蒼天録 with PK, Win, Steam): Scenario/SCEDAT??.NBX (not packed, Shift-JIS) hold 1991 officer records
+# of 122 bytes whose surname is at 0x27D9A: +0 surname (9 bytes), +9 its reading (17, hiragana), +26 given name,
+# +35 its reading, +65 u16 face (KAOCG.NBX), +120 u16 officer id; then 208 women records of 70 bytes whose surname
+# is at 0x63282, with the same name fields and the face at -12
+NOBU10_WIN_OFFICERS = (0x27D9A, 1991, 122)
+NOBU10_WIN_WOMEN = (0x63282, 208, 70)
+
+
+def load_nobu10_win_persons(path) -> tuple[list[tuple[int, str, str, int]], list[tuple[str, int]]]:
+    """((officer id, name, reading, face) of every officer, (name, face) of every woman) of one SCEDAT??.NBX."""
+    with open(path, "rb") as f:
+        data = f.read()
+
+    def text(o, n):
+        return data[o:o + n].split(b"\0")[0].decode("cp932")
+
+    start, count, size = NOBU10_WIN_OFFICERS
+    officers = []
+    for o in range(start, start + count * size, size):
+        face, = struct.unpack_from("<H", data, o + 65)
+        oid, = struct.unpack_from("<H", data, o + 120)
+        officers.append((oid, text(o, 9) + text(o + 26, 9), text(o + 9, 17) + text(o + 35, 17), face))
+    start, count, size = NOBU10_WIN_WOMEN
+    women = [(text(o, 9) + text(o + 26, 9), struct.unpack_from("<H", data, o - 12)[0])
+             for o in range(start, start + count * size, size)]
+    return officers, women
+
 # EIKETSU4 (織田信長傳, Win, Chinese): DATA.E4 part 0 holds 645 person records of 77 bytes;
 # +0 name (12-byte Big5), +28 u16 face (also written as ASCII at +13)
 EIKETSU4_WIN_PERSON = 77

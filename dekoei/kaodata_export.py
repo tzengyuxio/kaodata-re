@@ -5252,6 +5252,88 @@ def build_nobu7_win(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU10 PK (蒼天録 with PK, Win, Steam)
+
+NOBU10PK_WIN_INPUTS = ["KAOCG.NBX", "SCEDAT06.NBX"]
+# KAOCG.NBX: u32 count, count x 44-byte entries (u32 offset, size, width, height, ..., +40 palette number), the
+# 96x120 8-bit bottom-up pixels, then u32 count, count x 12-byte entries (offset, size, 0) and the palettes
+# (256 x B, G, R, X each); face n uses palette n
+NOBU10PK_WIN_FACE = 96 * 120
+# 1500-1579 are the faces of the 208 women (princesses, who share them; 出雲阿国, an officer, uses 1554); no officer
+# uses the other 138 faces above 1499
+NOBU10PK_WIN_WOMEN = range(1500, 1580)
+NOBU10PK_WIN_PER_BLOB = 105  # about 1 MB compressed
+
+
+def build_nobu10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU10PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    kao = files["KAOCG.NBX"]
+    count, = struct.unpack_from("<I", kao)
+    base = 4 + 44 * count
+    tail = base + count * NOBU10PK_WIN_FACE
+    assert struct.unpack_from("<I", kao, tail)[0] == count
+    pal_base = tail + 4 + 12 * count
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((count - 1) // NOBU10PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs + ["palettes.bin"])
+
+    # each face has its own palette and uses colour 255, but never all 256: 255 moves to the lowest free colour
+    palettes, palette_index = bytearray(), {}
+    portraits = []
+    for i in range(count):
+        offset, size, w, h = struct.unpack_from("<4I", kao, 4 + 44 * i)
+        assert (w, h, size) == (96, 120, NOBU10PK_WIN_FACE) and struct.unpack_from("<I", kao, 4 + 44 * i + 40)[0] == i
+        raw = kao[base + offset:base + offset + size]
+        px = b"".join(raw[(h - 1 - y) * w:(h - y) * w] for y in range(h))
+        bgrx = kao[pal_base + 1024 * i:pal_base + 1024 * (i + 1)]
+        order = list(range(256))
+        if 255 in px:
+            free = min(set(range(255)) - set(px))
+            px = px.translate(bytes(free if c == 255 else c for c in range(256)))
+            order[free], order[255] = 255, free
+        pal = bytes(v for c in order for v in (bgrx[c * 4 + 2], bgrx[c * 4 + 1], bgrx[c * 4]))
+        if pal not in palette_index:
+            palette_index[pal] = len(palette_index)
+            palettes.extend(pal)
+        portraits.append({"img": store.add(w, h, px, blob=i // NOBU10PK_WIN_PER_BLOB), "code": f"{i:04X}",
+                          "palette": palette_index[pal]})
+    store.blobs[-1] = palettes
+
+    # scenario 6 (the last of the original game) has the names most people are known by (徳川家康, 津軽為信);
+    # all scenarios hold the same officers with the same faces. Record 0 occurs twice: the second is a blank slot
+    officers, women = koei_games.load_nobu10_win_persons(os.path.join(game_dir, "SCEDAT06.NBX"))
+    characters, seen = [], set()
+    for oid, name, reading, face in officers:
+        if face >= count:
+            continue
+        assert oid not in seen
+        seen.add(oid)
+        characters.append({"id": oid, "name": name, "reading": reading, "face": {"portrait": face}})
+    used = {c["face"]["portrait"] for c in characters}
+    assert {face for _, face in women} <= set(NOBU10PK_WIN_WOMEN)
+    for i, p in enumerate(portraits):
+        if i not in used:
+            p["group"] = "姫" if i in NOBU10PK_WIN_WOMEN else "其他頭像"
+    characters.sort(key=lambda c: c["id"])
+
+    meta = {
+        "format": FORMAT, "id": "nobu10pk-win", "game": "NOBU10PK", "platform": "WIN",
+        "title": {"ja": "信長の野望・蒼天録 with パワーアップキット", "zh": "信長之野望・蒼天錄 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU10PK_WIN_INPUTS]},
+        "display": {"scale": 2},
+        "palettes": [],
+        "portraitPalettes": {"blob": len(blobs)},
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- EIKETSU3 (毛利元就傳, Win, Chinese)
 
 EIKETSU3_WIN_INPUTS = ["KAO.E3", "PMPALET.E3", "DATA.E3"]
@@ -5641,6 +5723,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
             "nobu7pk-win": lambda game_dir: build_nobu7_win(game_dir, pk=True),
+            "nobu10pk-win": build_nobu10pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
             "eiketsu5-win": build_eiketsu5_win,
