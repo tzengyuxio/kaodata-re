@@ -431,8 +431,13 @@ EUROPE_X68_SCENARIOS = (0x181A, 0x2E21, (0, 5, 6))
 EUROPE_X68_LEADERS = (0x4369C, 12)
 
 
-def load_europe_x68_names(scedata, main_z) -> dict[int, str]:
-    """Name per face/person number from the readable scenarios and the leaders."""
+# PC-98: SCEDATA has the DOS layout (all 7 scenarios readable); the 12 leaders are at MAIN.EXE file 0x4A288
+EUROPE_PC98_SCENARIOS = (EUROPE_SCENARIOS[0], EUROPE_SCENARIOS[1], range(EUROPE_SCENARIOS[2]))
+EUROPE_PC98_LEADERS = (0x4A288, 12)
+
+
+def load_europe_x68_names(scedata, main_z, pc98=False) -> dict[int, str]:
+    """Name per face/person number from the readable scenarios and the leaders. pc98=True: the PC-98 version."""
     with open(scedata, 'rb') as f:
         sce = f.read()
     with open(main_z, 'rb') as f:
@@ -441,14 +446,14 @@ def load_europe_x68_names(scedata, main_z) -> dict[int, str]:
     def name(rec):
         return unicodedata.normalize('NFKC', rec[:8].split(b'\0')[0].decode('cp932')).strip()
 
-    first, stride, scenarios = EUROPE_X68_SCENARIOS
+    first, stride, scenarios = EUROPE_PC98_SCENARIOS if pc98 else EUROPE_X68_SCENARIOS
     names = {}
     for s in scenarios:
         for r in range(40):
             rec = sce[first + s * stride + r * 22:first + s * stride + (r + 1) * 22]
             if rec[9] != 0xFF:
                 names.setdefault(rec[20], name(rec))
-    offset, count = EUROPE_X68_LEADERS
+    offset, count = EUROPE_PC98_LEADERS if pc98 else EUROPE_X68_LEADERS
     for r in range(count):
         rec = main[offset + r * 22:offset + (r + 1) * 22]
         names[rec[20]] = name(rec)

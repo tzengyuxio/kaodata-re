@@ -61,3 +61,12 @@
 - 人物：22 bytes 記錄、半形片假名，格式同 PC-88。`SCEDATA` 的劇本由 0x52930 讀：第 s 個在 0x1518 ＋ s × 0x2E21，長 0x2E21，指揮官 40 筆在劇本 +0x302。領袖 12 人（頭像 94–105，和 DOS 一樣有 100–105）在 `MAIN.Z` 檔案 0x4369C（`koei_games.load_europe_x68_names`）。
   - 這份映像的劇本 1–4（劇本 2–5「北アフリカ」到「ノルマンディー」）的磁區內容是 `MSGRP.DAT` 的資料，FAT 沒有交叉連結（第二份 FAT 是沒維護的舊內容），應該是原片或傾印就壞了。所以只讀得到劇本 0、5、6：58 名指揮官加 12 名領袖，共 70 人，名字和 PC-88 逐筆相同。
   - 只在劇本 1–4 出現的 36 張臉（4–6、8、11–13、15–19、21、23、25、26、50–63、66、67、69–72）沒有人物，分類「劇本資料損壞」、不命名。找到完好的傾印後應重新匯出。
+
+## PC-98 版（`europe-pc98`）
+
+`dekoei.py export europe-pc98` 用 `build_europe_dos(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Europe Sensen [FD]`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`，3 片），Disk A 的 `FACE.DAT`、`SCEDATA`、`MAIN.EXE` 放在 `games/europe-pc98/`，檔案日期 1992-03-18。
+
+- `FACE.DAT` 和 DOS 版逐 byte 相同（120 張）。
+- 色盤：`MAIN.EXE` 檔案 0x4CBAC 的 8 個 word 是色號 0–7 的類比色（4 bit，由高到低 G、R、B），換成 8 bit 是 v × 17。數值和 DOS 版那張表相同，X68000 版只是量化成 5 bit。
+- 人物：`SCEDATA` 的排法同 DOS（7 個劇本各 40 筆，22 bytes 一筆），姓名是 Shift-JIS；12 位領袖在 `MAIN.EXE` 檔案 0x4A288（`koei_games.load_europe_x68_names(pc98=True)`）。7 個劇本都讀得到，共 106 人，和 PC-88、X68000 版讀得到的部分完全相同，所以 X68000 版「劇本資料損壞」的 36 張臉在這版都有名字。
+- 替補指揮官、村娘、修道女同 X68000 版（`MAIN.EXE` 也有「村娘」「修道女」字串）。

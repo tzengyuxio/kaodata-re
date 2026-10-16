@@ -1528,12 +1528,18 @@ EUROPE_X68_PALETTE = 0x49058
 EUROPE_DOS_LEADERS_END = 106  # faces 0-105 are people (commanders, then leaders)
 EUROPE_X68_PORTRAITS = {**{i: ("替補指揮官", None) for i in range(106, 118)}, 118: ("事件人物", "村娘"),
                         119: ("事件人物", "修道女")}  # MAIN.Z strings
+# PC-98: FACE.DAT is the DOS file; MAIN.EXE file 0x4CBAC is the analog palette for colours 0-7 (4-bit G, R, B
+# words, the same values as the DOS table); the portrait groups and names are as on X68000 (MAIN.EXE strings)
+EUROPE_PC98_INPUTS = ["FACE.DAT", "SCEDATA", "MAIN.EXE"]
+EUROPE_PC98_PALETTE = 0x4CBAC
 
 
-def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
+def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False,
+                     pc98: bool = False) -> tuple[dict, list[bytes]]:
     """pc88=True: the Japanese PC-88 version (digital colours). x68=True: the X68000 version (DOS faces,
-    PC-88 style names)."""
-    inputs = EUROPE_PC88_INPUTS if pc88 else EUROPE_X68_INPUTS if x68 else EUROPE_DOS_INPUTS
+    PC-88 style names). pc98=True: the PC-98 version (DOS faces, all scenarios readable)."""
+    inputs = (EUROPE_PC88_INPUTS if pc88 else EUROPE_X68_INPUTS if x68 else EUROPE_PC98_INPUTS if pc98
+              else EUROPE_DOS_INPUTS)
     files = {}
     for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1560,6 +1566,16 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False) -> tu
                 portraits[i]["group"] = "劇本資料損壞"
         colours = ["#" + "".join(f"{v << 3 | v >> 2:02x}" for v in (w >> 6 & 31, w >> 11 & 31, w >> 1 & 31))
                    for w in struct.unpack_from(">8I", files["MAIN.Z"], EUROPE_X68_PALETTE)]
+    elif pc98:
+        face = files["FACE.DAT"]
+        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+                      "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
+        for i, (group, name) in EUROPE_X68_PORTRAITS.items():
+            portraits[i].update(group=group, **({"name": name} if name else {}))
+        names = koei_games.load_europe_x68_names(os.path.join(game_dir, "SCEDATA"), os.path.join(game_dir, "MAIN.EXE"),
+                                                 pc98=True)
+        colours = ["#" + "".join(f"{(w >> k & 15) * 17:02x}" for k in (4, 8, 0))
+                   for w in struct.unpack_from("<8H", files["MAIN.EXE"], EUROPE_PC98_PALETTE)]
     else:
         face = files["FACE.DAT"]
         portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
@@ -1573,14 +1589,15 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False) -> tu
     characters = [{"id": cid, "name": names[cid], "face": {"portrait": cid}} for cid in sorted(names)]
 
     meta = {
-        "format": FORMAT, "id": "europe-pc88" if pc88 else "europe-x68" if x68 else "europe-dos", "game": "EUROPE",
-        "platform": "PC88" if pc88 else "X68" if x68 else "DOS",
+        "format": FORMAT, "id": "europe-pc88" if pc88 else "europe-x68" if x68 else "europe-pc98" if pc98 else "europe-dos",
+        "game": "EUROPE", "platform": "PC88" if pc88 else "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "ヨーロッパ戦線", "zh": "歐陸戰線"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
                      {"id": "x68", "label": "X68000", "colors": colours} if x68 else
+                     {"id": "pc98", "label": "PC98", "colors": colours} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": EUROPE_DOS_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -5507,6 +5524,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "ishin-x68": build_ishin_x68,
             "europe-pc88": lambda game_dir: build_europe_dos(game_dir, pc88=True),
             "europe-x68": lambda game_dir: build_europe_dos(game_dir, x68=True),
+            "europe-pc98": lambda game_dir: build_europe_dos(game_dir, pc98=True),
             "genchou-pc88": build_genchou_pc88,
             "genchou-x68": lambda game_dir: build_genchou_pc88(game_dir, x68=True),
             "genghis-dos": build_genghis_dos,
