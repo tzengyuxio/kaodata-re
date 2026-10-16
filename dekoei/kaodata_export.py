@@ -4562,6 +4562,92 @@ def build_taikoh5dx_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- KOUKAI4PK (大航海時代IV PK HD, Win)
+
+KOUKAI4PK_WIN_INPUTS = ["bustup.dk4", "JP/World0.dll", "JP/World1.dll", "TC/World0.dll"]
+# person records: 0-97 protagonists and admirals, 98-212 roles (name: role, region), 213 ビアンカ, 214-234 the tavern
+# girls (family name field: their port)
+KOUKAI4PK_WIN_PEOPLE = range(98)
+KOUKAI4PK_WIN_ROLES = range(98, 213)
+KOUKAI4PK_WIN_GIRLS = range(213, 235)
+# East Asian names are written family name first in Chinese (白木玄丞行久, 李華梅: her baptismal name dropped)
+KOUKAI4PK_WIN_EAST_ASIAN = {3, 4, 13, 15, 28, 31, 52, 55, 93, 97}
+KOUKAI4PK_WIN_NO_MIDDLE_ZH = {3}
+KOUKAI4PK_WIN_PER_BLOB = 10  # about 1 MB compressed
+
+
+def build_koukai4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in KOUKAI4PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = koei_games.load_koukai4_win_bustups(os.path.join(game_dir, "bustup.dk4"))
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // KOUKAI4PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = [{"img": store.add(w, h, rgba, blob=i // KOUKAI4PK_WIN_PER_BLOB, rgba=True), "code": f"{i:02X}"}
+                 for i, (w, h, rgba) in enumerate(faces)]
+
+    def load(name, first, encoding):
+        return koei_games.load_koukai4_win_persons(os.path.join(game_dir, name), first, encoding)
+
+    base, pk = load("JP/World0.dll", "ラファエル", "cp932"), load("JP/World1.dll", "ラファエル", "cp932")
+    zh = load("TC/World0.dll", "拉斐爾", "cp950")
+    # PK mode gives some people a new face, and adds faces for some roles
+    pk_faces = {p[4] for p in pk} - {p[4] for p in base}
+
+    characters, used = [], set()
+    for i in [*KOUKAI4PK_WIN_PEOPLE, *KOUKAI4PK_WIN_GIRLS]:
+        given, family, middle, _, face = base[i]
+        z_given, z_family, z_middle = zh[i][:3]
+        if i in KOUKAI4PK_WIN_GIRLS[1:]:
+            name, name_zh = given, z_given
+        else:
+            # the games write given・middle・family (アル・フェリド・シン, マリア・ホアメイ・リー)
+            name = "・".join(n for n in (given, middle, family) if n)
+            if i in KOUKAI4PK_WIN_EAST_ASIAN:
+                name_zh = z_family + ("" if i in KOUKAI4PK_WIN_NO_MIDDLE_ZH else z_middle) + z_given
+            else:
+                name_zh = "‧".join(n for n in (z_given, z_middle, z_family) if n)
+        ch = {"id": i, "name": name, "face": {"portrait": face}}
+        if name_zh != name:
+            ch["nameZh"] = name_zh
+        if i in KOUKAI4PK_WIN_GIRLS[1:]:
+            ch["group"] = "酒場娘"
+        if pk[i][4] != face:
+            ch["expressions"] = [{"portrait": pk[i][4]}]
+        used |= {face, pk[i][4]}
+        characters.append(ch)
+
+    roles = {}
+    for persons in (base, pk):
+        for i in KOUKAI4PK_WIN_ROLES:
+            role, region = persons[i][:2]
+            roles.setdefault(persons[i][4], []).append(f"{role}（{region}）" if region else role)
+    assert not used & set(roles)
+    for i, p in enumerate(portraits):
+        if i in pk_faces:
+            p["pk"] = True
+        if i in roles:
+            p.update(name="／".join(dict.fromkeys(roles[i])), group="一般人物")
+        elif i not in used:
+            p["group"] = "其他頭像"
+
+    meta = {
+        "format": FORMAT, "id": "koukai4pk-win", "game": "KOUKAI4PK", "platform": "WIN",
+        "title": {"ja": "大航海時代IV with パワーアップキット HD Version", "zh": "大航海時代IV 威力加強版 HD Version"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI4PK_WIN_INPUTS]},
+        "display": {"scale": 1},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blobs))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- AIR (PC-98, X68000)
 
 # face sheets in the order of the game's picture table (X68 AM.Z file 0x16F28); each 64x80 face is followed by
@@ -6580,7 +6666,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
             "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win,
-            "taikoh5dx-win": build_taikoh5dx_win,
+            "taikoh5dx-win": build_taikoh5dx_win, "koukai4pk-win": build_koukai4pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
             "eiketsu5-win": build_eiketsu5_win,

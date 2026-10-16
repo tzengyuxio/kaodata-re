@@ -1340,6 +1340,61 @@ def _taikoh5_win_part(path, k) -> bytes:
     offsets = list(struct.unpack_from(f"<{count}I", data, 8)) + [len(data)]
     return data[offsets[k]:offsets[k + 1]]
 
+# KOUKAI4PK (大航海時代IV with パワーアップキット HD, Win): bustup.dk4 is a 'GT1G' texture set (u32 table offset at +12,
+# u32 count at +16; the table holds u32 texture offsets relative to it); each texture header has byte 1 the format
+# (0x59 BC1, 0x5B BC3), u32 +8 the size of the extra header the pixels follow, and the u32 width and height at
+# +0x14 and +0x18 of the texture.
+KOUKAI4_WIN_BCN = {0x59: 1, 0x5B: 3}
+# World0.dll (無印) / World1.dll (PK) hold 235 person records of 56 bytes from the record of the first protagonist:
+# three name pointers (given, family, middle), +0x26 sex (1 female), +0x2B bustup.dk4 face
+KOUKAI4_WIN_PERSON = 56
+KOUKAI4_WIN_PERSONS = 235
+
+
+def load_koukai4_win_bustups(path) -> list[tuple[int, int, bytes]]:
+    """(width, height, RGBA) of every texture of a KOUKAI4PK GT1G texture set."""
+    from PIL import Image
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"GT1G"
+    table, count = struct.unpack_from("<2I", data, 12)
+    faces = []
+    for offset in struct.unpack_from(f"<{count}I", data, table):
+        h = table + offset
+        n = KOUKAI4_WIN_BCN[data[h + 1]]
+        w, ht = struct.unpack_from("<2I", data, h + 0x14)
+        start = h + 8 + struct.unpack_from("<I", data, h + 8)[0]
+        size = w * ht // 2 if n == 1 else w * ht
+        faces.append((w, ht, Image.frombytes("RGBA", (w, ht), data[start:start + size], "bcn", n).tobytes()))
+    return faces
+
+
+def load_koukai4_win_persons(path, first: str, encoding: str) -> list[tuple[str, str, str, int, int]]:
+    """(given name, family name, middle name, sex, face) of the person records of a World?.dll (x64 PE); the table is
+    found by the pointer to the first protagonist's given name."""
+    with open(path, "rb") as f:
+        data = f.read()
+    pe, = struct.unpack_from("<I", data, 0x3C)
+    sections, header = struct.unpack_from("<H", data, pe + 6)[0], struct.unpack_from("<H", data, pe + 20)[0]
+    base, = struct.unpack_from("<Q", data, pe + 48)
+    # (virtual address, raw size, raw offset) of each section
+    spans = [struct.unpack_from("<3I", data, pe + 24 + header + 40 * i + 12) for i in range(sections)]
+
+    def text(va):
+        if not va:
+            return ""
+        o = next(raw + va - base - rva for rva, size, raw in spans if rva <= va - base < rva + size)
+        return data[o:data.index(b"\0", o)].decode(encoding)
+
+    o = data.index(first.encode(encoding) + b"\0")
+    va = next(base + rva + o - raw for rva, size, raw in spans if raw <= o < raw + size)
+    p = data.index(struct.pack("<Q", va))
+    persons = []
+    for _ in range(KOUKAI4_WIN_PERSONS):
+        persons.append(tuple(text(v) for v in struct.unpack_from("<3Q", data, p)) + (data[p + 0x26], data[p + 0x2B]))
+        p += KOUKAI4_WIN_PERSON
+    return persons
+
 # EIKETSU4 (織田信長傳, Win, Chinese): DATA.E4 part 0 holds 645 person records of 77 bytes;
 # +0 name (12-byte Big5), +28 u16 face (also written as ASCII at +13)
 EIKETSU4_WIN_PERSON = 77

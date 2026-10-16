@@ -52,6 +52,7 @@ Early KOEI Games Data Research
 | KOUKAI2   | 大航海時代II                | 1993 |     DOS,PC98     |       |        |                     |
 | KOUKAIGD  | 大航海時代外傳              | 1998 |       WIN        |       |        |                     |
 | KOUKAI3   | 大航海時代III Costa del Sol | 1996 |       WIN        |       |        |                     |
+| KOUKAI4   | 大航海時代IV                | 1999 |       WIN        |       |        |                     |
 | TAIKOH    | 太閤立志傳                  | 1992 |     DOS,PC98     |       |        |                     |
 | TAIKOH2   | 太閤立志傳II                | 1995 |     PC98,WIN     |       |        |                     |
 | TAIKOH3   | 太閤立志傳III               | 1999 |       WIN        |       |        |                     |
@@ -151,6 +152,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `koukaigd-win` | 大航海時代外傳               | Win 中文版 |  171 |  157 |   ○    | [notes/koukaigd.md](notes/koukaigd.md) |
 | `koukai2-pc98` | 大航海時代II                 | PC-98      |  170 |  128 |   ○    | [notes/koukai2.md](notes/koukai2.md) |
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |
+| `koukai4pk-win` | 大航海時代IV with パワーアップキット HD Version | Win（Steam） |  120 |  220 |        | [notes/koukai4.md](notes/koukai4.md) |
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis-pc88` | 蒼き狼と白き牝鹿・ジンギスカン | PC-88    |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis-x68` | 蒼き狼と白き牝鹿・ジンギスカン | X68000   |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
