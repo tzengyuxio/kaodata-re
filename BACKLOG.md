@@ -37,7 +37,6 @@
 
 ## 待分析遊戲（`games/archives/dos/` 的其他檔案）
 
-- [ ] 信長之野望 英文版（`信長之野望_英文版_nobunagas-ambition.zip`）— 1988 年 DOS 的 Nobunaga's Ambition，全國版的移植，頭像是重畫的 4 色 EGA 64×40（格式已解，見 `notes/nobu2.md`）；人名只有羅馬拼音，id、人名欄位、要不要附單色色盤待 kaodata／使用者決定（2026-10-16）
 
 ## 待分析遊戲（`games/archives/pc98/` 新增的 `[PC98]` 壓縮檔）
 

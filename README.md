@@ -29,7 +29,7 @@ Early KOEI Games Data Research
 | SAN13     | 三國志13                    | 2016 |       WIN        |       |        |                     |
 | SAN14     | 三國志14                    | 2020 |                  |       |        |                     |
 | NOBU1     | 信長之野望                  | 1983 |                  |       |        |                     |
-| NOBU2     | 信長之野望 全國版           | 1986 |                  |       |        |                     |
+| NOBU2     | 信長之野望 全國版           | 1986 |       DOS        |       |        |                     |
 | NOBU3     | 信長之野望 戰國群雄傳       | 1988 |   DOS,PC98,X68   |       |        | 台灣稱 信長之野望II |
 | NOBU4     | 信長之野望 武將風雲錄       | 1990 |   DOS,PC98,X68   |       |        |                     |
 | NOBU5     | 信長之野望 霸王傳           | 1992 |     PC98,X68     |       |        |                     |
@@ -155,6 +155,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `genchou-pc88` | 蒼き狼と白き牝鹿・元朝秘史   | PC-88      |  372 |   80 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `genchou-x68` | 蒼き狼と白き牝鹿・元朝秘史   | X68000     |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `genchou-pc98` | 蒼き狼と白き牝鹿・元朝秘史   | PC-98      |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |
+| `nobu2-dos`  | Nobunaga's Ambition（全国版）  | DOS 英文版 |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |
 | `nobu2-pc88` | 信長の野望・全国版             | PC-88      |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |
 | `nobu2-x68`  | 信長の野望・全国版             | X68000     |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |
 | `nobu3-dos`  | 信長之野望・戰國群雄傳         | DOS 中文版 |  385 |  177 |   ○    | [notes/nobu3.md](notes/nobu3.md)   |

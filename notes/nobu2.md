@@ -50,9 +50,9 @@
   - 後繼者的組合臉（0x60EE0，表在 0x70632）：0x22380 起 4 個 64×80 的頭，接著眉（第 25 列起 7 列）、眼（32 起 5 列）、鼻（37 起 11 列）、口（48 起 7 列）各 4 個，寬 40 點、貼在 x＝0。碼是 10 bit，每段 2 bit，頭在最低位。人物資料不用組合臉（後繼者是遊戲中產生），匯出成一個 variant「後継者」。
 - 色盤（0x60EA2）：0x706EC 是兩組 8 色（X68000 色盤字），設到色號 8–15；大名與組合臉用第 0 組、女性用第 1 組。kaodata 一份資料集只有共用的色盤，所以女性的像素加 8，色盤做成 16 色（0–7 大名、8–15 女性）。
 
-## DOS 英文版（Nobunaga's Ambition，1988）
+## DOS 英文版（`nobu2-dos`，Nobunaga's Ambition，1988）
 
-來源：`games/archives/dos/信長之野望_英文版_nobunagas-ambition.zip`（`MAIN.EXE` 寫 `(C)1988 KOEI CORPORATION`）。還沒有匯出，資料集怎麼收待定。
+`dekoei.py export nobu2-dos` 用 `build_nobu2_dos`。來源：`games/archives/dos/信長之野望_英文版_nobunagas-ambition.zip`（`MAIN.EXE` 寫 `(C)1988 KOEI CORPORATION`），`games/nobu2-dos/` 放 `MAIN.EXE`、`PICDATA.DAT`、`DATA50S.DAT`，再加 `nobu2-pc88` 的 Disk A（`PC88_DISK_A.D88`，取漢字名）。
 
 - `MAIN.EXE` 是 MS C（1986），DGROUP 在檔案 0x13320（＝0x400＋0x12F20）。PICDATA 的檔案代碼存在 DS:0x160（`B:PICDATA.DAT` 或硬碟安裝的 `1ODA_B\PICDATA.DAT`，兩份相同）。
 - `PICDATA.DAT`（196608 bytes）裡的頭像，沒有壓縮：
@@ -61,5 +61,6 @@
   - 女性 0x29600 起，20 張 × 1056 bytes（88×48，0x13BF）。
 - 像素：每 8 點 2 bytes，第一個寫到 EGA 平面 2、第二個寫到平面 1，平面 0 清成 0（繪圖 0x988 → 0x9BF），所以色號是 0、2、4、6。
 - 色盤：「Play in color mode?」答是時用 mode 0x0E，色盤暫存器設成 DS:0xB22 的 `00 11 12 13 14 15 16 17…`，色號 0、2、4、6 是黑、亮綠、亮紅、黃（CGA 色盤 0 的高亮度那組）。答否時用 mode 6（640×200 單色），每點是兩個平面 OR 起來的黑白（0xB80 → 0xBA2）。
-- 圖是重畫的 4 色版，和 PC-88 的 8 色圖不同，人物順序相同（`DATA50S.DAT` 0x1700 起是羅馬拼音的 53 個姓，各 11 bytes，接著 53 個名：Kakizaki Yoshihiro … Oda Nobunaga … Shibata Katsuie）。
-- 拼法有幾個怪的：Ruzoji（龍造寺）、Kinoi（一条？待查）、Kosa（本願寺光佐）。
+- 圖是重畫的 4 色版，和 PC-88 的 8 色圖不同，人物順序相同。匯出時 200 線的列重複一次（64×80、88×96），組合臉的 4 段橫條和碼同 PC-88。
+- 人名：`DATA50S.DAT` 0x1760 起是 53 個羅馬拼音的姓、0x19A8 起是 53 個名，各 11 bytes（Kakizaki Yoshihiro … Shibata Katsuie）。`name` 照遊戲原文（Ruzoji＝竜造寺、Kinoi＝城井、Kosa＝光佐、Hideyosi 等怪拼法照錄），`nameZh` 依 id 取 PC-88 的漢字名，別所長冶照 PC-88 的 `nameHistorical` 改成別所長治。
+- 色盤：`ega`（預設）照 DS:0xB22 的色盤暫存器換算；`mono` 是單色模式（色號 0 黑、其他白）。

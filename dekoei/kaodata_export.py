@@ -3835,6 +3835,80 @@ def build_nobu2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU2 (Nobunaga's Ambition, DOS English)
+
+NOBU2_DOS_INPUTS = ["MAIN.EXE", "PICDATA.DAT", "DATA50S.DAT", "PC88_DISK_A.D88"]
+# PICDATA.DAT (MAIN.EXE 0x1325 / 0x13BF / 0x125B): per 8 pixels a byte for EGA plane 2, then one for plane 1
+# (plane 0 is cleared), so the colours are 0, 2, 4, 6. 53 lords 64x40, the 4 successor faces, 20 women 88x48
+NOBU2_DOS_LORD_FACES = 0x20600
+NOBU2_DOS_PARTS = 0x28C00
+NOBU2_DOS_WOMEN = 0x29600
+NOBU2_DOS_PALETTE = 0x400 + 0x12F20 + 0xB22  # MAIN.EXE DS:0xB22, the EGA palette registers of colour mode
+NOBU2_DOS_NAMES = (0x1760, 0x19A8)  # DATA50S.DAT: 53 surnames, then 53 given names, 11 bytes each
+
+
+def build_nobu2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU2_DOS_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    pic = files["PICDATA.DAT"]
+    store = ImageStore(["pixels.bin", "portraits.bin"])
+
+    def pixels(o: int, w: int, h: int) -> bytes:
+        px = bytearray()
+        for i in range(o, o + w * h // 4, 2):
+            px += bytes((pic[i] >> b & 1) << 2 | (pic[i + 1] >> b & 1) << 1 for b in range(7, -1, -1))
+        return bytes(v for y in range(h) for v in px[y * w:(y + 1) * w] * 2)  # 200-line rows doubled
+
+    parts = {}
+    for slot, (_, row, rows) in NOBU2_PC88_SLOTS.items():
+        parts[slot] = {"at": [0, row * 2], "items": [store.add(64, rows * 2, pixels(NOBU2_DOS_PARTS + i * 640 + row * 16,
+                                                                                    64, rows)) for i in range(4)]}
+    portraits = [{"img": store.add(64, 80, pixels(NOBU2_DOS_LORD_FACES + i * 640, 64, 40), blob=1)}
+                 for i in range(koei_games.NOBU2_PC88_LORDS)]
+    portraits += [{"img": store.add(88, 96, pixels(NOBU2_DOS_WOMEN + i * 1056, 88, 48), blob=1), "group": "姫"}
+                  for i in range(NOBU2_PC88_WOMEN_COUNT)]
+
+    # the names are romaji only; nameZh is the PC-88 name of the same lord (the order is the same)
+    data50s = files["DATA50S.DAT"]
+
+    def text(o: int) -> str:
+        return data50s[o:o + 11].split(b"\0")[0].decode("ascii")
+
+    kanji = koei_games.load_nobu2_pc88_names(pc88.cpm_files(pc88.d88_image(files["PC88_DISK_A.D88"]))["DATA50S.DAT"])
+    characters = [{"id": i, "name": f"{text(NOBU2_DOS_NAMES[0] + 11 * i)} {text(NOBU2_DOS_NAMES[1] + 11 * i)}",
+                   "nameZh": NOBU2_PC88_NAME_HISTORICAL.get(kanji[i], kanji[i]), "face": {"portrait": i}}
+                  for i in range(koei_games.NOBU2_PC88_LORDS)]
+
+    # EGA 200-line palette registers: bit 0 B, 1 G, 2 R, 4 intensity
+    regs = files["MAIN.EXE"][NOBU2_DOS_PALETTE:NOBU2_DOS_PALETTE + 8]
+    ega = ["#" + "".join(f"{(0xAA if r >> b & 1 else 0) + (0x55 if r & 0x10 else 0):02x}" for b in (2, 1, 0)) for r in regs]
+    mono = ["#000000"] + ["#ffffff"] * 7  # monochrome mode (mode 6) ORs the two planes
+
+    meta = {
+        "format": FORMAT, "id": "nobu2-dos", "game": "NOBU2", "platform": "DOS",
+        "title": {"ja": "信長の野望・全国版", "zh": "信長之野望・全國版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU2_DOS_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "ega", "label": "EGA", "colors": ega}, {"id": "mono", "label": "Mono", "colors": mono}],
+        "blobs": store.names,
+        "images": store.refs,
+        "composite": {
+            "canvas": [64, 80],
+            "slots": [{"id": slot, "label": label} for slot, (label, *_) in NOBU2_PC88_SLOTS.items()],
+            "variants": [{"id": "0", "label": "後継者", "parts": parts}],
+            "code": {"kind": "bitfield", "bits": 8, "fields": [
+                {"of": "mouth", "hi": 7, "lo": 6}, {"of": "nose", "hi": 5, "lo": 4},
+                {"of": "eyes", "hi": 3, "lo": 2}, {"of": "head", "hi": 1, "lo": 0}]},
+        },
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- NOBU2 (信長の野望・全国版, X68000)
 
 NOBU2_X68_INPUTS = ["KAO.DAT", "DATA50.DAT", "ODAMAIN.Z"]
@@ -6050,7 +6124,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
-            "nobu2-pc88": build_nobu2_pc88, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
+            "nobu2-pc88": build_nobu2_pc88, "nobu2-dos": build_nobu2_dos, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
             "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
