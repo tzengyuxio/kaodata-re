@@ -45,7 +45,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 三國志14 with パワーアップキット | 872410 | 872411（manifest 247060224827963761）等 24 個 depot | build 25094285 | 多語，`games/steam/872410/`；`ScreenLayout.rdb.bin12` 不在下載裡；只分析，見 `notes/san14.md` |
 | 信長の野望・大志 with パワーアップキット | 628890 | 628891（manifest 7841214841290072598）等 14 個 depot | build 3876132 | 日、英、繁中，PK 在 `RES_PK/` 等，`games/steam/628890/`；只分析，見 `notes/nobu15.md` |
 | 信長の野望・新生 with パワーアップキット | 1336980 | 1336981（manifest 7766985603044333289）等 3 個 depot | build 18823764／版本 1.1.7 | 日、英、繁中、簡中，PK 在 `RES_PK/` 等，`games/steam/1336980/`；只分析，見 `notes/nobu16.md` |
-| 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（內容未查），`games/steam/397720/` |
+| 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（5 包 DLC 的清單），`games/steam/397720/`；只分析，見 `notes/santsukuru.md` |
 | 信長の野望・武将風雲録 | 521740 | 521741（manifest 4318626338706197183） | build 1691564／Readme 2017年3月 | 日文 Windows 版，`games/steam/521740/` |
 | 信長の野望 | 544990 | 544991（manifest 2677895693165515782） | build 1500360 | `games/steam/544990/` |
 | 信長の野望･全国版 | 521660 | 521661（manifest 2989037137317738632） | build 1580548 | `games/steam/521660/` |
