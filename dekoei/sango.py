@@ -640,6 +640,98 @@ def load_san11_persons(scenario) -> list[dict]:
     return persons
 
 
+# 三國志12 PK (Steam): Data/KAO_W_S.S12 is a LINK of 2000 GT1G0500 textures (+0x26 log2 height << 4 | log2 width,
+# B, G, R, A from +0x2C), each cropped by the 12-byte rect table (u16 x, y, w, h) at +0x10 to its 90 x 128 face;
+# an empty slot is 1 x 1. The added faces are LINKs of the same kind whose face numbers are a .dat (u32 count, u32s).
+SAN12_FACE_FILES = [("Data/KAO_W_S.S12", None), ("AddKao00/ADD00_KAO_W_S.S12", "AddKao00/ADD00.dat"),
+                    ("PK/AddKao20/ADD20_KAO_W_S.S12", "PK/AddKao20/ADD20.dat"),
+                    ("PK/AddKao21/ADD21_KAO_W_S.S12", "PK/AddKao21/ADD21.dat"),
+                    ("PK/AddKao21/SP0_KAO_W_S.S12", "PK/AddKao21/SP0.dat")]
+# Scenario*.dat: ILNK; every part but 0 is encrypted from seed 0xE0A (San12WPK.exe 0x5F8D90). The person part is
+# 1500 bit-field records of 292 bytes (PK) or 264 (base): +4 given name 5 bytes, +9 surname 5, +0xE reading
+# (half-width katakana, full name), cp932 with gaiji at F040- (read as U+E000-); bit 482 is the 11-bit face number
+SAN12_PERSONS = 1500
+SAN12_FACE_BIT = 482
+SAN12_GAIJI = {0xE000: "瓚", 0xE003: "郃", 0xE004: "蒯", 0xE006: "傕", 0xE009: "詡", 0xE00C: "龐", 0xE00D: "繇",
+               0xE00E: "邈", 0xE00F: "騭", 0xE011: "闞", 0xE012: "玠", 0xE014: "邢", 0xE015: "歆", 0xE016: "闓",
+               0xE018: "譙", 0xE019: "琬", 0xE01A: "郝", 0xE01D: "褚", 0xE025: "璝", 0xE032: "綝", 0xE037: "笮",
+               0xE038: "祜", 0xE039: "蕤", 0xE03B: "毌", 0xE03D: "瓘", 0xE03F: "琰", 0xE043: "鞏", 0xE044: "眭",
+               0xE04F: "宓", 0xE051: "禕", 0xE056: "蹋", 0xE05A: "氐", 0xE062: "臏", 0xE063: "淩", 0xE064: "嬴",
+               0xE065: "璜", 0xE06F: "罃", 0xE0D4: "嬀"}
+
+
+def load_san12_faces(game_dir, files=SAN12_FACE_FILES) -> dict[int, tuple[int, int, bytes]]:
+    """Face number -> (w, h, top-down RGBA) of every 90 x 128 face in files."""
+    faces = {}
+    for name, numbers in files:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = f.read()
+        assert data[:4] == b"LINK"
+        count, rects = struct.unpack_from("<I", data, 4)[0], struct.unpack_from("<I", data, 0x10)[0]
+        if numbers:
+            with open(os.path.join(game_dir, numbers), "rb") as f:
+                ids = f.read()
+            ids = struct.unpack_from(f"<{count}I", ids, 4)
+        else:
+            ids = range(count)
+        for k, face in enumerate(ids):
+            start, size = struct.unpack_from("<II", data, 0x20 + 8 * k)
+            x, y, w, h = struct.unpack_from("<4H", data, rects + 12 * k)
+            if w <= 1:
+                continue
+            t = data[start:start + size]
+            assert t[:8] == b"GT1G0500"
+            width = 1 << (t[0x26] & 15)
+            rgba = bytearray()
+            for row in range(y, y + h):
+                o = 0x2C + (row * width + x) * 4
+                line = bytearray(t[o:o + w * 4])
+                line[0::4], line[2::4] = line[2::4], line[0::4]
+                rgba += line
+            assert face not in faces
+            faces[face] = (w, h, bytes(rgba))
+    return faces
+
+
+def san12_decrypt(data: bytes, seed: int = 0xE0A) -> bytes:
+    """A part of a Scenario*.dat: an LCG word (s >> 16) per step; odd: XOR the next word into 2 bytes, else (or
+    with 1 byte left) XOR (r >> 8 ^ r) & 0xFF of the next word into 1 byte."""
+    out, s, i, n = bytearray(data), seed, 0, len(data)
+    while i < n:
+        s = (s * 0x6C078965 + 0x3039) & 0xFFFFFFFF
+        odd = s >> 16 & 1
+        s = (s * 0x6C078965 + 0x3039) & 0xFFFFFFFF
+        r = s >> 16
+        if n - i >= 2 and odd:
+            out[i] ^= r & 0xFF
+            out[i + 1] ^= r >> 8
+            i += 2
+        else:
+            out[i] ^= (r >> 8 ^ r) & 0xFF
+            i += 1
+    return bytes(out)
+
+
+def load_san12_persons(path, size=292) -> list[dict]:
+    """The 1500 person records: id, name, kana, face (an empty slot has no name)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"ILNK"
+    n = struct.unpack_from("<I", data, 4)[0]
+    offsets = list(struct.unpack_from(f"<{n}I", data, 8)) + [len(data)]
+    part, = [san12_decrypt(data[a:b]) for a, b in zip(offsets[1:], offsets[2:]) if b - a == SAN12_PERSONS * size]
+
+    def text(b):
+        return "".join(SAN12_GAIJI.get(ord(c), c) for c in b.split(b"\0")[0].decode("cp932"))
+
+    persons = []
+    for k in range(SAN12_PERSONS):
+        r = part[k * size:(k + 1) * size]
+        persons.append({"id": k, "name": text(r[9:14]) + text(r[4:9]), "kana": text(r[14:]),
+                        "face": int.from_bytes(r, "little") >> SAN12_FACE_BIT & 0x7FF})
+    return persons
+
+
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
 # +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
 KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)

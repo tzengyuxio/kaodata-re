@@ -6379,6 +6379,97 @@ def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN12PK (三國志12 PK, Steam)
+
+SAN12PK_WIN_SCENARIOS = [f"PK/Scenario/Scenario{n}.dat" for n in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                                                                  20, 21)]
+SAN12PK_WIN_BASE = "Scenario/Scenario0.dat"  # the base game's master scenario, for the pk marks
+SAN12PK_WIN_INPUTS = [f for pair in sango.SAN12_FACE_FILES for f in pair if f] + SAN12PK_WIN_SCENARIOS + \
+    [SAN12PK_WIN_BASE]
+SAN12PK_WIN_ROLE_FACES = range(1000, 1023)  # 文官, 兵士, 山賊将…: shared by the role persons, not characters
+# faces no scenario uses
+SAN12PK_WIN_GROUPS = [(range(1101, 1147), "其他頭像"), (range(1150, 1185), "真・三國無双"),
+                      (range(1266, 1280), "新武將"), (range(1600, 1610), "新武將"), (range(1900, 1936), "新武將")]
+SAN12PK_WIN_PER_BLOB = 25
+
+
+def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN12PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = sango.load_san12_faces(game_dir)
+    # the base game's faces: Data/KAO_W_S.S12 and AddKao00
+    base_faces = set(sango.load_san12_faces(game_dir, sango.SAN12_FACE_FILES[:2]))
+    codes = sorted(faces)
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(codes) - 1) // SAN12PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    index = {c: i for i, c in enumerate(codes)}
+
+    scenarios = [sango.load_san12_persons(os.path.join(game_dir, n)) for n in SAN12PK_WIN_SCENARIOS]
+    persons = scenarios[0]
+    base_names = {p["name"] for p in sango.load_san12_persons(os.path.join(game_dir, SAN12PK_WIN_BASE), 264)
+                  if p["name"]}
+    roles = {}
+    for p in persons:
+        if p["name"] and p["face"] in SAN12PK_WIN_ROLE_FACES:
+            roles.setdefault(p["face"], []).append(p["name"])
+    people = [p for p in persons if p["name"] and p["face"] not in SAN12PK_WIN_ROLE_FACES]
+    owner = {p["face"]: p["id"] for p in people}
+    assert len(owner) == len(people) and set(owner) <= set(faces)
+    # other faces a later scenario gives a person (夏侯惇's 1100)
+    looks = {}
+    for sc in scenarios[1:]:
+        for p in sc:
+            if p["name"] and p["face"] not in owner and p["face"] not in SAN12PK_WIN_ROLE_FACES:
+                looks.setdefault(p["id"], [])
+                if p["face"] not in looks[p["id"]]:
+                    looks[p["id"]].append(p["face"])
+
+    groups = {c: g for r, g in SAN12PK_WIN_GROUPS for c in r}
+    portraits = []
+    for n, code in enumerate(codes):
+        w, h, rgba = faces[code]
+        p = {"img": store.add(w, h, rgba, blob=n // SAN12PK_WIN_PER_BLOB, rgba=True), "code": f"{code:04X}"}
+        if code in roles:
+            p["group"], p["name"] = "一般人物", "／".join(dict.fromkeys(roles[code]))
+        elif code in groups:
+            p["group"] = groups[code]
+        else:
+            assert code in owner or any(code in v for v in looks.values()), code
+        if code not in base_faces:
+            p["pk"] = True
+        portraits.append(p)
+
+    # the reading is of the full name with no break, so it has no space
+    characters = []
+    for p in people:
+        ch = {"id": p["id"], "name": p["name"]}
+        if p["kana"]:
+            ch["reading"] = kana_to_hiragana(p["kana"])
+        ch["face"] = {"portrait": index[p["face"]]}
+        if p["id"] in looks:
+            ch["expressions"] = [{"portrait": index[c]} for c in looks[p["id"]]]
+        if p["name"] not in base_names:
+            ch["pk"] = True
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san12pk-win", "game": "SAN12PK", "platform": "WIN",
+        "title": {"ja": "三國志12 with パワーアップキット", "zh": "三國志12 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN12PK_WIN_INPUTS]},
+        "display": {"scale": 3},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blobs))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SANTSUKURU (三国志ツクール, Steam)
 
 SANTSUKURU_WIN_INPUTS = ["LINKDATA.IDX", "LINKDATA0.BIN"] + [f"RES/{f}.bin" for f in koei_games.SANTSUKURU_WIN_DLC.values()]
@@ -6824,7 +6915,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu9pk-win": build_nobu9pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
-            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win,
+            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win, "san12pk-win": build_san12pk_win,
             "taikoh5dx-win": build_taikoh5dx_win, "koukai4pk-win": build_koukai4pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
@@ -6833,7 +6924,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
 
 
 # full-colour datasets written as lossless WebP files (spec §5) instead of RGBA blobs
-WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win"}
+WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win", "san12pk-win"}
 
 
 @click.command(help=f"匯出 kaodata 統一格式資料集 (DATASET: {', '.join(DATASETS)})")
