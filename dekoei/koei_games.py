@@ -1194,6 +1194,81 @@ def load_nobu12_win_persons(path) -> list[tuple[int, str, str, int]]:
         p = nxt
     return persons
 
+# NOBU13 PK (天道 with PK, Win, Steam): scenario/sceda??.n13 is a 'NOBU13SCENARIOVERSION00' header and one LWC block.
+# Unpacked, the u32 pair (0x14, 2600) is followed by 2600 person slots: +0 surname 11, +11 given name 11, +22 surname
+# reading 19, +41 given name reading 19 (Shift-JIS, hiragana; all zero in an empty slot), 153 more bytes, four arrays
+# of (u32 count, count x u16), then 137 bytes whose u16 at +68 is the face code.
+NOBU13_WIN_SLOTS = 2600
+# Face code -> KAO_?.N13 entry (NOBU13PK.exe 0x502ED0): ranges [lo, hi) with the 1-based entry of lo; codes 1198-1337
+# are first moved down by 21 (1198-1218 are then the same faces as 1177-1197)
+NOBU13_WIN_FACE_RANGES = [(0, 1338, 1), (4000, 4024, 1318), (5001, 5013, 1342), (6000, 6036, 1354), (6050, 6052, 1390),
+                          (6095, 6106, 1392), (7000, 7016, 1403), (8000, 8180, 1419)]
+
+
+def load_nobu13_win_persons(path) -> list[tuple[str, str, int]]:
+    """(name, reading, face code) of every slot of one sceda??.n13 (empty slots have no name)."""
+    with open(path, "rb") as f:
+        packed = f.read()
+    data = lwc_decode(packed[packed.index(b"LWC\x1a"):])
+
+    def text(o, n):
+        return data[o:o + n].split(b"\0")[0].decode("cp932")
+
+    p = data.index(struct.pack("<2I", 0x14, NOBU13_WIN_SLOTS)) + 8
+    persons = []
+    for _ in range(NOBU13_WIN_SLOTS):
+        q = p + 213
+        for _ in range(4):
+            n, = struct.unpack_from("<I", data, q)
+            q += 4 + 2 * n
+        persons.append((text(p, 11) + text(p + 11, 11), text(p + 22, 19) + text(p + 41, 19),
+                        struct.unpack_from("<H", data, q + 68)[0]))
+        p = q + 137
+    return persons
+
+
+def nobu13_face_entry(code) -> int | None:
+    """KAO_?.N13 entry of a face code (None = no face)."""
+    for lo, hi, first in NOBU13_WIN_FACE_RANGES:
+        if lo <= code < hi:
+            return first - 1 - lo + (code - 21 if 1198 <= code <= 1337 else code)
+    return None
+
+
+def nobu13_face_code(entry) -> int:
+    """The face code of a KAO_?.N13 entry (codes 1177-1197 rather than their aliases 1198-1218)."""
+    for lo, hi, first in NOBU13_WIN_FACE_RANGES:
+        code = entry - first + 1 + lo
+        if lo == 0 and code >= 1198:
+            code += 21
+        if lo <= code < hi:
+            return code
+
+
+def load_nobu13_win_kao(path) -> list[tuple[int, int, bytes]]:
+    """(width, height, RGBA) of every entry of KAO_?.N13: a 'LINK' archive of n (u32 offset, u32 size) at 0x20 and n
+    12-byte rectangles (u16 x, y, width, height, 4 zero bytes) at 0x3220; each entry is a 'GT1G0600' texture whose
+    square B, G, R, A pixels start at +0x38."""
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"LINK"
+    count, = struct.unpack_from("<I", data, 4)
+    rects = struct.unpack_from("<I", data, 0x10)[0]
+    faces = []
+    for i in range(count):
+        offset, size = struct.unpack_from("<2I", data, 0x20 + 8 * i)
+        x, y, w, h = struct.unpack_from("<4H", data, rects + 12 * i)
+        assert data[offset:offset + 8] == b"GT1G0600" and (x, y) == (0, 0)
+        side = int(((size - 0x38) // 4) ** 0.5)
+        rgba = bytearray()
+        for row in range(h):
+            bgra = data[offset + 0x38 + row * side * 4:offset + 0x38 + (row * side + w) * 4]
+            px = bytearray(bgra)
+            px[0::4], px[2::4] = bgra[2::4], bgra[0::4]
+            rgba += px
+        faces.append((w, h, bytes(rgba)))
+    return faces
+
 # EIKETSU4 (織田信長傳, Win, Chinese): DATA.E4 part 0 holds 645 person records of 77 bytes;
 # +0 name (12-byte Big5), +28 u16 face (also written as ASCII at +13)
 EIKETSU4_WIN_PERSON = 77

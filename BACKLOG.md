@@ -76,5 +76,5 @@
 
 ## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
 
-- [ ] 天道 with PK（将星録、烈風伝、嵐世記、蒼天録、天下創世、革新已匯出）；大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（2026-10-16）
+- [ ] 大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（天道 PK 已匯出成 `nobu13pk-win`）（2026-10-16）
 - [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）

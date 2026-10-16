@@ -40,7 +40,7 @@ Early KOEI Games Data Research
 | NOBU10    | 信長之野望 蒼天錄           | 2002 |       WIN        |       |        |                     |
 | NOBU11    | 信長之野望 天下創世         | 2003 |       WIN        |       |        |                     |
 | NOBU12    | 信長之野望 革新             | 2005 |       WIN        |       |        |                     |
-| NOBU13    | 信長之野望 天道             | 2009 |                  |       |        |                     |
+| NOBU13    | 信長之野望 天道             | 2009 |       WIN        |       |        |                     |
 | NOBU14    | 信長之野望 創造             | 2013 |                  |       |        |                     |
 | NOBU15    | 信長之野望 大志             | 2017 |                  |       |        |                     |
 | NOBU16    | 信長之野望 新生             | 2022 |                  |       |        |                     |
@@ -181,6 +181,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu10pk-win` | 信長の野望・蒼天録 with パワーアップキット | Win 日文版（Steam） | 1990 | 2184 |        | [notes/nobu10.md](notes/nobu10.md) |
 | `nobu11pk-win` | 信長の野望・天下創世 with パワーアップキット | Win 日文版（Steam） | 1100 | 1241 |        | [notes/nobu11.md](notes/nobu11.md) |
 | `nobu12pk-win` | 信長の野望・革新 with パワーアップキット | Win 日文版（Steam） | 1100 | 1379 |        | [notes/nobu12.md](notes/nobu12.md) |
+| `nobu13pk-win` | 信長の野望・天道 with パワーアップキット | Win 日文版（Steam） | 1344 | 1598 |        | [notes/nobu13.md](notes/nobu13.md) |
 | `air-pc98`   | エアーマネージメント 大空に賭ける | PC-98   |    0 |   38 |        | [notes/air.md](notes/air.md)       |
 | `air-x68`    | エアーマネージメント 大空に賭ける | X68000  |    0 |   33 |        | [notes/air.md](notes/air.md)       |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |

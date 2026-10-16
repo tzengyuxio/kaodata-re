@@ -6010,6 +6010,99 @@ def build_nobu12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU13PK (天道 with PK, Windows, Steam)
+
+NOBU13PK_WIN_SCENARIOS = [f"sceda{n:02d}.n13" for n in [*range(1, 12), *range(21, 32)]]
+NOBU13PK_WIN_INPUTS = ["KAO_M.N13"] + NOBU13PK_WIN_SCENARIOS
+# names come from scenario 11 (慶長大転封, after 関ヶ原); the two what-if people of slots 1190 and 1191 take the
+# names of the people they become there (上杉謙信, 徳川家康), so they keep the ones of scenario 1
+NOBU13PK_WIN_NAMES_FROM = "sceda11.n13"
+NOBU13PK_WIN_FIRST_NAMES = {1190, 1191}
+NOBU13PK_WIN_OFFICERS = [*range(0, 1361), *range(2290, 2306)]
+# slots 1600-1690 are princesses, 2200-2283 cultural, event and townsfolk people; 2000-2069 (forebears) have no face
+NOBU13PK_WIN_GROUPS = [(range(4000, 4024), "姫"), (range(5001, 5013), "文化人"), (range(6000, 6036), "事件人物"),
+                       (range(6050, 6052), "事件人物"), (range(8000, 8180), "事件人物")]
+NOBU13PK_WIN_ROLES = {"老人", "農民", "鉄砲足軽", "僧侶", "公家", "僧兵", "小姓", "組頭", "足軽", "家臣", "家老", "伝令",
+                      "忍者衆", "侍", "商人", "忍者", "豪族", "子供", "使者", "南蛮人"}
+NOBU13PK_WIN_PER_BLOB = 31  # about 1 MB compressed
+
+
+def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU13PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = koei_games.load_nobu13_win_kao(os.path.join(game_dir, "KAO_M.N13"))
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // NOBU13PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = [{"img": store.add(w, h, rgba, blob=i // NOBU13PK_WIN_PER_BLOB, rgba=True),
+                  "code": f"{koei_games.nobu13_face_code(i):04X}"} for i, (w, h, rgba) in enumerate(faces)]
+
+    scenarios = {n: koei_games.load_nobu13_win_persons(os.path.join(game_dir, n)) for n in NOBU13PK_WIN_SCENARIOS}
+    persons = scenarios[NOBU13PK_WIN_NAMES_FROM]
+    entry = koei_games.nobu13_face_entry
+    # face code 0 is 織田信長's; the other slots with 0 have no face
+    officers = [s for s in NOBU13PK_WIN_OFFICERS if persons[s][0] and (persons[s][2] or s == 338)]
+    own = {entry(persons[s][2]): s for s in officers}
+    assert len(own) == len(officers)
+    looks = {}
+    # other faces of an officer: those some scenario gives the same slot (not another officer's), and event slots
+    # that show the officer under the same name
+    by_name = {persons[s][0]: s for s in officers if s not in NOBU13PK_WIN_FIRST_NAMES}
+    for s in officers:
+        for sc in scenarios.values():
+            e = entry(sc[s][2])
+            if e is not None and e not in own and e not in looks:
+                looks[e] = s
+    for s, (name, _, code) in enumerate(persons):
+        e = entry(code)
+        if s not in officers and name in by_name and e not in own and e not in looks:
+            looks[e] = by_name[name]
+
+    characters = []
+    for s in officers:
+        name, reading, code = scenarios["sceda01.n13"][s] if s in NOBU13PK_WIN_FIRST_NAMES else persons[s]
+        ch = {"id": s, "name": name, "reading": reading, "face": {"portrait": entry(persons[s][2])}}
+        expressions = [e for e, o in sorted(looks.items()) if o == s]
+        if expressions:
+            ch["expressions"] = [{"portrait": e} for e in expressions]
+        characters.append(ch)
+
+    # the remaining faces by use; one used by a single named person (or several roles) is named
+    users = {}
+    for sc in scenarios.values():
+        for s, (name, _, code) in enumerate(sc):
+            e = entry(code)
+            if name and s not in officers and e is not None and e not in own and e not in looks:
+                users.setdefault(e, {}).setdefault(s, name)
+    for codes, group in NOBU13PK_WIN_GROUPS:
+        for code in codes:
+            e = entry(code)
+            if e in own or e in looks:
+                continue
+            p = portraits[e]
+            names = list(dict.fromkeys(users.get(e, {}).values()))
+            p["group"] = "其他頭像" if not names else "一般人物" if NOBU13PK_WIN_ROLES & set(names) else group
+            if len(users.get(e, {})) == 1 or p["group"] == "一般人物":
+                p["name"] = "／".join(names)
+    assert all(i in own or i in looks or "group" in p for i, p in enumerate(portraits))
+
+    meta = {
+        "format": FORMAT, "id": "nobu13pk-win", "game": "NOBU13PK", "platform": "WIN",
+        "title": {"ja": "信長の野望・天道 with パワーアップキット", "zh": "信長之野望・天道 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU13PK_WIN_INPUTS]},
+        "display": {"scale": 2},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blobs))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- EIKETSU3 (毛利元就傳, Win, Chinese)
 
 EIKETSU3_WIN_INPUTS = ["KAO.E3", "PMPALET.E3", "DATA.E3"]
@@ -6403,7 +6496,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu9pk-win": build_nobu9pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
-            "nobu12pk-win": build_nobu12pk_win,
+            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
             "eiketsu5-win": build_eiketsu5_win,
