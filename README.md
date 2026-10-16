@@ -57,7 +57,7 @@ Early KOEI Games Data Research
 | (TAIKOH3) | 太閤立志傳III               | 1999 |                  |       |        |                     |
 | EUROPE    | 歐陸戰線                    | 1991 |       DOS        |       |        |                     |
 | ISHIN     | 維新之嵐                    | 1988 |       PC98       |       |        |                     |
-| ISHIN2    | 維新之嵐 幕末志士傳         | 1997 |       WIN        |       |        |                     |
+| ISHIN2    | 維新之嵐 幕末志士傳         | 1998 |       WIN        |       |        |                     |
 | KOHRYUKI  | 項劉記                      | 1993 |       DOS        |   ○   |        |                     |
 | LEMPE     | 拿破崙                      | 1990 |       DOS        |   ○   |        |                     |
 | ROYAL     | 魔法皇冠                    | 1991 |   DOS,PC98,X68   |       |        |                     |
