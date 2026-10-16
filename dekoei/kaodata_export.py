@@ -146,6 +146,19 @@ def display_entries(meta: dict, blobs: list[bytes]):
         yield f"pt:{i}", *portrait_entry(i)
 
 
+def webp_entries(meta: dict):
+    """(key, image index) for every face of a dataset with only "file" portraits, as display_entries."""
+    portraits = meta["portraits"]
+    for ch in meta["characters"]:
+        if "face" not in ch:
+            continue
+        yield f"ch:{ch['id']}", portraits[ch["face"]["portrait"]]["img"]
+        for k, expr in enumerate(ch.get("expressions", []), 1):
+            yield f"ch:{ch['id']}/{k}", portraits[expr["portrait"]]["img"]
+    for i, p in enumerate(portraits):
+        yield f"pt:{i}", p["img"]
+
+
 def portrait_palette(meta: dict, blobs: list[bytes], k: int) -> list[str]:
     """Palette k of the per-portrait palettes blob (spec §4): `size` colours x RGB each."""
     pp = meta["portraitPalettes"]
@@ -190,8 +203,39 @@ def revision() -> str:
                           cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
 
 
-def write_dataset(out_dir: str, meta: dict, blobs: list[bytes]) -> None:
+def webp_images(meta: dict, blobs: list[bytes]) -> tuple[dict, list[bytes]]:
+    """The full-colour images moved to "file" images (spec §5): (meta, the files' RGBA in image order). Every image
+    must be full-colour; a pixel with alpha 0 is stored as 0, 0, 0, 0."""
+    rgba = []
+    for i in range(len(meta["images"])):
+        px = bytearray(rgba_image(meta, blobs, i))
+        assert set(px[3::4]) <= {0, 255}
+        for k in range(3, len(px), 4):
+            if not px[k]:
+                px[k - 3:k] = b"\0\0\0"
+        rgba.append(bytes(px))
+    meta = {**meta, "blobs": [], "palettes": [],
+            "images": [{"file": f"faces/{i:04d}.webp", "w": w, "h": h} for i, (_, w, h, *_) in enumerate(meta["images"])]}
+    del meta["rgbaBlobs"]
+    return meta, rgba
+
+
+def write_dataset(out_dir: str, meta: dict, blobs: list[bytes], webp: bool = False) -> None:
+    """With `webp`, the full-colour images are written as lossless WebP files instead of blobs."""
     os.makedirs(out_dir, exist_ok=True)
+    if webp:
+        meta, rgba = webp_images(meta, blobs)
+        sums = {"algo": "sha256-rgba", "entries": {k: hashlib.sha256(rgba[img]).hexdigest()
+                                                   for k, img in webp_entries(meta)}}
+        os.makedirs(os.path.join(out_dir, "faces"), exist_ok=True)
+        for ref, px in zip(meta["images"], rgba):
+            Image.frombytes("RGBA", (ref["w"], ref["h"]), px).save(os.path.join(out_dir, ref["file"]), lossless=True,
+                                                                  quality=100, method=6, exact=True)
+        with open(os.path.join(out_dir, "dataset.json"), "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
+        with open(os.path.join(out_dir, "checksums.json"), "w", encoding="utf-8") as f:
+            json.dump(sums, f, indent=1)
+        return
     for name, pixels in zip(meta.get("blobs", ["pixels.bin"]), blobs):
         comp = zlib.compressobj(9, zlib.DEFLATED, -15)
         with open(os.path.join(out_dir, name), "wb") as f:
@@ -6663,13 +6707,20 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "genghis4pk-win": build_genghis4pk_win}
 
 
+# full-colour datasets written as lossless WebP files (spec §5) instead of RGBA blobs
+WEBP_DATASETS = {"san11pk-win", "nobu13pk-win"}
+
+
 @click.command(help=f"匯出 kaodata 統一格式資料集 (DATASET: {', '.join(DATASETS)})")
 @click.argument("dataset", type=click.Choice(sorted(DATASETS)))
 @click.option("--game-dir", required=True, type=click.Path(exists=True, file_okay=False), help="原版遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
 def export(dataset, game_dir, out_dir):
     meta, blobs = DATASETS[dataset](game_dir)
-    write_dataset(out_dir, meta, blobs)
+    webp = dataset in WEBP_DATASETS
+    write_dataset(out_dir, meta, blobs, webp)
+    if webp:
+        meta, blobs = json.load(open(os.path.join(out_dir, "dataset.json"), encoding="utf-8")), []
     faces = [c["face"] for c in meta["characters"] if "face" in c]
     n_portrait = sum("portrait" in f for f in faces)
     print(f"{dataset}: {len(meta['characters'])} characters "
@@ -6678,3 +6729,6 @@ def export(dataset, game_dir, out_dir):
     for name, px in [*zip(meta["blobs"], blobs), ("dataset.json", None), ("checksums.json", None)]:
         raw = f"{len(px)} px -> " if px is not None else ""
         print(f"  {name}: {raw}{os.path.getsize(os.path.join(out_dir, name))} B")
+    if webp:
+        print(f"  faces/: {len(meta['images'])} WebP, "
+              f"{sum(os.path.getsize(os.path.join(out_dir, i['file'])) for i in meta['images'])} B")
