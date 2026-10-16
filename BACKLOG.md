@@ -65,6 +65,7 @@
 和已收的其他平台版比對：一模一樣就只加版本標記，不同才做 `<game>-pc98`。
 
 - [x] 蒼き狼と白き牝鹿・元朝秘史（`Genchou Hishi [FD]`）— 頭像、人物同 X68，色盤不同，做 `genchou-pc98`（2026-10-16）
+- [x] 元朝秘史 DOS 中文版（`元朝秘史_killpeople.rar`）— 檔案同 PC-98、人名中文，做 `genchou-dos`；日文版元朝秘史、成吉思汗依 id 補 `nameZh`（2026-10-17）
 - [x] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 和 `genghis-pc88` 相同；kaodata 改以首發的 PC-98 版為主，做 `genghis-pc98`，PC-88 改成標籤（2026-10-16）
 - [x] ヨーロッパ戦線（`Europe Sensen [FD]`）— 色盤是類比色，做 `europe-pc98`（2026-10-16）
 - [x] 項劉記（`Kouryuuki [FD]`／`[HD]`）— 頭像、人名同 X68，色盤不同，做 `kouryuuki-pc98`（2026-10-16）
