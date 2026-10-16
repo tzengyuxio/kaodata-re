@@ -79,6 +79,6 @@
 
 - [x] 三國志12 with PK（628080）、三國志13（363150，PK 是 DLC）、三國志14（872410，PK 是 DLC）— 三國志12 PK 匯出成 `san12pk-win`、三國志13 PK 匯出成 `san13pk-win`（2026-10-16 使用者決定收）；三國志14 PK 只分析；頭像尺寸與張數已交 kaodata 記錄；人物與頭像的對應、日文／繁中名已追到（見 `notes/san12.md`–`san14.md`）（2026-10-16）
 - [x] 大志（628890）、新生（1336980）— 只分析、先不交 kaodata；收 72×72，尺寸與張數已交 kaodata 記錄；人物、頭像號、日文／繁中名已追到（見 `notes/nobu15.md`、`nobu16.md`）（2026-10-16）
-- [ ] 信長の野望・創造 with PK（288390）— SteamCMD 回 No subscription，帳號沒有這款（2026-10-16）
+- [ ] 信長の野望・創造 with PK（288390，暫定 `nobu14pk-win`）— SteamCMD 回 No subscription，帳號沒有這款；使用者暫時不買，買了再下載分析（2026-10-17）
 - [x] 三国志ツクール（397720）— 96×120 全彩，本體 5101＋已裝 DLC 2722 張，匯出成 `santsukuru-win`（WebP），先留 data-local 不上線；之後頭像連同人名要放到 Forgejo 的 koei-images 備查（建 repo／push 前先問使用者）（見 `notes/santsukuru.md`）（天道 PK 已匯出成 `nobu13pk-win`，太閤立志伝V DX 已匯出成 `taikoh5dx-win`，大航海時代IV PK HD 已匯出成 `koukai4pk-win`）（2026-10-16）
 - [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）
