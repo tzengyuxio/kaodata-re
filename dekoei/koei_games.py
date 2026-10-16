@@ -1,6 +1,7 @@
 import bitarray
 import click
 import unicodedata
+import re
 import genpei
 from ls11 import *
 from rich.table import Table
@@ -1116,6 +1117,43 @@ def load_nobu11_win_persons(path) -> list[tuple[int, str, str, int]]:
         o = start + slot * size
         persons.append((slot, text(o, 9) + text(o + 26, 9), text(o + 9, 17) + text(o + 35, 17),
                         struct.unpack_from("<H", data, o + 52)[0]))
+    return persons
+
+# NOBU9 PK (嵐世記 with PK, Win, Steam): scenario/SCEDA??.NB9 is a 0x190-byte plain header ('NOBU9SCENARIOVERSION02',
+# title, description), then every byte goes through one of four 256-byte substitution tables stored at 0x9C4098 in
+# Nobunaga9WPK.exe (table[plain] = stored). Nothing in the header picks the table; the data is mostly zeros, so the
+# table whose entry 0 is the most common stored byte is the one. Each person record is preceded by u32 1, u32 id and
+# u32 2, u32 0; from the surname: +0 surname (10 bytes), +10 common name (14), +24 given name (10), +34 surname
+# reading (18), +52 given reading (18), Shift-JIS, readings in hiragana; +0x5A u16 face (KaoCG.nb9, then
+# KaoCG2.nb9 from 1729), +0x5E u32 birth, coming-of-age and death years. Records vary in length, so they are found
+# by that lead-in. Ids 0-1449 are officers, 10000+ 公家, 11000+ 商人, 12000+ 寺社, 13000+ 水軍衆, 14000+ 忍者衆,
+# 15000+ 国人衆, 20000+ 姫, 30000+ 史実武将
+NOBU9_WIN_TABLES = 0x9C4098
+NOBU9_WIN_RECORD = re.compile(rb"\x01\0\0\0(....)\x02\0\0\0\0\0\0\0(?=[\x81-\xfc])", re.S)
+NOBU9_WIN_READING = re.compile(rb"(?:\x82[\x9f-\xf1]|\x81[\x45\x5b])+\0")
+
+
+def load_nobu9_win_persons(path, exe) -> dict[int, tuple[str, str, int]]:
+    """id -> (name, reading, face) of every person record of one SCEDA??.NB9; exe is Nobunaga9WPK.exe's bytes."""
+    with open(path, "rb") as f:
+        data = f.read()
+    tables = [exe[NOBU9_WIN_TABLES + 256 * k:NOBU9_WIN_TABLES + 256 * (k + 1)] for k in range(4)]
+    stored = max(range(256), key=lambda b: data.count(bytes([b]), 0x190))
+    table = next(t for t in tables if t[0] == stored)
+    data = data[0x190:].translate(bytes(table.index(b) for b in range(256)))
+
+    def text(o, n):
+        return data[o:o + n].split(b"\0")[0].decode("cp932")
+
+    persons = {}
+    for m in NOBU9_WIN_RECORD.finditer(data):
+        o = m.end()
+        if not NOBU9_WIN_READING.match(data, o + 34):
+            continue
+        pid, = struct.unpack("<I", m.group(1))
+        assert pid not in persons
+        persons[pid] = (text(o, 10) + text(o + 24, 10), text(o + 34, 18) + text(o + 52, 18),
+                        struct.unpack_from("<H", data, o + 0x5A)[0])
     return persons
 
 # NOBU12 PK (革新 with PK, Win, Steam): scenario/sceda??.n12 is a 'NOBU12SCENARIOVERSION02' header and one LWC block.

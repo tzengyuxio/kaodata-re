@@ -5252,6 +5252,104 @@ def build_nobu7_win(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- NOBU9 PK (嵐世記 with PK, Win, Steam)
+
+NOBU9PK_WIN_SCENARIOS = ["01", "02", "03", "04", "05", "08", "09", "10", "11", "12", "13", "14"]
+NOBU9PK_WIN_INPUTS = (["KaoCG.nb9", "KaoCG2.nb9", "palette.NB9", "Nobunaga9WPK.exe"]
+                      + [f"SCEDA{n}.NB9" for n in NOBU9PK_WIN_SCENARIOS])
+# KaoCG.nb9 / KaoCG2.nb9: u32 count, count x 40 bytes (u32 offset, size, width, height, LWC flag, ...), then the
+# entries; each is a bottom-up 8-bit DIB body (rows padded to 4 bytes), LWC-packed when the flag is set. All faces
+# are 96x120 but one 94x120 in each file. palette.NB9 is a 100x100 BMP whose palette (B, G, R, X at +54) the faces
+# share; they use colours 1-253. Face numbers run on from KaoCG (0-1728) into KaoCG2 (1729-1798)
+NOBU9PK_WIN_OFFICERS = 1450
+NOBU9PK_WIN_PK_OFFICERS = range(1320, 1450)  # the 130 officers PK adds (関ヶ原, 大坂の陣), faces 1599-1728
+NOBU9PK_WIN_PK_FACES = range(1599, 1799)  # those faces and all of KaoCG2 (史実武将 and the mission prize faces)
+NOBU9PK_WIN_HISTORICAL = range(30000, 30100)  # 史実武将 (北条早雲, 大石内蔵助 ...), mission prizes
+# the other person ids: id // 1000 -> group, named in the game's edit screen (12000s: 2 切支丹, the rest 僧侶)
+NOBU9PK_WIN_GROUPS = {10: "公家", 11: "商人", 12: "僧侶", 13: "水軍衆", 14: "忍者衆", 15: "国人衆", 20: "姫"}
+NOBU9PK_WIN_CHRISTIANS = [1432, 1433]  # 臼杵アンリケ, 平戸ポルロ
+NOBU9PK_WIN_PER_BLOB = 105  # about 1 MB compressed
+
+
+def build_nobu9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in NOBU9PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    pal = files["palette.NB9"]
+    colors = [f"#{pal[56 + 4 * c]:02x}{pal[55 + 4 * c]:02x}{pal[54 + 4 * c]:02x}" for c in range(255)]
+
+    faces = []
+    for name in ["KaoCG.nb9", "KaoCG2.nb9"]:
+        data = files[name]
+        count, = struct.unpack_from("<I", data)
+        base = 4 + 40 * count
+        for i in range(count):
+            offset, size, w, h, packed = struct.unpack_from("<5I", data, 4 + 40 * i)
+            body = data[base + offset:base + offset + size]
+            if packed:
+                body = ls11.lwc_decode(body)
+            stride = (w + 3) & ~3
+            px = b"".join(body[y * stride:y * stride + w] for y in reversed(range(h)))
+            assert 255 not in px
+            faces.append((w, h, px))
+    base_faces = [i for i in range(len(faces)) if i not in NOBU9PK_WIN_PK_FACES]
+    blobs = [f"portraits{k + 1 if k else ''}.bin"
+             for k in range((len(base_faces) - 1) // NOBU9PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs + ["extra.bin"])
+    portraits = []
+    for i, (w, h, px) in enumerate(faces):
+        blob = len(blobs) if i in NOBU9PK_WIN_PK_FACES else base_faces.index(i) // NOBU9PK_WIN_PER_BLOB
+        portraits.append({"img": store.add(w, h, px, blob=blob), "code": f"{i:04X}"})
+        if i in NOBU9PK_WIN_PK_FACES:
+            portraits[-1]["pk"] = True
+
+    # all 12 scenarios hold the same 1450 officers with the same faces; the last one (関ヶ原の後) has the latest
+    # names. The other people come and go between scenarios, so their faces are named from all of them
+    exe = files["Nobunaga9WPK.exe"]
+    scenarios = [koei_games.load_nobu9_win_persons(os.path.join(game_dir, f"SCEDA{n}.NB9"), exe)
+                 for n in NOBU9PK_WIN_SCENARIOS]
+    latest = scenarios[-1]
+    characters = []
+    for pid in [*range(NOBU9PK_WIN_OFFICERS), *sorted(i for i in latest if i in NOBU9PK_WIN_HISTORICAL)]:
+        name, reading, face = latest[pid]
+        characters.append({"id": pid, "name": name, "reading": reading, "face": {"portrait": face}})
+        if pid in NOBU9PK_WIN_PK_OFFICERS or pid in NOBU9PK_WIN_HISTORICAL:
+            characters[-1]["pk"] = True
+    used = {c["face"]["portrait"] for c in characters}
+    assert len(used) == len(characters)
+    others = {}
+    for persons in scenarios:
+        for pid, (name, _, face) in persons.items():
+            if pid // 1000 in NOBU9PK_WIN_GROUPS:
+                assert face not in used
+                others.setdefault(face, (NOBU9PK_WIN_GROUPS[pid // 1000], set()))[1].add(name)
+    for i, p in enumerate(portraits):
+        if i in used:
+            continue
+        if i not in others:
+            p["group"] = "其他頭像"
+            continue
+        group, names = others[i]
+        p["group"] = "切支丹" if i in NOBU9PK_WIN_CHRISTIANS else group
+        if len(names) == 1:
+            p["name"], = names
+
+    meta = {
+        "format": FORMAT, "id": "nobu9pk-win", "game": "NOBU9PK", "platform": "WIN",
+        "title": {"ja": "信長の野望・嵐世記 with パワーアップキット", "zh": "信長之野望・嵐世記 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU9PK_WIN_INPUTS]},
+        "display": {"scale": 2},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- NOBU10 PK (蒼天録 with PK, Win, Steam)
 
 NOBU10PK_WIN_INPUTS = ["KAOCG.NBX", "SCEDAT06.NBX"]
@@ -5966,6 +6064,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu7-win": build_nobu7_win,
             "nobu7pk-win": lambda game_dir: build_nobu7_win(game_dir, pk=True),
             "nobu8pk-win": build_nobu8pk_win,
+            "nobu9pk-win": build_nobu9pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
             "nobu12pk-win": build_nobu12pk_win,

@@ -36,7 +36,7 @@ Early KOEI Games Data Research
 | NOBU6     | 信長之野望 天翔記           | 1994 |       PC98       |       |        |                     |
 | NOBU7     | 信長之野望 將星錄           | 1997 |       WIN        |       |        |                     |
 | NOBU8     | 信長之野望 烈風傳           | 1999 |       WIN        |       |        |                     |
-| NOBU9     | 信長之野望 嵐世紀           | 2001 |                  |       |        |                     |
+| NOBU9     | 信長之野望 嵐世紀           | 2001 |       WIN        |       |        |                     |
 | NOBU10    | 信長之野望 蒼天錄           | 2002 |       WIN        |       |        |                     |
 | NOBU11    | 信長之野望 天下創世         | 2003 |       WIN        |       |        |                     |
 | NOBU12    | 信長之野望 革新             | 2005 |       WIN        |       |        |                     |
@@ -174,6 +174,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `nobu7pk-win`  | 信長の野望・将星録 with パワーアップキット | Win 日文版（Steam） |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `nobu8pk-win` | 信長の野望・烈風伝 with パワーアップキット | Win 日文版（Steam） |  900 | 1741 |        | [notes/nobu8.md](notes/nobu8.md) |
+| `nobu9pk-win` | 信長の野望・嵐世記 with パワーアップキット | Win 日文版（Steam） | 1465 | 1799 |        | [notes/nobu9.md](notes/nobu9.md) |
 | `nobu10pk-win` | 信長の野望・蒼天録 with パワーアップキット | Win 日文版（Steam） | 1990 | 2184 |        | [notes/nobu10.md](notes/nobu10.md) |
 | `nobu11pk-win` | 信長の野望・天下創世 with パワーアップキット | Win 日文版（Steam） | 1100 | 1241 |        | [notes/nobu11.md](notes/nobu11.md) |
 | `nobu12pk-win` | 信長の野望・革新 with パワーアップキット | Win 日文版（Steam） | 1100 | 1379 |        | [notes/nobu12.md](notes/nobu12.md) |
