@@ -40,6 +40,9 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 信長の野望・天道 with パワーアップキット | 363110 | 363111（manifest 892070077066238385） | build 2338456 | 日文版，`games/steam/363110/`；匯出用的檔案在 `games/nobu13pk-win/` |
 | 大航海時代IV with パワーアップキット HD Version | 1424800 | 1424801（manifest 3835565721977098930）、1424802（manifest 2363000941244658290） | build 7195847 | 日、繁中、簡中、韓四語，`games/steam/1424800/`；匯出用的檔案在 `games/koukai4pk-win/` |
 | 太閤立志伝V DX | 1842810 | 1842811（manifest 2345313088801476794） | build 9163702 | 日、簡中、繁中三語，`games/steam/1842810/`；匯出用的檔案在 `games/taikoh5dx-win/` |
+| 三國志12 with パワーアップキット | 628080 | 628081（manifest 7158590995384440669） | build 4476690 | 日文版，`games/steam/628080/`；只分析，見 `notes/san12.md` |
+| 三國志13 with パワーアップキット | 363150 | 363151（manifest 9060727473611169245）等 16 個 depot | build 4670615 | 多語，PK 在 `pk/`，`games/steam/363150/`；只分析，見 `notes/san13.md` |
+| 三國志14 with パワーアップキット | 872410 | 872411（manifest 247060224827963761）等 24 個 depot | build 25094285 | 多語，`games/steam/872410/`；`ScreenLayout.rdb.bin12` 不在下載裡；只分析，見 `notes/san14.md` |
 | 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（內容未查），`games/steam/397720/` |
 | 信長の野望・武将風雲録 | 521740 | 521741（manifest 4318626338706197183） | build 1691564／Readme 2017年3月 | 日文 Windows 版，`games/steam/521740/` |
 | 信長の野望 | 544990 | 544991（manifest 2677895693165515782） | build 1500360 | `games/steam/544990/` |
