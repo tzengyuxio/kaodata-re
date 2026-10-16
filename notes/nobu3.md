@@ -5,6 +5,7 @@
 ## 版本
 
 - 英文 DOS 版 Nobunaga's Ambition II 的移植：`KAODATA.DAT`、`KAO_OE.DAT`、`PACKDATA.DAT`、`HEXDATA.DAT` 和英文版（`games/archives/dos/信長之野望２_英文版_nobunagas-ambition-ii.zip`）逐 byte 相同；劇本換成中文名字（1993-08）。
+  - 英文版本身（MAIN.EXE 1990-12-10）的 SNDATA1／2 記錄排法、人數（240／212）和頭像碼也逐筆和中文版相同，只有人名是羅馬字（Uesugi Kenshin……）。同平台、同頭像、只有人名語言不同的在地化版本不另收（kaodata `docs/collection.md`），所以沒有英文版資料集。
 - 中文版 `MAIN.EXE`（1993-11-04）是 TINYPROG 壓縮，開頭會印「Cracked by C.C.F. 4th November, 1993」，是破解版。用 unicorn 跑完解壓 stub 後，程式碼和英文版 `MAIN.EXE`（沒壓縮，MZ 檔頭 0x3E00，DGROUP 0x1DBC）相同結構。下文位址是英文版映像位址。
 - `SAVEDATA.DAT`（2001）是玩家存檔，`SAVEDATA.ORG` 是空白存檔範本，都不用。
 
