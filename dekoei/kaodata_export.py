@@ -1860,6 +1860,9 @@ GENGHIS_DOS_NAME_HISTORICAL = {
     "斡鄰勒": "脫斡鄰勒",        # 少字 (Toghrul)
     "江宗": "襄宗",              # English "Chiang Tsung" = Xi Xia Xiangzong (inferred)
     "摩柯末": "摩訶末",          # 《元史》
+    "貝魯拉拉": "貝魯拉拉二世",  # 少字 (Ballala II)
+    "岐國": "岐國公主",          # 少字
+    "麗崋": "麗華",              # typo
 }
 GENGHIS_PC88_NAME_HISTORICAL = {"江宗": "襄宗"}  # as GENGHIS_DOS_NAME_HISTORICAL; the others are right on PC-88
 
