@@ -725,6 +725,13 @@ GENGHIS_PC88_TABLES = {"ruler": (0x1D1, 1, 0, 27, 33, 29), "family": (0x54C, 4, 
                        "woman": (0x1806, 1, 0, 40, 24, 18)}
 
 
+# PC-98 (the 1987 original): the PC-88 records at other offsets; the sons and generals have one more byte
+# before the face code
+GENGHIS_PC98_TABLES = {"ruler": (0x1D4, 1, 0, 27, 33, 29), "family": (0x550, 4, 155, 5, 31, 29),
+                       "son": (0xA4A, 4, 110, 5, 22, 20), "general": (0x7F3, 1, 0, 26, 23, 21),
+                       "woman": (0x19C6, 1, 0, 40, 24, 18)}
+
+
 # X68000 MDATA.DAT / SDATA.DAT: the same fields, with the numbers widened to 68000 longs; the name is 15 bytes,
 # the face code big-endian (the women's three faces are longs, the code in the low word)
 GENGHIS_X68_TABLES = {"ruler": (0x210, 1, 0, 27, 48, 44), "family": (0x720, 4, 230, 5, 46, 44),
@@ -732,13 +739,15 @@ GENGHIS_X68_TABLES = {"ruler": (0x210, 1, 0, 27, 48, 44), "family": (0x720, 4, 2
                       "woman": (0x279C, 1, 0, 40, 30, 20)}
 
 
-def load_genghis_pc88_people(cim, x68=False) -> dict[str, list[tuple[str, list[int]]]]:
+def load_genghis_pc88_people(cim, x68=False, pc98=False) -> dict[str, list[tuple[str, list[int]]]]:
     """As load_genghis_dos_people, for the PC-88 MDATA.CIM / SDATA.CIM (same people and face codes),
-    or the X68000 MDATA.DAT / SDATA.DAT (`x68`: same people, face codes of the X68000 composite)."""
+    the PC-98 ones (`pc98`), or the X68000 MDATA.DAT / SDATA.DAT (`x68`: same people, face codes of the X68000
+    composite)."""
     with open(cim, 'rb') as f:
         data = f.read()
     out = {}
-    for kind, (off, groups, gsize, n, size, face) in (GENGHIS_X68_TABLES if x68 else GENGHIS_PC88_TABLES).items():
+    for kind, (off, groups, gsize, n, size, face) in (GENGHIS_X68_TABLES if x68 else GENGHIS_PC98_TABLES if pc98
+                                                       else GENGHIS_PC88_TABLES).items():
         out[kind] = []
         for g in range(groups):
             for i in range(n):

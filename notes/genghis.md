@@ -51,6 +51,20 @@
 - 人數、頭像碼和 DOS 版逐筆相同，排序與去重規則也相同：152 人，`id` 和 `genghis-dos` 一致。
 - `nameHistorical`：只填江宗→襄宗。DOS 版的其他幾筆在 PC-88 版是對的（フィリップ2世、北条政子、畠山重忠、ムハンマド）。トオリオルカン是音譯的寫法不同，不填。
 
+## PC-98 版（`genghis-pc98`）
+
+`dekoei.py export genghis-pc98` 用到的差異（`build_genghis_dos(pc98=True)`）。這是 1987-12 的首發版，kaodata 以它為主、PC-88 改成標籤（2026-10-16）。來源是 Neo Kobe 2017-11-17 的 `games/archives/pc98/neo-kobe-2017-11-17/Koei/Aoki Ookami to Shiroki Mejika - Genghis Khan/`（`[FD]` 三片 HDM，`[Set 1]` 兩片的資料檔相同）。`games/genghis-pc98/` 放 B 片的 `KAO.DAT`、`MONTER.DAT`、`MDATA.CIM`、`SDATA.CIM`，以及參考用的 A 片 `MAIN.EXE`（1988-03-31）。
+
+- `KAO.DAT`、`MONTER.DAT` 和 PC-88、DOS 版逐 byte 相同。
+- 色盤是數位 8 色：`MAIN.EXE` 0x583F 起把 4 bytes 的數位色盤寫到 port 0xA8–0xAE，預設表（0x23E8A 的 37 15 26 04）是標準排列，所以用 `SAN2_JP_PALETTE`（palette id `pc98`）。
+- 人物：`MDATA.CIM`／`SDATA.CIM` 是 7559 bytes（PC-88 是 7168），記錄內容同 PC-88，只是位置不同，子女與部將在頭像碼前多 1 byte（`load_genghis_pc88_people(pc98=True)`）：
+  - 君主 0x1D4，27 × 33 bytes，+29
+  - 繼承人 0x550，4 組 × 5 × 31 bytes，+29
+  - 部將 0x7F3，26 × 23 bytes，+21
+  - 子女 0xA4A，4 組 × 5 × 22 bytes（每組 110），+20
+  - 女性 0x19C6，40 × 24 bytes，+18／+20／+22
+- 讀出的姓名與頭像碼和 PC-88 逐筆相同，匯出結果除了 id、平台與色盤 id 以外都和 `genghis-pc88` 相同。
+
 ## X68000 版（`genghis-x68`）
 
 `dekoei.py export genghis-x68` 用到的格式（`build_genghis_x68`）。來源是 Internet Archive 的 `games/archives/x68000/ia-softwarelibrary/aoki_ookami_to_shiroki_meshika_x68k/`（3 片 XDF，標題寫 1989），`games/genghis-x68/` 放 Disk 1 的 `JINMAIN.Z`、`KAO.PAK`，Disk 2 的 `MON.PIC`、`MDATA.DAT`，Disk 3 的 `SDATA.DAT`。檔案日期 1989-01-20～1989-03-07。

@@ -65,7 +65,7 @@
 和已收的其他平台版比對：一模一樣就只加版本標記，不同才做 `<game>-pc98`。
 
 - [x] 蒼き狼と白き牝鹿・元朝秘史（`Genchou Hishi [FD]`）— 頭像、人物同 X68，色盤不同，做 `genchou-pc98`（2026-10-16）
-- [x] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 和 `genghis-pc88` 相同，kaodata 加版本標記（2026-10-16）
+- [x] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 和 `genghis-pc88` 相同；kaodata 改以首發的 PC-98 版為主，做 `genghis-pc98`，PC-88 改成標籤（2026-10-16）
 - [x] ヨーロッパ戦線（`Europe Sensen [FD]`）— 色盤是類比色，做 `europe-pc98`（2026-10-16）
 - [x] 項劉記（`Kouryuuki [FD]`／`[HD]`）— 頭像、人名同 X68，色盤不同，做 `kouryuuki-pc98`（2026-10-16）
 - [x] ランペルール（`L'Empereur [FD]`、`[extras]`）— 和 `lempe-x68` 相同（映像後段損壞，只比對前 92 張），kaodata 加版本標記（2026-10-16）
@@ -76,5 +76,7 @@
 
 ## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
 
-- [ ] 三国志ツクール（天道 PK 已匯出成 `nobu13pk-win`，太閤立志伝V DX 已匯出成 `taikoh5dx-win`，大航海時代IV PK HD 已匯出成 `koukai4pk-win`）（2026-10-16）
+- [ ] 三國志12 with PK（628080）、三國志13（363150，PK 是 DLC）、三國志14（872410，PK 是 DLC）— 只分析、先不交 kaodata（2026-10-16）
+- [ ] 信長の野望・創造 with PK（288390）、大志（628890，PK 是 DLC）、新生（1336980，PK 是 DLC）— 只分析、先不交 kaodata（2026-10-16）
+- [ ] 三国志ツクール（397720，已下載；RES 裡有顏CG DLC 的 `426740J.bin`）（天道 PK 已匯出成 `nobu13pk-win`，太閤立志伝V DX 已匯出成 `taikoh5dx-win`，大航海時代IV PK HD 已匯出成 `koukai4pk-win`）（2026-10-16）
 - [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）

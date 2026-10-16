@@ -45,7 +45,7 @@ Early KOEI Games Data Research
 | NOBU15    | 信長之野望 大志             | 2017 |                  |       |        |                     |
 | NOBU16    | 信長之野望 新生             | 2022 |                  |       |        |                     |
 |           | 蒼狼與白鹿                  | 1985 |                  |       |        |                     |
-| GENGHIS   | 蒼狼與白鹿 成吉思汗         | 1987 |       DOS        |       |        |                     |
+| GENGHIS   | 蒼狼與白鹿 成吉思汗         | 1987 |    DOS,PC98      |       |        |                     |
 | (GENCHOH) | 蒼狼與白鹿 元朝秘史         | 1992 |                  |       |        |                     |
 | GENGHIS4  | 成吉思汗 蒼狼與白鹿IV       | 1998 |       WIN        |       |        |                     |
 | KOUKAI    | 大航海時代                  | 1990 |     DOS,PC98     |       |        |                     |
@@ -154,6 +154,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `koukai3-win` | 大航海時代III                 | Win 中文版 |  246 |  558 |        | [notes/koukai3.md](notes/koukai3.md) |
 | `koukai4pk-win` | 大航海時代IV with パワーアップキット HD Version | Win（Steam） |  120 |  220 |        | [notes/koukai4.md](notes/koukai4.md) |
 | `genghis-dos` | 蒼狼與白鹿・成吉思汗          | DOS 中文版 |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
+| `genghis-pc98` | 蒼き狼と白き牝鹿・ジンギスカン | PC-98    |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis-pc88` | 蒼き狼と白き牝鹿・ジンギスカン | PC-88    |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis-x68` | 蒼き狼と白き牝鹿・ジンギスカン | X68000   |  152 |   83 |   ○    | [notes/genghis.md](notes/genghis.md) |
 | `genghis4pk-win` | 成吉思汗 蒼狼與白鹿IV 威力加強版 | Win 中文版 |  629 |  836 |        | [notes/genghis4.md](notes/genghis4.md) |

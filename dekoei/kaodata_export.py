@@ -1849,8 +1849,10 @@ def genghis_characters(m, s, face, name_historical) -> list[dict]:
     return characters
 
 
-def build_genghis_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
-    """Also the PC-88 original (`pc88`): KAO.DAT and MONTER.DAT are the same files, the people tables differ."""
+def build_genghis_dos(game_dir: str, pc88: bool = False, pc98: bool = False) -> tuple[dict, list[bytes]]:
+    """Also the PC-98 original (`pc98`) and the PC-88 port (`pc88`): KAO.DAT and MONTER.DAT are the same files, the
+    people tables differ; both Japanese versions use the digital 8 colours."""
+    nec = pc88 or pc98
     files = {}
     for name in GENGHIS_DOS_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -1891,19 +1893,21 @@ def build_genghis_dos(game_dir: str, pc88: bool = False) -> tuple[dict, list[byt
                     "code": f"{code:04X}"}
         return {"portrait": code}
 
-    load = koei_games.load_genghis_pc88_people if pc88 else koei_games.load_genghis_dos_people
-    name_historical = GENGHIS_PC88_NAME_HISTORICAL if pc88 else GENGHIS_DOS_NAME_HISTORICAL
+    load = ((lambda cim: koei_games.load_genghis_pc88_people(cim, pc98=pc98)) if nec
+            else koei_games.load_genghis_dos_people)
+    name_historical = GENGHIS_PC88_NAME_HISTORICAL if nec else GENGHIS_DOS_NAME_HISTORICAL
     characters = genghis_characters(load(os.path.join(game_dir, "MDATA.CIM")), load(os.path.join(game_dir, "SDATA.CIM")),
                                     face, name_historical)
 
     meta = {
-        "format": FORMAT, "id": "genghis-pc88" if pc88 else "genghis-dos", "game": "GENGHIS",
-        "platform": "PC88" if pc88 else "DOS",
+        "format": FORMAT, "id": "genghis-pc98" if pc98 else "genghis-pc88" if pc88 else "genghis-dos",
+        "game": "GENGHIS", "platform": "PC98" if pc98 else "PC88" if pc88 else "DOS",
         "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE} if pc98 else
+                     {"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
                      {"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
         "images": store.refs,
@@ -6636,7 +6640,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-dos": build_nobu2_dos, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,
