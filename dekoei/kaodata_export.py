@@ -43,6 +43,13 @@ def get_image(meta: dict, blobs: list[bytes], img: int) -> tuple[int, int, bytes
     return w, h, pixels[offset:offset + w * h]
 
 
+def rgba_image(meta: dict, blobs: list[bytes], img: int) -> bytes | None:
+    """RGBA bytes of a full-colour image (blob listed in "rgbaBlobs", spec §4), else None."""
+    offset, w, h, *rest = meta["images"][img]
+    blob = rest[0] if rest else 0
+    return blobs[blob][offset:offset + w * h * 4] if blob in meta.get("rgbaBlobs", []) else None
+
+
 def blit(dst: bytearray, dw: int, dh: int, src: tuple[int, int, bytes], x: int, y: int, blend: str | None = None) -> None:
     sw, sh, data = src
     for sy in range(sh):
@@ -113,13 +120,19 @@ def to_rgba(src: tuple[int, int, bytes], colors: list[str], opaque: bool = False
 
 
 def display_entries(meta: dict, blobs: list[bytes]):
-    """(key, indexed display, own palette or None) for every face, as covered by checksums.json (spec §8)."""
+    """(key, indexed display, own palette or None) for every face, as covered by checksums.json (spec §8);
+    a full-colour portrait gives (key, RGBA bytes, "rgba")."""
     portraits = meta.get("portraits", [])
+
+    def portrait_entry(index, bg=None):
+        rgba = rgba_image(meta, blobs, portraits[index]["img"])
+        if rgba is not None:
+            return rgba, "rgba"
+        return portrait_display(meta, blobs, index, bg), portraits[index].get("palette")
 
     def face_display(face):
         if "portrait" in face:
-            return (portrait_display(meta, blobs, face["portrait"], face.get("bg")),
-                    portraits[face["portrait"]].get("palette"))
+            return portrait_entry(face["portrait"], face.get("bg"))
         return compose_display(meta, blobs, face), None
 
     for ch in meta["characters"]:
@@ -130,7 +143,7 @@ def display_entries(meta: dict, blobs: list[bytes]):
         for k, expr in enumerate(ch.get("expressions", []), 1):
             yield f"ch:{ch['id']}/{k}", *face_display(expr)
     for i, p in enumerate(portraits):
-        yield f"pt:{i}", portrait_display(meta, blobs, i), p.get("palette")
+        yield f"pt:{i}", *portrait_entry(i)
 
 
 def portrait_palette(meta: dict, blobs: list[bytes], k: int) -> list[str]:
@@ -144,7 +157,8 @@ def portrait_palette(meta: dict, blobs: list[bytes], k: int) -> list[str]:
 def checksums(meta: dict, blobs: list[bytes]) -> dict:
     shared = meta["palettes"][0]["colors"] if meta["palettes"] else None
     return {"algo": "sha256-rgba",
-            "entries": {k: hashlib.sha256(to_rgba(img, shared if pal is None else portrait_palette(meta, blobs, pal),
+            "entries": {k: hashlib.sha256(img if pal == "rgba" else
+                                          to_rgba(img, shared if pal is None else portrait_palette(meta, blobs, pal),
                                                   meta.get("opaque", False))).hexdigest()
                         for k, img, pal in display_entries(meta, blobs)}}
 
@@ -152,15 +166,15 @@ def checksums(meta: dict, blobs: list[bytes]) -> dict:
 # ---------------------------------------------------------------- writer
 
 class ImageStore:
-    """Collects indexed images into named blobs (blob 0 = pixels.bin)."""
+    """Collects indexed (or, with rgba, full-colour RGBA) images into named blobs (blob 0 = pixels.bin)."""
 
     def __init__(self, names: list[str]):
         self.names = names
         self.refs: list[list[int]] = []
         self.blobs = [bytearray() for _ in names]
 
-    def add(self, w: int, h: int, px: bytes, blob: int = 0) -> int:
-        assert len(px) == w * h
+    def add(self, w: int, h: int, px: bytes, blob: int = 0, rgba: bool = False) -> int:
+        assert len(px) == w * h * (4 if rgba else 1)
         self.refs.append([len(self.blobs[blob]), w, h] + ([blob] if blob else []))
         self.blobs[blob] += px
         return len(self.refs) - 1
@@ -5043,6 +5057,85 @@ def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN11PK (Windows, Steam)
+
+SAN11PK_WIN_SCENARIOS = ["Scen000.s11", *(f"SCEN{n:03d}.S11" for n in range(1, 8)), *(f"Scen{n:03d}.s11" for n in range(8, 14))]
+SAN11PK_WIN_INPUTS = [sango.SAN11_FACE_FILE] + SAN11PK_WIN_SCENARIOS
+# person records that are not people: unnamed slots (史実01-30, イベ64-A0, いに33-50) and townsfolk roles, whose
+# faces are kept as portraits named by the role
+SAN11PK_WIN_EMPTY = range(670, 700), range(763, 800), range(832, 850)
+SAN11PK_WIN_ROLES = [*range(714, 729), *range(731, 763)]
+# faces 2000-2173 are only offered when making a new officer
+SAN11PK_WIN_NEW_FACES = range(2000, 2174)
+SAN11PK_WIN_PER_BLOB = 65
+# 嬴 is not in JIS X 0208, so the game writes the look-alike 贏
+SAN11PK_WIN_NAME_HISTORICAL = {"贏政": "嬴政"}
+
+
+def build_san11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in SAN11PK_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = sango.load_san11_small_faces(os.path.join(game_dir, sango.SAN11_FACE_FILE))
+    codes = sorted(faces)
+    blob_names = ["portraits.bin"] + [f"portraits{n}.bin" for n in range(2, -(-len(codes) // SAN11PK_WIN_PER_BLOB) + 1)]
+    store = ImageStore(blob_names)
+
+    scenarios = [sango.load_san11_persons(os.path.join(game_dir, n)) for n in SAN11PK_WIN_SCENARIOS]
+    empty = {i for r in SAN11PK_WIN_EMPTY for i in r}
+    roles = {scenarios[0][i]["face"]: scenarios[0][i]["name"] for i in SAN11PK_WIN_ROLES}
+    people = [p for p in scenarios[0] if p["id"] not in empty and p["id"] not in SAN11PK_WIN_ROLES]
+    assert all(p["sex"] in (0, 1) and p["face"] in faces for p in people)
+    owner = {p["face"]: p for p in people}
+    assert len(owner) == len(people) and not set(owner) & set(roles)
+    # faces 1000 + k (1500 + k for women) are other looks of the owner of face k, used by later scenarios
+    looks = {}
+    for code in codes:
+        if 1000 < code < 2000:
+            looks.setdefault(owner[code - 1000]["id"], []).append(code)
+    assert {p["face"] for s in scenarios for p in s if p["id"] not in empty} <= set(owner) | set(roles) | \
+        {c for v in looks.values() for c in v}
+
+    portraits, index = [], {}
+    for n, code in enumerate(codes):
+        index[code] = len(portraits)
+        p = {"img": store.add(64, 80, faces[code], blob=n // SAN11PK_WIN_PER_BLOB, rgba=True), "code": f"{code:04X}"}
+        if code in roles:
+            p["group"], p["name"] = "一般人物", roles[code]
+        elif code in SAN11PK_WIN_NEW_FACES:
+            p["group"] = "新武將"
+        else:
+            assert code in owner or 1000 < code < 2000
+        portraits.append(p)
+
+    # the reading is of the full name with no break, so it has no space
+    characters = []
+    for p in people:
+        ch = {"id": p["id"], "name": p["name"], "reading": kana_to_hiragana(p["kana"]),
+              "face": {"portrait": index[p["face"]]}}
+        if p["name"] in SAN11PK_WIN_NAME_HISTORICAL:
+            ch["nameHistorical"] = SAN11PK_WIN_NAME_HISTORICAL[p["name"]]
+        if p["id"] in looks:
+            ch["expressions"] = [{"portrait": index[c]} for c in looks[p["id"]]]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san11pk-win", "game": "SAN11PK", "platform": "WIN",
+        "title": {"ja": "三國志11 with パワーアップキット", "zh": "三國志11 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN11PK_WIN_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blob_names))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- KOUMEI (Windows, Chinese)
 
 KOUMEI_WIN_INPUTS = ["KAO.E2", "PALET.E2", "BAKDATA.E2"]
@@ -6301,7 +6394,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
-            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "san10pk-win": build_san10pk_win, "nobu5pk-win": build_nobu5pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
+            "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "san10pk-win": build_san10pk_win, "san11pk-win": build_san11pk_win, "nobu5pk-win": build_nobu5pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,

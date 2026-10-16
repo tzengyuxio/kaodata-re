@@ -130,6 +130,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `san8pk-win` | 三國志VIII with パワーアップキット | Win 日文版（Steam） |  643 |  815 |        | [notes/san8.md](notes/san8.md)     |
 | `san9pk-win` | 三國志IX with パワーアップキット | Win 日文版（Steam） |  679 |  836 |        | [notes/san9.md](notes/san9.md)     |
 | `san10pk-win` | 三國志X with パワーアップキット | Win 日文版（Steam） |  650 |  872 |        | [notes/san10.md](notes/san10.md)   |
+| `san11pk-win` | 三國志11 with パワーアップキット | Win 日文版（Steam） |  718 |  964 |        | [notes/san11.md](notes/san11.md)   |
 | `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-pc88` | 水滸伝・天命の誓い          | PC-88      |  255 |  258 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-x68`  | 水滸伝・天命の誓い          | X68000     |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |

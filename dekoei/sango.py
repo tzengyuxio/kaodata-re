@@ -584,6 +584,62 @@ def load_san10_persons(exe_path, scenario) -> list[dict]:
     return persons
 
 
+# 三國志11 PK (Steam): media/face/San11Face00.fce is "FACE@" + u32 2200, u32 6600 at 12, 2200 u32 (unknown), then
+# 6600 (u32 offset, u32 size) entries (size 0 = empty). An entry is "WFTX0010", u32 size, u32 1, u16 width, height,
+# u8 bpp, 3 flag bytes, then pixels: 24 bit is top-down B, G, R; 8 bit is indices plus a 256 x RGBX palette.
+# Entries 0-2199 are the 240 x 240 face k; 2200 + 2k + d (k < 1100) and 4400 + 2(k - 1100) + d are the 64 x 80 face k
+# facing left (d = 0) and right (d = 1); the right-facing one is redrawn, not a plain mirror image.
+SAN11_FACE_FILE = "San11Face00.fce"
+# Scenario files (media/scenario/Scen000-013.s11): 850 person records of 152 bytes from 0x3BCD; +0 surname 5 bytes,
+# +5 given name 5, +10 style name 5 (cp932 with gaiji at F040-, read as U+E000-), +15 reading 25 (full-width
+# katakana, full name), +0x35 u16 face code, +0x37 sex (0 male, 1 female, 0xFF empty slot)
+SAN11_PERSONS = (0x3BCD, 152, 850)
+SAN11_GAIJI = {**SAN10_GAIJI, 0xE062: "臏"}
+
+
+def load_san11_small_faces(path) -> dict[int, bytes]:
+    """Face code -> 64 x 80 left-facing face as top-down RGBA."""
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:5] == b"FACE@"
+    n1, n2 = struct.unpack_from("<II", data, 12)
+    entries = struct.unpack_from(f"<{2 * n2}I", data, 20 + 4 * n1)
+    faces = {}
+    for k in range(2200):
+        slot = 2200 + 2 * k if k < 1100 else 4400 + 2 * (k - 1100)
+        start, size = entries[2 * slot:2 * slot + 2]
+        if not size:
+            continue
+        assert data[start:start + 8] == b"WFTX0010"
+        w, h, bpp = struct.unpack_from("<HHB", data, start + 16)
+        assert (w, h) == (64, 80)
+        px = data[start + 24:start + 24 + w * h * bpp // 8]
+        if bpp == 8:
+            pal = data[start + 24 + w * h:start + 24 + w * h + 1024]
+            px = b"".join(pal[c * 4:c * 4 + 3][::-1] for c in px)
+        rgba = bytearray(b"\xff") * (w * h * 4)
+        rgba[0::4], rgba[1::4], rgba[2::4] = px[2::3], px[1::3], px[0::3]
+        faces[k] = bytes(rgba)
+    return faces
+
+
+def load_san11_persons(scenario) -> list[dict]:
+    """The 850 person records: id, name, style name, kana, face code, sex."""
+    with open(scenario, "rb") as f:
+        data = f.read()
+
+    def text(b):
+        return "".join(SAN11_GAIJI.get(ord(c), c) for c in b.split(b"\0")[0].decode("cp932"))
+
+    start, size, count = SAN11_PERSONS
+    persons = []
+    for k in range(count):
+        r = data[start + k * size:start + (k + 1) * size]
+        persons.append({"id": k, "name": text(r[0:5]) + text(r[5:10]), "azana": text(r[10:15]),
+                        "kana": text(r[15:40]), "face": struct.unpack_from("<H", r, 0x35)[0], "sex": r[0x37]})
+    return persons
+
+
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
 # +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
 KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)

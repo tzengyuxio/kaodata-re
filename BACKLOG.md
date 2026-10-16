@@ -77,4 +77,4 @@
 ## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
 
 - [ ] 天道 with PK（将星録、烈風伝、嵐世記、蒼天録、天下創世、革新已匯出）；大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（2026-10-16）
-- [ ] 三國志11 with PK（628070，已下載）— 64×80 頭像幾乎都是 24 bit 直接色（每張 3000–5000 色），和天道、太閤V DX 一樣等 kaodata 格式支援直接色；格式見 `notes/san-faces.md`（2026-10-16）
+- [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）
