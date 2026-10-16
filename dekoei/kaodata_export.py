@@ -2020,6 +2020,9 @@ NOBU3_DOS_PARTS = 0x297C0
 NOBU3_DOS_SLOTS = {"top": ("上", 0, 0, 18), "bottom": ("下", 0x6C0, 18, 22), "eyes": ("眼", 0xF00, 13, 5),
                    "nose": ("鼻", 0x10E0, 18, 6), "mouth": ("口", 0x1320, 24, 9)}
 NOBU3_DOS_XOR = ("eyes", "nose", "mouth")
+# CGA mode 6 (MAIN.EXE argument 1, set by the English KOEI.COM on CGA/MCGA): 0x285D copies only the third byte
+# of each 8-pixel triple (index bit 0, the EGA green plane), so odd indexes are white
+NOBU3_DOS_MONO = ["#ffffff" if c & 1 else "#000000" for c in range(8)]
 NOBU3_DOS_NAME_FIX = {"齊籐朝信": "齊藤朝信", "羽祡秀吉": "羽柴秀吉"}  # typos where another scenario has it right
 NOBU3_DOS_NAME_HISTORICAL = {
     "田山義綱": "畠山義綱", "田山義慶": "畠山義慶", "北田具教": "北畠具教", "北田具房": "北畠具房",
@@ -2077,7 +2080,8 @@ def build_nobu3_dos(game_dir: str) -> tuple[dict, list[bytes]]:
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_DOS_INPUTS]},
         "display": {"scale": 6},
-        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
+        "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE},
+                     {"id": "mono", "label": "Mono", "colors": NOBU3_DOS_MONO}],
         "blobs": store.names,
         "images": store.refs,
         "composite": {
