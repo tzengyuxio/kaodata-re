@@ -205,11 +205,10 @@ def revision() -> str:
 
 def webp_images(meta: dict, blobs: list[bytes]) -> tuple[dict, list[bytes]]:
     """The full-colour images moved to "file" images (spec §5): (meta, the files' RGBA in image order). Every image
-    must be full-colour; a pixel with alpha 0 is stored as 0, 0, 0, 0."""
+    must be full-colour; any alpha is kept, and a pixel with alpha 0 is stored as 0, 0, 0, 0."""
     rgba = []
     for i in range(len(meta["images"])):
         px = bytearray(rgba_image(meta, blobs, i))
-        assert set(px[3::4]) <= {0, 255}
         for k in range(3, len(px), 4):
             if not px[k]:
                 px[k - 3:k] = b"\0\0\0"
@@ -6470,6 +6469,77 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN13PK (三國志13 PK, Steam)
+
+SAN13PK_WIN_INPUTS = ["pk/DATA0.S13", "pk/DATA1.S13", "DATA0.S13", "DATA1.S13"]
+SAN13PK_WIN_ROLES = list(range(970, 999)) + list(range(1116, 1120))  # 文官, 兵士, 男児…: faces, not characters
+SAN13PK_WIN_ANCIENT = range(850, 899)  # 古武將; some have no name in the string table
+# faces no one uses (by face item)
+SAN13PK_WIN_GROUPS = [([0, 1086, 1089, 1091, 1093, 1095, 1097, 1099], "其他頭像"), (range(1130, 1267), "新武將"),
+                      (range(1451, 1467), "新武將")]
+SAN13PK_WIN_PER_BLOB = 50
+
+
+def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    inputs = []
+    for name in SAN13PK_WIN_INPUTS:
+        h = hashlib.sha1()
+        with open(os.path.join(game_dir, name), "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 24), b""):
+                h.update(chunk)
+        inputs.append({"path": name, "sha1": h.hexdigest()})
+    faces = sango.load_san13_faces(game_dir)
+    data = sango.load_san13_persons(game_dir)
+    item = sango.san13_face_item
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // SAN13PK_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = []
+    for i, rgba in enumerate(faces):
+        picture = i if i < 1271 else i + 179
+        p = {"img": store.add(72, 72, rgba, blob=i // SAN13PK_WIN_PER_BLOB, rgba=True),
+             "code": f"{picture:04X}"}
+        if i >= 1267:  # the base game has items 0-1266
+            p["pk"] = True
+        portraits.append(p)
+    for items, group in SAN13PK_WIN_GROUPS:
+        for i in items:
+            assert all(i not in map(item, v) for v in data["pictures"].values())
+            portraits[i]["group"] = group
+
+    characters = []
+    for person, pictures in sorted(data["pictures"].items()):
+        name, name_zh, reading = data["names"][person]
+        if person in SAN13PK_WIN_ROLES or not name:
+            for c in pictures:
+                p = portraits[item(c)]
+                p["group"] = "一般人物" if name else "古武將"
+                if name:
+                    p["name"] = name
+            continue
+        ch = {"id": person, "name": name, "nameZh": name_zh, "reading": kana_to_hiragana(reading),
+              "face": {"portrait": item(pictures[0])}}
+        # the version table's names (若年, 壮年…) do not line up with the pictures, so no labels
+        if len(pictures) > 1:
+            ch["expressions"] = [{"portrait": item(c)} for c in pictures[1:]]
+        if person not in data["base"]:
+            ch["pk"] = True
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san13pk-win", "game": "SAN13PK", "platform": "WIN",
+        "title": {"ja": "三國志13 with パワーアップキット", "zh": "三國志13 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(), "inputs": inputs},
+        "display": {"scale": 3},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blobs))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SANTSUKURU (三国志ツクール, Steam)
 
 SANTSUKURU_WIN_INPUTS = ["LINKDATA.IDX", "LINKDATA0.BIN"] + [f"RES/{f}.bin" for f in koei_games.SANTSUKURU_WIN_DLC.values()]
@@ -6915,7 +6985,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu9pk-win": build_nobu9pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
-            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win, "san12pk-win": build_san12pk_win,
+            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win, "san12pk-win": build_san12pk_win, "san13pk-win": build_san13pk_win,
             "taikoh5dx-win": build_taikoh5dx_win, "koukai4pk-win": build_koukai4pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
@@ -6924,7 +6994,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
 
 
 # full-colour datasets written as lossless WebP files (spec §5) instead of RGBA blobs
-WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win", "san12pk-win"}
+WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win", "san12pk-win", "san13pk-win"}
 
 
 @click.command(help=f"匯出 kaodata 統一格式資料集 (DATASET: {', '.join(DATASETS)})")

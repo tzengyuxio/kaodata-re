@@ -1,5 +1,7 @@
 import collections
 import ls11
+import re
+import zlib
 import click
 import genpei
 from rich.console import Console
@@ -730,6 +732,118 @@ def load_san12_persons(path, size=292) -> list[dict]:
         persons.append({"id": k, "name": text(r[9:14]) + text(r[4:9]), "kana": text(r[14:]),
                         "face": int.from_bytes(r, "little") >> SAN12_FACE_BIT & 0x7FF})
     return persons
+
+
+# 三國志13 PK (Steam): DATA0.S13 is 32-byte entries (u64 offset into DATA1.S13, size, stored size, compressed); a
+# compressed entry is "zp1\0" + u32 size, u32 chunk size, u32 chunk count, the chunk sizes, then from 0x800 the
+# chunks (each aligned to 0x80) of u32 length + zlib. Many entries are "u32 count, count x (u32 offset, u32 size)"
+# archives. XL tables: "XL", u16 version, u16 size, u16 columns, u16 rows, u16 row size, u16 header size, a type
+# byte per column from +0x10; a string column is a u32 offset from the header size.
+SAN13_PK = "pk/"
+SAN13_NAMES = 2  # item 0 of item 0: the string table (names from 6535, a 1450-long run per field)
+SAN13_NAMES_TC = 1416  # the same, Big5
+SAN13_NAME_FIELDS = 6535, 1450  # surname, given name, style name, surname reading, given name reading…
+SAN13_FACES = 20  # 72 x 72 faces: 128 x 128 BC3 G1T textures; picture p is item p (< 1271) or p - 179 (>= 1450)
+SAN13_OWNERS = 1398  # the person of picture i + 1 (-1 none); the base game's is item 1047
+SAN13_BASE_OWNERS = 1047
+SAN13_VERSIONS = 1395  # version code of picture i + 1 (its name is string 1680 + code of item 1 of item 0 of 2)
+SAN13_GAIJI_TC = {b"\xfa\x40": "伷", b"\xfa\x41": "璝", b"\xfa\x45": "儁"}  # the Big5 names' own gaiji
+
+
+def san13_entry(game_dir, i, base=SAN13_PK) -> bytes:
+    with open(os.path.join(game_dir, base + "DATA0.S13"), "rb") as f:
+        f.seek(32 * i)
+        offset, _, stored, _ = struct.unpack("<4Q", f.read(32))
+    with open(os.path.join(game_dir, base + "DATA1.S13"), "rb") as f:
+        f.seek(offset)
+        return san13_unzip(f.read(stored))
+
+
+def san13_unzip(b: bytes) -> bytes:
+    if b[:4] != b"zp1\0":
+        return b
+    size, _, n = struct.unpack_from("<3I", b, 4)
+    out, o = bytearray(), (16 + 4 * n + 0x7FF) // 0x800 * 0x800
+    for s in struct.unpack_from(f"<{n}I", b, 16):
+        o = (o + 0x7F) // 0x80 * 0x80
+        out += zlib.decompress(b[o + 4:o + 4 + struct.unpack_from("<I", b, o)[0]])
+        o += s
+    assert len(out) == size
+    return bytes(out)
+
+
+def san13_items(b: bytes) -> list[bytes]:
+    n = struct.unpack_from("<I", b)[0]
+    return [b[o:o + s] for o, s in (struct.unpack_from("<2I", b, 4 + 8 * k) for k in range(n))]
+
+
+def san13_strings(b: bytes, encoding: str, gaiji: dict[bytes, str] = {}) -> list[str]:
+    """The first column (strings) of an XL table; gaiji are 2-byte codes outside the encoding."""
+    assert b[:2] == b"XL"
+    rows, size, header = struct.unpack_from("<3H", b, 8)
+    out = []
+    for r in range(rows):
+        o = header + struct.unpack_from("<I", b, header + r * size)[0]
+        t = b[o:b.index(b"\0", o)]
+        for code, c in gaiji.items():
+            t = t.replace(code, c.encode(encoding, "xmlcharrefreplace"))
+        # other strings than the names (biographies…) have more codes outside the encoding
+        out.append(re.sub(r"&#(\d+);", lambda m: chr(int(m[1])), t.decode(encoding, "replace")))
+    return out
+
+
+def load_san13_faces(game_dir) -> list[bytes]:
+    """The 72 x 72 RGBA of each item of the face entry."""
+    from PIL import Image
+    faces = []
+    for t in san13_items(san13_entry(game_dir, SAN13_FACES)):
+        t = san13_unzip(t)
+        fmt, dim = t[0x25], t[0x26]
+        w, h = 1 << (dim & 15), 1 << (dim >> 4)
+        start = 0x2C + struct.unpack_from("<I", t, 0x2C)[0]
+        assert fmt == 8
+        faces.append(Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3).crop((0, 0, 72, 72)).tobytes())
+    return faces
+
+
+def san13_face_item(picture: int) -> int:
+    return picture if picture < 1271 else picture - 179
+
+
+def load_san13_persons(game_dir) -> dict:
+    """{"names": person -> (name, nameZh, reading), "pictures": person -> pictures (in order), "versions": picture ->
+    version name, "base": persons of the base game}; the Japanese names have gaiji (U+E000-) read off the
+    Traditional Chinese names."""
+    def strings(item, encoding, gaiji={}):
+        return san13_strings(san13_items(san13_items(san13_entry(game_dir, item))[0])[0], encoding, gaiji)
+
+    ja, tc = strings(SAN13_NAMES, "cp932"), strings(SAN13_NAMES_TC, "cp950", SAN13_GAIJI_TC)
+    start, run = SAN13_NAME_FIELDS
+    gaiji = {}
+    for k in range(2 * run):
+        a, b = ja[start + k], tc[start + k]
+        if len(a) == len(b):
+            for x, y in zip(a, b):
+                if 0xE000 <= ord(x) <= 0xF8FF:
+                    assert gaiji.setdefault(x, y) == y
+    owners = san13_entry(game_dir, SAN13_OWNERS)
+    pictures = {}
+    for i, p in enumerate(struct.unpack_from(f"<{len(owners) // 2}h", owners)):
+        if p >= 0:
+            pictures.setdefault(p, []).append(i + 1)
+    names = {}
+    for p in pictures:
+        name = "".join(gaiji.get(c, c) for c in ja[start + p] + ja[start + run + p])
+        reading = " ".join(r for r in (ja[start + 3 * run + p], ja[start + 4 * run + p]) if r)
+        names[p] = (name, tc[start + p] + tc[start + run + p], reading)
+        assert "\ufffd" not in "".join(names[p])
+    codes = struct.unpack_from("<1645h", san13_entry(game_dir, SAN13_VERSIONS))
+    labels = san13_items(san13_items(san13_entry(game_dir, SAN13_NAMES))[0])[1]
+    labels = san13_strings(labels, "cp932")
+    versions = {i + 1: labels[1680 + c] for i, c in enumerate(codes) if c >= 0}
+    owners = san13_entry(game_dir, SAN13_BASE_OWNERS, "")
+    base = set(struct.unpack_from(f"<{len(owners) // 2}h", owners)) - {-1}
+    return {"names": names, "pictures": pictures, "versions": versions, "base": base}
 
 
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
