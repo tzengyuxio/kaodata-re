@@ -2140,15 +2140,21 @@ GENCHOU_X68_BLOCK = 410
 # X68000 ones (the same KAODATA.DAT)
 GENCHOU_PC98_MEN = (2, 27, 109)
 GENCHOU_PC98_WOMEN = (0x1A26, 23, 33)
+# DOS (Chinese, 1994): the PC-98 files with the names in KOEI Taiwan code
+GENCHOU_DOS_PLACEHOLDER = "蒙古統一者"
 
 
-def load_genchou_pc88_people(game_dir, x68=False, pc98=False) -> list[tuple[int, int, str, str, int]]:
+def load_genchou_pc88_people(game_dir, x68=False, pc98=False, dos=False) -> list[tuple[int, int, str, str, int]]:
     """(scenario, USDATA block or -1 for GENDATA, kind "man" / "woman" / "child", NFKC name, face code) of every
-    record, in file order. x68=True: the X68000 files. pc98=True: the PC-98 files."""
+    record, in file order. x68=True: the X68000 files. pc98=True: the PC-98 files. dos=True: the Chinese DOS files
+    (the PC-98 layout)."""
     from san3 import unpack_x68_sndata
 
     def name(rec):
-        return unicodedata.normalize("NFKC", rec[:17].split(b"\0")[0].decode("cp932")).strip()
+        raw = rec[:17].split(b"\0")[0]
+        if dos:
+            return koei_tw_name(raw + b"\0" * (len(raw) % 2)).strip()
+        return unicodedata.normalize("NFKC", raw.decode("cp932")).strip()
 
     def read(file):
         with open(os.path.join(game_dir, file), "rb") as f:
@@ -2157,7 +2163,7 @@ def load_genchou_pc88_people(game_dir, x68=False, pc98=False) -> list[tuple[int,
 
     if x68:
         men, women, block, first_block, order = GENCHOU_X68_MEN, GENCHOU_X68_WOMEN, GENCHOU_X68_BLOCK, 2, "big"
-    elif pc98:
+    elif pc98 or dos:
         men, women, block, first_block, order = GENCHOU_PC98_MEN, GENCHOU_PC98_WOMEN, GENCHOU_PC88_BLOCK, 0, "little"
     else:
         men, women, block, first_block, order = GENCHOU_PC88_MEN, GENCHOU_PC88_WOMEN, GENCHOU_PC88_BLOCK, 0, "little"
@@ -2169,7 +2175,7 @@ def load_genchou_pc88_people(game_dir, x68=False, pc98=False) -> list[tuple[int,
         first, size, count = men
         for i in range(count):
             rec = gen[first + i * size:][:size]
-            if name(rec) and name(rec) != GENCHOU_PC88_PLACEHOLDER:
+            if name(rec) and name(rec) not in (GENCHOU_PC88_PLACEHOLDER, GENCHOU_DOS_PLACEHOLDER):
                 people.append((sc, -1, "man", name(rec), int.from_bytes(rec[size - 2:size], order)))
         first, size, count = women
         for i in range(count):

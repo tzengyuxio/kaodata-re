@@ -165,6 +165,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `genchou-pc88` | 蒼き狼と白き牝鹿・元朝秘史   | PC-88      |  372 |   80 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `genchou-x68` | 蒼き狼と白き牝鹿・元朝秘史   | X68000     |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `genchou-pc98` | 蒼き狼と白き牝鹿・元朝秘史   | PC-98      |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |
+| `genchou-dos` | 蒼狼與白鹿・元朝秘史          | DOS 中文版 |  372 |  104 |   ○    | [notes/genchou.md](notes/genchou.md) |
 | `nobu2-dos`  | Nobunaga's Ambition（全国版）  | DOS 英文版 |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |
 | `nobu2-pc88` | 信長の野望・全国版             | PC-88      |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |
 | `nobu2-x68`  | 信長の野望・全国版             | X68000     |   53 |   73 |   ○    | [notes/nobu2.md](notes/nobu2.md)   |

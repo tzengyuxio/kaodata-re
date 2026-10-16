@@ -1846,6 +1846,7 @@ def build_koukai_dos(game_dir: str, pc98: bool = False, pc88: bool = False) -> t
 
 
 GENGHIS_DOS_INPUTS = ["KAO.DAT", "MONTER.DAT", "MDATA.CIM", "SDATA.CIM"]
+GENGHIS_NAME_ZH_INPUTS = ["dos/MDATA.CIM", "dos/SDATA.CIM"]  # the genghis-dos people, for nameZh of PC-98 / X68000
 # MONTER.DAT: 4 types x 0x15C0 bytes; per type 4 items of each slot. slot -> (label, offset, first row, rows)
 GENGHIS_DOS_SLOTS = {"top": ("上", 0, 0, 19), "bottom": ("下", 0x720, 19, 21), "eyes": ("眼", 0xF00, 12, 7),
                      "nose": ("鼻", 0x11A0, 19, 6), "mouth": ("口", 0x13E0, 25, 5)}
@@ -1892,12 +1893,25 @@ def genghis_characters(m, s, face, name_historical) -> list[dict]:
     return characters
 
 
+def genghis_name_zh(game_dir: str, characters: list[dict]) -> None:
+    """Give the characters of a Japanese version the genghis-dos (Chinese) names of the same ids, from the DOS
+    MDATA.CIM / SDATA.CIM in `dos/`."""
+    load = koei_games.load_genghis_dos_people
+    zh = genghis_characters(load(os.path.join(game_dir, "dos", "MDATA.CIM")),
+                            load(os.path.join(game_dir, "dos", "SDATA.CIM")), lambda code: {}, {})
+    assert len(zh) == len(characters)
+    for ch, z in zip(characters, zh):
+        ch["nameZh"] = z["name"]
+        ch.update({k: ch.pop(k) for k in [k for k in ch if k not in ("id", "name", "nameZh")]})  # keep the key order
+
+
 def build_genghis_dos(game_dir: str, pc88: bool = False, pc98: bool = False) -> tuple[dict, list[bytes]]:
     """Also the PC-98 original (`pc98`) and the PC-88 port (`pc88`): KAO.DAT and MONTER.DAT are the same files, the
     people tables differ; both Japanese versions use the digital 8 colours."""
     nec = pc88 or pc98
+    inputs = GENGHIS_DOS_INPUTS + (GENGHIS_NAME_ZH_INPUTS if pc98 else [])
     files = {}
-    for name in GENGHIS_DOS_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     mon = files["MONTER.DAT"]
@@ -1941,13 +1955,15 @@ def build_genghis_dos(game_dir: str, pc88: bool = False, pc98: bool = False) -> 
     name_historical = GENGHIS_PC88_NAME_HISTORICAL if nec else GENGHIS_DOS_NAME_HISTORICAL
     characters = genghis_characters(load(os.path.join(game_dir, "MDATA.CIM")), load(os.path.join(game_dir, "SDATA.CIM")),
                                     face, name_historical)
+    if pc98:
+        genghis_name_zh(game_dir, characters)
 
     meta = {
         "format": FORMAT, "id": "genghis-pc98" if pc98 else "genghis-pc88" if pc88 else "genghis-dos",
         "game": "GENGHIS", "platform": "PC98" if pc98 else "PC88" if pc88 else "DOS",
         "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS_DOS_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE} if pc98 else
                      {"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
@@ -2009,7 +2025,7 @@ def genghis_x68_face(pak: bytes, start: int, end: int) -> bytes:
 
 def build_genghis_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     files = {}
-    for name in GENGHIS_X68_INPUTS:
+    for name in GENGHIS_X68_INPUTS + GENGHIS_NAME_ZH_INPUTS:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     main = files["JINMAIN.Z"]
@@ -2041,6 +2057,7 @@ def build_genghis_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     load = lambda path: koei_games.load_genghis_pc88_people(path, x68=True)
     characters = genghis_characters(load(os.path.join(game_dir, "MDATA.DAT")), load(os.path.join(game_dir, "SDATA.DAT")),
                                     face, GENGHIS_PC88_NAME_HISTORICAL)
+    genghis_name_zh(game_dir, characters)
 
     colors = []
     for i in range(256):
@@ -2052,7 +2069,8 @@ def build_genghis_x68(game_dir: str) -> tuple[dict, list[bytes]]:
         "format": FORMAT, "id": "genghis-x68", "game": "GENGHIS", "platform": "X68",
         "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS_X68_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()}
+                              for n in GENGHIS_X68_INPUTS + GENGHIS_NAME_ZH_INPUTS]},
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors}],
         "blobs": store.names,
@@ -3763,6 +3781,20 @@ GENCHOU_X68_PALETTE = ["#000000", "#004a8c", "#bd4a29", "#ef6b8c", "#398c39", "#
 # palette for colours 0-7 (4-bit B, R, G bytes)
 GENCHOU_PC98_INPUTS = GENCHOU_X68_INPUTS + ["MAIN.EXE"]
 GENCHOU_PC98_PALETTE = 0x3E93A
+# DOS (Chinese, 1994): KAODATA.DAT and the people files are laid out as on PC-98, the names are KOEI Taiwan code.
+# MAIN.EXE file 0x422D4 (DS:0x3734) holds the PC-98 palette (4-bit B, R, G), written to the DAC as v << 2 (0x49C6)
+GENCHOU_DOS_PALETTE = 0x422D4
+# the Chinese names that differ from PC-98 in their grouping: 15 people spelt differently in scenarios 2 and 4
+# (scenario 2 -> 4; the records of scenario 4 group under the scenario 2 spelling, as 納西爾 is also another man in
+# scenario 2, and the character takes the scenario 4 one), and the names two PC-98 characters share (the record of
+# this scenario is the second character), plus アイバク as on FC
+GENCHOU_DOS_NAMES = {
+    "的斤不扎兒": "不只兒", "奎因霍斯爾一世": "圭赫斯洛一世", "阿德勒": "阿迪爾", "納賽爾": "納西爾",
+    "阿爾豐沙八世": "阿爾農沙八世", "帖卜騰格里": "騰格里", "闊恰克": "闊恰出", "夏布魯曼": "沙道爾曼",
+    "易卜阿拉比": "阿拉比", "里拉瓦赤": "亞拉瓦赤", "阿佩路德倫": "阿佩汝典", "古達尼斯克大公": "古塔尼斯庫大公",
+    "班盧克巴恩": "巴音庫伴", "茶哥": "恰凱", "蘇白答": "蘇白塔",
+}
+GENCHOU_DOS_SPLIT = {("艾伯克", 4), ("亦納勒赤", 2), ("阿合馬", 3), ("席拉", 3), ("脫劣勒赤", 3)}
 
 
 def genchou_pc88_or(buf: bytearray, x: int, y: int, width: int, data: bytes, rows: int = 8) -> None:
@@ -3784,11 +3816,42 @@ def genchou_pc88_features(buf: bytearray, head: bytes, eyes: bytes, mouth: bytes
     genchou_pc88_or(buf, head[4], head[5], 12, mouth[:12 * rows], rows)
 
 
-def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False) -> tuple[dict, list[bytes]]:
+def genchou_ids(records: list, split: set, aliases: dict) -> tuple[dict, dict]:
+    """(people: key -> {"kind", "looks": {code: [scenarios]}}, ids: key -> id) of load_genchou_pc88_people records,
+    one character per name (women apart; `aliases` (scenario, name) -> name groups other spellings), numbered as
+    genchou-fc: the men of GENDATA1, USDATA1 block 0, GENDATA2-4 from 0, the women from 1000, the children who are
+    nobody else from 2000; then the other USDATA men."""
+    records = [(sc, block, kind, aliases.get((sc, name), name), code) for sc, block, kind, name, code in records]
+    people = {}
+    def key(sc: int, kind: str, name: str) -> tuple:
+        return kind == "woman", name, (name, sc) in split
+
+    for sc, block, kind, name, code in records:
+        looks = people.setdefault(key(sc, kind, name), {"kind": kind, "looks": {}})
+        looks["looks"].setdefault(code, []).append(sc)
+        if kind == "man":
+            looks["kind"] = "man"
+    order = ([r for r in records if r[2] == "man" and r[0] == 1 and r[1] <= 0]
+             + [r for r in records if r[2] == "man" and r[0] > 1 and r[1] < 0]
+             + [r for r in records if r[2] == "woman"] + [r for r in records if r[2] == "child"]
+             + [r for r in records if r[2] == "man" and r[1] >= 0])
+    ids, first = {}, {"man": 0, "woman": 1000, "child": GENCHOU_PC88_CHILDREN}
+    for sc, _, kind, name, _ in order:
+        k = key(sc, kind, name)
+        if k not in ids:
+            ids[k] = first[people[k]["kind"]]
+            first[people[k]["kind"]] += 1
+    return people, ids
+
+
+def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False, dos: bool = False) -> tuple[dict, list[bytes]]:
     """x68=True: the X68000 version (full-height faces, 24 more men's faces, its own palette). pc98=True: the PC-98
-    version (the X68000 faces and people, its own palette)."""
-    inputs = GENCHOU_PC98_INPUTS if pc98 else GENCHOU_X68_INPUTS if x68 else GENCHOU_PC88_INPUTS
-    full = x68 or pc98
+    version (the X68000 faces and people, its own palette). dos=True: the Chinese DOS version (the PC-98 files with
+    Chinese names, the DAC palette). The Japanese versions take `nameZh` from the DOS people files in `dos/`."""
+    inputs = GENCHOU_PC98_INPUTS if pc98 or dos else GENCHOU_X68_INPUTS if x68 else GENCHOU_PC88_INPUTS
+    if not dos:
+        inputs = inputs + [f"dos/{n}" for n in GENCHOU_PC88_INPUTS[2:]]
+    full = x68 or pc98 or dos
     files = {}
     for name in inputs + ([] if full else ["VERSION"]):
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -3849,33 +3912,24 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False) -> 
         return {"variant": (code >> 11 & 15) + men_types * woman,
                 "parts": [code >> 9 & 3, code >> 7 & 3, code >> 5 & 3, code >> 3 & 3], "code": f"{code:04X}"}
 
-    # one character per name (women apart), numbered as genchou-fc: the men of GENDATA1, USDATA1 block 0,
-    # GENDATA2-4 from 0, the women from 1000, the children who are nobody else from 2000; then the other USDATA men
-    records = koei_games.load_genchou_pc88_people(game_dir, x68, pc98)
-    people = {}
-    def key(sc: int, kind: str, name: str) -> tuple:
-        return kind == "woman", name, (name, sc) in GENCHOU_PC88_SPLIT
-
-    for sc, block, kind, name, code in records:
-        looks = people.setdefault(key(sc, kind, name), {"kind": kind, "looks": {}})
-        looks["looks"].setdefault(code, []).append(sc)
-        if kind == "man":
-            looks["kind"] = "man"
-    order = ([r for r in records if r[2] == "man" and r[0] == 1 and r[1] <= 0]
-             + [r for r in records if r[2] == "man" and r[0] > 1 and r[1] < 0]
-             + [r for r in records if r[2] == "woman"] + [r for r in records if r[2] == "child"]
-             + [r for r in records if r[2] == "man" and r[1] >= 0])
-    ids, first = {}, {"man": 0, "woman": 1000, "child": GENCHOU_PC88_CHILDREN}
-    for sc, _, kind, name, _ in order:
-        k = key(sc, kind, name)
-        if k not in ids:
-            ids[k] = first[people[k]["kind"]]
-            first[people[k]["kind"]] += 1
+    dos_aliases = {(4, b): a for a, b in GENCHOU_DOS_NAMES.items()}
+    if dos:
+        people, ids = genchou_ids(koei_games.load_genchou_pc88_people(game_dir, dos=True), GENCHOU_DOS_SPLIT, dos_aliases)
+    else:
+        people, ids = genchou_ids(koei_games.load_genchou_pc88_people(game_dir, x68, pc98), GENCHOU_PC88_SPLIT, {})
+        _, zh_ids = genchou_ids(koei_games.load_genchou_pc88_people(os.path.join(game_dir, "dos"), dos=True),
+                                GENCHOU_DOS_SPLIT, dos_aliases)
+        name_zh = {i: GENCHOU_DOS_NAMES.get(k[1], k[1]) for k, i in zh_ids.items()}
+        assert sorted(name_zh) == sorted(ids.values())
     characters = []
     for k, p in people.items():
         woman, name, _ = k
+        if dos:
+            name = GENCHOU_DOS_NAMES.get(name, name)
         looks = list(p["looks"].items())
         ch = {"id": ids[k], "name": name, "face": face(woman, looks[0][0])}
+        if not dos:
+            ch["nameZh"] = name_zh[ids[k]]
         if name in GENCHOU_PC88_NAME_HISTORICAL:
             ch["nameHistorical"] = GENCHOU_PC88_NAME_HISTORICAL[name]
         if len(looks) > 1:
@@ -3886,8 +3940,8 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False) -> 
     characters.sort(key=lambda c: c["id"])
 
     meta = {
-        "format": FORMAT, "id": "genchou-pc98" if pc98 else "genchou-x68" if x68 else "genchou-pc88", "game": "GENCHOU",
-        "platform": "PC98" if pc98 else "X68" if x68 else "PC88",
+        "format": FORMAT, "id": "genchou-dos" if dos else "genchou-pc98" if pc98 else "genchou-x68" if x68 else "genchou-pc88",
+        "game": "GENCHOU", "platform": "DOS" if dos else "PC98" if pc98 else "X68" if x68 else "PC88",
         "title": {"ja": "蒼き狼と白き牝鹿・元朝秘史", "zh": "蒼狼與白鹿・元朝秘史"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
@@ -3895,6 +3949,10 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False) -> 
         "palettes": [{"id": "pc98", "label": "PC98", "colors": [
                          "#" + "".join(f"{files['MAIN.EXE'][GENCHOU_PC98_PALETTE + 3 * c + k] * 17:02x}" for k in (1, 2, 0))
                          for c in range(8)]} if pc98 else
+                     {"id": "vga", "label": "VGA", "colors": [
+                         "#" + "".join(f"{(v := files['MAIN.EXE'][GENCHOU_DOS_PALETTE + 3 * c + k]) << 4 | v >> 2:02x}"
+                                       for k in (1, 2, 0))
+                         for c in range(8)]} if dos else
                      {"id": "x68", "label": "X68", "colors": GENCHOU_X68_PALETTE} if x68 else
                      {"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE}],
         "blobs": store.names,
@@ -6958,6 +7016,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "genchou-pc88": build_genchou_pc88,
             "genchou-x68": lambda game_dir: build_genchou_pc88(game_dir, x68=True),
             "genchou-pc98": lambda game_dir: build_genchou_pc88(game_dir, pc98=True),
+            "genchou-dos": lambda game_dir: build_genchou_pc88(game_dir, dos=True),
             "genghis-dos": build_genghis_dos,
             "nobu3-dos": build_nobu3_dos, "nobu4-dos": build_nobu4_dos, "air2-dos": build_air2_dos,
             "air2-pc98": lambda game_dir: build_air2_dos(game_dir, pc98=True),

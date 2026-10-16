@@ -64,6 +64,7 @@
   - 子女 0xA4A，4 組 × 5 × 22 bytes（每組 110），+20
   - 女性 0x19C6，40 × 24 bytes，+18／+20／+22
 - 讀出的姓名與頭像碼和 PC-88 逐筆相同，匯出結果除了 id、平台與色盤 id 以外都和 `genghis-pc88` 相同。
+- `nameZh`：取 `genghis-dos` 同 id 的中文名（`genghis_name_zh`，讀 `games/genghis-pc98/dos/` 的 DOS 版 `MDATA.CIM`／`SDATA.CIM`），照遊戲原樣、不改錯字（如北鞗政子、偪山重忠）。X68000 版也一樣。
 
 ## X68000 版（`genghis-x68`）
 
@@ -85,7 +86,7 @@
   - 部將 0xB04，26 × 30 bytes，+28
   - 子女 0xE10，4 組 × 5 × 28 bytes（每組 140），+26
   - 女性 0x279C，40 × 30 bytes，+20／+24／+28（long 的低 word）
-- 姓名、人數、頭像號都和 PC-88 逐筆相同。只有組合臉碼換成 X68 的新編碼，另外ゴータマ的笑、哭兩張臉和 PC-88 對調。共 152 人（91 組合臉、61 頭像），`id` 和 `genghis-dos` 一致，`nameHistorical` 同 PC-88（江宗→襄宗）。
+- 姓名、人數、頭像號都和 PC-88 逐筆相同。只有組合臉碼換成 X68 的新編碼，另外ゴータマ的笑、哭兩張臉和 PC-88 對調。共 152 人（91 組合臉、61 頭像），`id` 和 `genghis-dos` 一致，`nameHistorical` 同 PC-88（江宗→襄宗），`nameZh` 同 PC-98 版（`games/genghis-x68/dos/`）。
 
 ## 發行年份
 

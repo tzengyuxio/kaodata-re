@@ -66,3 +66,15 @@
 - `KAODATA.DAT` 和 X68000 版逐 byte 相同（全高、男性 64 張），所以頭像與組合臉和 `genchou-x68` 相同。
 - 色盤：`MAIN.EXE` 檔案 0x3E93A 起是色號 0–7 的類比色，每色 3 bytes（B、R、G，4 bit），換成 8 bit 是 v × 17。設計和 X68000 版相同，只是量化不同（例：`#004488`，X68000 是 `#004a8c`）。
 - 人物：`GENDATA` 是 PC-88 的排法往後挪 1 byte（檔頭是 `FF 00`，男性從 2 起、女性從 0x1A26 起），`USDATA` 同 PC-88，但檔尾接著磁碟殘留的垃圾，所以只讀完整的 351 bytes 區塊。頭像碼是 X68000 版的碼（男性 40–63 是獨立頭像）。445 筆記錄的劇本、姓名、頭像碼和 X68000 版完全相同，包括 PC-88 的兩個錯字已改正（畠山重忠、孝宗）。
+
+## DOS 中文版（`genchou-dos`）
+
+`dekoei.py export genchou-dos` 用 `build_genchou_pc88(dos=True)`。來源是 `games/archives/dos/元朝秘史_killpeople.rar`（上傳者標記 killpeople，解在 `games/archives/dos/genchou-dos-src/`），`games/genchou-dos/` 放 `KAODATA.DAT`、`MAIN.EXE`、`GENDATA1–4.DAT`、`USDATA1–4.DAT`。`MAIN.EXE`、劇本檔的日期是 1994-01-14，有 `MSG.16P`／`NAME.16P` 中文字型。
+
+- `KAODATA.DAT` 和 PC-98、X68000 版逐 byte 相同，頭像與組合臉也就和 `genchou-pc98` 相同。
+- 色盤：`MAIN.EXE` 檔案 0x422D4（DS:0x3734，DGROUP 是 0x3A3A）是 16 色表，前 8 色和 PC-98 的色表逐 byte 相同（B、R、G，4 bit）。0x49C6 把每個值左移 2 寫進 VGA DAC，換成 8 bit 是 `v << 4 | v >> 2`（palette id `vga`）。
+- 人物：`GENDATA`、`USDATA` 的大小與排法都和 PC-98 相同，名字換成光榮台灣內碼（`load_genchou_pc88_people(dos=True)`，`koei_tw_name`）。854 筆記錄逐筆比對，頭像碼與有名字的位置全部和 PC-98 一致；劇本 4 的玩家佔位叫「蒙古統一者」。
+- id 照 `genchou-pc98`（372 人）。中文名的分組和日文名不同，用兩張表調整：
+  - `GENCHOU_DOS_NAMES`：15 人在劇本 2、4 的譯名不同（例：帖卜騰格里／騰格里、茶哥／恰凱），取劇本 4（使用者決定）。分組時劇本 4 的記錄歸到劇本 2 的寫法，因為アル・ナーセル的劇本 4 譯名「納西爾」也是劇本 2 另一人（ムハマドナーセル）的名字。
+  - `GENCHOU_DOS_SPLIT`：5 個名字在 PC-98 是兩人：亦納勒赤（イナルチ／イナルチュク）、脫劣勒赤（トレルチ／子嗣ドルジ）、阿合馬（アーマド／アフマド）、席拉（シイラ／シャーラ），以及照 FC 拆開的艾伯克（アイバク）。
+- 日文版（`genchou-pc98`、`genchou-x68`、`genchou-pc88`）的 `nameZh` 就是這份中文名，依 id 對應；各遊戲目錄的 `dos/` 放同一份 `GENDATA1–4.DAT`、`USDATA1–4.DAT`（記在 `source.inputs`）。`genchou-sfc`、`genchou-md` 的編號不同，沒有加。
