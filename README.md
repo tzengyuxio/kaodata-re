@@ -194,7 +194,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `taikoh-x68`  | 太閤立志伝                    | X68000     |  739 |  254 |   ○    | [notes/taikoh.md](notes/taikoh.md) |
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `taikoh2-pc98` | 太閤立志伝II                 | PC-98      |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
-| `taikoh3-win` | 太閤立志傳III                 | Win 中文版 |  252 |  354 |        | [notes/taikoh3.md](notes/taikoh3.md) |
+| `taikoh3-win` | 太閤立志傳III                 | Win 中文版 |  252 |  281 |        | [notes/taikoh3.md](notes/taikoh3.md) |
 | `taikoh5dx-win` | 太閤立志伝V DX              | Win 日文版（Steam） | 1036 | 1292 |        | [notes/taikoh5.md](notes/taikoh5.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `ishin-pc88` | 維新の嵐                       | PC-88      |  203 |  102 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
