@@ -76,7 +76,8 @@
 
 ## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
 
-- [ ] 三國志12 with PK（628080）、三國志13（363150，PK 是 DLC）、三國志14（872410，PK 是 DLC）— 只分析、先不交 kaodata（2026-10-16）
-- [ ] 信長の野望・創造 with PK（288390，SteamCMD 回 No subscription，帳號沒有這款）、大志（628890，PK 是 DLC）、新生（1336980，PK 是 DLC）— 只分析、先不交 kaodata（2026-10-16）
+- [x] 三國志12 with PK（628080）、三國志13（363150，PK 是 DLC）、三國志14（872410，PK 是 DLC）— 只分析、先不交 kaodata；頭像尺寸與張數已交 kaodata 記錄，人物還沒追（見 `notes/san12.md`–`san14.md`）（2026-10-16）
+- [x] 大志（628890）、新生（1336980）— 只分析、先不交 kaodata；收 72×72，尺寸與張數已交 kaodata 記錄（見 `notes/nobu15.md`、`nobu16.md`）（2026-10-16）
+- [ ] 信長の野望・創造 with PK（288390）— SteamCMD 回 No subscription，帳號沒有這款（2026-10-16）
 - [ ] 三国志ツクール（397720，已下載；RES 裡有顏CG DLC 的 `426740J.bin`）（天道 PK 已匯出成 `nobu13pk-win`，太閤立志伝V DX 已匯出成 `taikoh5dx-win`，大航海時代IV PK HD 已匯出成 `koukai4pk-win`）（2026-10-16）
 - [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）
