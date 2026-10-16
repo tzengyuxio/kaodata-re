@@ -35,6 +35,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 三國志VIII with パワーアップキット | 628040 | 628041（manifest 8731655521113835098） | build 6784390／Readme 2017年8月 | 日文版，`games/steam/628040/` |
 | 三國志IX with パワーアップキット | 628050 | 628051（manifest 8109141869183570646） | build 3717947／Readme 2017年10月 | 日文版，`games/steam/628050/` |
 | 三國志X with パワーアップキット | 628060 | 628061（manifest 5959563703464050790） | build 2456531／Readme 2017年11月 | 日文版，`games/steam/628060/` |
+| 三國志11 with パワーアップキット | 628070 | 628071（manifest 1454871840120194639） | build 2520441 | 日文版，`games/steam/628070/` |
 | 信長の野望・革新 with パワーアップキット | 363090 | 363091（manifest 8372108210806459325） | build 1345322 | 日文版，`games/steam/363090/` |
 | 信長の野望・天道 with パワーアップキット | 363110 | 363111（manifest 892070077066238385） | build 2338456 | 日文版，`games/steam/363110/` |
 | 大航海時代IV with パワーアップキット HD Version | 1424800 | 1424801（manifest 3835565721977098930）、1424802（manifest 2363000941244658290） | build 7195847 | `games/steam/1424800/` |

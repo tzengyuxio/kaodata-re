@@ -67,16 +67,16 @@
 和已收的其他平台版比對：一模一樣就只加版本標記，不同才做 `<game>-pc98`。
 
 - [ ] 蒼き狼と白き牝鹿・元朝秘史（`Genchou Hishi [FD]`）— 對 `genchou-pc88`／`genchou-x68`（2026-10-16）
-- [ ] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 對 `genghis-dos`／`genghis-pc88`／`genghis-x68`（2026-10-16）
-- [ ] ヨーロッパ戦線（`Europe Sensen [FD]`）— 對 `europe-dos`／`europe-pc88`／`europe-x68`（2026-10-16）
+- [x] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 和 `genghis-pc88` 相同，kaodata 加版本標記（2026-10-16）
+- [x] ヨーロッパ戦線（`Europe Sensen [FD]`）— 色盤是類比色，做 `europe-pc98`（2026-10-16）
 - [ ] 項劉記（`Kouryuuki [FD]`／`[HD]`）— 對 `kouryuuki-dos`／`kouryuuki-x68`（2026-10-16）
-- [ ] ランペルール（`L'Empereur [FD]`、`[extras]`）— 對 `lempe-dos`／`lempe-pc88`／`lempe-x68`（2026-10-16）
+- [x] ランペルール（`L'Empereur [FD]`、`[extras]`）— 和 `lempe-x68` 相同（映像後段損壞，只比對前 92 張），kaodata 加版本標記（2026-10-16）
 - [ ] エアーマネージメント2（`Air Management 2 [FD]`／`[HD]`）— 對 `air2-dos`（2026-10-16）
-- [ ] 三國志 復刻版（`Sangokushi Fukkokuban`，1995）— 對 `san1-pc98`（2026-10-16）
+- [x] 三國志 復刻版（`Sangokushi Fukkokuban`，1995）— 和 `san1-pc98` 相同，kaodata 加版本標記（2026-10-16）
 - [ ] トップマネジメントII — 沒查過，先看有沒有頭像（2026-10-16）
 - [ ] トップマネジメント 山王台編 — 沒查過，先看有沒有頭像（2026-10-16）
 
 ## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
 
 - [ ] 将星録、烈風伝、嵐世記、蒼天録、天下創世、革新、天道 with PK；大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（2026-10-16）
-- [ ] 三國志11 with PK（628070，下載中）（2026-10-16）
+- [ ] 三國志11 with PK（628070，已下載）（2026-10-16）
