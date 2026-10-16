@@ -4479,6 +4479,89 @@ def build_taikoh3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     }
     return meta, [bytes(b) for b in store.blobs]
 
+# ---------------------------------------------------------------- TAIKOH5DX (太閤立志伝V DX, Win)
+
+TAIKOH5DX_WIN_SCENARIOS = [f"SNR{k}_JP.TR5" for k in range(9)]
+TAIKOH5DX_WIN_INPUTS = ["MINIFACE.G1T", *TAIKOH5DX_WIN_SCENARIOS, "SNR5_TW.TR5"]
+TAIKOH5DX_WIN_NAMES_FROM = 5  # 太平 (慶長三年), the latest
+# person records: 0-959 officers and other fixed people, 960-999 えきすとら, 1000-1159 townsfolk whose names and
+# faces change by scenario, 1160-1294 fixed people and roles, 1295-1303 仮 placeholders
+TAIKOH5DX_WIN_PEOPLE = [*range(960), *range(1160, 1175), *range(1177, 1222), *range(1225, 1239), 1242, 1243]
+TAIKOH5DX_WIN_TOWNSFOLK = range(960, 1160)
+TAIKOH5DX_WIN_ROLES = [1176, 1222, 1223, 1224, 1239, 1240, 1241, *range(1244, 1295)]
+TAIKOH5DX_WIN_WOMEN = {91, 99, 109, 237, 365, 493}  # record kinds of the women among 1160-1243
+# no record uses them: 秀吉's faces after 1172 (matched by eye)
+TAIKOH5DX_WIN_LOOKS = {517: [1171, 1173, 1174]}
+TAIKOH5DX_WIN_PER_BLOB = 17  # about 1 MB compressed
+
+
+def build_taikoh5dx_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in TAIKOH5DX_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    faces = koei_games.load_taikoh5_win_faces(os.path.join(game_dir, "MINIFACE.G1T"))
+    blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // TAIKOH5DX_WIN_PER_BLOB + 1)]
+    store = ImageStore(blobs)
+    portraits = [{"img": store.add(w, h, rgba, blob=i // TAIKOH5DX_WIN_PER_BLOB, rgba=True), "code": f"{i:04X}"}
+                 for i, (w, h, rgba) in enumerate(faces)]
+
+    scenarios = [koei_games.load_taikoh5_win_persons(os.path.join(game_dir, n)) for n in TAIKOH5DX_WIN_SCENARIOS]
+    persons = scenarios[TAIKOH5DX_WIN_NAMES_FROM]
+    names_tw = koei_games.load_taikoh5_win_persons(os.path.join(game_dir, "SNR5_TW.TR5"), tw=True)
+    part = koei_games._taikoh5_win_part(os.path.join(game_dir, TAIKOH5DX_WIN_SCENARIOS[TAIKOH5DX_WIN_NAMES_FROM]), 15)
+    readings = [" ".join(kana_to_hiragana(k) for k in (part[o:o + 10].split(b"\0")[0].decode("cp932"),
+                                                       part[o + 10:o + 21].split(b"\0")[0].decode("cp932")) if k)
+                for o in range(0, len(part), koei_games.TAIKOH5_WIN_READING)]
+
+    characters, used = [], set()
+    for i in TAIKOH5DX_WIN_PEOPLE:
+        name, kind, face, _ = persons[i]
+        # every face a scenario gives the record; the officers' own face is the one numbered like the record
+        looks = list(dict.fromkeys(f for sc in scenarios for f in sc[i][2:]))
+        main = i if i in looks else face
+        looks = sorted({*looks, *TAIKOH5DX_WIN_LOOKS.get(i, [])} - {main})
+        assert not used & {main, *looks}
+        used |= {main, *looks}
+        # katakana names (ハイレ|ディン, リ|ル) are split anywhere
+        reading = readings[i].replace(" ", "") if all("ァ" <= c <= "ー" for c in name) else readings[i]
+        ch = {"id": i, "name": name, "reading": reading, "face": {"portrait": main}}
+        if names_tw[i][0] != name:
+            ch["nameZh"] = names_tw[i][0]
+        if i >= 960:
+            ch["group"] = "女性" if kind in TAIKOH5DX_WIN_WOMEN else "名人"
+        if looks:
+            ch["expressions"] = [{"portrait": f} for f in looks]
+        characters.append(ch)
+
+    roles = {}
+    for i in TAIKOH5DX_WIN_ROLES:
+        roles.setdefault(persons[i][2], []).append(persons[i][0])
+    townsfolk = {f for sc in scenarios for i in TAIKOH5DX_WIN_TOWNSFOLK for f in sc[i][2:]}
+    for i, p in enumerate(portraits):
+        if i in used:
+            continue
+        if i in roles:
+            p.update(name="／".join(dict.fromkeys(roles[i])), group="一般人物")
+        else:
+            p["group"] = "一般人物" if i in townsfolk else "其他頭像"
+
+    meta = {
+        "format": FORMAT, "id": "taikoh5dx-win", "game": "TAIKOH5DX", "platform": "WIN",
+        "title": {"ja": "太閤立志伝V DX", "zh": "太閤立志傳V DX"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH5DX_WIN_INPUTS]},
+        "display": {"scale": 1},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(blobs))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- AIR (PC-98, X68000)
 
 # face sheets in the order of the game's picture table (X68 AM.Z file 0x16F28); each 64x80 face is followed by
@@ -6497,6 +6580,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
             "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win,
+            "taikoh5dx-win": build_taikoh5dx_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
             "eiketsu5-win": build_eiketsu5_win,

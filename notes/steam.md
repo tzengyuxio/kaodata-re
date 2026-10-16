@@ -39,7 +39,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 信長の野望・革新 with パワーアップキット | 363090 | 363091（manifest 8372108210806459325） | build 1345322 | 日文版，`games/steam/363090/`；匯出用的檔案在 `games/nobu12pk-win/` |
 | 信長の野望・天道 with パワーアップキット | 363110 | 363111（manifest 892070077066238385） | build 2338456 | 日文版，`games/steam/363110/`；匯出用的檔案在 `games/nobu13pk-win/` |
 | 大航海時代IV with パワーアップキット HD Version | 1424800 | 1424801（manifest 3835565721977098930）、1424802（manifest 2363000941244658290） | build 7195847 | `games/steam/1424800/` |
-| 太閤立志伝V DX | 1842810 | 1842811（manifest 2345313088801476794） | build 9163702 | `games/steam/1842810/` |
+| 太閤立志伝V DX | 1842810 | 1842811（manifest 2345313088801476794） | build 9163702 | 日、簡中、繁中三語，`games/steam/1842810/`；匯出用的檔案在 `games/taikoh5dx-win/` |
 | 三国志ツクール | 397720 | 397721（manifest 569112156222337293）、413590（manifest 626678814843644848） | build 1022864 | 免費；RES 裡有顏CG「コーエーSLG」DLC 426740 的 `426740J.bin`（內容未查），`games/steam/397720/` |
 | 信長の野望・武将風雲録 | 521740 | 521741（manifest 4318626338706197183） | build 1691564／Readme 2017年3月 | 日文 Windows 版，`games/steam/521740/` |
 | 信長の野望 | 544990 | 544991（manifest 2677895693165515782） | build 1500360 | `games/steam/544990/` |

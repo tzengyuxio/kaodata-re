@@ -1269,6 +1269,77 @@ def load_nobu13_win_kao(path) -> list[tuple[int, int, bytes]]:
         faces.append((w, h, bytes(rgba)))
     return faces
 
+# TAIKOH5DX (太閤立志伝V DX, Win): data/TDATA/MINIFACE.G1T is an 'MRLK' archive (u32 count at +4, (u32 offset,
+# u32 size) pairs from +8) of 'GT1G' textures; the texture header is at +0x24: byte 1 the format (0x59 BC1,
+# 0x5B BC3), byte 2 log2 height << 4 | log2 width, u32 +8 the size of the extra header the pixels follow
+TAIKOH5_WIN_BCN = {0x59: 1, 0x5B: 3}
+# data/CMENU/SNR/SNR?_{JP,SC,TW}.TR5 are 'ILNK' archives (u32 count at +4, u32 offsets from +8); part 16 holds 1304
+# person records of 24 bytes (surname 9, given name 9, u16 kind, u16 face, u16 other face), part 15 the readings of
+# the first 1244 in 44-byte records (half-width katakana surname 10, given name 11)
+TAIKOH5_WIN_PERSON = 24
+TAIKOH5_WIN_READING = 44
+# the TW names write kanji Big5 lacks as KOEI codes FDA1- (read off the JP names)
+TAIKOH5_WIN_TW_GAIJI = {0xFDA2: "惣", 0xFDA3: "梶", 0xFDA4: "畠", 0xFDA5: "笹", 0xFDA6: "宍", 0xFDA7: "辻", 0xFDA8: "籾",
+                        0xFDA9: "垪", 0xFDAA: "杢", 0xFDAE: "樫", 0xFDB1: "恒", 0xFDB2: "坂", 0xFDBC: "脇", 0xFDBE: "簗",
+                        0xFDC0: "榊", 0xFDC1: "鮎"}
+
+
+def load_taikoh5_win_faces(path) -> list[tuple[int, int, bytes]]:
+    """(width, height, RGBA) of every texture of a TAIKOH5DX .G1T archive."""
+    from PIL import Image
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"MRLK"
+    count, = struct.unpack_from("<I", data, 4)
+    faces = []
+    for i in range(count):
+        offset, _ = struct.unpack_from("<2I", data, 8 + 8 * i)
+        assert data[offset:offset + 4] == b"GT1G"
+        h = offset + 0x24
+        n = TAIKOH5_WIN_BCN[data[h + 1]]
+        w, ht = 1 << (data[h + 2] & 15), 1 << (data[h + 2] >> 4)
+        start = h + 8 + struct.unpack_from("<I", data, h + 8)[0]
+        size = w * ht // 2 if n == 1 else w * ht
+        faces.append((w, ht, Image.frombytes("RGBA", (w, ht), data[start:start + size], "bcn", n).tobytes()))
+    return faces
+
+
+def load_taikoh5_win_persons(path, tw: bool = False) -> list[tuple[str, int, int, int]]:
+    """(name, kind, face, other face) of every person record of one SNR?_??.TR5 (JP cp932, TW Big5 + KOEI codes)."""
+    part = _taikoh5_win_part(path, 16)
+
+    def text(b):
+        b = b.split(b"\0")[0]
+        if not tw:
+            return b.decode("cp932")
+        out, i = "", 0
+        while i < len(b):
+            if b[i] < 0x80:
+                out, i = out + chr(b[i]), i + 1
+                continue
+            code = b[i] << 8 | b[i + 1]
+            out, i = out + (TAIKOH5_WIN_TW_GAIJI.get(code) or b[i:i + 2].decode("big5")), i + 2
+        return out
+
+    return [(text(part[o:o + 9]) + text(part[o + 9:o + 18]),) + struct.unpack_from("<3H", part, o + 18)
+            for o in range(0, len(part), TAIKOH5_WIN_PERSON)]
+
+
+def load_taikoh5_win_readings(path) -> list[str]:
+    """Half-width katakana readings (surname + given name) of the first person records of one SNR?_JP.TR5."""
+    part = _taikoh5_win_part(path, 15)
+    return [(part[o:o + 10].split(b"\0")[0] + part[o + 10:o + 21].split(b"\0")[0]).decode("cp932")
+            for o in range(0, len(part), TAIKOH5_WIN_READING)]
+
+
+def _taikoh5_win_part(path, k) -> bytes:
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:4] == b"ILNK"
+    count, = struct.unpack_from("<I", data, 4)
+    offsets = list(struct.unpack_from(f"<{count}I", data, 8)) + [len(data)]
+    return data[offsets[k]:offsets[k + 1]]
+
 # EIKETSU4 (織田信長傳, Win, Chinese): DATA.E4 part 0 holds 645 person records of 77 bytes;
 # +0 name (12-byte Big5), +28 u16 face (also written as ASCII at +13)
 EIKETSU4_WIN_PERSON = 77
