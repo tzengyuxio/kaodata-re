@@ -61,3 +61,22 @@
 - [x] 提督の決断III（`[PC98] 提督の決断３.zip`，7 片 FDI）— DPACK 用 `dekoei/dpack.py` 解到 `games/tk3-pc98/`，做 `tk3-pc98` 匯出（2026-10-15）
 - [x] 提督の決断II パワーアップキット（`[PC98] 提督の決断２　ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ.zip`）— PACK.LZW（LW11）解開，本體＋PACK.LZW 放 `games/tk2pk-pc98/`，做 `tk2pk-pc98` 匯出（2026-10-15）
 - [x] 提督の決断III パワーアップキット（`[PC98] 提督の決断３　パワーアップキット.zip`）— DPACK1–3.T3P 解開疊在本體上放 `games/tk3pk-pc98/`，做 `tk3pk-pc98` 匯出（2026-10-15）
+
+## 待分析遊戲（Internet Archive neo-kobe 的 PC-98 版，`games/archives/pc98/neo-kobe-2017-11-17/Koei/`）
+
+和已收的其他平台版比對：一模一樣就只加版本標記，不同才做 `<game>-pc98`。
+
+- [ ] 蒼き狼と白き牝鹿・元朝秘史（`Genchou Hishi [FD]`）— 對 `genchou-pc88`／`genchou-x68`（2026-10-16）
+- [ ] ジンギスカン（`Genghis Khan [FD]`、`[FD][Set 1]`）— 對 `genghis-dos`／`genghis-pc88`／`genghis-x68`（2026-10-16）
+- [ ] ヨーロッパ戦線（`Europe Sensen [FD]`）— 對 `europe-dos`／`europe-pc88`／`europe-x68`（2026-10-16）
+- [ ] 項劉記（`Kouryuuki [FD]`／`[HD]`）— 對 `kouryuuki-dos`／`kouryuuki-x68`（2026-10-16）
+- [ ] ランペルール（`L'Empereur [FD]`、`[extras]`）— 對 `lempe-dos`／`lempe-pc88`／`lempe-x68`（2026-10-16）
+- [ ] エアーマネージメント2（`Air Management 2 [FD]`／`[HD]`）— 對 `air2-dos`（2026-10-16）
+- [ ] 三國志 復刻版（`Sangokushi Fukkokuban`，1995）— 對 `san1-pc98`（2026-10-16）
+- [ ] トップマネジメントII — 沒查過，先看有沒有頭像（2026-10-16）
+- [ ] トップマネジメント 山王台編 — 沒查過，先看有沒有頭像（2026-10-16）
+
+## 待分析遊戲（Steam 版，`games/steam/<appid>/`，見 `notes/steam.md`）
+
+- [ ] 将星録、烈風伝、嵐世記、蒼天録、天下創世、革新、天道 with PK；大航海時代IV PK HD；太閤立志伝V DX；三国志ツクール（2026-10-16）
+- [ ] 三國志11 with PK（628070，下載中）（2026-10-16）
