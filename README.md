@@ -56,6 +56,7 @@ Early KOEI Games Data Research
 | TAIKOH    | 太閤立志傳                  | 1992 |     DOS,PC98     |       |        |                     |
 | TAIKOH2   | 太閤立志傳II                | 1995 |     PC98,WIN     |       |        |                     |
 | TAIKOH3   | 太閤立志傳III               | 1999 |       WIN        |       |        |                     |
+| TAIKOH4   | 太閤立志傳IV                | 2001 |       WIN        |       |        |                     |
 | TAIKOH5   | 太閤立志傳V                 | 2004 |       WIN        |       |        |                     |
 | EUROPE    | 歐陸戰線                    | 1991 |       DOS        |       |        |                     |
 | ISHIN     | 維新之嵐                    | 1988 |       PC98       |       |        |                     |
@@ -196,6 +197,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `taikoh2-win` | 太閤立志傳II                  | Win 中文版 |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `taikoh2-pc98` | 太閤立志伝II                 | PC-98      |  728 |  746 |        | [notes/taikoh2.md](notes/taikoh2.md) |
 | `taikoh3-win` | 太閤立志傳III                 | Win 中文版 |  252 |  281 |        | [notes/taikoh3.md](notes/taikoh3.md) |
+| `taikoh4-win` | 太閤立志傳IV                  | Win 中文版 |  644 |  738 |        | [notes/taikoh4.md](notes/taikoh4.md) |
 | `taikoh5dx-win` | 太閤立志伝V DX              | Win 日文版（Steam） | 1036 | 1292 |        | [notes/taikoh5.md](notes/taikoh5.md) |
 | `ishin-pc98` | 維新の嵐                       | PC-98      |  423 |  106 |   ○    | [notes/koei-games.md](notes/koei-games.md) |
 | `ishin-pc88` | 維新の嵐                       | PC-88      |  203 |  102 |   ○    | [notes/koei-games.md](notes/koei-games.md) |

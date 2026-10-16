@@ -2506,3 +2506,91 @@ def gdt_images(data: bytes, big: bool = False) -> list[tuple[int, int, bytes]]:
         images.append((w, h, bytes(genpei.decode_planar(src, 0, w, h, 4))))
         o += 16 + size
     return images
+
+
+def szdd_expand(data: bytes) -> bytes:
+    """A file compressed by MS COMPRESS.EXE (SZDD: LZSS with a 4096-byte window starting at 4080, filled with spaces)."""
+    assert data[:8] == b"SZDD\x88\xf0\x27\x33"
+    size = struct.unpack_from("<I", data, 10)[0]
+    window, pos, out, i = bytearray(b" " * 4096), 4096 - 16, bytearray(), 14
+    while len(out) < size:
+        flags, i = data[i], i + 1
+        for bit in range(8):
+            if len(out) >= size:
+                break
+            if flags >> bit & 1:
+                at, n, literal, i = 0, 1, data[i], i + 1
+            else:
+                lo, hi, i = data[i], data[i + 1], i + 2
+                at, n, literal = lo | (hi & 0xF0) << 4, (hi & 15) + 3, None
+            for k in range(n):  # a copy may read what it has just written
+                c = window[(at + k) & 4095] if literal is None else literal
+                out.append(c)
+                window[pos], pos = c, (pos + 1) & 4095
+    return bytes(out)
+
+
+def tk4g_images(data: bytes) -> list[tuple[int, int, bytes, bytes]]:
+    """(width, height, colour indexes, 256-colour RGB555 palette) of every image of a 太閤立志傳IV TK4G file
+    (*.TG4): u32 count at +8, a 256-byte LS11 dictionary at +0x10, then 24-byte entries of u32 width, height,
+    unpacked size, packed size, offset; an entry whose packed size is its unpacked size is stored as is."""
+    assert data[:4] == b"TK4G"
+    count, dictionary, images = struct.unpack_from("<I", data, 8)[0], data[0x10:0x110], []
+    for k in range(count):
+        w, h, size, packed, at = struct.unpack_from("<5I", data, 0x110 + 24 * k)
+        src = data[at:at + packed]
+        if packed != size:
+            src = recover(get_codes(src), dictionary)[:size]  # the last code's padding bits decode to 1-3 bytes
+        images.append((w, h, src[:w * h], src[w * h:w * h + 512]))
+    return images
+
+
+# TAIKOU4.EXE (GAME/, not the SafeDisc one on the root of the disc) maps file offset = VA - 0x400000
+TAIKOH4_WIN_KEY_TABLE = 0x1F8920  # 256-byte substitution of the scenario key
+TAIKOH4_WIN_TABLES = 0x1F8F38  # VAs of 4 substitution tables of the scenario body, picked by the key
+TAIKOH4_WIN_FACES = 0x1F4DE8  # (face, first look or -1) of person 0-726 (0x5581E0)
+TAIKOH4_WIN_PERSONS = 727
+TAIKOH4_WIN_GAIJI = {0xF9DA: "恒"}
+
+
+def taikoh4_win_scenario(raw: bytes, exe: bytes) -> list[bytes]:
+    """The parts of a SNR?.TR_ scenario (SZDD) of 太閤立志傳IV, Windows (0x581650): after the 16-byte header, 0x2A
+    bytes of two 21-byte keys (each byte through TAIKOH4_WIN_KEY_TABLE), then the body, each byte through the table
+    picked by the sum of the first key's characters mod 4; the body is an ILNK archive."""
+    data = szdd_expand(raw)[0x10:]
+
+    def inverse(table):
+        out = bytearray(256)
+        for i, c in enumerate(table):
+            out[c] = i
+        return bytes(out)
+
+    key = data[:0x15].translate(inverse(exe[TAIKOH4_WIN_KEY_TABLE:TAIKOH4_WIN_KEY_TABLE + 256])).split(b"\0")[0]
+    va = struct.unpack_from("<I", exe, TAIKOH4_WIN_TABLES + 4 * (sum(key) % 4))[0]
+    body = data[0x2A:]
+    body = body[:1] + body[1:].translate(inverse(exe[va - 0x400000:va - 0x400000 + 256]))  # 0x2A is skipped too
+    assert body[:4] == b"ILNK"
+    count = struct.unpack_from("<I", body, 4)[0]
+    offsets = list(struct.unpack_from(f"<{count}I", body, 8)) + [len(body)]
+    return [body[offsets[k]:offsets[k + 1]] for k in range(count)]
+
+
+def load_taikoh4_win_persons(raw: bytes, exe: bytes) -> list[tuple[str, int, int]]:
+    """(name, face, first look or -1) of person 0-726 of 太閤立志傳IV, Windows. The names are the 32-byte records of
+    part 10 of a scenario (surname at +6, 9 bytes, given name at +15, 7 bytes, Big5) from person 2; 0 is the
+    protagonist and 1 is not named. Each look is 3 faces of FACE1.TG4 (faces 4096 and up)."""
+    part = taikoh4_win_scenario(raw, exe)[10]
+
+    def big5(b):
+        # the fields are not cleared after the name: other bytes, often D8 D8 (a valid Big5 code), follow it
+        out, i = "", 0
+        while i + 1 < len(b) and 0xA1 <= b[i] <= 0xF9 and (0x40 <= b[i + 1] <= 0x7E or 0xA1 <= b[i + 1] <= 0xFE):
+            code = b[i] << 8 | b[i + 1]
+            if code == 0xD8D8:
+                break
+            out, i = out + (TAIKOH4_WIN_GAIJI.get(code) or b[i:i + 2].decode("big5")), i + 2
+        return out
+
+    names = ["", ""] + [big5(part[o + 6:o + 15]) + big5(part[o + 15:o + 22])
+                        for o in range(0, (TAIKOH4_WIN_PERSONS - 2) * 32, 32)]
+    return [(names[p],) + struct.unpack_from("<Hh", exe, TAIKOH4_WIN_FACES + 4 * p) for p in range(TAIKOH4_WIN_PERSONS)]

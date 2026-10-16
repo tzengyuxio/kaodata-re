@@ -4513,6 +4513,79 @@ def build_taikoh3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     }
     return meta, [bytes(b) for b in store.blobs]
 
+# ---------------------------------------------------------------- TAIKOH4 (Windows, Chinese)
+
+TAIKOH4_WIN_INPUTS = ["FACE0.TG4", "FACE1.TG4", "SNR3.TR_", "TAIKOU4.EXE"]
+# FACE0.TG4 / FACE1.TG4 (faces 0-676 and 4096-4157; 4096 is an 8 x 8 blank) are the 56 x 56 small faces; the
+# 304 x 300 busts of BUSTUP0/1.TG4 are not collected (too large). All 256 colours are used and most faces share one
+# palette, but 19 have their own, so each face carries its palette.
+TAIKOH4_WIN_LOOKS = 4096
+TAIKOH4_WIN_PROTAGONIST = "木下藤吉郎"  # person 0, named by the player; his biography (TR4MSG17 0) is 秀吉's
+# persons (koei_games.load_taikoh4_win_persons): 2-599 officers (599 新武將), 600-649 unused slots (其他, 劇本),
+# 650-699 notable people, of whom 684-699 use the townsfolk faces and 695-698 are townsfolk too, 700-726 townsfolk
+TAIKOH4_WIN_NEW = 599
+TAIKOH4_WIN_NOTABLE = range(650, 700)
+TAIKOH4_WIN_WOMEN = {*range(674, 687)}
+TAIKOH4_WIN_TOWNSFOLK = {*range(695, 699), *range(700, 727)}
+TAIKOH4_WIN_SCENARIO_NAMES = "SNR3.TR_"  # the latest of the three (names such as 德川家康, 豊臣秀長)
+
+
+def build_taikoh4_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in TAIKOH4_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    store = ImageStore(["portraits.bin", "palettes.bin"])
+    palettes, palette_index, portraits, index = bytearray(), {}, [], {}
+    for name, base in (("FACE0.TG4", 0), ("FACE1.TG4", TAIKOH4_WIN_LOOKS)):
+        for k, (w, h, px, rgb555) in enumerate(koei_games.tk4g_images(files[name])):
+            if (w, h) != (56, 56):
+                continue
+            pal = bytes(v << 3 | v >> 2 for c in struct.unpack("<256H", rgb555) for v in (c >> 10 & 31, c >> 5 & 31, c & 31))
+            if pal not in palette_index:
+                palette_index[pal] = len(palette_index)
+                palettes.extend(pal)
+            index[base + k] = len(portraits)
+            portraits.append({"img": store.add(w, h, px), "code": f"{base + k:04X}", "palette": palette_index[pal]})
+    store.blobs[1] = palettes
+
+    persons = koei_games.load_taikoh4_win_persons(files[TAIKOH4_WIN_SCENARIO_NAMES], files["TAIKOU4.EXE"])
+    characters = []
+    for p, (name, face, look) in enumerate(persons):
+        if p == 1 or 600 <= p < 650 or (p in TAIKOH4_WIN_TOWNSFOLK):
+            if p in TAIKOH4_WIN_TOWNSFOLK and "name" not in portraits[index[face]]:
+                portraits[index[face]].update(name=name, group="一般人物")
+            continue
+        if p == TAIKOH4_WIN_NEW:
+            for c in [face] + [look + k for k in range(7)]:  # its look, then 4 more new-officer faces no one uses
+                portraits[index[c]]["group"] = "新武將"
+            continue
+        ch = {"id": p, "name": name or TAIKOH4_WIN_PROTAGONIST, "face": {"portrait": index[face]}}
+        if look >= 0:
+            ch["expressions"] = [{"portrait": index[look + k]} for k in range(3)]
+        if p in TAIKOH4_WIN_NOTABLE:
+            ch["group"] = "女性" if p in TAIKOH4_WIN_WOMEN else "名人"
+        characters.append(ch)
+    used = {ch["face"]["portrait"] for ch in characters} | {e["portrait"] for ch in characters for e in ch.get("expressions", [])}
+    for i, p in enumerate(portraits):
+        if i not in used and "group" not in p:
+            p["group"] = "其他頭像"  # 1 (person 1, no name) and faces no table points to: 634-649, 675
+
+    meta = {
+        "format": FORMAT, "id": "taikoh4-win", "game": "TAIKOH4", "platform": "WIN", "opaque": True,
+        "title": {"ja": "太閤立志伝IV", "zh": "太閤立志傳IV"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH4_WIN_INPUTS]},
+        "display": {"scale": 3},
+        "palettes": [],
+        "portraitPalettes": {"blob": 1},
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
 # ---------------------------------------------------------------- TAIKOH5DX (太閤立志伝V DX, Win)
 
 TAIKOH5DX_WIN_SCENARIOS = [f"SNR{k}_JP.TR5" for k in range(9)]
@@ -6677,7 +6750,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "air2-pc98": lambda game_dir: build_air2_dos(game_dir, pc98=True),
             "taikoh-dos": build_taikoh_dos, "taikoh-pc98": lambda game_dir: build_taikoh_dos(game_dir, pc98=True),
             "taikoh-x68": lambda game_dir: build_taikoh_dos(game_dir, pc98=True, x68=True),
-            "taikoh2-win": build_taikoh2_win, "taikoh3-win": build_taikoh3_win, "taikoh2-pc98": lambda game_dir: build_taikoh2_win(game_dir, pc98=True),
+            "taikoh2-win": build_taikoh2_win, "taikoh3-win": build_taikoh3_win, "taikoh4-win": build_taikoh4_win, "taikoh2-pc98": lambda game_dir: build_taikoh2_win(game_dir, pc98=True),
             "progen-pc98": build_progen_pc98,
             "royal-pc98": build_royal_pc98, "ishin-pc98": build_ishin_pc98,
             "tk-pc98": build_tk_pc98, "tk2-pc98": build_tk2_pc98,
