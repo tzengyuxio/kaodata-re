@@ -5195,16 +5195,22 @@ NOBU7_WIN_PEOPLE = 716  # person ids 1-716; 717-732 are the unnamed 姬一-十�
 NOBU7_WIN_PRINCESSES = range(716, 740)
 NOBU7_WIN_FOLK = 740
 NOBU7_WIN_BLOBS = ["portraits.bin", "portraits2.bin"]
+# with PK (Steam, Japanese): KAODATA.NB7 and grppal.nb7 are the Chinese files; the 10 scenarios (5 of them the PK's)
+# hold the same 744 people with the same faces, so the PK adds no character
+NOBU7PK_WIN_INPUTS = ["KAODATA.NB7", "grppal.nb7", "SNDATA05.NB7"]
 
 
-def build_nobu7_win(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_nobu7_win(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
+    """pk=True: the Japanese Steam version with PK."""
+    inputs = NOBU7PK_WIN_INPUTS if pk else NOBU7_WIN_INPUTS
+    kao_name, pal_name, sn_name = inputs
     files = {}
-    for name in NOBU7_WIN_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     store = ImageStore(NOBU7_WIN_BLOBS)
 
-    kao = files["Kaodata.nb7"]
+    kao = files[kao_name]
     count, = struct.unpack_from("<I", kao)
     base = 4 + count * 16
     portraits = []
@@ -5214,26 +5220,28 @@ def build_nobu7_win(game_dir: str) -> tuple[dict, list[bytes]]:
                           "code": f"{i:04X}"})
 
     # scenario 5 names (德川家康, 上杉謙信 rather than scenario 1's 松平元康, 長尾景虎)
-    persons = sorted(koei_games.load_nobu7_win_persons(os.path.join(game_dir, "Sndata05.nb7")))
+    persons = sorted(koei_games.load_nobu7_win_persons(os.path.join(game_dir, sn_name), "cp932" if pk else "big5"))
     characters = [{"id": i, "name": surname + given, "face": {"portrait": face}}
                   for i, (_, surname, given, face) in enumerate(persons[:NOBU7_WIN_PEOPLE])]
     used = {face for *_, face in persons[:NOBU7_WIN_PEOPLE]}
     for i in NOBU7_WIN_PRINCESSES:
-        portraits[i]["group"] = "公主"
+        portraits[i]["group"] = "姫" if pk else "公主"
     portraits[NOBU7_WIN_FOLK].update(name="農民", group="其他頭像")
     for i, p in enumerate(portraits):
         if i not in used and "group" not in p:
             p["group"] = "其他頭像"
 
     # Grppal.nb7 part 0: B, R, G triplets; faces use colours 10-245 (kept), 0-9 are filler
-    pal = ls11.ls11_decode_parts(files["Grppal.nb7"])[0]
+    pal = ls11.ls11_decode_parts(files[pal_name])[0]
     colours = ["#000000"] * 10 + [f"#{pal[i + 1]:02X}{pal[i + 2]:02X}{pal[i]:02X}" for i in range(30, 246 * 3, 3)]
 
     meta = {
-        "format": FORMAT, "id": "nobu7-win", "game": "NOBU7", "platform": "WIN",
-        "title": {"ja": "信長の野望・将星録", "zh": "信長之野望・將星錄"},
+        "format": FORMAT, "id": "nobu7pk-win" if pk else "nobu7-win", "game": "NOBU7PK" if pk else "NOBU7",
+        "platform": "WIN",
+        "title": {"ja": "信長の野望・将星録 with パワーアップキット", "zh": "信長之野望・將星錄 威力加強版"} if pk else
+                 {"ja": "信長の野望・将星録", "zh": "信長之野望・將星錄"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU7_WIN_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -5632,6 +5640,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),
             "koukai2-pc98": build_koukai2_pc98, "koukaigd-win": build_koukaigd_win, "koukai3-win": build_koukai3_win,
             "nobu7-win": build_nobu7_win,
+            "nobu7pk-win": lambda game_dir: build_nobu7_win(game_dir, pk=True),
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
             "eiketsu5-win": build_eiketsu5_win,

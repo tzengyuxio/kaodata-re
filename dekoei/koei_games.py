@@ -1023,18 +1023,21 @@ def load_koukai3_win_face_palette(exe) -> list[tuple[int, int, int]]:
 # NOBU7 (Win, Chinese): Sndata01-05.nb7 hold 744 person records of 0x5C bytes from 0x53D0;
 # +0 surname, +8 given name (8-byte Big5 each), +0x1C u16 face, +0x50 u16 person id
 NOBU7_WIN_PERSONS = (0x53D0, 744, 0x5C)
-# surnames written with Gaiji.nb7 glyphs (EB9F-EBA2)
-NOBU7_WIN_GAIJI = {bytes.fromhex("eb9feba0eba1"): "長宗我部", bytes.fromhex("eba2eba0eba1"): "香宗我部"}
+# names written with the Gaiji.nb7 glyphs (EB9F-EBA6, 3 glyphs squeezed into 4 characters): two surnames and
+# two given names (石川五右衛門, 荒木又右衛門); the same codes in the Chinese and the Japanese versions
+NOBU7_WIN_GAIJI = {bytes.fromhex("eb9feba0eba1"): "長宗我部", bytes.fromhex("eba2eba0eba1"): "香宗我部",
+                   bytes.fromhex("eba3eba4eba5"): "五右衛門", bytes.fromhex("eba6eba4eba5"): "又右衛門"}
 
 
-def load_nobu7_win_persons(path) -> list[tuple[int, str, str, int]]:
-    """(person id, surname, given name, face) of one Sndata*.nb7 scenario."""
+def load_nobu7_win_persons(path, encoding="big5") -> list[tuple[int, str, str, int]]:
+    """(person id, surname, given name, face) of one Sndata*.nb7 scenario. encoding "cp932": the Japanese
+    version (Steam with PK)."""
     with open(path, "rb") as f:
         data = f.read()
 
     def text(b):
         b = b.split(b"\0")[0]
-        return NOBU7_WIN_GAIJI.get(b) or b.decode("big5")
+        return NOBU7_WIN_GAIJI.get(b) or b.decode(encoding)
 
     start, count, size = NOBU7_WIN_PERSONS
     persons = []

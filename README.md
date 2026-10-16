@@ -172,6 +172,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu5pk-win` | 信長の野望・覇王伝 with パワーアップキット | Win 日文版（Steam） |  998 | 1067 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu6-pc98` | 信長の野望・天翔記           | PC-98      | 1000 |  410 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
+| `nobu7pk-win`  | 信長の野望・将星録 with パワーアップキット | Win 日文版（Steam） |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `air-pc98`   | エアーマネージメント 大空に賭ける | PC-98   |    0 |   38 |        | [notes/air.md](notes/air.md)       |
 | `air-x68`    | エアーマネージメント 大空に賭ける | X68000  |    0 |   33 |        | [notes/air.md](notes/air.md)       |
 | `air2-dos`   | 航空霸業II                     | DOS 中文版 |    0 |  114 |        | [notes/air2.md](notes/air2.md)     |
