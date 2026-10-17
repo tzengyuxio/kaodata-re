@@ -5060,7 +5060,7 @@ MAHJONG_PC98_INPUTS = ["SYSTEM.HDM"]
 # (6 bytes each); 15 people x 7 looks
 MAHJONG_PC98_FACES = 0x8E000
 MAHJONG_PC98_FACE = 4 + 48 * 18
-MAHJONG_PC98_LOOKS = ["通常", "笑", "泣", "怒", "驚", "說話 1", "說話 2"]
+MAHJONG_PC98_LOOKS = ["平常", "笑", "泣", "怒", "驚", "說話 1", "說話 2"]
 # the 15 names in face order, CR LF separated; katakana are NEC 2-byte half-width codes 0x85xx
 MAHJONG_PC98_NAMES = 0xAC000
 MAHJONG_PC98_DAKUTEN = "ｶﾞｷﾞｸﾞｹﾞｺﾞｻﾞｼﾞｽﾞｾﾞｿﾞﾀﾞﾁﾞﾂﾞﾃﾞﾄﾞﾊﾞﾊﾟﾋﾞﾋﾟﾌﾞﾌﾟﾍﾞﾍﾟﾎﾞﾎﾟ"
