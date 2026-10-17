@@ -5042,6 +5042,76 @@ def build_topman2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- MAHJONG (麻雀大会, PC-98)
+
+# The system disk is a self-booting 2HD image (no file system); the player disk is only for saves
+MAHJONG_PC98_INPUTS = ["SYSTEM.HDM"]
+# disk offset 0x8E000: 105 faces, each u16 width in bytes (6), u16 height (48), then 48 rows of B, R, G planes
+# (6 bytes each); 15 people x 7 looks
+MAHJONG_PC98_FACES = 0x8E000
+MAHJONG_PC98_FACE = 4 + 48 * 18
+MAHJONG_PC98_LOOKS = ["通常", "笑", "泣", "怒", "驚", "說話 1", "說話 2"]
+# the 15 names in face order, CR LF separated; katakana are NEC 2-byte half-width codes 0x85xx
+MAHJONG_PC98_NAMES = 0xAC000
+MAHJONG_PC98_DAKUTEN = "ｶﾞｷﾞｸﾞｹﾞｺﾞｻﾞｼﾞｽﾞｾﾞｿﾞﾀﾞﾁﾞﾂﾞﾃﾞﾄﾞﾊﾞﾊﾟﾋﾞﾋﾟﾌﾞﾌﾟﾍﾞﾍﾟﾎﾞﾎﾟ"
+MAHJONG_PC98_PALETTE = ["#000000", "#0000ff", "#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#ffff00", "#ffffff"]
+
+
+def mahjong_pc98_name(raw: bytes) -> str:
+    out = ""
+    for i in range(0, len(raw), 2):
+        hi, lo = raw[i], raw[i + 1]
+        if hi != 0x85:
+            out += raw[i:i + 2].decode("cp932")
+        elif lo >= 0xE4:
+            out += MAHJONG_PC98_DAKUTEN[(lo - 0xE4) * 2:(lo - 0xE4) * 2 + 2]
+        else:
+            out += bytes([lo + 2]).decode("cp932")
+    return unicodedata.normalize("NFKC", out)
+
+
+def build_mahjong_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in MAHJONG_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    disk = files["SYSTEM.HDM"]
+    store = ImageStore(["portraits.bin"])
+
+    portraits = []
+    for i in range(15 * len(MAHJONG_PC98_LOOKS)):
+        o = MAHJONG_PC98_FACES + i * MAHJONG_PC98_FACE
+        w, h = disk[o], disk[o + 2]
+        px = bytearray()
+        for y in range(h):
+            b, r, g = (disk[o + 4 + (y * 3 + p) * w:][:w] for p in range(3))
+            for x in range(w * 8):
+                k = 7 - x % 8
+                px.append((b[x // 8] >> k & 1) | (r[x // 8] >> k & 1) << 1 | (g[x // 8] >> k & 1) << 2)
+        portraits.append({"img": store.add(w * 8, h, bytes(px))})
+
+    names = disk[MAHJONG_PC98_NAMES:].split(b"\r\n")[:15]
+    n = len(MAHJONG_PC98_LOOKS)
+    characters = [{"id": i, "name": mahjong_pc98_name(raw),
+                   "face": {"portrait": i * n, "label": MAHJONG_PC98_LOOKS[0]},
+                   "expressions": [{"portrait": i * n + k, "label": MAHJONG_PC98_LOOKS[k]} for k in range(1, n)]}
+                  for i, raw in enumerate(names)]
+
+    meta = {
+        "format": FORMAT, "id": "mahjong-pc98", "game": "MAHJONG", "platform": "PC98",
+        "title": {"ja": "麻雀大会", "zh": "麻雀大會"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in MAHJONG_PC98_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "pc98", "label": "PC98", "colors": MAHJONG_PC98_PALETTE}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SAN6 PK (Windows, Chinese)
 
 SAN6PK_WIN_INPUTS = ["KAODATA.S6", "PALETTE.S6"] + [f"SNDATA{n:02}.S6" for n in range(1, 24)]
@@ -7045,7 +7115,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-dos": build_nobu2_dos, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "mahjong-pc98": build_mahjong_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,

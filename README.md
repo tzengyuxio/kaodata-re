@@ -74,10 +74,11 @@ Early KOEI Games Data Research
 | TK3       | 提督之決斷III               | 1996 |       PC98       |   ○   |        |                     |
 | TK3PK     | 提督之決斷III 威力加強版    | 1996 |       PC98       |   ○   |        |                     |
 | WINNING   | 光榮賽馬／賽馬大亨          | 1993 |       DOS        |       |        |                     |
-| LEADING   | リーディングカンパニー      | 1992 |     PC98,X68     |       |        |                     |
-| TOPMAN2   | トップマネジメントII        | 1992 |       PC98       |       |        |                     |
+| LEADING   | 龍頭企業                    | 1992 |     PC98,X68     |       |        |                     |
+| TOPMAN2   | 頂尖經營者II                | 1992 |       PC98       |       |        |                     |
 | AIR       | エアーマネージメント        | 1992 |     PC98,X68     |       |        |                     |
 | AIR2      | 航空霸業II                  | 1993 |     DOS,PC98     |       |        |                     |
+| MAHJONG   | 麻雀大會                    | 1987 |       PC98       |   ○   |        |                     |
 | EIKETSU   | 三國志英傑傳                | 1995 |   DOS,PC98,WIN   |   ○   |        |                     |
 | KOUMEI    | 三國志孔明傳                | 1996 |       WIN        |   ○   |        |                     |
 | EIKETSU3  | 毛利元就 三矢之誓           | 1997 |       WIN        |   ○   |        |                     |
@@ -88,7 +89,7 @@ Early KOEI Games Data Research
 | PROGEN    | プロジェネター              | 1995 |       PC98       |   ○   |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 65 款作品的顏ＣＧ匯出，以及 60 款作品的人物資料匯出（123 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
+* 目前支援 66 款作品的顏ＣＧ匯出，以及 61 款作品的人物資料匯出（124 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -228,6 +229,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `leading-pc98` | リーディングカンパニー      | PC-98      |    0 |   44 |        | [notes/leading.md](notes/leading.md) |
 | `leading-x68` | リーディングカンパニー       | X68000     |    0 |   44 |        | [notes/leading.md](notes/leading.md) |
 | `topman2-pc98` | トップマネジメントII        | PC-98      |    0 |  132 |        | [notes/topman2.md](notes/topman2.md) |
+| `mahjong-pc98` | 麻雀大会                    | PC-98      |   15 |  105 |        | [notes/mahjong.md](notes/mahjong.md) |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-pc88` | ランペルール                   | PC-88      |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-x68`  | ランペルール                   | X68000     |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
