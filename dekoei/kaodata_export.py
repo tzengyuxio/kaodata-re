@@ -5171,6 +5171,201 @@ def build_mahjong_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- WINNING POST 2 PLUS with PK (PC-98)
+
+WINNING2PK_PC98_INPUTS = ["HUMAN.DAT", "HUMAN2.DAT", "FACE.DAT", "MAIN.EXE", "MANNAME.BIN", "JOCKEY.BIN",
+                          "TRAINER.BIN", "OWNER.BIN"]
+WINNING2PK_PC98_PALETTE = 0x65850  # MAIN.EXE: low-half palette 0 (colours 0-7, B, R, G nibbles); every face uses it
+WINNING2PK_PC98_DGROUP = 0x6A200  # MAIN.EXE file offset of DGROUP
+WINNING2PK_PC98_SECRETARIES = 0x6D45E  # MAIN.EXE: 6 x 28 bytes, surname (7), given name (7), nickname, ...
+# a picture is 320x256: B, R, G bytes per 8 px, then a 1 bpp mask (1 = transparent); a face is the same at 104x112
+# and the game ORs it over a body at (112, 0); a portrait is that 104x112 window
+WINNING2PK_PC98_PICTURE = 0xA000
+WINNING2PK_PC98_FACE = 0x16C0
+WINNING2PK_PC98_WINDOW = (112, 0, 104, 112)
+# MAIN.EXE 0x16D7A draws a person; HUMAN.DAT offsets of each kind (jockeys have a second face for age > 35)
+WINNING2PK_PC98_JOCKEY_FACES = 0x24E000  # jockeys 0-59, on body DGROUP:0x87E[n] + 52
+WINNING2PK_PC98_JOCKEY_PICTURES = 0x2F8A00  # jockeys 60-65; 66-67 are HUMAN2.DAT 7-10 (young, old)
+WINNING2PK_PC98_TRAINER_BODIES = 0x334A00  # DGROUP:0x8F6[n]
+WINNING2PK_PC98_TRAINER_FACES = 0x352A00  # trainers 3 and 14 are whole pictures in the run of faces
+WINNING2PK_PC98_OWNER_BODIES = 0x3A0EC0  # DGROUP:0x94C[n]; body 1 is HUMAN2.DAT 42
+WINNING2PK_PC98_OWNER_FACES = 0x3D2EC0  # owners 0 and 8 are whole pictures
+WINNING2PK_PC98_OTHERS = 0x40BE40  # 5 pictures of owners without a face (draw type 5)
+WINNING2PK_PC98_POSES = ["", "姿勢2", "姿勢3", "姿勢4", "姿勢5", "姿勢6"]
+# HUMAN.DAT 36-51 (events): picture -> secretary index, or None for someone else; 40 (two secretaries) and 45
+# (宝塚 reading, side on) are left out, their faces being outside the portrait window
+WINNING2PK_PC98_EVENTS = {36: 3, 37: 5, 38: 0, 39: 5, 41: 5, 42: 3, 43: 4, 44: 4, 46: 3, 47: None, 48: 5,
+                          49: None, 50: 4, 51: 5}
+# HUMAN2.DAT: 0-5 the secretaries at the party, 6 the bride, 11-24 jockeys without a face (young, old),
+# 25-41 foreign jockeys, 47 an old man; 42 is a body and 43-46 (couples) are left out like the events above
+WINNING2PK_PC98_HUMAN2_OTHERS = [6, *range(11, 42), 47]
+
+
+def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in WINNING2PK_PC98_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    human, human2, main = files["HUMAN.DAT"], files["HUMAN2.DAT"], files["MAIN.EXE"]
+    store = ImageStore(["portraits.bin"])
+
+    def layer(raw: bytes, w: int, h: int) -> list:
+        raw = raw.ljust(w * h // 2, b"\0")
+        mask = raw[w * h * 3 // 8:]
+        px = brg_pixels(raw[:w * h * 3 // 8], w // 8, double=False)
+        return [TRANSPARENT if mask[i // 8] >> (7 - i % 8) & 1 else px[i] for i in range(w * h)]
+
+    def picture(data: bytes, o: int) -> list:
+        return layer(data[o:o + WINNING2PK_PC98_PICTURE], 320, 256)
+
+    def portrait(pic: list, face_at: int | None = None) -> bytes:
+        x0, y0, w, h = WINNING2PK_PC98_WINDOW
+        px = [pic[(y0 + y) * 320 + x0 + x] for y in range(h) for x in range(w)]
+        if face_at is not None:
+            face = layer(human[face_at:face_at + WINNING2PK_PC98_FACE], w, h)
+            px = [b if f == TRANSPARENT else f for b, f in zip(px, face)]
+        return store.add(w, h, bytes(px))
+
+    def body(table: int, n: int) -> int:
+        return struct.unpack_from("<H", main, WINNING2PK_PC98_DGROUP + table + 2 * n)[0]
+
+    portraits = []
+
+    def add(img: int, group: str, name: str | None = None) -> int:
+        portraits.append({"img": img, "group": group, **({"name": name} if name else {})})
+        return len(portraits) - 1
+
+    names = files["MANNAME.BIN"]
+
+    def manname(i: int) -> str:
+        return names[i * 6:i * 6 + 6].split(b"\0")[0].decode("cp932")
+
+    characters = []
+    by_name = {}
+
+    def person(cid: int, name: str, faces: list[tuple[int, str]]) -> None:
+        if name in by_name:
+            ch = by_name[name]
+            seen = {ch["face"]["portrait"], *(e["portrait"] for e in ch.get("expressions", []))}
+            ch.setdefault("expressions", []).extend({"portrait": p, "label": l} for p, l in faces if p not in seen)
+            if not ch["expressions"]:
+                del ch["expressions"]
+            return
+        ch = {"id": cid, "name": name, "face": {"portrait": faces[0][0]}}
+        if faces[0][1]:
+            ch["face"]["label"] = faces[0][1]
+        if faces[1:]:
+            ch["expressions"] = [{"portrait": p, "label": l} for p, l in faces[1:]]
+        characters.append(ch)
+        by_name[name] = ch
+
+    # secretaries: HUMAN.DAT 6 poses each, events 36-51, the party in HUMAN2.DAT 0-5
+    secretaries = []
+    for s in range(6):
+        rec = main[WINNING2PK_PC98_SECRETARIES + 28 * s:][:28]
+        name = (rec[:7].split(b"\0")[0] + rec[7:14].split(b"\0")[0]).decode("cp932")
+        faces = [(add(portrait(picture(human, (6 * s + k) * WINNING2PK_PC98_PICTURE)), "秘書", name), label)
+                 for k, label in enumerate(WINNING2PK_PC98_POSES)]
+        secretaries.append((name, faces))
+    others = []
+    for k, s in WINNING2PK_PC98_EVENTS.items():
+        img = portrait(picture(human, k * WINNING2PK_PC98_PICTURE))
+        if s is None:
+            others.append(img)
+        else:
+            secretaries[s][1].append((add(img, "秘書", secretaries[s][0]), "事件"))
+    for s, (name, faces) in enumerate(secretaries):
+        faces.append((add(portrait(picture(human2, s * WINNING2PK_PC98_PICTURE)), "秘書", name), "派對"))
+        person(3000 + s, name, faces)
+
+    # jockeys: the face slot is the record's last byte (MAIN.EXE 0x43EB0)
+    slots = []
+    for n in range(68):
+        if n < 60:
+            pic = picture(human, (body(0x87E, n) + 52) * WINNING2PK_PC98_PICTURE)
+            o = WINNING2PK_PC98_JOCKEY_FACES + n * 2 * WINNING2PK_PC98_FACE
+            young, old = portrait(pic, o), portrait(pic, o + WINNING2PK_PC98_FACE)
+        elif n < 66:
+            young = old = portrait(picture(human, WINNING2PK_PC98_JOCKEY_PICTURES + (n - 60) * WINNING2PK_PC98_PICTURE))
+        else:
+            young, old = (portrait(picture(human2, (7 + 2 * (n - 66) + a) * WINNING2PK_PC98_PICTURE)) for a in (0, 1))
+        faces = [(add(young, "騎手"), "")]
+        if old != young:
+            faces.append((add(old, "騎手"), "36 歳以後"))
+        slots.append(faces)
+    rows = files["JOCKEY.BIN"]
+    for k in range(len(rows) // 23):
+        rec = rows[23 * k:23 * k + 23]
+        if rec[22] != 0xFF:
+            person(k, manname(rec[0] | rec[1] << 8) + manname(rec[2] | rec[3] << 8), slots[rec[22]])
+
+    # trainers (last byte, MAIN.EXE 0x44914) and owners (MAIN.EXE 0x4530E): one face each; a whole picture takes
+    # the place of a face, so the faces after it move by 0xA000 - 0x16C0
+    def faces_of(count: int, pictures: set, bodies: int, table: int, faces: int, end: int, group: str,
+                 label: str) -> list:
+        out, o = [], faces
+        for n in range(count):
+            if n in pictures:
+                img = portrait(picture(human, o))
+                o += WINNING2PK_PC98_PICTURE
+            else:
+                b = body(table, n)
+                pic = picture(human2, 42 * WINNING2PK_PC98_PICTURE) if group == "馬主" and b == 1 else \
+                    picture(human, bodies + b * WINNING2PK_PC98_PICTURE)
+                img = portrait(pic, o)
+                o += WINNING2PK_PC98_FACE
+            out.append([(add(img, group), label)])
+        assert o == end  # each run of faces ends where the next part of HUMAN.DAT starts
+        return out
+
+    trainers = faces_of(43, {3, 14}, WINNING2PK_PC98_TRAINER_BODIES, 0x8F6, WINNING2PK_PC98_TRAINER_FACES,
+                        WINNING2PK_PC98_OWNER_BODIES, "調教師", "調教師")
+    owners = faces_of(28, {0, 8}, WINNING2PK_PC98_OWNER_BODIES, 0x94C, WINNING2PK_PC98_OWNER_FACES,
+                      WINNING2PK_PC98_OTHERS, "馬主", "馬主")
+    for table, size, slot, cid, kinds in (("TRAINER.BIN", 43, 42, 1000, trainers), ("OWNER.BIN", 20, 19, 2000, owners)):
+        rows = files[table]
+        for k in range(len(rows) // size):
+            rec = rows[size * k:size * k + size]
+            if rec[slot] != 0xFF:
+                faces = kinds[rec[slot]]
+                name = manname(rec[0] | rec[1] << 8) + manname(rec[2] | rec[3] << 8)
+                person(cid + k, name, faces if name in by_name else [(faces[0][0], "")])
+
+    # pictures of people without a record
+    for k in range(5):
+        others.append(portrait(picture(human, WINNING2PK_PC98_OTHERS + k * WINNING2PK_PC98_PICTURE)))
+    for k in WINNING2PK_PC98_HUMAN2_OTHERS:
+        others.append(portrait(picture(human2, k * WINNING2PK_PC98_PICTURE)))
+    for img in others:
+        add(img, "其他")
+    # FACE.DAT: 72 NPK016 faces with a 12-byte header (width, height, size), shown by a face picker (overlay
+    # 0x782CE); colours 0-7 plus one background colour (8 or 15), exported as transparent
+    data = files["FACE.DAT"]
+    o = 0
+    while o < len(data):
+        w, h, size = struct.unpack_from("<3H", data, o + 6)
+        px = utils.unpack_npk(data[o + 12:o + size], w, h)
+        add(store.add(w, h, bytes(c if c < 8 else TRANSPARENT for c in px)), "不明")
+        o += size
+
+    pal = main[WINNING2PK_PC98_PALETTE:][:24]
+    meta = {
+        "format": FORMAT, "id": "winning2pk-pc98", "game": "WINNING2PK", "platform": "PC98",
+        "title": {"ja": "ウイニングポスト2 Plus with パワーアップキット", "zh": "賽馬大亨2 Plus 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in WINNING2PK_PC98_INPUTS]},
+        "display": {"scale": 4},
+        "palettes": [{"id": "analog", "label": "類比 RGB",
+                      "colors": ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
+                                 for i in range(0, 24, 3)]}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SAN6 PK (Windows, Chinese)
 
 SAN6PK_WIN_INPUTS = ["KAODATA.S6", "PALETTE.S6"] + [f"SNDATA{n:02}.S6" for n in range(1, 24)]
@@ -7174,7 +7369,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-dos": build_nobu2_dos, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "inindou-pc88": lambda game_dir: build_inindou(game_dir, pc88=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "mahjong-pc98": build_mahjong_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "inindou-pc88": lambda game_dir: build_inindou(game_dir, pc88=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "mahjong-pc98": build_mahjong_pc98, "winning2pk-pc98": build_winning2pk_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,
