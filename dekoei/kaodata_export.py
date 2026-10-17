@@ -3629,6 +3629,36 @@ NOBU6_PC98_ALIASES = {"松平元康": "徳川家康", "武田晴信": "武田信
                       # the later scenarios use the 真田十勇士 names of the same men
                       "三好清海": "三好政康", "三好伊三": "三好政勝", "根津甚八": "浅井井頼"}
 
+# with パワーアップキット: MAINPK.EXE replaces MAIN.EXE; the person face field is a face number 0-1299 instead
+# of a face code (overlay 20 0x22C2, drawn by 0x69ED2): 0-378 is the KAODATA.NB6 face, 1000-1036 the
+# face n - 590 (KAO2.N6P 0-36), the rest a composite code from TABLE.N6P (u16 each)
+NOBU6PK_PC98_INPUTS = ["KAODATA.NB6", "KAO2.N6P", "MONDATA.NB6", "MONDATA2.N6P", "TABLE.N6P", "MAINPK.EXE",
+                       "SNDATA.N6P", "TAIKI.N6P", "SNDATA.NB6", "TAIKI.NB6"]
+NOBU6PK_PC98_PALETTE = 0x28CD6  # the same colours as MAIN.EXE
+NOBU6PK_PC98_HEIGHTS = 0x2A0B2  # 32 types: MONDATA.NB6 has 0-18, MONDATA2.N6P 19-31
+NOBU6PK_PC98_EYES_ROW = 0x2A132
+NOBU6PK_PC98_MOUTH_ROW = 0x2A152
+NOBU6PK_PC98_TYPES = 32
+
+
+def nobu6pk_pc98_face(face: int, table: tuple[int, ...]) -> int:
+    """Face number -> KAODATA.NB6 / KAO2.N6P portrait (410 + n), or composite code (bit 15 set)."""
+    if face < 379:
+        return face
+    if 1000 <= face < 1037:
+        return face - 590
+    return table[2048 + face - (379 if face < 1000 else 416)]
+
+
+# KAO2.N6P 37-136 (faces 447-546), Koei guest characters among them: no person uses them and the code that
+# draws them was not found (maybe the faces offered for new generals)
+NOBU6PK_PC98_UNKNOWN = range(447, 547)
+# more renames sharing a face number in the PK scenarios; the women keep their first name, as in nobu6-pc98
+NOBU6PK_PC98_ALIASES = {**NOBU6_PC98_ALIASES, "長井規秀": "斎藤道三", "飯富昌景": "山県昌景", "北畠信雄": "織田信雄",
+                        "二階堂盛隆": "蘆名盛隆", "宇都宮朝勝": "結城朝勝", "大友晴英": "大内義長",
+                        # PK scenarios use another name of a person in nobu6-pc98
+                        "陶隆房": "陶晴賢", "佐竹義広": "蘆名盛重"}
+
 
 def nobu_pc98_face(data: bytes) -> bytes:
     """KAO.NB5 / KAODATA.NB6 face (覇王伝 MAIN.EXE 0x341F, 天翔記 0x11762): u16 width, u16 height, then nibbles (high first) from a byte
@@ -3683,19 +3713,25 @@ def nobu_pc98_face(data: bytes) -> bytes:
     return bytes(out)
 
 
-def build_nobu6_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
+def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
+    inputs = NOBU6PK_PC98_INPUTS if pk else NOBU6_PC98_INPUTS
     files = {}
-    for name in NOBU6_PC98_INPUTS:
+    for name in inputs:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
-    exe = files["MAIN.EXE"]
+    exe = files["MAINPK.EXE" if pk else "MAIN.EXE"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
+    heights_at, eyes_at, mouth_at, palette_at = (
+        (NOBU6PK_PC98_HEIGHTS, NOBU6PK_PC98_EYES_ROW, NOBU6PK_PC98_MOUTH_ROW, NOBU6PK_PC98_PALETTE) if pk else
+        (NOBU6_PC98_HEIGHTS, NOBU6_PC98_EYES_ROW, NOBU6_PC98_MOUTH_ROW, NOBU6_PC98_PALETTE))
 
     mon = ls11.ls11_decode_parts(files["MONDATA.NB6"])
+    if pk:
+        mon += ls11.ls11_decode_parts(files["MONDATA2.N6P"])
     variants = []
-    for t in range(NOBU6_PC98_TYPES):
-        heights = exe[NOBU6_PC98_HEIGHTS + t * 4:][:4]
-        rows = [0, heights[0], exe[NOBU6_PC98_EYES_ROW + t], exe[NOBU6_PC98_MOUTH_ROW + t]]
+    for t in range(NOBU6PK_PC98_TYPES if pk else NOBU6_PC98_TYPES):
+        heights = exe[heights_at + t * 4:][:4]
+        rows = [0, heights[0], exe[eyes_at + t], exe[mouth_at + t]]
         parts = {}
         for k, slot in enumerate(NOBU6_PC98_SLOTS):
             h = heights[k]
@@ -3716,17 +3752,28 @@ def build_nobu6_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
         variants.append({"id": str(t), "label": f"類型 {t}", "parts": parts})
 
     faces = sango.san5_parts(os.path.join(game_dir, "KAODATA.NB6"))  # u16 count, (u32 offset, u16 size) each
-    portraits = [{"img": store.add(64, 80, nobu_pc98_face(data), blob=1), "code": f"{i:04X}"}
-                 for i, data in enumerate(faces)]
+    if pk:
+        faces += sango.san5_parts(os.path.join(game_dir, "KAO2.N6P"))
+    portraits = [{"img": store.add(64, 80, nobu_pc98_face(data), blob=1), "code": f"{i:04X}",
+                  **({"pk": True} if i >= 410 else {})} for i, data in enumerate(faces)]
     for i, name in NOBU6_PC98_PORTRAITS.items():
         portraits[i].update(group="事件人物", name=name)
-    for i in NOBU6_PC98_UNKNOWN:
+    for i in list(NOBU6_PC98_UNKNOWN) + (list(NOBU6PK_PC98_UNKNOWN) if pk else []):
         portraits[i]["group"] = "不明"
 
-    # one character per face code, in order of first appearance (only aliases share a code)
+    # one character per face code (face number with the PK), in order of first appearance (only aliases
+    # share one)
+    aliases = NOBU6PK_PC98_ALIASES if pk else NOBU6_PC98_ALIASES
     names = {}
-    for name, code in koei_games.load_nobu6_pc98_persons(files["SNDATA.NB6"], files["TAIKI.NB6"]):
-        names.setdefault(code, NOBU6_PC98_ALIASES.get(name, name))
+    for name, code in koei_games.load_nobu6_pc98_persons(files["SNDATA.N6P" if pk else "SNDATA.NB6"],
+                                                          files["TAIKI.N6P" if pk else "TAIKI.NB6"]):
+        names.setdefault(code, aliases.get(name, name))
+    base = set()
+    if pk:
+        table = struct.unpack(f"<{len(files['TABLE.N6P']) // 2}H", files["TABLE.N6P"])
+        names = {nobu6pk_pc98_face(face, table): name for face, name in names.items()}
+        base = {aliases.get(name, name)
+                for name, _ in koei_games.load_nobu6_pc98_persons(files["SNDATA.NB6"], files["TAIKI.NB6"])}
     characters = []
     for code, name in names.items():
         if code & 0x8000:
@@ -3734,16 +3781,18 @@ def build_nobu6_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
                     "code": f"{code:04X}"}
         else:
             face = {"portrait": code}
-        characters.append({"id": len(characters), "name": name, "face": face})
+        characters.append({"id": len(characters), "name": name, "face": face,
+                           **({"pk": True} if pk and name not in base else {})})
 
-    pal = exe[NOBU6_PC98_PALETTE:][:24]
+    pal = exe[palette_at:][:24]
     colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
 
     meta = {
-        "format": FORMAT, "id": "nobu6-pc98", "game": "NOBU6", "platform": "PC98",
-        "title": {"ja": "信長の野望・天翔記", "zh": "信長之野望・天翔記"},
+        "format": FORMAT, "id": "nobu6pk-pc98" if pk else "nobu6-pc98", "game": "NOBU6", "platform": "PC98",
+        "title": {"ja": "信長の野望・天翔記 with パワーアップキット", "zh": "信長之野望・天翔記 威力加強版"} if pk else
+        {"ja": "信長の野望・天翔記", "zh": "信長之野望・天翔記"},
         "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU6_PC98_INPUTS]},
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
@@ -7130,6 +7179,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,
             "nobu5-x68": lambda game_dir: build_nobu5_pc98(game_dir, x68=True), "nobu6-pc98": build_nobu6_pc98,
+            "nobu6pk-pc98": lambda game_dir: build_nobu6_pc98(game_dir, pk=True),
             "tk3-pc98": build_tk3_pc98, "tk3pk-pc98": lambda game_dir: build_tk3_pc98(game_dir, pk=True),
             "san6pk-win": build_san6pk_win, "san7pk-win": build_san7pk_win, "san3-win": build_san3_win, "san8pk-win": build_san8pk_win, "san9pk-win": build_san9pk_win, "san10pk-win": build_san10pk_win, "san11pk-win": build_san11pk_win, "nobu5pk-win": build_nobu5pk_win, "koumei-win": build_koumei_win, "eiketsu-dos": build_eiketsu_dos,
             "eiketsu-pc98": lambda game_dir: build_eiketsu_dos(game_dir, pc98=True),

@@ -89,7 +89,7 @@ Early KOEI Games Data Research
 | PROGEN    | プロジェネター              | 1995 |       PC98       |   ○   |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 66 款作品的顏ＣＧ匯出，以及 61 款作品的人物資料匯出（125 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
+* 目前支援 66 款作品的顏ＣＧ匯出，以及 61 款作品的人物資料匯出（126 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -189,6 +189,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu5-x68`  | 信長の野望・覇王伝           | X68000     |  818 |  929 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu5pk-win` | 信長の野望・覇王伝 with パワーアップキット | Win 日文版（Steam） |  998 | 1067 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu6-pc98` | 信長の野望・天翔記           | PC-98      | 1000 |  410 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |
+| `nobu6pk-pc98` | 信長の野望・天翔記 with パワーアップキット | PC-98 | 1300 | 547 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |
 | `nobu7-win`  | 信長之野望・將星錄             | Win 中文版 |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `nobu7pk-win`  | 信長の野望・将星録 with パワーアップキット | Win 日文版（Steam） |  716 |  769 |        | [notes/nobu7.md](notes/nobu7.md)   |
 | `nobu8pk-win` | 信長の野望・烈風伝 with パワーアップキット | Win 日文版（Steam） |  900 | 1741 |        | [notes/nobu8.md](notes/nobu8.md) |
