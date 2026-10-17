@@ -7,7 +7,7 @@
 neo-kobe PC-98 合集的 `Winning Post 2 Plus/`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/Winning Post 2 Plus/`）：
 
 - `Winning Post 2 Plus [FD].zip`：本體 7 片，每片是一個 `DISK_n.PAC`（KOEI Install Program Ver 2.1 的壓縮包，`INSTALL.SYS` 腳本用 `unpack disk_n.pac` 解開）。
-- `Winning Post 2 Plus (Powerup Kit) [FD].zip`：PK 3 片（`PKDISK_n.PAC`，`PKDISK_1.VER` 是「Winning Post 2 Plus ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ Version1.00」）。
+- `Winning Post 2 Plus (Powerup Kit) [FD].zip`：PK 3 片（1996-08-23 發售）（`PKDISK_n.PAC`，`PKDISK_1.VER` 是「Winning Post 2 Plus ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ Version1.00」）。
 - `Winning Post 2 Plus (with Powerup Kit) [HD].zip`：裝好 PK 的 HDI。PAC 的壓縮沒解，所以檔案都從這個 HDI 取（`games/archives/pc98/disks/winning2pk-pc98/hdi/`，用到的放 `games/winning2pk-pc98/`）。HDI 裡的 `SAVE/` 有 2017 年的存檔，遊戲玩過。
 
 本體與 PK 的差別只能看 HDI 裡的 FAT 日期：`FACE.DAT`（1995-10-24）、`HUMAN.DAT`（1995-10-25）是本體的，PK 改的是 `HUMAN2.DAT`（1996-07-13）、`JOCKEY.BIN`、`MANNAME.BIN`、`OWNER.BIN`、`MAIN.EXE`（1996-08-06）等。分不出 PK 新增了哪些人，所以資料集沒有 `pk` 標記；kaodata 照 PK 規則只收這個 PK 版。
@@ -49,3 +49,4 @@ neo-kobe PC-98 合集的 `Winning Post 2 Plus/`（`games/archives/pc98/neo-kobe-
 - 馬主 `OWNER.BIN` 20 bytes × 50，+0x13 是臉號（0x3533:0x5DE）。
 - 秘書：`MAIN.EXE` 0x6D45E 起 6 筆 28 bytes（姓 7、名 7、暱稱…），順序同 `HUMAN.DAT` 的圖。
 - 同名合併：退休騎手當上調教師的 16 人，調教師的臉放 `expressions`（label「調教師」）。
+- 有多張臉的人，主臉也有 label：秘書「姿勢1」、有年長臉的騎手「35 歳まで」（年長臉「36 歳以後」）、合併的人主臉沒有其他 label 時用「騎手」。

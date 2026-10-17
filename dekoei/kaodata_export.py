@@ -5191,7 +5191,7 @@ WINNING2PK_PC98_TRAINER_FACES = 0x352A00  # trainers 3 and 14 are whole pictures
 WINNING2PK_PC98_OWNER_BODIES = 0x3A0EC0  # DGROUP:0x94C[n]; body 1 is HUMAN2.DAT 42
 WINNING2PK_PC98_OWNER_FACES = 0x3D2EC0  # owners 0 and 8 are whole pictures
 WINNING2PK_PC98_OTHERS = 0x40BE40  # 5 pictures of owners without a face (draw type 5)
-WINNING2PK_PC98_POSES = ["", "姿勢2", "姿勢3", "姿勢4", "姿勢5", "姿勢6"]
+WINNING2PK_PC98_POSES = ["姿勢1", "姿勢2", "姿勢3", "姿勢4", "姿勢5", "姿勢6"]
 # HUMAN.DAT 36-51 (events): picture -> secretary index, or None for someone else; 40 (two secretaries) and 45
 # (宝塚 reading, side on) are left out, their faces being outside the portrait window
 WINNING2PK_PC98_EVENTS = {36: 3, 37: 5, 38: 0, 39: 5, 41: 5, 42: 3, 43: 4, 44: 4, 46: 3, 47: None, 48: 5,
@@ -5250,6 +5250,8 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
             ch.setdefault("expressions", []).extend({"portrait": p, "label": l} for p, l in faces if p not in seen)
             if not ch["expressions"]:
                 del ch["expressions"]
+            elif "label" not in ch["face"]:  # a jockey who became a trainer: label the pair 騎手／調教師
+                ch["face"]["label"] = portraits[ch["face"]["portrait"]]["group"]
             return
         ch = {"id": cid, "name": name, "face": {"portrait": faces[0][0]}}
         if faces[0][1]:
@@ -5289,7 +5291,7 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
             young = old = portrait(picture(human, WINNING2PK_PC98_JOCKEY_PICTURES + (n - 60) * WINNING2PK_PC98_PICTURE))
         else:
             young, old = (portrait(picture(human2, (7 + 2 * (n - 66) + a) * WINNING2PK_PC98_PICTURE)) for a in (0, 1))
-        faces = [(add(young, "騎手"), "")]
+        faces = [(add(young, "騎手"), "35 歳まで" if old != young else "")]
         if old != young:
             faces.append((add(old, "騎手"), "36 歳以後"))
         slots.append(faces)
