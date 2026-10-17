@@ -58,8 +58,6 @@
 | PC-98 | オランダ妻は電気ウナギの夢を見るか? | 未掃 | 推測沒有頭像 |
 | PC-98 | ウイニングポスト | 待匯出 | 由 winning-post-zh 匯出 `winning-pc98` |
 | PC-98 | トップマネジメント 産能大編 | 未解 | 臉可能在 `.ANM`，格式沒解開（BACKLOG） |
-| PC-98 | デルフォイの神託 | 未掃 | 推測沒有頭像 |
-| PC-98 | 魂の門 ダンテ「神曲」より | 未掃 | 推測沒有頭像 |
 | PC-98 | バンドくん | 未掃 | 推測沒有頭像（音樂軟體） |
 | PC-98 | Super Dog World | 未掃 | 推測沒有頭像 |
 | PC-98 | Life is Music | 未掃 | 推測沒有頭像 |
@@ -140,8 +138,8 @@
 | 1993 | 提督の決断II | 已匯出 | `tk2-pc98`（只在 data-local） | kaodata 收 PK 版 | `pc98/[PC98] 提督の決断２.zip` |
 | 1993 | ウイニングポスト | 待匯出 | `winning-pc98` | 和 DOS 版只差色盤換算（PC-98 是 v×17），使用者決定另收。由 winning-post-zh 匯出，檔案在 `games/winning-pc98/` | `nk98/Winning Post/` |
 | 1993 | 神々の大地 古事記外伝 | 不用掃 |  | 使用者決定（2026-10-17） | `nk98/Kamigami no Daichi - Kojiki Gaiden/` |
-| 1993 | デルフォイの神託 | 未掃 |  | 推測沒有頭像 | `nk98/Delphi no Shintaku/` |
-| 1993 | 魂の門 ダンテ「神曲」より | 未掃 |  | 推測沒有頭像 | `nk98/Tamashii no Mon - Dante Shinkyoku yori/` |
+| 1993 | デルフォイの神託 | 沒有頭像 |  | S3.GRX（u16／u32 大小表＋每項寬高、16 色色盤、NPK）只有國旗、場景、標誌；人物是 ECHARA.GRP 的全身行走圖 | `nk98/Delphi no Shintaku/` |
+| 1993 | 魂の門 ダンテ「神曲」より | 沒有頭像 |  | 只有劇情插畫（PACDATA 28 張 224×144、OPPAC／CLPAC 開場與結局，MAIN.EXE 0x2097／0x240F 的 4／3 平面壓縮）；說明書的人物圖是插畫裁切 | `nk98/Tamashii no Mon - Dante Shinkyoku yori/` |
 | 1993? | バンドくん | 未掃 |  | 推測沒有頭像（音樂軟體） | `nk98/Band-kun/` |
 | 1993? | Super Dog World | 未掃 |  | 推測沒有頭像 | `nk98/Super Dog World/` |
 | 1993? | Life is Music | 未掃 |  | 推測沒有頭像 | `nk98/Life is Music/` |
