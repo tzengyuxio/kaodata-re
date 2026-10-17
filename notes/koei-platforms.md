@@ -81,7 +81,7 @@
 | 独立戦争 | 1993 | `pc98/[PC98] 独立戦争.zip` | 已匯出 `liberty-pc98` | |
 | 提督の決断II | 1993 | `pc98/[PC98] 提督の決断２.zip` | 已匯出 `tk2-pc98`（data-local） | kaodata 收 PK 版 |
 | 提督の決断II パワーアップキット | 1994 | `pc98/[PC98] 提督の決断２　ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ.zip` | 已匯出 `tk2pk-pc98` | |
-| ウイニングポスト | 1993 | `nk98/Winning Post/` | 掃過，等 kaodata 決定 | 頭像、組合臉、馬頭檔和 DOS 版逐 byte 相同，人物頭像碼相同；只差色盤換算（同一張 4 bit 表，PC-98 是 v×17）。匯出程式在 winning-post-zh |
+| ウイニングポスト | 1993 | `nk98/Winning Post/` | 另收 `winning-pc98`（winning-post-zh 匯出） | 頭像、組合臉、馬頭檔和 DOS 版逐 byte 相同，人物頭像碼相同；只差色盤換算（同一張 4 bit 表，PC-98 是 v×17）。匯出程式在 winning-post-zh |
 | ウイニングポスト2 Plus | 1995? | `nk98/Winning Post 2 Plus/` | 未掃 | |
 | 麻雀大会 | 1987 | `nk98/Mahjong Taikai/` | 已匯出 `mahjong-pc98` | 15 位對手各 7 種表情，48×48 |
 | 三國志IV | 1994 | `pc98/【PC98】三國志４.rar` | 不另收 | 本體完全包含在 PK 裡，kaodata 收 PK 版 |
