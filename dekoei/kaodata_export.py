@@ -4978,7 +4978,7 @@ def build_leading(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "leading-x68" if x68 else "leading-pc98", "game": "LEADING",
         "platform": "X68" if x68 else "PC98",
-        "title": {"ja": "リーディングカンパニー", "zh": "リーディングカンパニー"},
+        "title": {"ja": "リーディングカンパニー", "zh": "龍頭企業"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
@@ -5029,7 +5029,7 @@ def build_topman2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
 
     meta = {
         "format": FORMAT, "id": "topman2-pc98", "game": "TOPMAN2", "platform": "PC98",
-        "title": {"ja": "トップマネジメントII"},
+        "title": {"ja": "トップマネジメントII", "zh": "頂尖經營者II"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
         "display": {"scale": 6},
