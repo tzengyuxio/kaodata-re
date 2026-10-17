@@ -65,6 +65,8 @@
 
 `dekoei.py export nobu6pk-pc98` 用 `build_nobu6_pc98(pk=True)`。來源是 neo-kobe PC-98 合集的 `Nobunaga no Yabou - Tenshouki (with Powerup Kit) [HD].zip`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Tenshouki/`），HDI 的檔案樹解在 `games/archives/pc98/disks/nobu6pk-pc98/hdi/`，用到的檔案放 `games/nobu6pk-pc98/`。
 
+發售時間：PK 磁片（`(Powerup Kit) [FD].zip` 的 4 片 HDM）FAT 檔案日期最晚是 `MAINPK.EXE` 1995-09-02，各片的 `PDISK-n.N6P` 是 1995-09-01，磁片上沒有版本字串。所以是 1995 年 9 月或之後出貨（zip 裡的 1996-12-24 是 TorrentZip 固定日期，不算）。`dataset.json` 的 `game` 是 `NOBU6PK`（同其他 PK 資料集）。
+
 - 本體的 `MAIN.EXE`、`KAODATA.NB6`、`MONDATA.NB6`、`SNDATA.NB6`、`TAIKI.NB6` 和 `nobu6-pc98` 逐 byte 相同。PK 由另一支 `MAINPK.EXE` 執行（MZ 檔頭 0x4400 bytes，後面接 27 個 overlay，跨 overlay 的呼叫經 int 3Fh 跳板）。
 - 頭像：`KAO2.N6P` 的索引格式同 `KAODATA.NB6`（`sango.san5_parts`），137 張 64×80，壓縮相同。`MAINPK.EXE` 0x6DF24 畫頭像：頭像號 < 410 讀 `KAODATA.NB6`，≥ 410 讀 `KAO2.N6P` 第 n − 410 張。
 - 人物記錄格式不變，但頭像欄（+0x0E）改成 0–1299 的頭像編號。overlay 20 的 0x22C2 換成頭像：

@@ -3788,7 +3788,7 @@ def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]
     colors = ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i])) for i in range(0, 24, 3)]
 
     meta = {
-        "format": FORMAT, "id": "nobu6pk-pc98" if pk else "nobu6-pc98", "game": "NOBU6", "platform": "PC98",
+        "format": FORMAT, "id": "nobu6pk-pc98" if pk else "nobu6-pc98", "game": "NOBU6PK" if pk else "NOBU6", "platform": "PC98",
         "title": {"ja": "信長の野望・天翔記 with パワーアップキット", "zh": "信長之野望・天翔記 威力加強版"} if pk else
         {"ja": "信長の野望・天翔記", "zh": "信長之野望・天翔記"},
         "source": {"producer": "kaodata-re", "revision": revision(),
