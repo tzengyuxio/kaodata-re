@@ -83,6 +83,11 @@ def celt_art(game_dir, out):
     ./dekoei.py celt art --game-dir ../games/celt-win --out ../games/celt-win/extract
     """
     for sub, ofs, dat, pal in CELT_ARCHIVES:
+        # OGRAPHIC/EGRAPHIC and their palettes are only in the CD's CELTCDDT/
+        missing = [n for n in (ofs, dat, pal) if not os.path.exists(os.path.join(game_dir, n))]
+        if missing:
+            print(f"{sub}: skipped, missing {', '.join(missing)}")
+            continue
         data, index = celt_read(game_dir, dat), celt_read(game_dir, ofs)
         palette = celt_palette(celt_read(game_dir, pal))
         offsets = list(struct.unpack(f"<{len(index) // 4}I", index)) + [len(data)]

@@ -19,6 +19,7 @@ from collections import Counter
 import click
 from PIL import Image
 
+import celt
 import genpei
 import koei_games
 import liberty
@@ -5346,7 +5347,8 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     o = 0
     while o < len(data):
         w, h, size = struct.unpack_from("<3H", data, o + 6)
-        px = utils.unpack_npk(data[o + 12:o + size], w, h)
+        assert size > 12, (o, size)
+        px = utils.unpack_npk(data[o + 12:o + size], w, h)[:w * h]
         add(store.add(w, h, bytes(c if c < 8 else TRANSPARENT for c in px)), "不明")
         o += size
 
@@ -5391,8 +5393,10 @@ def build_celt_win(game_dir: str) -> tuple[dict, list[bytes]]:
     portraits = []
     for k in range(CELT_WIN_FACE_COUNT):
         a, b = offsets[CELT_WIN_FACES + k:CELT_WIN_FACES + k + 2]
-        assert data[a:a + 2] == b"N\x04" and struct.unpack("<HH", data[a + 2:a + 6]) == (32, 80)
-        portraits.append({"img": store.add(64, 80, utils.unpack_npk(data[a + 6:b], 64, 80)),
+        assert data[a:a + 2] == b"N\x04"
+        (w, h, px), = celt.celt_entry(data[a:b])
+        assert (w, h) == (64, 80)
+        portraits.append({"img": store.add(w, h, px),
                           "group": "チャンピオン" if k < CELT_WIN_HEROES else "不明"})
 
     exe = files["CELTWIN.EXE"]
@@ -5407,10 +5411,8 @@ def build_celt_win(game_dir: str) -> tuple[dict, list[bytes]]:
     characters = [{"id": i, "name": n, "face": {"portrait": i}} for i, n in enumerate(names)]
 
     # CELT01.PAL (the main screen): 16 colours, u16 G (6 bits), R (5), B (5); faces use colours 0-8
-    colors = []
-    for v, in struct.iter_unpack("<H", files["CELT01.PAL"]):
-        r, g, b = (v >> 5 & 31) * 255 // 31, (v >> 10) * 255 // 63, (v & 31) * 255 // 31
-        colors.append(f"#{r:02x}{g:02x}{b:02x}")
+    pal = celt.celt_palette(files["CELT01.PAL"])
+    colors = ["#" + bytes(pal[i:i + 3]).hex() for i in range(0, len(pal), 3)]
 
     meta = {
         "format": FORMAT, "id": "celt-win", "game": "CELT", "platform": "WIN",
