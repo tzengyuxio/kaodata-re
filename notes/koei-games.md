@@ -201,6 +201,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 - 日: ケルトの聖戦 (日文 wiki 好像找不到條目?)
 - 英: Celtic Tales: Balor of the Evil Eye
+- 日文 Windows 版的格式見 `notes/celt.md`（`celt-win`）
 - [魔眼邪神存檔分析 \- KPHEROS\# \- lechi的創作 \- 巴哈姆特](https://home.gamer.com.tw/artwork.php?sn=5227637)
 
 ## 水滸伝・天命の誓い（SUIKODEN, PC-98 日文版）

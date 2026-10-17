@@ -88,9 +88,9 @@ Early KOEI Games Data Research
 | GENPEI    | 源平合戰                    | 1994 |     DOS,PC98     |   ○   |        |                     |
 | LIBERTY   | 獨立戰爭                    | 1993 |     DOS,PC98     |   ○   |        |                     |
 | PROGEN    | プロジェネター              | 1995 |       PC98       |   ○   |        |                     |
-|           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
+| CELT      | 魔眼邪神-賽爾特傳說         | 1996 |       WIN        |   ○   |        |                     |
 
-* 目前支援 67 款作品的顏ＣＧ匯出，以及 62 款作品的人物資料匯出（127 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
+* 目前支援 68 款作品的顏ＣＧ匯出，以及 63 款作品的人物資料匯出（128 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -234,6 +234,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `topman2-pc98` | トップマネジメントII        | PC-98      |    0 |  132 |        | [notes/topman2.md](notes/topman2.md) |
 | `mahjong-pc98` | 麻雀大会                    | PC-98      |   15 |  105 |        | [notes/mahjong.md](notes/mahjong.md) |
 | `winning2pk-pc98` | ウイニングポスト2 Plus with パワーアップキット | PC-98 | 177 | 367 |        | [notes/winning2.md](notes/winning2.md) |
+| `celt-win`   | ケルトの聖戦                   | Windows    |  158 |  163 |        | [notes/celt.md](notes/celt.md)     |
 | `lempe-dos`  | 拿破崙                         | DOS 中文版 |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-pc88` | ランペルール                   | PC-88      |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 | `lempe-x68`  | ランペルール                   | X68000     |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |

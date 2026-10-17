@@ -246,7 +246,7 @@
 | 1994 | Operation Europe（ヨーロッパ戦線） | 沒有檔案 |  |  | — |
 | 1995 | Uncharted Waters: New Horizons | 沒有檔案 |  |  | — |
 | 1995? | Romance of the Three Kingdoms IV | 沒有檔案 |  | 英文維基沒有列 DOS 版，未查證 | — |
-| 1995 | Celtic Tales: Balor of the Evil Eye | 沒有檔案 |  |  | — |
+| 1995 | Celtic Tales: Balor of the Evil Eye | 沒有檔案 |  | 日文 Windows 版已匯出成 `celt-win` | — |
 
 ## DOS/V（日文版）
 

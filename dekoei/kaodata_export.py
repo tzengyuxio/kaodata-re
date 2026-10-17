@@ -5368,6 +5368,65 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- CELT (ケルトの聖戦, Windows)
+
+CELT_WIN_INPUTS = ["GRAPHIC.DAT", "GRAPHOFS.DAT", "HERODAT0.DAT", "CELT01.PAL", "CELTWIN.EXE"]
+# GRAPHIC.DAT entries: "N", 4, u16 width in bytes, u16 height, then NPK (utils.unpack_npk); 209-371 are 64x80 faces,
+# 209 + n for hero n, 158-162 are not used by any hero
+CELT_WIN_FACES = 209
+CELT_WIN_FACE_COUNT = 163
+CELT_WIN_HEROES = 158  # HERODAT0.DAT: 38-byte records in name order
+CELT_WIN_NAMES = 0xBDACB  # CELTWIN.EXE: NUL-terminated Shift-JIS hero names, バラー first
+
+
+def build_celt_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    files = {}
+    for name in CELT_WIN_INPUTS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            files[name] = f.read()
+    data, index = files["GRAPHIC.DAT"], files["GRAPHOFS.DAT"]
+    offsets = list(struct.unpack(f"<{len(index) // 4}I", index)) + [len(data)]
+    store = ImageStore(["portraits.bin"])
+
+    portraits = []
+    for k in range(CELT_WIN_FACE_COUNT):
+        a, b = offsets[CELT_WIN_FACES + k:CELT_WIN_FACES + k + 2]
+        assert data[a:a + 2] == b"N\x04" and struct.unpack("<HH", data[a + 2:a + 6]) == (32, 80)
+        portraits.append({"img": store.add(64, 80, utils.unpack_npk(data[a + 6:b], 64, 80)),
+                          "group": "チャンピオン" if k < CELT_WIN_HEROES else "不明"})
+
+    exe = files["CELTWIN.EXE"]
+    names, o = [], CELT_WIN_NAMES
+    for _ in range(CELT_WIN_HEROES):
+        e = exe.index(b"\0", o)
+        names.append(exe[o:e].decode("cp932"))
+        o = e + 1
+    assert names[0] == "バラー" and names[-1] == "トリスタン"
+    heroes = files["HERODAT0.DAT"]
+    assert len(heroes) == CELT_WIN_HEROES * 38 and all(heroes[i * 38] == i for i in range(CELT_WIN_HEROES))
+    characters = [{"id": i, "name": n, "face": {"portrait": i}} for i, n in enumerate(names)]
+
+    # CELT01.PAL (the main screen): 16 colours, u16 G (6 bits), R (5), B (5); faces use colours 0-8
+    colors = []
+    for v, in struct.iter_unpack("<H", files["CELT01.PAL"]):
+        r, g, b = (v >> 5 & 31) * 255 // 31, (v >> 10) * 255 // 63, (v & 31) * 255 // 31
+        colors.append(f"#{r:02x}{g:02x}{b:02x}")
+
+    meta = {
+        "format": FORMAT, "id": "celt-win", "game": "CELT", "platform": "WIN",
+        "title": {"ja": "ケルトの聖戦", "zh": "魔眼邪神"},
+        "source": {"producer": "kaodata-re", "revision": revision(),
+                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in CELT_WIN_INPUTS]},
+        "display": {"scale": 6},
+        "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SAN6 PK (Windows, Chinese)
 
 SAN6PK_WIN_INPUTS = ["KAODATA.S6", "PALETTE.S6"] + [f"SNDATA{n:02}.S6" for n in range(1, 24)]
@@ -7371,7 +7430,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "tk2pk-pc98": lambda game_dir: build_tk2_pc98(game_dir, pk=True),
             "nobu2-pc88": build_nobu2_pc88, "nobu2-dos": build_nobu2_dos, "nobu2-x68": build_nobu2_x68, "nobu3-pc98": build_nobu3_pc98,
             "nobu3-x68": lambda game_dir: build_nobu3_pc98(game_dir, x68=True), "nobu3-pc88": build_nobu3_pc88, "nobu3-win": build_nobu3_win,
-            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "inindou-pc88": lambda game_dir: build_inindou(game_dir, pc88=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "mahjong-pc98": build_mahjong_pc98, "winning2pk-pc98": build_winning2pk_pc98, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
+            "genghis-pc88": lambda game_dir: build_genghis_dos(game_dir, pc88=True), "genghis-pc98": lambda game_dir: build_genghis_dos(game_dir, pc98=True), "genghis-x68": build_genghis_x68, "inindou-pc98": build_inindou, "inindou-x68": lambda game_dir: build_inindou(game_dir, x68=True), "inindou-pc88": lambda game_dir: build_inindou(game_dir, pc88=True), "leading-pc98": build_leading, "leading-x68": lambda game_dir: build_leading(game_dir, x68=True), "topman2-pc98": build_topman2_pc98, "mahjong-pc98": build_mahjong_pc98, "winning2pk-pc98": build_winning2pk_pc98, "celt-win": build_celt_win, "air-pc98": build_air, "air-x68": lambda game_dir: build_air(game_dir, x68=True), "nobu4-pc98": lambda game_dir: build_nobu4_dos(game_dir, pc98=True),
             "nobu4-x68": lambda game_dir: build_nobu4_dos(game_dir, pc98=True, x68=True),
             "nobu4-pc88": build_nobu4_pc88, "nobu4-win": build_nobu4_win,
             "nobu5-pc98": build_nobu5_pc98,
