@@ -65,7 +65,7 @@ Early KOEI Games Data Research
 | KOHRYUKI  | 項劉記                      | 1993 |   DOS,PC98,X68   |   ○   |        |                     |
 | LEMPE     | 拿破崙                      | 1990 |   DOS,PC88,X68   |   ○   |        |                     |
 | ROYAL     | 魔法皇冠                    | 1991 | DOS,PC88,PC98,X68 |   ○   |        |                     |
-| ININDOU   | 伊忍道 打倒信長             | 1991 |     PC98,X68     |   ○   |        |                     |
+| ININDOU   | 伊忍道 打倒信長             | 1991 |  PC88,PC98,X68   |   ○   |        |                     |
 | (ROYAL2)  | 王國興亡錄                  | 1999 |                  |       |        |                     |
 | SUIKODEN  | 水滸傳・天命之誓            | 1989 | DOS,PC88,PC98,X68 |   ○   |        |                     |
 | TK        | 提督之決斷                  | 1989 |  PC88,PC98,X68   |   ○   |        |                     |
@@ -89,7 +89,7 @@ Early KOEI Games Data Research
 | PROGEN    | プロジェネター              | 1995 |       PC98       |   ○   |        |                     |
 |           | 魔眼邪神-賽爾特傳說         | 1996 |                  |       |        |                     |
 
-* 目前支援 66 款作品的顏ＣＧ匯出，以及 61 款作品的人物資料匯出（124 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
+* 目前支援 66 款作品的顏ＣＧ匯出，以及 61 款作品的人物資料匯出（125 個 kaodata 資料集，見下方「匯出 kaodata 統一格式資料集」）
 * `ID` 一欄中，括號為暫定名稱
 * `顏ＣＧ` 一欄中，列出支援輸出的對應平台遊戲版本
 
@@ -226,6 +226,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `progen-pc98` | プロジェネター               | PC-98      |   97 |  125 |   ○    | [notes/progen.md](notes/progen.md) |
 | `inindou-pc98` | 伊忍道 打倒信長             | PC-98      |    7 |   14 |        | [notes/inindou.md](notes/inindou.md) |
 | `inindou-x68` | 伊忍道 打倒信長              | X68000     |    7 |   14 |        | [notes/inindou.md](notes/inindou.md) |
+| `inindou-pc88` | 伊忍道 打倒信長             | PC-88      |    7 |   14 |        | [notes/inindou.md](notes/inindou.md) |
 | `leading-pc98` | リーディングカンパニー      | PC-98      |    0 |   44 |        | [notes/leading.md](notes/leading.md) |
 | `leading-x68` | リーディングカンパニー       | X68000     |    0 |   44 |        | [notes/leading.md](notes/leading.md) |
 | `topman2-pc98` | トップマネジメントII        | PC-98      |    0 |  132 |        | [notes/topman2.md](notes/topman2.md) |
