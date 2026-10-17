@@ -13,6 +13,7 @@ from sango import *
 from nobu import *
 from koei_games import *
 from liberty import liberty
+from celt import celt
 from genpei import genpei
 from kaodata_export import export
 from san1 import san1
@@ -803,6 +804,7 @@ dekoei.add_command(winning)
 # dekoei.add_command(air2)  # 航空霸業II
 dekoei.add_command(genpei)  # 源平合戰
 dekoei.add_command(liberty)  # 獨立戰爭
+dekoei.add_command(celt)  # 魔眼邪神
 dekoei.add_command(export)  # kaodata 統一格式
 # dekoei.add_command(genghis)  # 成吉思汗
 # dekoei.add_command(genchoh)  # 元朝秘史
