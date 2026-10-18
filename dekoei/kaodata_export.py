@@ -3753,10 +3753,11 @@ def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]
         variants.append({"id": str(t), "label": f"類型 {t}", "parts": parts})
 
     faces = sango.san5_parts(os.path.join(game_dir, "KAODATA.NB6"))  # u16 count, (u32 offset, u16 size) each
+    base = len(faces)  # faces from here on are the power-up kit's
     if pk:
         faces += sango.san5_parts(os.path.join(game_dir, "KAO2.N6P"))
     portraits = [{"img": store.add(64, 80, nobu_pc98_face(data), blob=1), "code": f"{i:04X}",
-                  **({"pk": True} if i >= 410 else {})} for i, data in enumerate(faces)]
+                  **({"pk": True} if i >= base else {})} for i, data in enumerate(faces)]
     for i, name in NOBU6_PC98_PORTRAITS.items():
         portraits[i].update(group="事件人物", name=name)
     for i in list(NOBU6_PC98_UNKNOWN) + (list(NOBU6PK_PC98_UNKNOWN) if pk else []):
@@ -5305,7 +5306,7 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     # trainers (last byte, MAIN.EXE 0x44914) and owners (MAIN.EXE 0x4530E): one face each; a whole picture takes
     # the place of a face, so the faces after it move by 0xA000 - 0x16C0
     def faces_of(count: int, pictures: set, bodies: int, table: int, faces: int, end: int, group: str,
-                 label: str) -> list:
+                 label: str, human2_bodies: dict = {}) -> list:
         out, o = [], faces
         for n in range(count):
             if n in pictures:
@@ -5313,7 +5314,7 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
                 o += WINNING2PK_PC98_PICTURE
             else:
                 b = body(table, n)
-                pic = picture(human2, 42 * WINNING2PK_PC98_PICTURE) if group == "馬主" and b == 1 else \
+                pic = picture(human2, human2_bodies[b] * WINNING2PK_PC98_PICTURE) if b in human2_bodies else \
                     picture(human, bodies + b * WINNING2PK_PC98_PICTURE)
                 img = portrait(pic, o)
                 o += WINNING2PK_PC98_FACE
@@ -5324,7 +5325,7 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     trainers = faces_of(43, {3, 14}, WINNING2PK_PC98_TRAINER_BODIES, 0x8F6, WINNING2PK_PC98_TRAINER_FACES,
                         WINNING2PK_PC98_OWNER_BODIES, "調教師", "調教師")
     owners = faces_of(28, {0, 8}, WINNING2PK_PC98_OWNER_BODIES, 0x94C, WINNING2PK_PC98_OWNER_FACES,
-                      WINNING2PK_PC98_OTHERS, "馬主", "馬主")
+                      WINNING2PK_PC98_OTHERS, "馬主", "馬主", {1: 42})  # owner body 1 is HUMAN2.DAT picture 42
     for table, size, slot, cid, kinds in (("TRAINER.BIN", 43, 42, 1000, trainers), ("OWNER.BIN", 20, 19, 2000, owners)):
         rows = files[table]
         for k in range(len(rows) // size):
