@@ -285,6 +285,8 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 匯出的組合臉：canvas 48×80；有 y 位移的層，每個部件依位移 −2..1 各一項（項號＝部件 × 4＋位移＋2）；鬍子是「無＋4 種位移」，鉢卷是「無、有」，髷和髮型最後一項是「無」。圓角遮罩烘進部件：背景的四角填 0，其他層的四角透明。`face.code` 是 6 bytes 記錄的十六進位，KAODAT 頭像的 `code` 是 `FFnn00000000`。
 - 色盤：ISINS.OVL 0x856 只寫數位色盤 port（`color & 7`），預設值 `37 15 26 04`，沒有切類比模式，所以是 8 色數位（每分量 0 或 FF）。
 - 人名：ISIN.EXE 檔案 0x42312 姓 7 bytes × 423、0x449F4 名 9 bytes × 423（`koei_games.load_ishin_pc98_persons`），Shift-JIS＋外字（字形在 USKCG.SYS）：EB9F 恂、EBA0 寛、EBA1 屏、EBA2 佶、EBA3 溥、EBA5 叟、EBA6 孚、EBA7 訥、EBA8 阮、EBA9 煕、EBAA 襄、EBAB 奎、EBAC 霖、EBAD 謨（用人名對過：星恂太郎、大久保忠寛、河合屏山、北添佶磨、黒田長溥、鍋島閑叟、元田永孚、大橋訥庵、箕作阮甫、近衛忠煕、新島襄、松本奎堂、黙霖、川路聖謨）。id 0–422 是史實人物（0x2F12）。
+  - `USKCG.SYS` 其實定義了 25 字（+0 是筆數，0x22 起每筆 34 bytes：JIS 碼 2 bytes（低位在前，從 0x7621 起）＋16×16 點陣），即 SJIS EB9F–EBB7；人名只用到上面 14 字，其餘是訊息用的耆、攘、誅、揆、忱、韶、咸、梟，EBB7 是開場當圖形用的實心方塊，EBA4、EBB4 未用（中文化專案 `~/works/ishin-zh` 查出）。
+- 中文化：`~/works/ishin-zh`（另一個 repo）以本版做繁體中文化與網頁版，磁片版面、訊息位置與拼接方式記在該 repo 的 `docs/format-notes.md`。
 - PC-9801 版 1988 年 6 月（ja.wikipedia）。
 
 ### PC-88 版（`ishin-pc88`）

@@ -44,7 +44,7 @@ CD 上的檔案日期是 1994-08（安裝程式）到 1996-03-11（`CELTWIN.EXE`
 `dekoei.py celt art --game-dir ../games/celt-win --out ../games/celt-win/extract` 與 `celt music --out ../games/celt-win/extract/music`：
 
 - `graphic/`、`wsys/`、`cgraphic/`、`anm/`（多幀的是 `NNNN_FF.png`）：索引色 PNG，色盤用 `CELT01.PAL`。
-- `opening/`、`ending/`：索引色 PNG，暫用 `OP_05.PAL`／`ED_03.PAL`。各場景實際用哪個 `OP_*`／`ED_*` 色盤沒有查出來（程式用 C++ 靜態字串物件載入色盤，沒有圖號對色盤的表），換色盤時可參考 `palettes/`。
+- `opening/`、`ending/`：索引色 PNG，暫用 `OP_05.PAL`／`ED_03.PAL`。`--game-dir` 裡沒有 CD 的 `OGRAPHIC`／`EGRAPHIC` 與這兩個色盤時，這兩類印出缺的檔名後跳過，其餘照常輸出。各場景實際用哪個 `OP_*`／`ED_*` 色盤沒有查出來（程式用 C++ 靜態字串物件載入色盤，沒有圖號對色盤的表），換色盤時可參考 `palettes/`。
 - `tiles/<方向>/`：帶透明的 RGBA PNG。
 - `palettes/`：每個 `.PAL` 的 16 色色票。
 - `misc/`：圖示（ICO）與 CD 的 `CELTCPK2.AVI`，照原樣。
