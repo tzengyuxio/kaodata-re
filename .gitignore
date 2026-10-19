@@ -138,3 +138,6 @@ KAO
 TEST_OUTPUT
 WIP
 .DS_Store
+
+# face-crop research samples (crops of game art, for viewing only)
+research/face-crop/samples/
