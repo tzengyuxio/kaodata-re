@@ -1,8 +1,10 @@
-# ケルトの聖戦（魔眼邪神，Windows 日文版）
+# Celtic Tales: Balor of the Evil Eye（ケルトの聖戦，魔眼邪神；DOS 英文版、Windows 日文版）
 
-`dekoei.py export celt-win` 用 `build_celt_win`。
+`dekoei.py export celt-dos`（英文 DOS 版，原作，收錄的主版本）與 `export celt-win`（Windows 日文版）都用 `build_celt_win`（`dos=True` 是 DOS 版）。
 
 ## 來源
+
+這款是光榮美國分公司的美國設計團隊做的（英文維基百科：Julie Carlson、David Johnson、Stieg Hedlund），1995 年出英文版的 DOS 與 Windows 版；日文版ケルトの聖戦是在日本發行的 Windows 3.1 版，中文版是 1996 年第三波的 DOS 版。英文 DOS 版 `CT.EXE` 的檔案日期是 1995-06-16，日文 `CELTWIN.EXE` 是 1996-03-11（FileVersion 1.2），中文 `CT.EXE` 是 1996-04-10。所以原作是英文版，日文、中文都是移植翻譯，人名的片假名與中文是照英文名音譯或意譯的。
 
 `games/archives/win/CELT_CD.mdx`：Daemon Tools 的 MDX（`MEDIA DESCRIPTOR` 2.01）。檔頭 0x40 bytes 之後是沒壓縮的 2048-byte 磁區（ISO9660，第 16 磁區在 0x8040），一直到描述區 0x265E040；描述區加密了，但用不到。切出 `[0x40, 0x265E040)` 就是 ISO，可以用 `bsdtar` 解開。
 
@@ -55,6 +57,13 @@ CD 上的檔案日期是 1994-08（安裝程式）到 1996-03-11（`CELTWIN.EXE`
 - `HERODAT0.DAT`：158 筆 38 bytes 記錄，+0 是序號，+2 的 bit 6 是女性；+0x24 都是 158。
 - 人名：`CELTWIN.EXE` 0xBDACB 起 158 個以 NUL 結尾的 Shift-JIS 字串（バラー … トリスタン），順序同記錄。之後是あだ名（邪眼、フォモール王…）與部族名，沒有收。
 - 中文名（`nameZh`）：中文 DOS 版《魔眼邪神－賽爾特傳說》（1996，第三波）的 `XM/CT.EXE` 檔案 0x34430 起，同樣 158 個名字、同樣順序（巴羅 … 特利斯坦），光榮台灣內碼（`koei_games.koei_tw_name`），每個名字後面接 `00 00`；之後一樣是綽號（邪眼、弗莫國王…）、部族名。匯出時讀 `games/celt-win/dos/CT.EXE`。
-  - 英文 DOS 版 *Celtic Tales: Balor of the Evil Eye*（1995）的 `XM/CT.EXE` 0x34A92 起是同順序的英文名（Balor … Tristan，NUL 結尾、補到偶數位置）。三版逐筆對過，`HERODAT0.DAT` 三版完全相同。
-  - 兩個 DOS 版取自 rwv/chinese-dos-games（`魔眼邪神`、`魔眼邪神英版`，sha256 與該 repo 的 `games.json` 相同），原檔放 `games/archives/dos/魔眼邪神_中文版_celt-c.zip`、`魔眼邪神_英文版_celtic-tales.zip`；英文版的 `XM/` 解到 `games/celt-dos/`，還沒做資料集。
+  - 英文 DOS 版 *Celtic Tales: Balor of the Evil Eye*（1995）的 `XM/CT.EXE` 0x34A92 起是同順序的英文名（Balor … Tristan，NUL 結尾、補到偶數位置）。三版逐筆對過，`HERODAT0.DAT` 三版完全相同。頭像也相同：三版的 `GRAPHIC.DAT` 都是 894 項，第 209–371 項的 163 張 64×80 解出來的像素逐張相同，`CELT01.PAL` 也相同；兩個 DOS 版和 Windows 版不同的是其他 41／44 項（項號 7–9、90、372 以後等），沒有細看。
+  - 兩個 DOS 版取自 rwv/chinese-dos-games（`魔眼邪神`、`魔眼邪神英版`，sha256 與該 repo 的 `games.json` 相同），原檔放 `games/archives/dos/魔眼邪神_中文版_celt-c.zip`、`魔眼邪神_英文版_celtic-tales.zip`；英文版的 `XM/` 解到 `games/celt-dos/`，中文版的 `CT.EXE` 硬連結到 `games/celt-dos/zh/`（和 `games/celt-win/dos/` 是同一個檔）。
 - 訊息檔（`MAIN_MSG.DAT` 等）是光榮自訂的 2 bytes 碼，沒有解。
+
+## 匯出 DOS 版（`celt-dos`）
+
+- 遊戲目錄 `games/celt-dos/` 是英文版的 `XM/`：`GDT/GRAPHIC.DAT`、`GDT/GRAPHOFS.DAT`、`GDT/CELT01.PAL`、`HERODAT0.DAT`、`CT.EXE`，加上中文版的 `zh/CT.EXE`。
+- 頭像、色盤、人物記錄、`nameZh` 都和 `celt-win` 相同（兩份匯出的 `portraits.bin`、`checksums.json` 逐 byte 相同，色盤只差 id／label）；只有 `name` 不同：DOS 是英文原名（`CT.EXE` 0x34A92），Windows 是片假名。
+- 英文名裡的 `_` 換成空格（Fair_Mane → Fair Mane 等 8 人）；`_` 應是遊戲用來代替空格的字元，沒有對遊戲畫面確認。
+- 發售：英文版 1995 年（英文維基百科只寫年份，沒有月日；`CT.EXE` 的檔案日期是 1995-06-16）。
