@@ -6855,8 +6855,13 @@ def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 SAN12PK_WIN_SCENARIOS = [f"PK/Scenario/Scenario{n}.dat" for n in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                                                                   20, 21)]
 SAN12PK_WIN_BASE = "Scenario/Scenario0.dat"  # the base game's master scenario, for the pk marks
-SAN12PK_WIN_INPUTS = [f for pair in sango.SAN12_FACE_FILES for f in pair if f] + SAN12PK_WIN_SCENARIOS + \
-    [SAN12PK_WIN_BASE]
+# the faces are 96x120 crops of the 360x512 KAO_W_L picture, cut by the box of each 48x60 KAO_F_M face on it (4:5,
+# found by research/face-crop/san12_boxes.py), RGB only so the background painted under the alpha stays, Lanczos
+SAN12PK_WIN_LARGE = [(f.replace("KAO_F_M", "KAO_W_L"), d) for f, d in sango.SAN12_FACE_FILES]
+SAN12PK_WIN_BOXES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../research/face-crop/data/san12_boxes.json")
+SAN12PK_WIN_CROP = (96, 120)
+SAN12PK_WIN_INPUTS = [f for pair in sango.SAN12_FACE_FILES for f in pair if f] + [f for f, _ in SAN12PK_WIN_LARGE] + \
+    SAN12PK_WIN_SCENARIOS + [SAN12PK_WIN_BASE]
 SAN12PK_WIN_ROLE_FACES = range(1000, 1023)  # 文官, 兵士, 山賊将…: shared by the role persons, not characters
 # faces no scenario uses
 SAN12PK_WIN_GROUPS = [(range(1101, 1147), "其他頭像"), (range(1150, 1185), "真・三國無双"),
@@ -6870,6 +6875,17 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         with open(os.path.join(game_dir, name), "rb") as f:
             files[name] = f.read()
     faces = sango.load_san12_faces(game_dir)
+    with open(SAN12PK_WIN_BOXES) as f:
+        boxes = json.load(f)["faces"]
+    large = sango.load_san12_faces(game_dir, SAN12PK_WIN_LARGE)
+    assert set(large) == set(faces) == {int(c) for c in boxes}
+    for code, (w, h, rgba) in large.items():
+        b = boxes[str(code)]
+        assert abs(b["w"] / b["h"] - 0.8) < 1e-3 and b["x"] >= 0 and b["y"] >= 0 \
+            and b["x"] + b["w"] <= w and b["y"] + b["h"] <= h, code
+        im = Image.frombytes("RGBA", (w, h), rgba).convert("RGB").resize(
+            SAN12PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
+        faces[code] = (*SAN12PK_WIN_CROP, im.convert("RGBA").tobytes())
     # the base game's faces: Data/KAO_F_M.S12 and AddKao00
     base_faces = set(sango.load_san12_faces(game_dir, sango.SAN12_FACE_FILES[:2]))
     codes = sorted(faces)
@@ -6930,7 +6946,7 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "title": {"ja": "三國志12 with パワーアップキット", "zh": "三國志12 威力加強版"},
         "source": {"producer": "kaodata-re", "revision": revision(),
                    "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN12PK_WIN_INPUTS]},
-        "display": {"scale": 4},
+        "display": {"scale": 2},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
         "blobs": store.names,
