@@ -54,4 +54,7 @@ CD 上的檔案日期是 1994-08（安裝程式）到 1996-03-11（`CELTWIN.EXE`
 
 - `HERODAT0.DAT`：158 筆 38 bytes 記錄，+0 是序號，+2 的 bit 6 是女性；+0x24 都是 158。
 - 人名：`CELTWIN.EXE` 0xBDACB 起 158 個以 NUL 結尾的 Shift-JIS 字串（バラー … トリスタン），順序同記錄。之後是あだ名（邪眼、フォモール王…）與部族名，沒有收。
+- 中文名（`nameZh`）：中文 DOS 版《魔眼邪神－賽爾特傳說》（1996，第三波）的 `XM/CT.EXE` 檔案 0x34430 起，同樣 158 個名字、同樣順序（巴羅 … 特利斯坦），光榮台灣內碼（`koei_games.koei_tw_name`），每個名字後面接 `00 00`；之後一樣是綽號（邪眼、弗莫國王…）、部族名。匯出時讀 `games/celt-win/dos/CT.EXE`。
+  - 英文 DOS 版 *Celtic Tales: Balor of the Evil Eye*（1995）的 `XM/CT.EXE` 0x34A92 起是同順序的英文名（Balor … Tristan，NUL 結尾、補到偶數位置）。三版逐筆對過，`HERODAT0.DAT` 三版完全相同。
+  - 兩個 DOS 版取自 rwv/chinese-dos-games（`魔眼邪神`、`魔眼邪神英版`，sha256 與該 repo 的 `games.json` 相同），原檔放 `games/archives/dos/魔眼邪神_中文版_celt-c.zip`、`魔眼邪神_英文版_celtic-tales.zip`；英文版的 `XM/` 解到 `games/celt-dos/`，還沒做資料集。
 - 訊息檔（`MAIN_MSG.DAT` 等）是光榮自訂的 2 bytes 碼，沒有解。

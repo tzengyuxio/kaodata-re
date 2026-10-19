@@ -5373,13 +5373,14 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
 
 # ---------------------------------------------------------------- CELT (ケルトの聖戦, Windows)
 
-CELT_WIN_INPUTS = ["GRAPHIC.DAT", "GRAPHOFS.DAT", "HERODAT0.DAT", "CELT01.PAL", "CELTWIN.EXE"]
+CELT_WIN_INPUTS = ["GRAPHIC.DAT", "GRAPHOFS.DAT", "HERODAT0.DAT", "CELT01.PAL", "CELTWIN.EXE", "dos/CT.EXE"]
 # GRAPHIC.DAT entries: "N", 4, u16 width in bytes, u16 height, then NPK (utils.unpack_npk); 209-371 are 64x80 faces,
 # 209 + n for hero n, 158-162 are not used by any hero
 CELT_WIN_FACES = 209
 CELT_WIN_FACE_COUNT = 163
 CELT_WIN_HEROES = 158  # HERODAT0.DAT: 38-byte records in name order
 CELT_WIN_NAMES = 0xBDACB  # CELTWIN.EXE: NUL-terminated Shift-JIS hero names, バラー first
+CELT_DOS_NAMES = 0x34430  # dos/CT.EXE (Chinese DOS, 魔眼邪神): the same names in KOEI TW code, 00 00 after each, 巴羅 first
 
 
 def build_celt_win(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -5407,9 +5408,18 @@ def build_celt_win(game_dir: str) -> tuple[dict, list[bytes]]:
         names.append(exe[o:e].decode("cp932"))
         o = e + 1
     assert names[0] == "バラー" and names[-1] == "トリスタン"
+    zh, o = [], CELT_DOS_NAMES
+    ct = files["dos/CT.EXE"]
+    for _ in range(CELT_WIN_HEROES):
+        e = o
+        while ct[e:e + 2] != b"\0\0":
+            e += 2
+        zh.append(koei_games.koei_tw_name(ct[o:e]))
+        o = e + 2
+    assert zh[0] == "巴羅" and zh[-1] == "特利斯坦"
     heroes = files["HERODAT0.DAT"]
     assert len(heroes) == CELT_WIN_HEROES * 38 and all(heroes[i * 38] == i for i in range(CELT_WIN_HEROES))
-    characters = [{"id": i, "name": n, "face": {"portrait": i}} for i, n in enumerate(names)]
+    characters = [{"id": i, "name": n, "nameZh": z, "face": {"portrait": i}} for i, (n, z) in enumerate(zip(names, zh))]
 
     # CELT01.PAL (the main screen): 16 colours, u16 G (6 bits), R (5), B (5); faces use colours 0-8
     pal = celt.celt_palette(files["CELT01.PAL"])
