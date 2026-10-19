@@ -82,6 +82,10 @@ scenario 8 end in  230
   - 拿破崙
 - 有天翔記~創造武將一覽 EXCEL [天翔記.jp](https://xn--rssu31gj1g.jp/)
 - 有三國志10的改造資訊 [三国志Ⅹ改造スレ３](https://game13.5ch.net/test/read.cgi/gamehis/1098017701/)
+- [NIKUO'S ROOM](https://www.lhexw.net/)
+  - [三国志武将能力値比較](https://www.lhexw.net/san-bushou/index.html)
+  - [SUPER三国志II モブ顔グラ分類](https://www.lhexw.net/san-2kao/index.html)
+  - [三国志武将データ](https://www.lhexw.net/san/index.html)
 
 ## 其他註記
 
