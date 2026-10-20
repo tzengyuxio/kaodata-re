@@ -17,6 +17,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - PC-98／X68000 版是磁碟映像（`games/archives/pc98/` 的 FDI／HDI、`games/archives/x68000/Sangokushi II [FD]*/` 的 HDM），檔案已解到 `games/<game>-pc98/`、`games/san2-x68/`，每片磁碟的原樣在 `games/archives/pc98/disks/`
 - 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理；例外是 PC-98 安裝包 DPACK 的解壓 `dekoei/dpack.py`（`python dpack.py OUTDIR DPACK1 DPACK2 ...`，見 `notes/dpack.md`），用來從提督の決断III、三国志V 的磁片取得遊戲檔
 
+## RE 共通語言
+
+@~/.claude/re-common.md
+
+本 repo 的路徑對照（`docs/` 的搬移、`captures/` 與探測腳本的固定位置還沒做）：
+
+| 層／概念 | 本 repo |
+|---|---|
+| original | 發行包 `games/archives/<platform>/`；取出的檔案 `games/<id>/`（Steam 版用硬連結） |
+| references | `MISC_TABLE/`（能力值 CSV 等）；網址列在 `notes/san-persons.md`「參考來源」 |
+| captures | 沒有固定位置 |
+| extracted | `games/celt-win/extract/` 等，沒有統一位置 |
+| generated | 根目錄 `GLYPH_TABLE/`、`PERSONS_TABLE/`、`montage/`（2023 年的舊成果）、`research/*/samples/` |
+| export | `~/works/kaodata/data-local/<id>`（kaodata/1，下游 `pnpm verify`） |
+| docs | `notes/<game>.md`（實際上是正式文件，預定搬到 `docs/`）、README.md、CLAUDE.md |
+| tools | `dekoei/`（一個 Python 套件，builder 用旗標切換平台）、`research/<topic>/` |
+| 不屬任何層 | `notes/` 裡的早期筆記（如 `san-persons.md`） |
+
 ## 指令
 
 Python 環境：沿用既有 `.venv`（Python 3.11；`requirements.txt` 鎖的 `bitarray==2.7.3` 在 3.12 編不起來，見 `BACKLOG.md`）。
