@@ -70,7 +70,7 @@ Python 端沒有 linter／formatter 設定。
 - 魔眼邪神（`celt.py`）的 `celt` group 不匯出 kaodata，而是把圖、地圖拼塊、MIDI 全部拆到 `games/celt-win/extract/`，見 `notes/celt.md`。
 - **共用解碼**：`utils.py`（bpp 轉色號、NPK/RLE 解壓 `unpack_npk_3bits` 等、Big5／光榮內碼字表）、`ls11.py`（LS11 壓縮）、`koei_person.py`／`san_person.py`（人物資料結構）、`font.py`（字型）。
   - 注意各遊戲的 planar 位元順序不一定相同：`utils.to_3bpp_indexes` 把第一個 byte 當 bit 2，源平合戰則是 byte k＝bit k（用 `genpei.decode_planar`）。
-- **kaodata 統一格式匯出**（`kaodata_export.py`，目前開發中的 `feat/kaodata-export`）：
+- **kaodata 統一格式匯出**（`kaodata_export.py`）：
   - 產出給 kaodata 網站 repo 用的 `kaodata/1` 格式：`dataset.json`＋raw-deflate 的 pixel blobs（`pixels.bin`、`portraits.bin`）＋`checksums.json`。規格在**網站 repo** 的 `docs/data-format.md`，不在本 repo。
   - 檔內有一份依規格 §6 實作的 reference renderer（`compose_display`、`portrait_display` 等），`checksums.json` 由它算出；改資料結構時要同步讓 renderer 結果正確。頂層 `"opaque": true` 的資料集沒有透明色，色號 255 照色盤顯示（`to_rgba`）；有 `portraitPalettes` 的資料集，頭像用自己那組色盤算雜湊（`portrait_palette`）；列在 `rgbaBlobs` 的 blob 是全彩 RGBA（`ImageStore.add(..., rgba=True)`），雜湊直接算原始 RGBA（`rgba_image`）。`WEBP_DATASETS`（`san11pk-win`、`nobu13pk-win`、`santsukuru-win`、`san12pk-win`、`san13pk-win`）在寫出時把全彩圖改成逐張無損 WebP（`faces/0000.webp`，images 項是 `{"file", "w", "h"}`，`"blobs": []`，不寫 `rgbaBlobs`，`write_dataset(..., webp=True)`／`webp_images`），alpha 照原樣（可以是半透明），alpha 0 的點存成 0,0,0,0，checksums 不變。
   - `DATASETS` dict 對應 dataset id → builder 函式。同一款遊戲的各平台多半共用一個 builder，用旗標切換（`pc98=True`、`x68=True`、`pc88=True`、`dos=True`、`pk=True`）。每個 builder 讀哪些檔、用哪些解碼函式、有什麼例外，見 `notes/kaodata-datasets.md`；格式細節在各遊戲的 `notes/<game>.md`。
