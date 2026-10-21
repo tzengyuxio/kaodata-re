@@ -6987,6 +6987,12 @@ SAN13PK_WIN_ANCIENT = range(850, 899)  # 古武將; some have no name in the str
 SAN13PK_WIN_GROUPS = [([0, 1086, 1089, 1091, 1093, 1095, 1097, 1099], "其他頭像"), (range(1130, 1267), "新武將"),
                       (range(1451, 1467), "新武將")]
 SAN13PK_WIN_PER_BLOB = 50
+# the faces are 96x120 crops of the 633x900 kao_a art (opaque, its background kept), cut by the 4:5 box made from
+# the box of each 72x72 kao_s face on it (research/face-crop/san13_a_boxes.py, rule in notes/san13.md), Lanczos;
+# item 1266's kao_a is blank, so it is cut from its 1024x1024 kao_l the same way
+SAN13PK_WIN_BOXES = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "../research/face-crop/data/san13_a_boxes.json")
+SAN13PK_WIN_CROP = (96, 120)
 
 
 def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
@@ -6997,7 +7003,17 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
             for chunk in iter(lambda: f.read(1 << 24), b""):
                 h.update(chunk)
         inputs.append({"path": name, "sha1": h.hexdigest()})
-    faces = sango.load_san13_faces(game_dir)
+    with open(SAN13PK_WIN_BOXES) as f:
+        boxes = json.load(f)["faces"]
+    faces = []
+    for i, art in enumerate(sango.san13_arts(game_dir)):
+        if boxes[str(i)]["base"] == "kao_l":  # a blank kao_a (item 1266)
+            art = sango.san13_large(game_dir, i)
+        b = boxes[str(i)]["crop"]
+        assert b["x"] >= 0 and b["y"] >= 0 and b["x"] + b["w"] <= art.width and b["y"] + b["h"] <= art.height, i
+        im = art.resize(SAN13PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
+        faces.append(im.convert("RGBA").tobytes())
+    assert len(faces) == len(boxes)
     data = sango.load_san13_persons(game_dir)
     item = sango.san13_face_item
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // SAN13PK_WIN_PER_BLOB + 1)]
@@ -7005,7 +7021,7 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     portraits = []
     for i, rgba in enumerate(faces):
         picture = i if i < 1271 else i + 179
-        p = {"img": store.add(72, 72, rgba, blob=i // SAN13PK_WIN_PER_BLOB, rgba=True),
+        p = {"img": store.add(*SAN13PK_WIN_CROP, rgba, blob=i // SAN13PK_WIN_PER_BLOB, rgba=True),
              "code": f"{picture:04X}"}
         if i >= 1267:  # the base game has items 0-1266
             p["pk"] = True
@@ -7038,7 +7054,7 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "format": FORMAT, "id": "san13pk-win", "game": "SAN13PK", "platform": "WIN",
         "title": {"ja": "三國志13 with パワーアップキット", "zh": "三國志13 威力加強版"},
         "source": {"producer": "kaodata-re", "revision": revision(), "inputs": inputs},
-        "display": {"scale": 3},
+        "display": {"scale": 2},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
         "blobs": store.names,

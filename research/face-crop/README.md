@@ -12,6 +12,9 @@ kaodata 覺得 `san12pk-win`（48×60）、`san13pk-win`（72×72）的頭像偏
 | `san13_boxes.py` | 三國志13：72×72、96×96、186×90 在 1024×1024 上的框 |
 | `samples.py` | 用找到的框裁出 64×80、96×120 的樣本到 `samples/`（不進版控）；只取 RGB，背景照大圖 alpha 底下畫好的保留 |
 | `compare.py` | 同樣 20 人在三國志11（遊戲自己的 64×80）、12、13（裁成 64×80）並排比較，輸出到 `samples/compare/`；三國志13 的框現算 |
+| `sizes.py` | 每代各尺寸的比較圖：最大（或 `info.json` 指定）的那張上框出其他尺寸的位置，旁邊並排原始像素，輸出 `samples/sizes/<id>.png`；進版控的是 `sizes/<id>.jpg`（`rimage mozjpeg -q 80 -d sizes samples/sizes/*.png` 瘦身） |
+| `sizes_san8_10.py`、`sizes_san11_13.py`、`sizes_san14.py`、`sizes_nobu11_13.py`、`sizes_nobu15_16.py` | 抽出關羽（三國志）、織田信長（信長）在各代每種尺寸的原圖到 `samples/sizes/<id>/`（`NN_<尺寸名>.png`＋`info.json`） |
+| `san13_a_boxes.py` | 三國志13：每張 72×72 在 633×900（kao_a）上的框，以及照 4:5 規則換出的裁切框，寫到 `data/san13_a_boxes.json`；`san13pk-win` 的匯出讀它 |
 | `data/san12_boxes.json` | 三國志12 全部 933 張的框，鍵是頭像號 |
 | `data/san13_boxes.json` | 三國志13 抽樣 30 張的框，鍵是圖號 |
 
@@ -26,6 +29,8 @@ uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --w
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python san13_boxes.py
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python samples.py
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python compare.py
+uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python sizes_san8_10.py   # 其他 sizes_*.py 同樣跑法
+uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python sizes.py            # 不加參數：samples/sizes/ 下每一代
 ```
 
 - `san12_boxes.py` 不加參數會跑全部 933 張並寫回 JSON；加頭像號只印結果。

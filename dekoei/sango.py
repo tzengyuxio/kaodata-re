@@ -793,18 +793,35 @@ def san13_strings(b: bytes, encoding: str, gaiji: dict[bytes, str] = {}) -> list
     return out
 
 
-def load_san13_faces(game_dir) -> list[bytes]:
-    """The 72 x 72 RGBA of each item of the face entry."""
+SAN13_ART = 8  # 633 x 900 art in three BC3 layers whose RGB are the same whole picture (they differ only in alpha)
+SAN13_LARGE = 13  # 1024 x 1024 (a few items are zp1\x02, not decoded)
+
+
+def san13_texture(t: bytes, w: int, h: int):
+    """The RGB of the first texture of a GT1G0600 BC3 blob, cropped to w x h."""
     from PIL import Image
-    faces = []
-    for t in san13_items(san13_entry(game_dir, SAN13_FACES)):
-        t = san13_unzip(t)
-        fmt, dim = t[0x25], t[0x26]
-        w, h = 1 << (dim & 15), 1 << (dim >> 4)
-        start = 0x2C + struct.unpack_from("<I", t, 0x2C)[0]
-        assert fmt == 8
-        faces.append(Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3).crop((0, 0, 72, 72)).tobytes())
-    return faces
+    # the table at +0xC gives each texture's 8-byte header (+1 format, +2 log2 height << 4 | log2 width, +7 bit 4:
+    # an extra header follows, its size the next u32)
+    header = struct.unpack_from("<I", t, 0x0C)[0]
+    o = header + struct.unpack_from("<I", t, header)[0]
+    fmt, dim = t[o + 1], t[o + 2]
+    tw, th = 1 << (dim & 15), 1 << (dim >> 4)
+    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
+    assert fmt == 8
+    return Image.frombytes("RGBA", (tw, th), t[start:start + tw * th], "bcn", 3).crop((0, 0, w, h)).convert("RGB")
+
+
+def san13_arts(game_dir):
+    """The 633 x 900 RGB of each item of the art entry (its first layer), one at a time."""
+    for t in san13_items(san13_entry(game_dir, SAN13_ART)):
+        yield san13_texture(san13_unzip(t), 633, 900)
+
+
+def san13_large(game_dir, i: int):
+    """The 1024 x 1024 RGB of item i of the large entry."""
+    t = san13_unzip(san13_items(san13_entry(game_dir, SAN13_LARGE))[i])
+    assert t[:4] != b"zp1\x02"
+    return san13_texture(t, 1024, 1024)
 
 
 def san13_face_item(picture: int) -> int:
