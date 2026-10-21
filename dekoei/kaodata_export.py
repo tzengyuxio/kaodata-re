@@ -221,11 +221,42 @@ def webp_images(meta: dict, blobs: list[bytes]) -> tuple[dict, list[bytes]]:
     return meta, rgba
 
 
+def art_webp(im: Image.Image) -> bytes:
+    """A BASE picture (spec §6.5) as a lossy WebP file for art/ (spec §5): q90, alpha_quality 100, method 6."""
+    buf = io.BytesIO()
+    im.save(buf, "WEBP", quality=90, alpha_quality=100, method=6)
+    return buf.getvalue()
+
+
+def write_arts(out_dir: str, meta: dict, files: list[bytes]) -> dict:
+    """The BASE pictures (`art_webp` files; portraits[].art indexes `files`) written as art/<SHA-256>.webp and listed
+    in `arts` (spec §6.5); a file shared by several portraits is one art."""
+    os.makedirs(os.path.join(out_dir, "art"), exist_ok=True)
+    images, arts, index, remap = list(meta["images"]), [], {}, []
+    for data in files:
+        name = f"art/{hashlib.sha256(data).hexdigest()}.webp"
+        if name not in index:
+            w, h = Image.open(io.BytesIO(data)).size
+            index[name] = len(arts)
+            arts.append({"img": len(images)})
+            images.append({"file": name, "w": w, "h": h})
+            with open(os.path.join(out_dir, name), "wb") as f:
+                f.write(data)
+        remap.append(index[name])
+    portraits = [{**p, "art": remap[p["art"]]} if "art" in p else p for p in meta["portraits"]]
+    return {**meta, "images": images, "arts": arts, "portraits": portraits}
+
+
 def write_dataset(out_dir: str, meta: dict, blobs: list[bytes], webp: bool = False) -> None:
-    """With `webp`, the full-colour images are written as lossless WebP files instead of blobs."""
+    """With `webp`, the full-colour images are written as lossless WebP files instead of blobs. A builder's
+    `artFiles` (BASE pictures, `art_webp`) are written to art/ (`write_arts`)."""
     os.makedirs(out_dir, exist_ok=True)
+    art_files = meta.pop("artFiles", None)
+    assert art_files is None or webp
     if webp:
         meta, rgba = webp_images(meta, blobs)
+        if art_files:
+            meta = write_arts(out_dir, meta, art_files)
         sums = {"algo": "sha256-rgba", "entries": {k: hashlib.sha256(rgba[img]).hexdigest()
                                                    for k, img in webp_entries(meta)}}
         os.makedirs(os.path.join(out_dir, "faces"), exist_ok=True)
@@ -7006,7 +7037,7 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         inputs.append({"path": name, "sha1": h.hexdigest()})
     with open(SAN13PK_WIN_BOXES) as f:
         boxes = json.load(f)["faces"]
-    faces = []
+    faces, arts = [], []
     for i, art in enumerate(sango.san13_arts(game_dir)):
         if boxes[str(i)]["base"] == "kao_l":  # a blank kao_a (item 1266)
             art = sango.san13_large(game_dir, i)
@@ -7014,6 +7045,7 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         assert b["x"] >= 0 and b["y"] >= 0 and b["x"] + b["w"] <= art.width and b["y"] + b["h"] <= art.height, i
         im = art.resize(SAN13PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
         faces.append(im.convert("RGBA").tobytes())
+        arts.append(art_webp(art))  # the BASE: the whole picture it is cut from
     assert len(faces) == len(boxes)
     data = sango.load_san13_persons(game_dir)
     item = sango.san13_face_item
@@ -7023,7 +7055,7 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     for i, rgba in enumerate(faces):
         picture = i if i < 1271 else i + 179
         p = {"img": store.add(*SAN13PK_WIN_CROP, rgba, blob=i // SAN13PK_WIN_PER_BLOB, rgba=True),
-             "code": f"{picture:04X}"}
+             "code": f"{picture:04X}", "art": i}
         if i >= 1267:  # the base game has items 0-1266
             p["pk"] = True
         portraits.append(p)
@@ -7062,6 +7094,7 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "portraits": portraits,
         "characters": characters,
+        "artFiles": arts,
     }
     return meta, [bytes(b) for b in store.blobs]
 
@@ -7124,7 +7157,7 @@ def build_san14pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         return t
 
     store = ImageStore([f"portraits{k + 1 if k else ''}.bin" for k in range((len(keys) - 1) // SAN14PK_WIN_PER_BLOB + 1)])
-    index, portraits = {}, []
+    index, portraits, arts = {}, [], []
     groups = {c: g for r, g in SAN14PK_WIN_GROUPS for c in r}
     used = {p["face"] for p in ja}
     for n, k in enumerate(keys):
@@ -7137,7 +7170,8 @@ def build_san14pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
             and b["y"] + b["h"] <= art.height, k
         im = art.resize(SAN14PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
         p = {"img": store.add(*SAN14PK_WIN_CROP, im.convert("RGBA").tobytes(), blob=n // SAN14PK_WIN_PER_BLOB,
-                              rgba=True)}
+                              rgba=True), "art": n}
+        arts.append(art_webp(art))  # the BASE: the whole picture it is cut from
         num = int(k[:4])
         if not k.endswith("b"):  # the second faces have no number of their own
             p["code"] = f"{num:04X}"
@@ -7168,6 +7202,7 @@ def build_san14pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "portraits": portraits,
         "characters": characters,
+        "artFiles": arts,
     }
     return meta, [bytes(b) for b in store.blobs]
 
