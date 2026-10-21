@@ -158,23 +158,59 @@ def load_san4_persons(sndata, taiki, pc98=False) -> list[tuple[int, str, int]]:
     face u16); TAIKI is 50-byte records with the same 30 bytes at +20. PC-98: the name is 9 bytes Shift-JIS
     followed by 11 bytes of half-width kana.
     """
+    return [(scenario, name, int.from_bytes(b[20:22], 'little'))
+            for scenario, name, _, b in san4_records(sndata, taiki, pc98)]
+
+
+def san4_records(sndata, taiki, pc98=False):
+    """(scenario, name, 20-byte ability record, 30-byte person record) in load_san4_persons' order.
+
+    SNDATA's ability records (20 bytes each, one per person) end where its person table starts; TAIKI's 50-byte
+    records are the ability record then the person record.
+    """
     with open(sndata, 'rb') as f:
         sn = san4_parts(f.read())
     with open(taiki, 'rb') as f:
         tk = san4_parts(f.read())
 
-    def person(scenario, b):
-        name = san4_pc98_name(b[:9].split(b'\0')[0]) if pc98 else to_unicode_name(b[:20].split(b'\0')[0])
-        return scenario, name, int.from_bytes(b[20:22], 'little')
+    def name(b):
+        return san4_pc98_name(b[:9].split(b'\0')[0]) if pc98 else to_unicode_name(b[:20].split(b'\0')[0])
 
-    persons = []
     for scenario, (part, extra) in enumerate(zip(sn, tk), 1):
         start = len(part)
         while start >= 30 and part[start - 30] >= 0x80 and part[start - 10:start - 8] != b'\xff\xff':
             start -= 30
-        persons += [person(scenario, part[o:o + 30]) for o in range(start, len(part), 30)]
-        persons += [person(scenario, extra[o + 20:o + 50]) for o in range(0, len(extra), 50)]
-    return persons
+        base = start - (len(part) - start) // 30 * 20
+        for i, o in enumerate(range(start, len(part), 30)):
+            yield scenario, name(part[o:o + 30]), part[base + i * 20:base + i * 20 + 20], part[o:o + 30]
+        for o in range(0, len(extra), 50):
+            yield scenario, name(extra[o + 20:o + 50]), extra[o:o + 20], extra[o + 20:o + 50]
+
+
+# ability record: u16, then 統率 武力 知力 政治 魅力 at +2 (base values; the status window adds item bonuses)
+SAN4_STATS = ['統率', '武力', '知力', '政治', '魅力']
+
+
+def load_san4_stats(sndata, taiki, pc98=False) -> list[tuple]:
+    """(scenario, name, 統率, 武力, 知力, 政治, 魅力) of every person record, in load_san4_persons' order."""
+    return [(scenario, name, *a[2:7]) for scenario, name, a, _ in san4_records(sndata, taiki, pc98)]
+
+
+@click.command(help='人物能力（CSV）')
+@click.option('--game-dir', 'game_dir', required=True, help='SNDATA.S4 / TAIKI.S4 所在目錄')
+@click.option('--pc98', is_flag=True, help='PC-98 版（Shift-JIS 姓名）')
+@click.option('-s', '--scenario', type=int, help='只列這個劇本')
+def san4_person(game_dir, pc98, scenario):
+    """
+    dekoei.py san4 person --game-dir ../games/san4pk-pc98 --pc98 -s 1
+    """
+    print(','.join(['劇本', '姓名'] + SAN4_STATS))
+    for row in load_san4_stats(os.path.join(game_dir, 'SNDATA.S4'), os.path.join(game_dir, 'TAIKI.S4'), pc98):
+        if scenario is None or row[0] == scenario:
+            print(','.join(map(str, row)))
+
+
+san4.add_command(san4_person, 'person')
 
 
 # PK: NBDATA.SUI holds 117 水滸伝 officers (117 x 20-byte blocks, then 117 x 30-byte person records,
@@ -280,25 +316,61 @@ def load_san5_persons(sndata, taiki, pc98=False, tail=1100) -> list[tuple[int, s
     (name 10 bytes, face u16 at +30); TAIKI is 69-byte records with the same 38 bytes at +31.
     PC-98: the name is 8 bytes Shift-JIS + NUL, then the reading in half-width kana at +9.
     """
-    def person(scenario, b):
-        name = san4_pc98_name(b[:9].split(b'\0')[0], SAN5_PC98_GAIJI) if pc98 else \
+    return [(scenario, name, int.from_bytes(b[30:32], 'little'))
+            for scenario, name, _, b in san5_records(sndata, taiki, pc98, tail)]
+
+
+def san5_records(sndata, taiki, pc98=False, tail=1100):
+    """(scenario, name, 31-byte ability record, 38-byte person record) in load_san5_persons' order.
+
+    SNDATA's ability records (31 bytes each, one per person) end where its person table starts; TAIKI's 69-byte
+    records are the ability record then the person record.
+    """
+    def name(b):
+        return san4_pc98_name(b[:9].split(b'\0')[0], SAN5_PC98_GAIJI) if pc98 else \
             to_unicode_name(b[:10].split(b'\0')[0])
-        return scenario, name, int.from_bytes(b[30:32], 'little')
 
     def is_person(b):
         return b[0] >= 0x81 and b[8] == 0 and 0xA1 <= b[9] <= 0xDF if pc98 else b[0] >= 0x80 and not any(b[10:20])
 
-    persons = []
     for scenario, part in enumerate(san5_parts(sndata), 1):
         end = start = len(part) - tail
         while start >= 38 and is_person(part[start - 38:start]):
             start -= 38
-        persons += [person(scenario, part[o:o + 38]) for o in range(start, end, 38)]
+        base = start - (end - start) // 38 * 31
+        for i, o in enumerate(range(start, end, 38)):
+            yield scenario, name(part[o:o + 38]), part[base + i * 31:base + i * 31 + 31], part[o:o + 38]
     for scenario, part in enumerate(san5_parts(taiki), 1):
-        persons += [person(scenario, part[o + 31:o + 69]) for o in range(0, len(part), 69)]
-    return persons
+        for o in range(0, len(part), 69):
+            yield scenario, name(part[o + 31:o + 69]), part[o:o + 31], part[o + 31:o + 69]
+
+
+# ability record: 武力 知力 政治 魅力 at +12 (base values; the status window adds item bonuses)
+SAN5_STATS = ['武力', '知力', '政治', '魅力']
+
+
+def load_san5_stats(sndata, taiki, pc98=False, tail=1100) -> list[tuple]:
+    """(scenario, name, 武力, 知力, 政治, 魅力) of every person record, in load_san5_persons' order."""
+    return [(scenario, name, *a[12:16]) for scenario, name, a, _ in san5_records(sndata, taiki, pc98, tail)]
 
 ##############################################################################
+
+@click.command(help='人物能力（CSV）')
+@click.option('--game-dir', 'game_dir', required=True, help='SNDATA.S5 / TAIKI.S5 所在目錄')
+@click.option('--pc98', is_flag=True, help='PC-98 版（Shift-JIS 姓名）')
+@click.option('--tail', type=int, default=1100, help='SNDATA 人物表後的 bytes（PK 1100，PC-98 本體 64）')
+@click.option('-s', '--scenario', type=int, help='只列這個劇本')
+def san5_person(game_dir, pc98, tail, scenario):
+    """
+    dekoei.py san5 person --game-dir ../games/san5pk-pc98 --pc98 -s 1
+    """
+    print(','.join(['劇本', '姓名'] + SAN5_STATS))
+    for row in load_san5_stats(os.path.join(game_dir, 'SNDATA.S5'), os.path.join(game_dir, 'TAIKI.S5'), pc98, tail):
+        if scenario is None or row[0] == scenario:
+            print(','.join(map(str, row)))
+
+
+san5.add_command(san5_person, 'person')
 
 
 @click.group()
@@ -416,6 +488,40 @@ def load_san7_persons(game_dir) -> dict[int, tuple[str, str]]:
     return persons
 
 
+# +0x4B 武力 知力 政治 魅力, u8 each; a few officers' values change between scenarios (諸葛亮's 武力 78-87)
+SAN7_STATS = ["武力", "知力", "政治", "魅力"]
+
+
+def load_san7_stats(game_dir) -> list[tuple]:
+    """(scenario file, start year, officer id, name, 武力, 知力, 政治, 魅力) of every officer in every scenario."""
+    with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
+        exe = f.read()
+    names = load_san7_persons(game_dir)
+    rows = []
+    for name in SAN7_SCENARIOS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = decode_san7_scenario(exe, f.read())
+        year = int.from_bytes(data[0x1C:0x1E], "little")
+        for o in range(SAN7_PERSONS, SAN7_PERSONS + 620 * SAN7_PERSON_SIZE, SAN7_PERSON_SIZE):
+            pid = int.from_bytes(data[o:o + 2], "little")
+            if pid != 0xFFFF:
+                rows.append((name, year, pid, names[pid][0], *data[o + 0x4B:o + 0x4F]))
+    return rows
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("--game-dir", "game_dir", required=True, help="San7WPK.exe 與 D_Sn???.s7 所在目錄")
+@click.option("-s", "--scenario", help="只列這個劇本檔（如 D_Sn001.s7）")
+def san7_person(game_dir, scenario):
+    """
+    dekoei.py san7 person --game-dir ../games/san7pk-win -s D_Sn001.s7
+    """
+    print(",".join(["劇本", "年", "編號", "姓名"] + SAN7_STATS))
+    for row in load_san7_stats(game_dir):
+        if scenario is None or row[0] == scenario:
+            print(",".join(map(str, row)))
+
+
 def load_san7_palette(palette) -> list[str]:
     """P_Kao.s7: a Windows LOGPALETTE (256 x RGBX). Index 0 is the unused key colour #FF00FF."""
     with open(palette, "rb") as f:
@@ -456,6 +562,29 @@ def load_san8_persons(sce) -> list[dict]:
         persons.append({"id": k, "name": text(r[2:7]) + text(r[0x12:0x17]),
                         "kana": (text(r[7:0x12]), text(r[0x17:0x22])), "face": int.from_bytes(r[0x27:0x29], "little")})
     return persons
+
+
+# +0x2D 武力 知力 政治 魅力, u8 each (the 武将情報 window shows them with the bonuses apart: 知力 91(+5))
+SAN8_STATS = ["武力", "知力", "政治", "魅力"]
+
+
+def load_san8_stats(sce) -> list[tuple]:
+    """(id, name, 武力, 知力, 政治, 魅力) of every D_Sce.s8 person record."""
+    with open(sce, "rb") as f:
+        data = f.read()
+    return [(p["id"], p["name"], *data[SAN8_PERSONS + p["id"] * SAN8_PERSON_SIZE + 0x2D:][:4])
+            for p in load_san8_persons(sce)]
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("--game-dir", "game_dir", required=True, help="D_Sce.s8 所在目錄")
+def san8_person(game_dir):
+    """
+    dekoei.py san8 person --game-dir ../games/san8pk-win
+    """
+    print(",".join(["編號", "姓名"] + SAN8_STATS))
+    for row in load_san8_stats(os.path.join(game_dir, "D_Sce.s8")):
+        print(",".join(map(str, row)))
 
 
 # 三國志IX PK (Steam): G_FaceS.s9 (786) and the PK's G_FacSPK.s9 (50) are u32 file size, then per face a 16-byte
@@ -521,6 +650,23 @@ def load_san9_persons(game_dir) -> list[dict]:
 
     return [{"id": k, "name": text(parts[4 * k]) + text(parts[4 * k + 1]),
              "kana": parts[4 * k + 3][2:-2].decode("cp932"), "face": faces[k]} for k in range(SAN9_PERSONS)]
+
+
+# prsn +30 統率 武力 知力 政治, u16 each; a few change between scenarios (呂蒙's 知力 40-90). Role records
+# (北斗, 男, 盗賊...) have zeros
+SAN9_STATS = ["統率", "武力", "知力", "政治"]
+
+
+def load_san9_stats(game_dir) -> list[tuple]:
+    """(scenario file, id, name, 統率, 武力, 知力, 政治) of the 700 people in every scenario."""
+    names = [p["name"] for p in load_san9_persons(game_dir)]
+    rows = []
+    for name in SAN9_SCENARIOS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = f.read()
+        i = data.index(b"prsn") + 8
+        rows += [(name, k, names[k], *struct.unpack_from("<4H", data, i + k * 134 + 30)) for k in range(SAN9_PERSONS)]
+    return rows
 
 
 # 三國志X PK (Steam): Grp/GrpFaceS.s10 and the PK's Grp/GpkFaceS.s10 are "SAN10GRP" archives: u16 count at 12, an
@@ -589,6 +735,18 @@ def load_san10_persons(exe_path, scenario) -> list[dict]:
         persons.append({"id": k, "name": names["sei"] + names["mei"], "azana": names["azana"], "kana": names["yomi"],
                         "face": struct.unpack_from("<H", r, 22)[0]})
     return persons
+
+
+# officer record +51 統率 武力 知力 政治 魅力, u8 each
+SAN10_STATS = ["統率", "武力", "知力", "政治", "魅力"]
+
+
+def load_san10_stats(exe_path, scenario) -> list[tuple]:
+    """(id, name, 統率, 武力, 知力, 政治, 魅力) of the 650 officers of one scenario file."""
+    with open(scenario, "rb") as f:
+        sce = f.read()
+    start, size, _ = SAN10_PERSONS
+    return [(p["id"], p["name"], *sce[start + p["id"] * size + 51:][:5]) for p in load_san10_persons(exe_path, scenario)]
 
 
 # 三國志11 PK (Steam): media/face/San11Face00.fce is "FACE@" + u32 2200, u32 6600 at 12, 2200 u32 (unknown), then
@@ -666,6 +824,19 @@ def load_san11_persons(scenario) -> list[dict]:
     return persons
 
 
+# person record +0x71 統率 武力 知力 政治 魅力, u8 each; the same in all 14 scenarios
+SAN11_STATS = ["統率", "武力", "知力", "政治", "魅力"]
+
+
+def load_san11_stats(scenario) -> list[tuple]:
+    """(id, name, 統率, 武力, 知力, 政治, 魅力) of the used person records (sex not 0xFF) of a scenario file."""
+    with open(scenario, "rb") as f:
+        data = f.read()
+    start, size, _ = SAN11_PERSONS
+    return [(p["id"], p["name"], *data[start + p["id"] * size + 0x71:][:5])
+            for p in load_san11_persons(scenario) if p["sex"] != 0xFF]
+
+
 # 三國志12 PK (Steam): Data/KAO_*.S12 are LINKs of 2000 GT1G0500 textures (+0x26 log2 height << 4 | log2 width,
 # B, G, R, A from +0x2C), each cropped by the 12-byte rect table (u16 x, y, w, h) at +0x10 to its face (KAO_W_L
 # 360 x 512, KAO_W_S 90 x 128, KAO_F_M 48 x 60); an empty slot is 1 x 1. The added faces are LINKs of the same kind
@@ -739,14 +910,20 @@ def san12_decrypt(data: bytes, seed: int = 0xE0A) -> bytes:
     return bytes(out)
 
 
-def load_san12_persons(path, size=292) -> list[dict]:
-    """The 1500 person records: id, name, kana, face (an empty slot has no name)."""
+def san12_person_part(path, size=292) -> bytes:
+    """The decrypted person part of a Scenario*.dat."""
     with open(path, "rb") as f:
         data = f.read()
     assert data[:4] == b"ILNK"
     n = struct.unpack_from("<I", data, 4)[0]
     offsets = list(struct.unpack_from(f"<{n}I", data, 8)) + [len(data)]
     part, = [san12_decrypt(data[a:b]) for a, b in zip(offsets[1:], offsets[2:]) if b - a == SAN12_PERSONS * size]
+    return part
+
+
+def load_san12_persons(path, size=292) -> list[dict]:
+    """The 1500 person records: id, name, kana, face (an empty slot has no name)."""
+    part = san12_person_part(path, size)
 
     def text(b):
         return "".join(SAN12_GAIJI.get(ord(c), c) for c in b.split(b"\0")[0].decode("cp932"))
@@ -757,6 +934,17 @@ def load_san12_persons(path, size=292) -> list[dict]:
         persons.append({"id": k, "name": text(r[9:14]) + text(r[4:9]), "kana": text(r[14:]),
                         "face": int.from_bytes(r, "little") >> SAN12_FACE_BIT & 0x7FF})
     return persons
+
+
+# person record +68 統率 武力 知力 政治, u8 each (byte-aligned within the bit fields); the same in all PK scenarios.
+# The relatives with no part (袁紹の父, 橋玄...) have zeros
+SAN12_STATS = ["統率", "武力", "知力", "政治"]
+
+
+def load_san12_stats(path, size=292) -> list[tuple]:
+    """(id, name, 統率, 武力, 知力, 政治) of the named person records of a Scenario*.dat."""
+    part = san12_person_part(path, size)
+    return [(p["id"], p["name"], *part[p["id"] * size + 68:][:4]) for p in load_san12_persons(path, size) if p["name"]]
 
 
 # 三國志13 PK (Steam): DATA0.S13 is 32-byte entries (u64 offset into DATA1.S13, size, stored size, compressed); a
@@ -888,6 +1076,21 @@ def load_san13_persons(game_dir) -> dict:
     return {"names": names, "pictures": pictures, "versions": versions, "base": base}
 
 
+# PK person table: XL item 6 of item 941 (row = person); columns 10-13 are 統率 武力 知力 政治 (u8, type 6) at +13,
+# after six u8, three u16 (born, appears, dies) and a u8. Role records (文官, 兵士...) have zeros
+SAN13_SCENARIO, SAN13_PERSON_TABLE = 941, 6
+SAN13_STATS = ["統率", "武力", "知力", "政治"]
+
+
+def load_san13_stats(game_dir) -> list[tuple]:
+    """(person, name, 統率, 武力, 知力, 政治) of every named person."""
+    t = san13_items(san13_entry(game_dir, SAN13_SCENARIO))[SAN13_PERSON_TABLE]
+    assert t[:2] == b"XL" and t[0x10:0x1E] == bytes([3] * 6 + [5] * 3 + [3] + [6] * 4)
+    size, header = struct.unpack_from("<2H", t, 10)
+    names = load_san13_persons(game_dir)["names"]
+    return [(p, names[p][0], *t[header + p * size + 13:][:4]) for p in sorted(names)]
+
+
 # 孔明傳 (EKD2) BAKDATA.E2: 17-byte battle/story person records from 0x18F0 to 0x3AF0 (one per appearance);
 # +0 name 12 bytes Big5, +14 u16 face code into KAO.E2
 KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)
@@ -1005,6 +1208,22 @@ def load_san14_persons(path, lang="JP", pk=True) -> list[dict]:
     return out
 
 
+# 統率 武力 知力 政治 魅力 (u8) of person k are at +16 of the next record slot (table start + (k + 1) x size + 16; the
+# slot of record 0 holds 50s there, the slot after the last person is new officer 2001's): 劉備 951 is 76/73/74/78/99
+# as in the 武将詳細 window
+SAN14_STATS = ["統率", "武力", "知力", "政治", "魅力"]
+
+
+def load_san14_stats(path, lang="JP", pk=True) -> list[tuple]:
+    """(id, name, 統率, 武力, 知力, 政治, 魅力) of the 1001 people."""
+    with open(path, "rb") as f:
+        data = f.read()
+    data = ls11.lwc_decode(data[data.index(b"LWC\x1a"):])
+    start, size, _ = SAN14_PERSONS[lang, pk]
+    return [(p["id"], p["surname"] + p["given"], *data[start + (p["id"] + 1) * size + 16:][:5])
+            for p in load_san14_persons(path, lang, pk)]
+
+
 def load_koumei_persons(bakdata) -> list[tuple[str, int]]:
     """(name, face code) of every BAKDATA.E2 person record, in file order."""
     with open(bakdata, "rb") as f:
@@ -1043,6 +1262,32 @@ def load_san6_persons(game_dir, scenarios=23) -> list[tuple[int, str, int]]:
                 persons.setdefault(slot, (text(data[r:r + 6]) + text(data[r + 6:r + 12]), face))
                 assert persons[slot][1] == face
     return [(slot, name, face) for slot, (name, face) in sorted(persons.items())]
+
+
+# +48 統率 武力 智力 政治 魅力, u16 each (the labels in SAN6.EXE); the same in all 23 scenarios
+SAN6_STATS = ["統率", "武力", "智力", "政治", "魅力"]
+
+
+def load_san6_stats(game_dir) -> list[tuple]:
+    """(slot, name, 統率, 武力, 智力, 政治, 魅力) of every person of load_san6_persons, from SNDATA01.S6."""
+    with open(os.path.join(game_dir, "SNDATA01.S6"), "rb") as f:
+        data = f.read()
+    return [(slot, name, *struct.unpack_from("<5H", data, SAN6_PERSONS + slot * SAN6_PERSON_SIZE + 48))
+            for slot, name, _ in load_san6_persons(game_dir)]
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("--game-dir", "game_dir", required=True, help="SNDATA01–23.S6 所在目錄")
+def san6_person(game_dir):
+    """
+    dekoei.py san6 person --game-dir ../games/san6pk-win
+    """
+    print(",".join(["編號", "姓名"] + SAN6_STATS))
+    for row in load_san6_stats(game_dir):
+        print(",".join(map(str, row)))
+
+
+san6.add_command(san6_person, "person")
 
 ##############################################################################
 
@@ -1096,6 +1341,7 @@ def san7_face(game_dir, face_file, palette_file, out_dir, prefix):
 
 
 san7.add_command(san7_face, 'face')
+san7.add_command(san7_person, 'person')
 
 ##############################################################################
 
@@ -1159,6 +1405,7 @@ def san8_face(game_dir, face_file, palette_file, size, out_dir, prefix):
 
 
 san8.add_command(san8_face, 'face')
+san8.add_command(san8_person, 'person')
 
 ##############################################################################
 
@@ -1227,9 +1474,17 @@ def san9_face(game_dir, palette_file, face_file, image_size, out_dir, prefix):
     extract_images('', face_w, face_h, palette, out_dir, prefix, data_loader=stream)
 
 
-@click.command()
-def san9_person():
-    pass
+@click.command(help="人物能力（CSV）")
+@click.option("--game-dir", "game_dir", required=True, help="D_Sce???.S9 與 M_MsgPK.s9 所在目錄")
+@click.option("-s", "--scenario", help="只列這個劇本檔（如 D_Sce001.S9）")
+def san9_person(game_dir, scenario):
+    """
+    dekoei.py san9 person --game-dir ../games/san9pk-win -s D_Sce001.S9
+    """
+    print(",".join(["劇本", "編號", "姓名"] + SAN9_STATS))
+    for row in load_san9_stats(game_dir):
+        if scenario is None or row[0] == scenario:
+            print(",".join(map(str, row)))
 
 
 san9.add_command(san9_face, "face")

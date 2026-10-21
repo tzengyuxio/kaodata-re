@@ -75,6 +75,12 @@ kaodata 想要比 48×60 大的頭像，所以用 `KAO_F_M` 反推它在 `KAO_W_
 - Steam 檔裡沒有中文名（Big5、UTF-16、UTF-8 都搜不到「劉備」），只有日文。
 - `PK/Msg/S12MSG03.s12` 是列伝（1089 則，順序同人物號）。這個檔沒有壓縮：u16 個數，接著是 (u16 高位, u16 低位) 的位置表。
 
+### 能力
+
+- PK 的人物記錄（292 bytes）+68 起依序是統率、武力、知力、政治，各 u8，剛好對齊 byte（`sango.load_san12_stats`，`dekoei.py san12 person`）。十二代沒有魅力。
+- PK 的 18 個劇本裡同一人的值都相同；袁紹の父、橋玄之類沒有登場的親屬記錄是 0。
+- 沒有遊戲畫面可以對照；和參考表 S12 欄一致（cross）。
+
 ## 匯出（`san12pk-win`）
 
 - 遊戲目錄 `games/san12pk-win/` 是用到的 KAO_F_M、KAO_W_L、AddKao 與劇本檔（硬連結到 `games/steam/628080/`）。

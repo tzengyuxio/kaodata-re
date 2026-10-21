@@ -765,10 +765,75 @@ def san13_face(data_file, tag, prefix, count):
         #     print(idx, img_sp, img_sz, start_pos+img_sp)
 
 
+@click.command(help="人物能力（CSV）")
+@click.option("--game-dir", "game_dir", required=True, help="Steam 版安裝目錄（San10WPK.exe、Scenario/）")
+@click.option("-s", "--scenario", help="只列這個劇本檔（如 Sce000.s10）")
+def san10_person(game_dir, scenario):
+    """
+    dekoei.py san10 person --game-dir ../games/steam/628060 -s Sce000.s10
+    """
+    print(",".join(["劇本", "編號", "姓名"] + SAN10_STATS))
+    for name in sorted(os.listdir(os.path.join(game_dir, "Scenario"))):
+        if name.endswith(".s10") and scenario in (None, name):
+            for row in load_san10_stats(os.path.join(game_dir, "San10WPK.exe"), os.path.join(game_dir, "Scenario", name)):
+                print(",".join(map(str, (name, *row))))
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("-f", "--file", "file", required=True, help="劇本檔（media/scenario/Scen000.s11；14 個劇本的能力相同）")
+def san11_person(file):
+    """
+    dekoei.py san11 person -f ../games/san11pk-win/Scen000.s11
+    """
+    print(",".join(["編號", "姓名"] + SAN11_STATS))
+    for row in load_san11_stats(file):
+        print(",".join(map(str, row)))
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("-f", "--file", "file", required=True, help="劇本檔（PK/Scenario/Scenario0.dat；PK 各劇本的能力相同）")
+def san12_person(file):
+    """
+    dekoei.py san12 person -f ../games/steam/628080/PK/Scenario/Scenario0.dat
+    """
+    print(",".join(["編號", "姓名"] + SAN12_STATS))
+    for row in load_san12_stats(file):
+        print(",".join(map(str, row)))
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("--game-dir", "game_dir", required=True, help="DATA0.S13、DATA1.S13 與 pk/ 所在目錄")
+def san13_person(game_dir):
+    """
+    dekoei.py san13 person --game-dir ../games/san13pk-win
+    """
+    print(",".join(["編號", "姓名"] + SAN13_STATS))
+    for row in load_san13_stats(game_dir):
+        print(",".join(map(str, row)))
+
+
+@click.command(help="人物能力（CSV）")
+@click.option("-f", "--file", "file", required=True, help="劇本檔（如 0010_JP/scedaex01.s14）")
+@click.option("--lang", type=click.Choice(["JP", "TC"]), default="JP")
+@click.option("--base", is_flag=True, help="本體劇本（scedaNN.s14），不是 PK 的 scedaexNN.s14")
+def san14_person(file, lang, base):
+    """
+    dekoei.py san14 person -f ../games/san14pk-win/0010_JP/scedaex01.s14
+    """
+    print(",".join(["編號", "姓名"] + SAN14_STATS))
+    for row in load_san14_stats(file, lang, not base):
+        print(",".join(map(str, row)))
+
+
 san10.add_command(san10_face, "face")
+san10.add_command(san10_person, "person")
 san11.add_command(san11_face, "face")
+san11.add_command(san11_person, "person")
 san12.add_command(san12_face, "face")
+san12.add_command(san12_person, "person")
 san13.add_command(san13_face, "face")
+san13.add_command(san13_person, "person")
+san14.add_command(san14_person, "person")
 dekoei.add_command(san1)
 dekoei.add_command(san2)
 dekoei.add_command(san3)

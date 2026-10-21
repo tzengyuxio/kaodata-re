@@ -2,6 +2,8 @@
 
 ## SAN4
 
+> 早期探索紀錄。能力的解法已整理在 `notes/san4.md`、`notes/san5.md` 的「人物」。
+
 下面檔案包含伊籍 (0x9444ADA5)
 
 - SNDATA.S4
