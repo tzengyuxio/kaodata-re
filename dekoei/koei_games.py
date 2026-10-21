@@ -794,6 +794,23 @@ def load_nobu3_pc98_people(game_dir, pc88=False, x68=False, win=False) -> list[l
     return tables
 
 
+# the same records: +16 年齢, +18 政治力, +19 戦闘力, +20 魅力, +21 野望 (u8) on every platform; 忠誠度 is +31
+# (X68000, Win +34)
+NOBU3_STATS = ["年齢", "政治力", "戦闘力", "魅力", "野望"]
+
+
+def load_nobu3_pc98_stats(game_dir, pc88=False, x68=False, win=False) -> list[list[tuple]]:
+    """(name, 年齢, 政治力, 戦闘力, 魅力, 野望) per scenario (SNDATA1 1560, SNDATA2 1582), as load_nobu3_pc98_people."""
+    start, size = (0xC1E, 36) if pc88 else (0x11F8, 44) if x68 else (0x11B6, 44) if win else (0xD38, 38)
+    tables = []
+    for n, people in zip((1, 2), load_nobu3_pc98_people(game_dir, pc88, x68, win)):
+        with open(f'{game_dir}/sndata{n}.nb3' if win else f'{game_dir}/SNDATA{n}.CIM', 'rb') as f:
+            data = f.read()
+        records = [o for o in range(start, len(data) - size + 1, size) if data[o]]
+        tables.append([(name, data[o + 16], *data[o + 18:o + 22]) for (name, _), o in zip(people, records)])
+    return tables
+
+
 # NOBU4 DOS gaiji (GAIJI.DAT, glyph = code - 0x9F); 0xA0 0xA1 together draw 宗我部, 0xB3 0xB4 squeeze two characters
 NOBU4_GAIJI = {0x9F: "長", 0xA0: "宗", 0xA1: "我部", 0xA3: "蘆", 0xA4: "堯", 0xA5: "香", 0xA8: "瓊",
                0xB3: "山內", 0xB4: "深谷"}
@@ -870,6 +887,25 @@ def load_nobu4_pc98_people(game_dir, x68=False) -> list[list[tuple[str, int]]]:
         tables.append([(nobu4_pc98_name(data[o + 3:o + 10]) + nobu4_pc98_name(data[o + 10:o + 17]),
                         int.from_bytes(data[o + arrival_face:o + arrival_face + 2], order))
                        for o in range(0, len(data) - arrival + 1, arrival) if data[o + 3]])
+    return tables
+
+
+# PC-98 records: +14 birth year - 1476, +15 政治力, +16 戦闘力, +17 教養, +18 魅力, +19 野望, +0x1C 忠誠度; arrivals:
+# the same six at +17. The scenario year is 1476 + byte 1 of SNDATAn.CIM (1555, 1571, 1582); the screen shows 年齢
+NOBU4_STATS = ["生年", "政治力", "戦闘力", "教養", "魅力", "野望"]
+
+
+def load_nobu4_pc98_stats(game_dir) -> list[list[tuple]]:
+    """(name, birth year, 政治力, 戦闘力, 教養, 魅力, 野望) per table of load_nobu4_pc98_people (SNDATA1, 1T, 2, 2T, 3, 3T)."""
+    tables = []
+    for k, people in enumerate(load_nobu4_pc98_people(game_dir)):
+        n, arrivals = k // 2 + 1, k % 2
+        with open(f'{game_dir}/SNDATA{n}{"T" if arrivals else ""}.CIM', 'rb') as f:
+            data = f.read()
+        offsets = ([o for o in range(0, len(data) - 27, 28) if data[o + 3]] if arrivals else
+                   range(0x1192, 0x1192 + 33 * len(people), 33))
+        at = 17 if arrivals else 14
+        tables.append([(name, 1476 + data[o + at], *data[o + at + 1:o + at + 6]) for (name, _), o in zip(people, offsets)])
     return tables
 
 
@@ -1065,6 +1101,21 @@ NOBU10_WIN_OFFICERS = (0x27D9A, 1991, 122)
 NOBU10_WIN_WOMEN = (0x63282, 208, 70)
 
 
+# +0x16 政治, +0x18 戦闘, +0x1A 智謀 (u16), +0x30 足軽, 騎馬, 鉄砲, 水軍 適性 (u16, 1-6 = E-S); about 45 people
+# differ between scenarios. Chinese EXE: 政治 戰鬥 智謀 步兵 騎兵 步槍 水軍
+NOBU7_WIN_STATS = ["政治", "戦闘", "智謀", "足軽", "騎馬", "鉄砲", "水軍"]
+
+
+def load_nobu7_win_stats(path, encoding="big5") -> list[tuple]:
+    """(person id, name, 政治, 戦闘, 智謀, 足軽, 騎馬, 鉄砲, 水軍) of one Sndata*.nb7."""
+    with open(path, "rb") as f:
+        data = f.read()
+    start, count, size = NOBU7_WIN_PERSONS
+    return [(pid, sei + mei, *struct.unpack_from("<3H", data, o + 0x16),
+             *("_EDCBAS"[v] for v in struct.unpack_from("<4H", data, o + 0x30)))
+            for (pid, sei, mei, _), o in zip(load_nobu7_win_persons(path, encoding), range(start, start + count * size, size))]
+
+
 def load_nobu10_win_persons(path) -> tuple[list[tuple[int, str, str, int]], list[tuple[str, int]]]:
     """((officer id, name, reading, face) of every officer, (name, face) of every woman) of one SCEDAT??.NBX."""
     with open(path, "rb") as f:
@@ -1084,6 +1135,22 @@ def load_nobu10_win_persons(path) -> tuple[list[tuple[int, str, str, int]], list
              for o in range(start, start + count * size, size)]
     return officers, women
 
+
+# officer record +101 政治, +103 統率, +105 知略 (u8), each followed by its experience. +52 is the state (0 not born,
+# 1 not of age, 8 dead: base values, no experience); officers already active have their values grown by the
+# scenario's year, so the values differ between scenarios. Labels from the EXE's field names, not seen on screen
+NOBU10_WIN_STATS = ["統率", "知略", "政治"]
+
+
+def load_nobu10_win_stats(path) -> list[tuple]:
+    """(officer id, name, 統率, 知略, 政治) of every officer record of one SCEDAT??.NBX."""
+    with open(path, "rb") as f:
+        data = f.read()
+    start, count, size = NOBU10_WIN_OFFICERS
+    officers, _ = load_nobu10_win_persons(path)
+    return [(oid, name, data[o + 103], data[o + 105], data[o + 101])
+            for (oid, name, _, _), o in zip(officers, range(start, start + count * size, size))]
+
 # NOBU8 PK (烈風伝 with PK, Win, Steam): SCEDA??.NB8 is a 0x60-byte header and data XORed with df 73 54 51 from 0x60.
 # 918 officer records of 254 bytes start at 0x68: +0 surname (10 bytes), +10 given name (10, Shift-JIS), +166 u16
 # officer id (= KaoData.nb8 face). 900-915 are the generic 姫武将 / 一向一揆 slots and 916-917 dummies
@@ -1093,10 +1160,7 @@ NOBU8_WIN_OFFICERS = (0x68, 918, 254)
 
 def load_nobu8_win_persons(path) -> list[tuple[int, str]]:
     """(officer id, name) of every officer record of one SCEDA??.NB8."""
-    with open(path, "rb") as f:
-        data = bytearray(f.read())
-    for i in range(0x60, len(data)):
-        data[i] ^= NOBU8_WIN_KEY[(i - 0x60) % 4]
+    data = nobu8_win_data(path)
     start, count, size = NOBU8_WIN_OFFICERS
     persons = []
     for o in range(start, start + count * size, size):
@@ -1109,6 +1173,28 @@ def load_nobu8_win_persons(path) -> list[tuple[int, str]]:
 # +0 surname (9 bytes), +9 its reading (17, hiragana), +26 given name, +35 its reading, +52 u16 face (KAO_?.N11
 # entry, 0xFFFF = none), +54 u16 birth, coming of age and death years
 NOBU11_WIN_PERSONS = (0x1E884C, 1216, 123)
+
+
+def nobu8_win_data(path) -> bytearray:
+    with open(path, "rb") as f:
+        data = bytearray(f.read())
+    for i in range(0x60, len(data)):
+        data[i] ^= NOBU8_WIN_KEY[(i - 0x60) % 4]
+    return data
+
+
+# +218 政治, 戦闘, 知謀, 采配 (u8; the window lists 政治 戦闘 采配 知謀), +184 足軽 | 騎馬 << 4, +185 鉄砲 | 水軍 << 4
+# (0-5 = E-S); the same in all 10 scenarios
+NOBU8_WIN_STATS = ["政治", "戦闘", "知謀", "采配", "足軽", "騎馬", "鉄砲", "水軍"]
+
+
+def load_nobu8_win_stats(path) -> list[tuple]:
+    """(officer id, name, 政治, 戦闘, 知謀, 采配, 足軽, 騎馬, 鉄砲, 水軍) of every officer record of one SCEDA??.NB8."""
+    data = nobu8_win_data(path)
+    start, count, size = NOBU8_WIN_OFFICERS
+    return [(oid, name, *data[o + 218:o + 222],
+             *("EDCBAS"[v] for v in (data[o + 184] & 15, data[o + 184] >> 4, data[o + 185] & 15, data[o + 185] >> 4)))
+            for (oid, name), o in zip(load_nobu8_win_persons(path), range(start, start + count * size, size))]
 
 
 def load_nobu11_win_persons(path) -> list[tuple[int, str, str, int]]:
@@ -1142,24 +1228,30 @@ NOBU9_WIN_RECORD = re.compile(rb"\x01\0\0\0(....)\x02\0\0\0\0\0\0\0(?=[\x81-\xfc
 NOBU9_WIN_READING = re.compile(rb"(?:\x82[\x9f-\xf1]|\x81[\x45\x5b])+\0")
 
 
+# person record +72 政治, +74 統率, +76 知略, +78 教養 (u8), each followed by its experience; grown by scenario like
+# NOBU10. Labels from the EXE's field names, not seen on screen
+NOBU11_WIN_STATS = ["統率", "知略", "政治", "教養"]
+
+
+def load_nobu11_win_stats(path) -> list[tuple]:
+    """(slot, name, 統率, 知略, 政治, 教養) of every person record of one DBSCEDA??.N11."""
+    with open(path, "rb") as f:
+        packed = f.read()
+    data = lwc_decode(packed[packed.index(b"LWC\x1a"):])
+    start, _, size = NOBU11_WIN_PERSONS
+    return [(slot, name, *(data[start + slot * size + a] for a in (74, 76, 72, 78)))
+            for slot, name, _, _ in load_nobu11_win_persons(path)]
+
+
 def load_nobu9_win_persons(path, exe) -> dict[int, tuple[str, str, int]]:
     """id -> (name, reading, face) of every person record of one SCEDA??.NB9; exe is Nobunaga9WPK.exe's bytes."""
-    with open(path, "rb") as f:
-        data = f.read()
-    tables = [exe[NOBU9_WIN_TABLES + 256 * k:NOBU9_WIN_TABLES + 256 * (k + 1)] for k in range(4)]
-    stored = max(range(256), key=lambda b: data.count(bytes([b]), 0x190))
-    table = next(t for t in tables if t[0] == stored)
-    data = data[0x190:].translate(bytes(table.index(b) for b in range(256)))
+    data = nobu9_win_data(path, exe)
 
     def text(o, n):
         return data[o:o + n].split(b"\0")[0].decode("cp932")
 
     persons = {}
-    for m in NOBU9_WIN_RECORD.finditer(data):
-        o = m.end()
-        if not NOBU9_WIN_READING.match(data, o + 34):
-            continue
-        pid, = struct.unpack("<I", m.group(1))
+    for pid, o in nobu9_win_records(data):
         assert pid not in persons
         persons[pid] = (text(o, 10) + text(o + 24, 10), text(o + 34, 18) + text(o + 52, 18),
                         struct.unpack_from("<H", data, o + 0x5A)[0])
@@ -1173,8 +1265,53 @@ def load_nobu9_win_persons(path, exe) -> dict[int, tuple[str, str, int]]:
 NOBU12_WIN_NAMES = (0x9BA6, 1940, 213)
 
 
+def nobu9_win_data(path, exe) -> bytes:
+    """A SCEDA??.NB9 from 0x190, decoded with the one of the four tables whose 0 is its commonest byte."""
+    with open(path, "rb") as f:
+        data = f.read()
+    tables = [exe[NOBU9_WIN_TABLES + 256 * k:NOBU9_WIN_TABLES + 256 * (k + 1)] for k in range(4)]
+    stored = max(range(256), key=lambda b: data.count(bytes([b]), 0x190))
+    table = next(t for t in tables if t[0] == stored)
+    return data[0x190:].translate(bytes(table.index(b) for b in range(256)))
+
+
+def nobu9_win_records(data):
+    """(person id, offset of the surname) of every person record of decoded data."""
+    for m in NOBU9_WIN_RECORD.finditer(data):
+        if NOBU9_WIN_READING.match(data, m.end() + 34):
+            yield struct.unpack("<I", m.group(1))[0], m.end()
+
+
+# from the surname, u32 政治 +176, 統率 +184, 知略 +192, 野望 +200 (the u32 between: experience?). Values grow by
+# scenario; a 4Gamer preview shot shows 政治, 統率, 知略 halved (柴田勝家 60/91/54 as 30/45/27), 野望 as stored
+NOBU9_WIN_STATS = ["政治", "統率", "知略", "野望"]
+
+
+def load_nobu9_win_stats(path, exe) -> list[tuple]:
+    """(person id, name, 政治, 統率, 知略, 野望) (stored values) of every person record of one SCEDA??.NB9."""
+    data = nobu9_win_data(path, exe)
+    names = load_nobu9_win_persons(path, exe)
+    return [(pid, names[pid][0], *struct.unpack_from("<I4xI4xI4xI", data, o + 176)) for pid, o in nobu9_win_records(data)]
+
+
 def load_nobu12_win_persons(path) -> list[tuple[int, str, str, int]]:
     """(slot, name, reading, face) of every filled slot of one sceda??.n12."""
+    return [(slot, name, reading, struct.unpack_from("<I", data, end - 68)[0])
+            for slot, name, reading, data, end in nobu12_win_slots(path)]
+
+
+# the u32 統率, 武勇, 知略, 政治 are at +28 from the face (the last 40 bytes of the body); the same in every scenario
+NOBU12_WIN_STATS = ["統率", "武勇", "知略", "政治"]
+
+
+def load_nobu12_win_stats(path) -> list[tuple]:
+    """(slot, name, 統率, 武勇, 知略, 政治) of every filled slot of one sceda??.n12."""
+    return [(slot, name, *struct.unpack_from("<4I", data, end - 40))
+            for slot, name, _, data, end in nobu12_win_slots(path)]
+
+
+def nobu12_win_slots(path):
+    """(slot, name, reading, unpacked data, end of the body) of every filled slot of one sceda??.n12."""
     with open(path, "rb") as f:
         packed = f.read()
     data = lwc_decode(packed[packed.index(b"LWC\x1a"):])
@@ -1199,7 +1336,7 @@ def load_nobu12_win_persons(path) -> list[tuple[int, str, str, int]]:
         o = start + slot * size
         name = [data[o + a:o + a + n].split(b"\0")[0].decode("cp932") for a, n in ((0, 11), (11, 11), (22, 19), (41, 19))]
         if struct.unpack_from("<H", data, body)[0] != 0xFFFF and slot + 1 < count:
-            persons.append((slot, name[0] + name[1], name[2] + name[3], struct.unpack_from("<I", data, nxt - 68)[0]))
+            persons.append((slot, name[0] + name[1], name[2] + name[3], data, nxt))
         p = nxt
     return persons
 
@@ -1216,6 +1353,22 @@ NOBU13_WIN_FACE_RANGES = [(0, 1338, 1), (4000, 4024, 1318), (5001, 5013, 1342), 
 
 def load_nobu13_win_persons(path) -> list[tuple[str, str, int]]:
     """(name, reading, face code) of every slot of one sceda??.n13 (empty slots have no name)."""
+    return [(name, reading, struct.unpack_from("<H", data, q + 68)[0]) for name, reading, data, q in nobu13_win_slots(path)]
+
+
+# in the last 137 bytes, +76/+80/+84 u32 born, of age, dies and +96 u32 統率, 武勇, 知略, 政治; the same in every
+# scenario but for 二本松義国. Slots from 2000 that repeat an officer's name (another 織田信長 at 2274) have 1, 1, 1, 1
+NOBU13_WIN_STATS = ["統率", "武勇", "知略", "政治"]
+
+
+def load_nobu13_win_stats(path) -> list[tuple]:
+    """(slot, name, 統率, 武勇, 知略, 政治) of every named slot of one sceda??.n13."""
+    return [(slot, name, *struct.unpack_from("<4I", data, q + 96))
+            for slot, (name, _, data, q) in enumerate(nobu13_win_slots(path)) if name]
+
+
+def nobu13_win_slots(path):
+    """(name, reading, unpacked data, start of the last 137 bytes) of every slot of one sceda??.n13."""
     with open(path, "rb") as f:
         packed = f.read()
     data = lwc_decode(packed[packed.index(b"LWC\x1a"):])
@@ -1230,8 +1383,7 @@ def load_nobu13_win_persons(path) -> list[tuple[str, str, int]]:
         for _ in range(4):
             n, = struct.unpack_from("<I", data, q)
             q += 4 + 2 * n
-        persons.append((text(p, 11) + text(p + 11, 11), text(p + 22, 19) + text(p + 41, 19),
-                        struct.unpack_from("<H", data, q + 68)[0]))
+        persons.append((text(p, 11) + text(p + 11, 11), text(p + 22, 19) + text(p + 41, 19), data, q))
         p = q + 137
     return persons
 
@@ -2012,6 +2164,17 @@ def load_nobu2_pc88_names(data50s: bytes, x68: bool = False) -> list[str]:
             + data50s[given + 5 * i:][:5].split(b"\0")[0].decode("cp932") for i in range(NOBU2_PC88_LORDS)]
 
 
+# DATA50S.DAT: 6 u8 per lord, 7-byte records from 0x1308 (X68000 DATA50.DAT: 8-byte
+# records from 0x1BD6; DOS DATA50S.DAT 8 bytes from 0x14B0, printed in this order by MAIN.EXE). Values can pass 100
+NOBU2_STATS = ["年令", "健康", "野心", "運", "魅力", "IQ"]
+
+
+def load_nobu2_pc88_stats(data50s: bytes, x68: bool = False) -> list[tuple]:
+    """(index, name, 年令, 健康, 野心, 運, 魅力, IQ) of the 53 lords of the 50-province game (1560)."""
+    start, size = (0x1BD6, 8) if x68 else (0x1308, 7)
+    return [(i, name, *data50s[start + size * i:][:6]) for i, name in enumerate(load_nobu2_pc88_names(data50s, x68))]
+
+
 ISHIN_PC98_PEOPLE = 423  # 0x2F12: ids 0-422 are the historical people
 ISHIN_PC98_SCENARIO = 0xA770  # SHINARIO.DAT: 3 scenarios, each loaded to DS:0x930A
 ISHIN_PC98_FACES = 0x3C  # scenario offset of the 6-byte face records (DS:0x9346, 0x4AB1)
@@ -2373,11 +2536,57 @@ def load_nobu5_win_princesses(sv: bytes) -> list[str]:
     return [_nobu5_win_name(sv[NOBU5_WIN_PRINCESSES + i * 14:][:9]) for i in range(NOBU5_PC98_PRINCESS_COUNT)]
 
 
+# 政治 戦闘 智謀 采配 野望 (u8), 寿命 (bits 6-7 of a byte, A 短命 ... D 長命; only C seen in the PK editor) and the
+# birth year: PC-98 SN +15..+19, +28, +14 (year - 1476); S*T +19..+23, +25, +18; X68000 the same places; Win SV
+# +0..+4, +14, +5 (year - 1453), EXE arrivals +21..+25, +27, +20. The window also shows 気合 (not found)
+NOBU5_STATS = ["政治", "戦闘", "智謀", "采配", "野望", "寿命", "生年"]
+NOBU5_LIFESPAN = "ABCD"
+
+
+def load_nobu5_pc98_stats(sn: bytes, x68=False) -> list[tuple]:
+    """(slot, name, 政治, 戦闘, 智謀, 采配, 野望, 寿命, birth year) of a SN*.NB5 people table."""
+    data = sn if x68 else bytes(b ^ NOBU5_PC98_XOR for b in sn)
+    start, size = (NOBU5_X68_PEOPLE, 50) if x68 else (NOBU5_PC98_PEOPLE, 39)
+    return [(slot, _nobu5_pc98_name(data[o:o + 7]) + _nobu5_pc98_name(data[o + 7:o + 14]), *data[o + 15:o + 20],
+             NOBU5_LIFESPAN[data[o + 28] >> 6], 1476 + data[o + 14])
+            for slot, o in enumerate(range(start, start + NOBU5_PC98_SLOTS * size, size)) if data[o]]
+
+
+def load_nobu5_pc98_arrival_stats(st: bytes, x68=False) -> list[tuple]:
+    """(index, name, *stats as load_nobu5_pc98_stats) of a S*T.NB5 table of later arrivals."""
+    size = 34 if x68 else 30
+    rows = []
+    for i, o in enumerate(range(0, len(st) - size + 1, size)):
+        name = _nobu5_pc98_name(st[o + 4:o + 11]) + _nobu5_pc98_name(st[o + 11:o + 18])
+        if name:
+            rows.append((i, name, *st[o + 19:o + 24], NOBU5_LIFESPAN[st[o + 25] >> 6], 1476 + st[o + 18]))
+    return rows
+
+
+def load_nobu5_win_stats(sv: bytes) -> list[tuple]:
+    """(slot, name, *stats as load_nobu5_pc98_stats) of a SV1n.N5S scenario."""
+    return [(slot, _nobu5_win_name(sv[o + 23:o + 32]) + _nobu5_win_name(sv[o + 32:o + 39]), *sv[o:o + 5],
+             NOBU5_LIFESPAN[sv[o + 14] >> 6], 1453 + sv[o + 5])
+            for slot, o in enumerate(range(NOBU5_WIN_PEOPLE, NOBU5_WIN_PEOPLE + NOBU5_PC98_SLOTS * 39, 39)) if sv[o + 23]]
+
+
+def load_nobu5_win_arrival_stats(exe: bytes, scenario: int) -> list[tuple]:
+    """(index, name, *stats as load_nobu5_pc98_stats) of the later arrivals of scenario 0-4 (Nobunaga5WPK.exe)."""
+    start, stride, size = NOBU5_WIN_ARRIVALS
+    rows = []
+    for i, o in enumerate(range(start + scenario * stride, start + (scenario + 1) * stride - size + 1, size)):
+        if not exe[o]:
+            break
+        rows.append((i, _nobu5_win_name(exe[o + 4:o + 13]) + _nobu5_win_name(exe[o + 13:o + 20]), *exe[o + 21:o + 26],
+                     NOBU5_LIFESPAN[exe[o + 27] >> 6], 1453 + exe[o + 20]))
+    return rows
+
+
 # 信長の野望・天翔記 (PC-98): name records of 18 bytes, [surname 7][given 7, Shift-JIS][u16 face][u8][u8];
 # MAIN.EXE 0x2372C: person p (1-532) is record p - 1, 0x23824 reads the face at +0x0E
 NOBU6_PC98_PEOPLE = 0x6C8E  # SNDATA.NB6 part (one per scenario): 500 men, then the princesses
 NOBU6_PC98_SLOTS = 531  # slot 532 (0x213) is scratch, filled for merchants, monks etc. at run time
-NOBU6_PC98_TAIKI_STATS = 52  # TAIKI.NB6 part: n records of 52 bytes, then their n name records
+NOBU6_PC98_TAIKI_STATS = 52  # TAIKI.NB6 part: n 5-byte arrival entries, n 47-byte records, then n name records
 # GAIJI.NB6 glyphs 169-172 (EC8C-EC8F): 長, 宗, 我部, 香; only used in these surnames
 NOBU6_PC98_GAIJI = {b"\xec\x8c\xec\x8d\xec\x8e": "長宗我部", b"\xec\x8f\xec\x8d\xec\x8e": "香宗我部"}
 
@@ -2404,6 +2613,40 @@ def load_nobu6_pc98_persons(sndata: bytes, taiki: bytes) -> list[tuple[str, int]
                         _nobu6_pc98_text(data[o + 7:o + 14].split(b"\0")[0])
                     persons.append((name, int.from_bytes(data[o + 14:o + 16], "little")))
     return persons
+
+
+# SNDATA part: 532 records of 47 bytes from 0xAE2 (MAIN.EXE 0x2370A: 0x3501:(p - 1) * 47), record i for name i;
+# TAIKI part: after the n arrival entries (byte 0 = year - 1454). +6..+8 政治 戦闘 智謀 maximum, +9/+0xB/+0xD u16
+# per-mille factor: the window shows maximum x factor // 1000. +0xF 魅力, +0x10 野望, +0x23 birth year - 1454,
+# +0x28 2-bit ranks of 政治 戦闘 智謀 (2 = A), +0x2B u16 3-bit 足軽 騎馬 鉄砲 水軍 aptitudes (1-4 = D-A; 0 E and
+# 5 S guessed), bit 12 大砲, bit 13 鉄甲船
+NOBU6_PC98_STATS = ["政治", "戦闘", "智謀", "魅力", "野望", "政治適性", "戦闘適性", "智謀適性", "足軽", "騎馬", "鉄砲",
+                    "水軍", "大砲", "鉄甲船", "生年"]
+
+
+def _nobu6_pc98_stats(r: bytes) -> tuple:
+    apt = int.from_bytes(r[0x2B:0x2D], "little")
+    return (*(r[6 + i] * int.from_bytes(r[9 + 2 * i:11 + 2 * i], "little") // 1000 for i in range(3)), r[0xF], r[0x10],
+            *("CBA"[r[0x28] >> 2 * i & 3] for i in range(3)), *("EDCBAS"[apt >> 3 * i & 7] for i in range(4)),
+            "○" if apt & 0x1000 else "×", "○" if apt & 0x2000 else "×", 1454 + r[0x23])
+
+
+def load_nobu6_pc98_stats(sndata: bytes, taiki: bytes) -> list[list[tuple]]:
+    """Per scenario part: (slot, name, *NOBU6_PC98_STATS) of the starting men, then the later arrivals (slot None)."""
+    out = []
+    for scenario, waiting in zip(ls11_decode_parts(sndata), ls11_decode_parts(taiki)):
+        n = len(waiting) // (NOBU6_PC98_TAIKI_STATS + 18)
+        rows = []
+        for data, stats, names, count, start in ((scenario, 0xAE2, NOBU6_PC98_PEOPLE, 500, True),
+                                                 (waiting, n * 5, n * NOBU6_PC98_TAIKI_STATS, n, False)):
+            for i in range(count):
+                o = names + i * 18
+                if data[o]:
+                    name = _nobu6_pc98_text(data[o:o + 7].split(b"\0")[0]) + \
+                        _nobu6_pc98_text(data[o + 7:o + 14].split(b"\0")[0])
+                    rows.append((i if start else None, name, *_nobu6_pc98_stats(data[stats + i * 47:stats + i * 47 + 47])))
+        out.append(rows)
+    return out
 
 
 ##############################################################################

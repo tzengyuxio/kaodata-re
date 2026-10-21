@@ -175,3 +175,91 @@ def nobu6_person():
 
 nobu6.add_command(nobu6_face, 'face')
 nobu6.add_command(nobu6_person, 'person')
+
+##############################################################################
+
+
+def _nobu_stats(game, game_dir):
+    """(labels, rows of (scenario, name, *stats)) of one 信長の野望 release; see notes/nobuN.md「能力」."""
+    import fnmatch
+    import glob
+    import koei_games as k
+
+    def files(pattern):
+        return sorted(f for f in glob.glob(os.path.join(game_dir, "*")) if fnmatch.fnmatch(os.path.basename(f).lower(), pattern.lower()))
+
+    if game == "nobu2-pc88":
+        import pc88
+        with open(os.path.join(game_dir, "DISK_A.D88"), "rb") as f:
+            data = pc88.cpm_files(pc88.d88_image(f.read()))["DATA50S.DAT"]
+        return k.NOBU2_STATS, [("50國", *r[1:]) for r in k.load_nobu2_pc88_stats(data)]
+    if game == "nobu2-x68":
+        with open(os.path.join(game_dir, "DATA50.DAT"), "rb") as f:
+            return k.NOBU2_STATS, [("50國", *r[1:]) for r in k.load_nobu2_pc88_stats(f.read(), x68=True)]
+    if game in ("nobu3-pc98", "nobu3-pc88", "nobu3-x68", "nobu3-win"):
+        tables = k.load_nobu3_pc98_stats(game_dir, pc88=game == "nobu3-pc88", x68=game == "nobu3-x68",
+                                         win=game == "nobu3-win")
+        return k.NOBU3_STATS, [(f"SNDATA{n}", *r) for n, t in zip((1, 2), tables) for r in t]
+    if game == "nobu4-pc98":
+        tables = k.load_nobu4_pc98_stats(game_dir)
+        return k.NOBU4_STATS, [(f"SNDATA{i // 2 + 1}{'T' if i % 2 else ''}", *r) for i, t in enumerate(tables) for r in t]
+    if game in ("nobu5-pc98", "nobu5-x68"):
+        x68, rows = game == "nobu5-x68", []
+        for n in (1, 2, 3):
+            with open(os.path.join(game_dir, f"SN{n}.NB5"), "rb") as f:
+                rows += [(f"SN{n}", *r[1:]) for r in k.load_nobu5_pc98_stats(f.read(), x68)]
+            with open(os.path.join(game_dir, f"S{n}T.NB5"), "rb") as f:
+                rows += [(f"S{n}T", *r[1:]) for r in k.load_nobu5_pc98_arrival_stats(f.read(), x68)]
+        return k.NOBU5_STATS, rows
+    if game == "nobu5pk-win":
+        with open(os.path.join(game_dir, "Nobunaga5WPK.exe"), "rb") as f:
+            exe = f.read()
+        rows = []
+        for n, name in enumerate(k.NOBU5_WIN_SCENARIOS):
+            with open(os.path.join(game_dir, name), "rb") as f:
+                rows += [(name, *r[1:]) for r in k.load_nobu5_win_stats(f.read())]
+            rows += [(f"{name} 後登場", *r[1:]) for r in k.load_nobu5_win_arrival_stats(exe, n)]
+        return k.NOBU5_STATS, rows
+    if game in ("nobu6-pc98", "nobu6pk-pc98"):
+        ext, years = ("N6P", (1534, 1560, 1571, 1582, 1546, 1599)) if game == "nobu6pk-pc98" else ("NB6", (1534, 1560, 1571, 1582))
+        with open(os.path.join(game_dir, f"SNDATA.{ext}"), "rb") as f, open(os.path.join(game_dir, f"TAIKI.{ext}"), "rb") as g:
+            tables = k.load_nobu6_pc98_stats(f.read(), g.read())
+        return k.NOBU6_PC98_STATS, [(f"{y}{'' if r[0] is not None else ' 後登場'}", *r[1:]) for y, t in zip(years, tables)
+                                    for r in t]
+    if game in ("nobu7-win", "nobu7pk-win"):
+        enc = "cp932" if game == "nobu7pk-win" else "big5"
+        return k.NOBU7_WIN_STATS, [(os.path.basename(f), *r[1:]) for f in files("Sndata*.nb7")
+                                   for r in k.load_nobu7_win_stats(f, enc)]
+    if game == "nobu8pk-win":
+        return k.NOBU8_WIN_STATS, [(os.path.basename(f), *r[1:]) for f in files("SCEDA*.NB8")
+                                   for r in k.load_nobu8_win_stats(f)]
+    if game == "nobu9pk-win":
+        with open(os.path.join(game_dir, "Nobunaga9WPK.exe"), "rb") as f:
+            exe = f.read()
+        return k.NOBU9_WIN_STATS, [(os.path.basename(f), *r[1:]) for f in files("SCEDA*.NB9")
+                                   for r in k.load_nobu9_win_stats(f, exe)]
+    loaders = {"nobu10pk-win": ("SCEDAT*.NBX", k.load_nobu10_win_stats, k.NOBU10_WIN_STATS),
+               "nobu11pk-win": ("DBSCEDA*.N11", k.load_nobu11_win_stats, k.NOBU11_WIN_STATS),
+               "nobu12pk-win": ("sceda*.n12", k.load_nobu12_win_stats, k.NOBU12_WIN_STATS),
+               "nobu13pk-win": ("sceda*.n13", k.load_nobu13_win_stats, k.NOBU13_WIN_STATS)}
+    pattern, load, labels = loaders[game]
+    return labels, [(os.path.basename(f), *r[1:]) for f in files(pattern) for r in load(f)]
+
+
+@click.command(help="信長の野望 人物能力（CSV）")
+@click.argument("game")
+@click.option("--game-dir", "game_dir", required=True, help="遊戲目錄（劇本檔所在處）")
+@click.option("-s", "--scenario", help="只列這個劇本（檔名或表名）")
+def nobu_person(game, game_dir, scenario):
+    """
+    GAME 是 dataset id：nobu2-pc88、nobu2-x68、nobu3-pc98（-pc88、-x68、-win）、nobu4-pc98、nobu5-pc98（-x68）、nobu5pk-win、
+    nobu6-pc98、nobu6pk-pc98、nobu7-win、nobu7pk-win、
+    nobu8pk-win、nobu9pk-win、nobu10pk-win…nobu13pk-win
+
+    dekoei.py nobu-person nobu4-pc98 --game-dir ../games/nobu4-pc98 -s SNDATA1
+    """
+    labels, rows = _nobu_stats(game, game_dir)
+    print(",".join(["劇本", "姓名"] + list(labels)))
+    for row in rows:
+        if scenario is None or row[0] == scenario:
+            print(",".join(map(str, row)))

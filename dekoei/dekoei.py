@@ -851,6 +851,7 @@ dekoei.add_command(san14)
 
 dekoei.add_command(nobu3)
 dekoei.add_command(nobu4)
+dekoei.add_command(nobu_person, "nobu-person")
 
 dekoei.add_command(eiketsu)
 dekoei.add_command(europe)
