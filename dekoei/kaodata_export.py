@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import struct
 import subprocess
 import unicodedata
@@ -7065,6 +7066,112 @@ def build_san13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 
+# ---------------------------------------------------------------- SAN14PK (三國志14 PK, Steam)
+
+SAN14PK_WIN_SCENARIOS = ("0010_JP/scedaex01.s14", "0010_TC/scedaex01.s14")
+# the faces are 96x120 crops of the 636x900 face_NNNN_a art (the RGB of its _a sprite: opaque, its background kept),
+# cut by the 4:5 box made from the box of each 484x512 face_NNNN_ctr on it (research/face-crop/san14_boxes.py, rule
+# in notes/san14.md), Lanczos; the 15 faces with no _a art of their own (the collaboration faces 5000-5007 and
+# 5100-5105 share a placeholder, 1023's is another person's) are cut from their 1024x1024 face_NNNN_unique instead,
+# which has no background: its alpha is kept
+SAN14PK_WIN_BOXES = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "../research/face-crop/data/san14_boxes.json")
+SAN14PK_WIN_CROP = (96, 120)
+# faces no one uses
+SAN14PK_WIN_GROUPS = [(range(2000, 2167), "新武將"), (range(5000, 5036), "合作"), (range(5100, 5226), "登錄武將")]
+SAN14PK_WIN_PER_BLOB = 50
+# gaiji that are gaiji in both languages, read off the name's reading and the histories (孔伷, 司馬伷, 姚伷 share one
+# code; 周喁 グ, 羊衜 ドウ, 劉璝 カイ); the others are read off the other language's name
+SAN14PK_WIN_GAIJI = {("JP", "\ue01c"): "伷", ("TC", "\ue000"): "伷", ("JP", "\ue042"): "喁", ("TC", "\ue00c"): "喁",
+                     ("JP", "\ue0a0"): "衜", ("TC", "\ue00a"): "衜", ("JP", "\ue025"): "璝", ("TC", "\ue001"): "璝"}
+
+
+def build_san14pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
+    sprites = sango.san14_face_sprites(game_dir)
+    with open(SAN14PK_WIN_BOXES) as f:
+        boxes = json.load(f)["faces"]
+    keys = sorted(boxes, key=lambda k: (int(k[:4]), k))
+    assert set(keys) == {m[1] for n in sprites if (m := re.fullmatch(r"face_(\d{4}b?)_ctr", n))}
+    # the inputs: the layout index, the .rdb.bin files holding these textures, the scenarios
+    layout = os.path.join(game_dir, sango.SAN14_LAYOUT)
+    bins = sorted({sprites[f"face_{k}_{boxes[k]['base']}"][0][1][0] for k in keys})
+    names = [sango.SAN14_LAYOUT] + [f"{sango.SAN14_LAYOUT}.bin{'' if b < 0 else b}" for b in bins] + \
+        list(SAN14PK_WIN_SCENARIOS)
+    inputs = []
+    for name in names:
+        h = hashlib.sha1()
+        with open(os.path.join(game_dir, name), "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 24), b""):
+                h.update(chunk)
+        inputs.append({"path": name, "sha1": h.hexdigest()})
+
+    ja = sango.load_san14_persons(os.path.join(game_dir, SAN14PK_WIN_SCENARIOS[0]))
+    tc = sango.load_san14_persons(os.path.join(game_dir, SAN14PK_WIN_SCENARIOS[1]), "TC")
+    # gaiji (U+E000-) read off the other language's name
+    gaiji = dict(SAN14PK_WIN_GAIJI)
+    for a, b in zip(ja, tc):
+        for f in ("surname", "given"):
+            if len(a[f]) == len(b[f]):
+                for x, y in zip(a[f], b[f]):
+                    if 0xE000 <= ord(x) <= 0xF8FF and not 0xE000 <= ord(y) <= 0xF8FF:
+                        assert gaiji.setdefault(("JP", x), y) == y
+                    if 0xE000 <= ord(y) <= 0xF8FF and not 0xE000 <= ord(x) <= 0xF8FF:
+                        assert gaiji.setdefault(("TC", y), x) == x
+
+    def text(lang, t):
+        t = "".join(gaiji.get((lang, c), c) for c in t)
+        assert not any(0xE000 <= ord(c) <= 0xF8FF for c in t), t
+        return t
+
+    store = ImageStore([f"portraits{k + 1 if k else ''}.bin" for k in range((len(keys) - 1) // SAN14PK_WIN_PER_BLOB + 1)])
+    index, portraits = {}, []
+    groups = {c: g for r, g in SAN14PK_WIN_GROUPS for c in r}
+    used = {p["face"] for p in ja}
+    for n, k in enumerate(keys):
+        b = boxes[k]["crop"]
+        base = boxes[k]["base"]
+        art = sango.san14_sprite(game_dir, sprites[f"face_{k}_{base}"])
+        if base == "a":
+            art = art.convert("RGB")
+        assert art.size == {"a": (636, 900), "unique": (1024, 1024)}[base] and b["x"] >= 0 and b["y"] >= 0 and b["x"] + b["w"] <= art.width \
+            and b["y"] + b["h"] <= art.height, k
+        im = art.resize(SAN14PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
+        p = {"img": store.add(*SAN14PK_WIN_CROP, im.convert("RGBA").tobytes(), blob=n // SAN14PK_WIN_PER_BLOB,
+                              rgba=True)}
+        num = int(k[:4])
+        if not k.endswith("b"):  # the second faces have no number of their own
+            p["code"] = f"{num:04X}"
+            if num not in used:
+                p["group"] = groups.get(num, "其他頭像")
+        index[k] = n
+        portraits.append(p)
+
+    characters = []
+    for a, b in zip(ja, tc):
+        ch = {"id": a["id"], "name": text("JP", a["surname"] + a["given"]),
+              "nameZh": text("TC", b["surname"] + b["given"]),
+              "reading": " ".join(kana_to_hiragana(r) for r in a["reading"]),
+              "face": {"portrait": index[f"{a['face']:04d}"]}}
+        # a second face (face_NNNNb_*, use not found) of the same person
+        if f"{a['face']:04d}b" in index:
+            ch["expressions"] = [{"portrait": index[f"{a['face']:04d}b"]}]
+        characters.append(ch)
+
+    meta = {
+        "format": FORMAT, "id": "san14pk-win", "game": "SAN14PK", "platform": "WIN",
+        "title": {"ja": "三國志14 with パワーアップキット", "zh": "三國志14 威力加強版"},
+        "source": {"producer": "kaodata-re", "revision": revision(), "inputs": inputs},
+        "display": {"scale": 2},
+        "palettes": [],
+        "rgbaBlobs": list(range(len(store.names))),
+        "blobs": store.names,
+        "images": store.refs,
+        "portraits": portraits,
+        "characters": characters,
+    }
+    return meta, [bytes(b) for b in store.blobs]
+
+
 # ---------------------------------------------------------------- SANTSUKURU (三国志ツクール, Steam)
 
 SANTSUKURU_WIN_INPUTS = ["LINKDATA.IDX", "LINKDATA0.BIN"] + [f"RES/{f}.bin" for f in koei_games.SANTSUKURU_WIN_DLC.values()]
@@ -7513,7 +7620,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
             "nobu9pk-win": build_nobu9pk_win,
             "nobu10pk-win": build_nobu10pk_win,
             "nobu11pk-win": build_nobu11pk_win,
-            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win, "san12pk-win": build_san12pk_win, "san13pk-win": build_san13pk_win,
+            "nobu12pk-win": build_nobu12pk_win, "nobu13pk-win": build_nobu13pk_win, "santsukuru-win": build_santsukuru_win, "san12pk-win": build_san12pk_win, "san13pk-win": build_san13pk_win, "san14pk-win": build_san14pk_win,
             "taikoh5dx-win": build_taikoh5dx_win, "koukai4pk-win": build_koukai4pk_win,
             "eiketsu3-win": build_eiketsu3_win,
             "eiketsu4-win": build_eiketsu4_win,
@@ -7522,7 +7629,7 @@ DATASETS = {"genpei-dos": build_genpei, "genpei-pc98": lambda game_dir: build_ge
 
 
 # full-colour datasets written as lossless WebP files (spec §5) instead of RGBA blobs
-WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win", "san12pk-win", "san13pk-win"}
+WEBP_DATASETS = {"san11pk-win", "nobu13pk-win", "santsukuru-win", "san12pk-win", "san13pk-win", "san14pk-win"}
 
 
 @click.command(help=f"匯出 kaodata 統一格式資料集 (DATASET: {', '.join(DATASETS)})")

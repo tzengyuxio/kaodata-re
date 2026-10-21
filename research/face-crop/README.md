@@ -15,6 +15,9 @@ kaodata 覺得 `san12pk-win`（48×60）、`san13pk-win`（72×72）的頭像偏
 | `sizes.py` | 每代各尺寸的比較圖：最大（或 `info.json` 指定）的那張上框出其他尺寸的位置，旁邊並排原始像素，輸出 `samples/sizes/<id>.png`；進版控的是 `sizes/<id>.jpg`（`rimage mozjpeg -q 80 -d sizes samples/sizes/*.png` 瘦身） |
 | `sizes_san8_10.py`、`sizes_san11_13.py`、`sizes_san14.py`、`sizes_nobu11_13.py`、`sizes_nobu15_16.py` | 抽出關羽（三國志）、織田信長（信長）在各代每種尺寸的原圖到 `samples/sizes/<id>/`（`NN_<尺寸名>.png`＋`info.json`） |
 | `san13_a_boxes.py` | 三國志13：每張 72×72 在 633×900（kao_a）上的框，以及照 4:5 規則換出的裁切框，寫到 `data/san13_a_boxes.json`；`san13pk-win` 的匯出讀它 |
+| `san14_boxes.py` | 三國志14：每張 484×512（`face_NNNN_ctr`）在 636×900（`face_NNNN_a`）上的框，以及 4:5 裁切框，寫到 `data/san14_boxes.json`；`san14pk-win` 的匯出讀它 |
+| `san14_rules.py` | 三國志14：候選的 4:5 裁法和三國志13 同一批人並排，輸出 `samples/san14_rules.png` |
+| `eye_level.py` | 用 OpenCV 的 Haar 眼睛偵測量 4:5 頭像裡眼睛的高度，算出三國志14 的框要上移多少才和三國志13 一樣（要另外帶 `opencv-python-headless==4.10.0.84`，5.0 沒有 `CascadeClassifier`） |
 | `data/san12_boxes.json` | 三國志12 全部 933 張的框，鍵是頭像號 |
 | `data/san13_boxes.json` | 三國志13 抽樣 30 張的框，鍵是圖號 |
 
@@ -31,6 +34,8 @@ uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --w
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python compare.py
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python sizes_san8_10.py   # 其他 sizes_*.py 同樣跑法
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python sizes.py            # 不加參數：samples/sizes/ 下每一代
+uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python san14_boxes.py      # 不加參數：全部 1489 張（十多分鐘）；加頭像號：重算那幾張
+uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy --with opencv-python-headless==4.10.0.84 python eye_level.py
 ```
 
 - `san12_boxes.py` 不加參數會跑全部 933 張並寫回 JSON；加頭像號只印結果。

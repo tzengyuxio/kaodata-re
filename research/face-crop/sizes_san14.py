@@ -104,7 +104,8 @@ def face(num: int) -> dict[str, Image.Image]:
         if e[1] != SPRITES:
             continue
         sp = sprites(read(rdb, e[2], e[3]))
-        if not any(want.match(s) for s, _ in sp):
+        # a UI atlas's definition can list a face sprite too (face_0036_a…), on its own texture; skip those
+        if not any(want.match(s) for s, _ in sp) or not all(s.startswith("face_") for s, _ in sp):
             continue
         # the texture is the one stored right before its sprite definition
         b, off = e[3][0], e[3][1]

@@ -869,6 +869,118 @@ def load_san13_persons(game_dir) -> dict:
 KOUMEI_PERSONS = (0x18F0, 0x3AF0, 17)
 
 
+# 三國志14 PK (Steam): 0002/ScreenLayout.rdb is a KT RDB index of IDRK entries (+8 u64 entry size, +0x10 u64 size
+# of the location string, +0x18 u64 file size, +0x24 u32 KTID, +0x28 u32 type); the location string "offset@size[#bin]"
+# (hex; bin in hex too) ends the entry. In the .rdb.bin<N> file a location holds an IDRK header (+8 u64 total, +0x10
+# u64 compressed) and u32 length + zlib chunks. A sprite definition (u32 count, 104-byte sprites: 64-byte name, u32 0,
+# four corners' (u, v) floats, u32 1) follows the GT1G0600 texture it cuts, sorted by (bin, offset). See
+# notes/san14.md.
+SAN14_LAYOUT = "0002/ScreenLayout.rdb"
+SAN14_TEXTURE, SAN14_SPRITES = 0xAFBEC60C, 0xF20DE437
+
+
+def san14_entries(rdb: str) -> list[tuple[int, int, tuple[int, int, int]]]:
+    """(type, file size, (bin or -1, offset, stored size)) of every entry with a location."""
+    with open(rdb, "rb") as f:
+        idx = f.read()
+    n = struct.unpack_from("<I", idx, 0x10)[0]
+    p, out = 0x20, []
+    for _ in range(n):
+        assert idx[p:p + 8] == b"IDRK0000"
+        size, slen, fsize = struct.unpack_from("<QQQ", idx, p + 8)
+        typ = struct.unpack_from("<I", idx, p + 0x28)[0]
+        m = re.fullmatch(r"([0-9a-f]+)@([0-9a-f]+)(?:#([0-9a-f]+))?",
+                         idx[p + size - slen:p + size].rstrip(b"\0").decode())
+        if m:
+            out.append((typ, fsize, (int(m[3], 16) if m[3] else -1, int(m[1], 16), int(m[2], 16))))
+        p = (p + size + 3) & ~3
+    return out
+
+
+def san14_read(rdb: str, fsize: int, loc: tuple[int, int, int]) -> bytes:
+    b, off, size = loc
+    with open(rdb + ".bin" + ("" if b < 0 else str(b)), "rb") as f:
+        f.seek(off)
+        raw = f.read(size)
+    total, comp = struct.unpack_from("<QQ", raw, 8)
+    q, out = total - comp, bytearray()
+    while len(out) < fsize:
+        k = struct.unpack_from("<I", raw, q)[0]
+        q += 4
+        if k:  # a zero length is skipped
+            out += zlib.decompress(raw[q:q + k])
+            q += k
+    return bytes(out)
+
+
+def san14_face_sprites(game_dir) -> dict[str, tuple[tuple, tuple[float, float, float, float]]]:
+    """face_* sprite name -> (its texture's (file size, location), (u0, v0, u1, v1)). Definitions that also list
+    other sprites (a UI atlas naming face_0036_a…) are skipped: they cut their own texture."""
+    rdb = os.path.join(game_dir, SAN14_LAYOUT)
+    es = san14_entries(rdb)
+    texs = sorted((e[2][0], e[2][1], e) for e in es if e[0] == SAN14_TEXTURE)
+    out = {}
+    for typ, fsize, loc in es:
+        if typ != SAN14_SPRITES:
+            continue
+        t = san14_read(rdb, fsize, loc)
+        names = [t[4 + 104 * i:68 + 104 * i].split(b"\0")[0].decode() for i in range(struct.unpack_from("<I", t)[0])]
+        if not names or not all(n.startswith("face_") for n in names):
+            continue
+        tex = max(x for x in texs if x[0] == loc[0] and x[1] < loc[1])[2]
+        for i, name in enumerate(names):
+            c = struct.unpack_from("<8f", t, 4 + 104 * i + 68)
+            out[name] = ((tex[1], tex[2]), (c[0], c[1], c[6], c[7]))
+    return out
+
+
+def san14_sprite(game_dir, ref):
+    """A sprite of san14_face_sprites cut from the first texture of its GT1G0600 (BC3) as RGBA."""
+    from PIL import Image
+    (fsize, loc), (u0, v0, u1, v1) = ref
+    t = san14_read(os.path.join(game_dir, SAN14_LAYOUT), fsize, loc)
+    header = struct.unpack_from("<I", t, 0x0C)[0]
+    o = header + struct.unpack_from("<I", t, header)[0]
+    fmt, dim = t[o + 1], t[o + 2]
+    w, h = 1 << (dim & 15), 1 << (dim >> 4)
+    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
+    assert fmt == 0x5B
+    im = Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3)
+    return im.crop((round(u0 * w), round(v0 * h), round(u1 * w), round(v1 * h)))
+
+
+# 0010_JP / 0010_TC scenarios: u32 length, "SN14SCN_VER0001" (PK "SN14SCEXVER0001"), a UTF-16 description, then an
+# LWC block; 1001 person records (packed, unaligned) at a fixed place: (start, record size) by version. From +the name
+# offset: surname 7 UTF-16 chars, given name 7, style name 3, then readings (Japanese: katakana 3 x 7 chars); the face
+# number is the record's last u16. Gaiji are U+E000- (Japanese 86 people, Traditional Chinese 7).
+SAN14_PERSONS = {("JP", False): (0xA93A, 226, 148), ("JP", True): (0xAC36, 235, 157),
+                 ("TC", False): (0xA982, 298, 148), ("TC", True): (0xAC7E, 307, 157)}
+SAN14_PERSON_COUNT = 1001
+
+
+def load_san14_persons(path, lang="JP", pk=True) -> list[dict]:
+    """The 1001 person records: id, surname, given name, style name, reading (JP), face."""
+    with open(path, "rb") as f:
+        data = f.read()
+    data = ls11.lwc_decode(data[data.index(b"LWC\x1a"):])
+    start, size, name = SAN14_PERSONS[lang, pk]
+
+    def text(b):
+        return b.decode("utf-16-le").split("\0")[0]
+
+    out = []
+    for k in range(SAN14_PERSON_COUNT):
+        r = data[start + k * size:start + (k + 1) * size]
+        assert struct.unpack_from("<H", r)[0] == k
+        n = r[name:]
+        p = {"id": k, "surname": text(n[:14]), "given": text(n[14:28]), "azana": text(n[28:34]),
+             "face": struct.unpack_from("<H", r, size - 2)[0]}
+        if lang == "JP":
+            p["reading"] = (text(n[34:48]), text(n[48:62]))
+        out.append(p)
+    return out
+
+
 def load_koumei_persons(bakdata) -> list[tuple[str, int]]:
     """(name, face code) of every BAKDATA.E2 person record, in file order."""
     with open(bakdata, "rb") as f:

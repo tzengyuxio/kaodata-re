@@ -27,7 +27,7 @@ Early KOEI Games Data Research
 | SAN11     | 三國志11                    | 2006 |       WIN        |   ○   |        |                     |
 | SAN12     | 三國志12                    | 2012 |       WIN        |   ○   |        |                     |
 | SAN13     | 三國志13                    | 2016 |       WIN        |   ○   |        |                     |
-| SAN14     | 三國志14                    | 2020 |                  |       |        |                     |
+| SAN14     | 三國志14                    | 2020 |       WIN        |   ○   |        |                     |
 | SANTSUKURU | 三國志ツクール              | 2015 |       WIN        |   ○   |        |                     |
 | NOBU1     | 信長之野望                  | 1983 |                  |       |        |                     |
 | NOBU2     | 信長之野望 全國版           | 1986 |   DOS,PC88,X68   |   ○   |        |                     |
@@ -143,6 +143,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `san11pk-win` | 三國志11 with パワーアップキット | Win 日文版（Steam） |  718 |  964 |        | [notes/san11.md](notes/san11.md)   |
 | `san12pk-win` | 三國志12 with パワーアップキット | Win 日文版（Steam） | 770 | 933 |        | [notes/san12.md](notes/san12.md) |
 | `san13pk-win` | 三國志13 with パワーアップキット | Win 多語版（Steam） | 828 | 1467 |        | [notes/san13.md](notes/san13.md) |
+| `san14pk-win` | 三國志14 with パワーアップキット | Win 多語版（Steam） | 1001 | 1489 |        | [notes/san14.md](notes/san14.md) |
 | `santsukuru-win` | 三国志ツクール | Win 日文版（Steam） | 7822 | 7823 |        | [notes/santsukuru.md](notes/santsukuru.md) |
 | `suikoden-pc98` | 水滸伝・天命の誓い          | PC-98      |  255 |  260 |        | [notes/koei-games.md](notes/koei-games.md) |
 | `suikoden-pc88` | 水滸伝・天命の誓い          | PC-88      |  255 |  258 |        | [notes/koei-games.md](notes/koei-games.md) |
