@@ -39,7 +39,7 @@
 
 ## 解碼程式的已知問題
 
-- 已修正（2026-10-21）：`san_person.S3Person` 原本把 III 代 +10 的 u16 當成 4 個 2-bit 欄位（只取低 byte），資料其實是 4 個 nibble（0–15，最常見 0x7777）。現在照下面 III 代的推定讀 nibble，所以 `san3 person` 的野心、運氣、冷靜、勇猛欄是 0–15，但四個名稱仍然只是推定。2023 年產出的 `PERSONS_TABLE/san3_*` 是舊算法，沒有重跑。
+- 已修正（2026-10-21）：`san_person.S3Person` 原本把 III 代 +10 的 u16 當成 4 個 2-bit 欄位（只取低 byte），資料其實是 4 個 nibble（0–15，最常見 0x7777）。現在照下面 III 代的推定讀 nibble，所以 `san3 person` 的野心、運氣、冷靜、勇猛欄是 0–15，但四個名稱仍然只是推定。`PERSONS_TABLE/san3_persons_s1–6` 已用新算法重新產生（只有這 4 欄改變）。
 - `san_person.s1_format` 把 I 代 DOS 記錄 +29（可能是経験）當成補位丟掉；`s2_format` 把 II 代 +20 標成「武器?」，其實是武裝兵數。
 - 三國志14：`load_san14_persons` 匯出的 `id` 是 slot 序號，遊戲內的人物號是 `id`＋1（見下面 14 代）。
 - 三國志13：`sango.py` 把 XL 型別 6 讀成 i8，相性要當 u8 讀（呂布 145 會讀成 −111）；現在的 loader 不讀這一欄。

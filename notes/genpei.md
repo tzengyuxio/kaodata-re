@@ -55,6 +55,14 @@
 - Kaodata 頭像在遊戲裡也墊同一組背景、同一條公式。匯出時，兩種臉的人物都帶 `bg`，背景放在資料集頂層的 `backgrounds`。
 - 匯出把零件與背景放 `pixels.bin`，90 張 Kaodata 頭像放 `portraits.bin`（image ref 第 4 個元素為 1）。
 
+## 能力
+
+- 欄位的正本是 `genpei-zh:docs/formats.md` §4.3（71 bytes 的武將記錄）：+0x31–0x39 依序是 武力 勇名 弓術 知才 優雅 忠節 菩提 無常 加護（不含宝物加成）；+0x1E 是 1180 年時的年齢（畫面值＝此值＋劇本年−1180）；+0x20 bits 0–3 是 音楽 和歌 奇略 操船；+0x27 身分（0 御家人、1 棟梁、2 代官、5 在野、7 死亡／未登場；6 推測是落武者）；+0x2B u16 動員力；+0x2F 兵質；+0x42 体力。讀取用 `koei_stats.load_genpei_stats`，`dekoei.py koei-person genpei-pc98`（DOS 版指 `--game-dir` 到原版目錄，用 `genpei-dos`）。
+- 日文用語取自 PC-98 `MAIN.EXE` 0x58962 的一覽表欄名（名前 年齢 忠節 知才 武力 優雅 勇名 勲功 体力 兵数 兵質 弓術 菩提 加護 無常 和歌 音楽 奇略 操船 身分）。
+- ✅ capture：`genpei-zh:build/captures/main_009.raw1.png` 源義経（1185 年），和記錄值加上宝物加成的結果相同（中文化後的畫面）。
+- ✅ cross：DOS 和 PC-98 的 4 劇本 × 400 人，+0x1A–0x46 逐 byte 相同。
+- ❌ 勲功、動員数、兵数是執行期的值；+0x2D、+0x40、+0x43–0x46 還沒解；日文版狀態視窗沒有截圖。
+
 ## PC-98 版（`genpei-pc98`）
 
 來源是 `games/archives/pc98/[PC98] 源平合戦.zip`（5 片 FDI），每片解在 `games/archives/pc98/disks/genpei-pc98/`，合併放在 `games/genpei-pc98/`。`VERSION`：「源平合戦」For PC-9801RA~ Series，9.21,1994 Ver. 1.3 Rel 1.0。

@@ -42,6 +42,14 @@
 - id 照 `genchou-fc`：男是 GENDATA1、USDATA1 第 0 區、GENDATA2–4 的出現順序，女從 1000，只當子嗣出現的從 2000；`genchou-fc` 的 299 人全部對得上。FC 把アイバク（劇本 4）、アルベルトゥス（劇本 3）各當另一人（FC 的臉不同），這裡照做（`GENCHOU_PC88_SPLIT`）。FC 沒有的 USDATA 武將從 222、子嗣從 2004 起。
 - 「考宗」是孝宗（FC 198）、「畠山重定」是畠山重忠，填 `nameHistorical`。
 
+### 能力
+
+- 男性記錄：+20 bit 0–2 政治力、bit 4–6 戦闘力；+21 bit 0–2 指揮力、bit 4–6 魅力；值 0–4 顯示成 Ｅ–Ａ（DS:0x4CB0）。+19 体力，低 nibble 是現在值、高 nibble 是上限；+22 年齢；+24 bit 0–1 身分（将軍／政治顧問／領主，DS:0x4CAA），bit 6 重病。讀取用 `koei_stats.load_genchou_stats`，`dekoei.py koei-person genchou-pc98`。
+- ✅ code：PC-98 `MAIN.EXE` 段 0 的 0x6808–0x6874 讀取函式、人物視窗 0xD59E（`政治力 体力 戦闘力 年令 指揮力 身分 魅力`）、司令官視窗 0x2B3C0（另有 `重病`）。
+- ✅ cross：PC-88、PC-98、X68000、DOS 的能力值 339 筆相同。+17–+24 只有劇本 3 ミカエル8世 的 +23 不同（X68000、DOS 0x57，PC-88、PC-98 0x53）。
+- 🟡 +17 所在国（FF＝未登場）、+18 所属勢力；+23 bit 0–1 是名字前的記號（3＝君主 `#`、2＝君主的兄弟 `*`，DS:0x27C8）。
+- ❌ +23 bit 2–4、bit 5–7（0x685C 有 32 處呼叫）的意義未知；女性 +18、+19；記錄裡沒有生年、相性、寿命。
+
 ## X68000 版（`genchou-x68`）
 
 `dekoei.py export genchou-x68` 用 `build_genchou_pc88(x68=True)`。

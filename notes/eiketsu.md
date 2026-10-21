@@ -71,6 +71,14 @@
 - `nameHistorical`：沙摩可→沙摩柯、劉貴→劉璝。劉瞱是劉曄的異體字，不填。
 - 0xE0（白鬚老人）、0xE3 沒有人物使用，標「未使用」。
 
+### 能力
+
+- 人物記錄 +17 統率、+18 武力、+19 知力（u8，0–100）。0x3080 起 384 筆 18 bytes 的初始狀態和記錄一一對應：+0 bit 7 恆為 1、低位推定是勢力，+4 士氣，+5 u16 兵力，+7 兵種，+8 等級，+10–17 道具（BAKDATA 0xD00＋16×id，FF＝空）。讀取用 `koei_stats.load_eiketsu_dos_stats`，`dekoei.py koei-person eiketsu-dos`。
+- ✅ code：`MAIN.EXE`（load image）0x13542 把兩張表寫進人物物件；攻擊力公式 0x12F6A 讀 +18（武力）、防禦力 0x13098 讀 +17；武將視窗 0x25DBC 依序顯示 武、知、統。標籤是圖示，EXE 裡沒有「知力」「統率」字串，這兩個名稱只依數值推定（諸葛亮 知 100、呂布 21；關羽 統 100）。
+- ✅ cross：PC-98 的記錄 +14–20 與整張狀態表和 DOS 相同；關羽 青龍偃月刀、張飛 蛇矛、呂布 赤兔馬＋方天畫戟。兵種名稱照 `MAIN.EXE` 的字串順序（DOS 0x37BF8、PC-98 0x358B0，19 種）對應，🟡。
+- 等級只有狀態表有值（曹操 18、諸葛亮 30），其他代的記錄都是 1。
+- ❌ 記錄 +16、+20，狀態表 +1–3、+9；策略值公式（0x25F07）、策略的學習表沒有找到。PC-98 的道具名有 `EIKETSU_PC98_GAIJI` 沒收的外字（青〓の剣）。
+
 ## PC-98 版（`eiketsu-pc98`）
 
 來源是 `games/archives/pc98/[PC98] 三国志・英傑伝.zip` 解出的 `eiketsu-pc98-src/SANEI_1–4.FDI`，每片解在 `games/archives/pc98/disks/eiketsu-pc98/`，合併放在 `games/eiketsu-pc98/`。`MAIN.EXE` 1995-01-25。

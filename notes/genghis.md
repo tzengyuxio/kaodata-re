@@ -35,6 +35,14 @@
 - `nameHistorical`：菲利浦一世→菲利浦二世（FC 是フィリップ2せい）、北鞗政子→北條政子、偪山重忠→畠山重忠（缺字）、斡鄰勒→脫斡鄰勒（少字）、摩柯末→摩訶末、江宗→襄宗（英文版 Chiang Tsung，推斷是西夏襄宗）、貝魯拉拉→貝魯拉拉二世、岐國→岐國公主（少字）、麗崋→麗華（使用者決定，2026-10-17）。
 - 未決定、沒填：高麗（英文版 Ghori）、合欽、岐國。
 
+### 能力
+
+- 君主、繼承人：+16 起 6 個 u16，依序是 統率力 判断力 企画力 説得力 体力 武力（DOS 往後 10 bytes，X68000 是大端 long）。+15 是年齢，指蒙古篇 1175 年、世界篇 1205 年時的年齡（部將一覽 0xDDB5 印「+15＋年−1175」）。+28＝0 是一族（DOS +38，X68000 +40）。讀取用 `koei_stats.load_genghis_stats`，`dekoei.py koei-person genghis-pc98`。
+- ✅ code：PC-98 `MAIN.EXE` 0x1146D 的君主視窗依 DS:0x6A98 的標籤迴圈 6 次印 +16 起的值；+28＝0 時顯示「この方は%s様の一族ですが…」（0xB1B0）並在視窗畫星形記號。
+- 部將：+16 基本能力値、+18 血縁値（DOS +28、X68000 +20）、PC-98 +19 u16 存在（0＝既発掘），是「優秀な人物」一覽的內容（0xDD45）✅ code。升格成繼承人時，6 項能力由基本能力値乘 80–119% 隨機算出，上限 999（0x8CDC）🟡。子女：+16 基本能力値，+18＝1 是兒子（女兒能力 0）🟡。女性：+15 性格（1 いつでもＯＫ／0 気分しだい／2 絶対拒否）、+16 所属（FF＝未所属）、+17 回数 ✅ code（0xDC14）。
+- ✅ cross：PC-88、PC-98、X68000、中文 DOS、英文 DOS 的 MDATA 35 筆、SDATA 85 筆逐筆相同；年齢和史實生年相符（源頼朝 1147、リチャード1世 1157）。英文版的標籤 Leadership、Judgement、Planning、Persuasive、Physical、Military 和日文版的順序相同。
+- 🟡 +28＝1、2（一族以外，背叛判定 0x1036E 不同）的名稱未知；君主 +32 都是 100，不明；テムジン／ジンギスカン 存的是 100／400，開局時重新分配（「次に１００ポイントを各能力に振り分けます」）。沒有技能、相性、寿命。
+
 ## PC-88 版（`genghis-pc88`）
 
 `dekoei.py export genghis-pc88` 用到的差異（`build_genghis_dos(pc88=True)`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Aoki Ookami to Shiroki Mejika - Genghis Khan/Aoki Ookami to Shiroki Mejika - Genghis Khan [FD].7z`。附帶的說明檔寫的是「with サウンドウェア」版，V2 模式，1988-01。`[Set 1]` 的資料檔相同。

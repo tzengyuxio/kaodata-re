@@ -11,6 +11,7 @@ from utils import grouper
 from g1t import *
 from sango import *
 from nobu import *
+from koei_stats import koei_person
 from koei_games import *
 from liberty import liberty
 from celt import celt
@@ -852,6 +853,7 @@ dekoei.add_command(san14)
 dekoei.add_command(nobu3)
 dekoei.add_command(nobu4)
 dekoei.add_command(nobu_person, "nobu-person")
+dekoei.add_command(koei_person, "koei-person")
 
 dekoei.add_command(eiketsu)
 dekoei.add_command(europe)

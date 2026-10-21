@@ -28,6 +28,14 @@
 - `id`：男性 0–40、女性 41–61，和 `koukai-fc` 一致（男性國籍和 FC 的 variant 全部吻合）。女性 61 克莉絲汀娜（頭像 33）在 FC 只有頭像、沒有人物。
 - 人物都是虛構的，不填 `nameHistorical`。4 號「亞米洯斯」的「洯」沒驗證。
 
+### 能力
+
+- 仲間情報視窗（PC-98 0x311CE）依序顯示 年齢、統率力、判断力、知力、勇気、強靭さ，以及戦闘経験／Ｌｖ、航海経験／Ｌｖ；英文 DOS 版的標籤是 Authority、Judgement、Intellect、Courage、Strength。
+- 能力表 DS:0x13F0＋n×10（0x332:0xE2）在 `SHINARIO.CIM` 0x13AE（DOS 0x13CE，PC-88 0x1320）：+0 年齢、+1–5 五項能力、+6／+8 u16 戦闘／航海経験。只有 21 筆（0 レオン、1–20 航海士），男性 21–40（敵對提督）沒有能力記錄。男性記錄 +0xF、+0x10 是戦闘Lv、航海Lv（`koei_stats.load_koukai_stats`）。
+- ✅ code（0x312AD 起的 printf 參數）；DOS、PC-98、PC-88 和英文版的值逐 byte 相同（cross）。
+- 🟡 忠誠度在 DS:0x125A（執行時才填）；名声、金貨只有主角有。❌ 男性 +0x13 低 4 bit（41 人都是 1）；中文版的標籤沒查（`MAIN.EXE` 沒解開）。
+- 指令：`dekoei.py koei-person koukai-pc98`。
+
 ## 沒有人物使用的頭像（1–12）
 
 - 只由 0x9F31 的 mode 1 直接指定頭像號叫出。名字是對照 `koukai-fc` 外觀取的，沒逐一追到程式碼，中文版的實際用語（含「土耳其」）也沒查（中文 MAIN.EXE 沒解開）。
