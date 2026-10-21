@@ -504,28 +504,22 @@ def kohryuki_person(game_dir, to, scenario):
         - main.exe offset
         - decode name with different encoding
 
-    ./dekoei.py kohryuki person -d ~/DOSBox/kanso/
-    ./dekoei.py kohryuki person -d ~/DOSBox/kanso/ --to csv > PERSONS_TABLE/kohryuki-persons-s1.csv
+    ./dekoei.py kohryuki person -d ../games/kouryuuki-dos
+    ./dekoei.py kohryuki person -d ../games/kouryuuki-dos --to csv > ../PERSONS_TABLE/kohryuki-persons-s1-zh.csv
     """
+    import pklite
     main_exe = os.path.join(game_dir, 'MAIN.EXE')
-    # main_exe = os.path.join(game_dir, 'output.000.exe')
-
-    def person_loader(main_exe, scenario=scenario):
-        sn_file = os.path.join(game_dir, 'SNDT{}.KR1'.format(scenario+1))
-        with open(main_exe, 'rb') as fmain, open(sn_file, 'rb') as fsn:
-            fmain.seek(264260)  # 日文版
-            # fmain.seek(276180) # 中文版
-            fsn.seek(4)
-            person_data = []
-            for _ in range(92):
-                d1 = fmain.read(17)
-                d2 = fsn.read(10)
-                person_data.append(b''.join([d1, d2]))
-        return person_data
-    person_data = person_loader(main_exe)
+    with open(main_exe, 'rb') as f:
+        exe = f.read()
+    zh = exe[30:36] == b'PKLITE'  # DOS Chinese MAIN.EXE: names in the load image
+    names = pklite.depklite(exe)[KOHRYUKI_DOS_NAMES:] if zh else exe[264260:]  # 日文版 (source unknown)
+    with open(os.path.join(game_dir, 'SNDT{}.KR1'.format(scenario + 1)), 'rb') as f:
+        sndt = f.read()
+    person_data = [names[i * 17:i * 17 + 17] + sndt[4 + i * 10:4 + i * 10 + 10] + sndt[3:4] for i in range(92)]
 
     persons = load_person(person_data, kohryuki_format, KOHRYUKIPerson)
-    print_table(kohryuki_table_title, kohryuki_headers, persons, to)
+    headers = [H('name-zh', h.text, h.cate) if zh and h.name == 'name' else h for h in kohryuki_headers]
+    print_table(kohryuki_table_title, headers, persons, to)
 
 
 kohryuki.add_command(kohryuki_face, 'face')
@@ -1699,7 +1693,7 @@ def lempe_face(face_file, out_dir, prefix):
 
 def lempe_person_loader(file, scenario):
     offsets1 = [8934, 22204, 35474, 48744, 62014]
-    offsets2 = [x-8930 for x in offsets1]  # offsets2 = [4, 13274, 26544, 39814, 53084]
+    offsets2 = [x-8932 for x in offsets1]  # offsets2 = [2, 13272, 26542, 39812, 53082]
     read_count, read_size1, read_size2 = 255, 17, 15
     person_data = []
     with open(file, 'rb') as f:
@@ -1733,7 +1727,7 @@ def load_lempe_pc88_persons(npdata, x68=False) -> list[tuple[str, int]]:
 @click.command(help='人物資料解析')
 @click.option('-f', '--file', 'file', help="劇本檔案", required=True)
 @click.option('-t', '--to', 'to', help="Specify output format", default='rich', type=click.Choice(['rich', 'csv', 'json', 'markdown', 'md']))
-@click.option('-s', '--scenario', 'scenario', help="Specify scenario number (starts from 1)", default=0)
+@click.option('-s', '--scenario', 'scenario', help="Specify scenario number (starts from 1)", default=1)
 def lempe_person(file, to, scenario):
     """
     人物資料解析
@@ -1747,7 +1741,7 @@ def lempe_person(file, to, scenario):
     ./dekoei.py lempe person -f ~/DOSBox/empereur/NPDATA.CIM --to csv --scenario 2 > lempe-persons-s2-en.csv
     ./dekoei.py lempe person -f ~/DOSBox/lempereur/NPDATA.CIM --to csv --scenario 4 > lempe-persons-s4-zh.csv
     """
-    persons = load_lempe_persons(file, scenario=0)
+    persons = load_lempe_persons(file, scenario=scenario - 1)
     print_table(lempe_table_title, lempe_headers, persons, to)
 
 

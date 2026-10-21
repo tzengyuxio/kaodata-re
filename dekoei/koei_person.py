@@ -19,28 +19,31 @@ from utils import H, to_unicode_name, kao2str
 # 97AB964D000000 D8ADB3CEB3000000 29 DB  # 劉邦
 # EA7C957A000000 B9DEB2CC00000000 27 0E  # 黥布
 # ^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^ ^^ ^^
-# name(7bytes)   kana(8bytes)     歲(206BC 時歲數)
+# name(7bytes)   kana(8bytes)     ^^ +15: 年齡 = (+15 - SNDT year BC - 50) & 0xFF (206 BC: +15 itself)
+#                                    ^^ +16: four 2-bit hidden values
 #
 # SNDT1.KR1
 #
-# 000000 6464 64 54 50 0004  # 項羽 (外交C)
+# 000000 6464 64 54 50 0004  # 項羽 (外交 有)
 # 100005 4343 38 63 43 001B  # 劉邦
-# 20000B 5A5A 5B 4A 49 003A  # 黥布 (外交D)
-# 190006 5151 51 5D 60 002B  # 韓信 (外交C)
-# 090000 2727 16 57 5C 0010  # 范增 (外交B)
+# 20000B 5A5A 5B 4A 49 003A  # 黥布
+# 190006 5151 51 5D 60 002B  # 韓信 (外交 有)
+# 090000 2727 16 57 5C 0010  # 范增
 #                            # 項莊 (外交D)
-#        ^^^^ ^^ ^^ ^^   ^^
-#        体力  |  |  |    前半在劇本1只有 0-5,F 七種值
-#    Stamina  |  |  用兵力 Intel
-#             |  統率力 Charm
-#             戰鬥力 Skill
-#
-# 其他可能欄位: 所屬勢力
+# ^^     ^^^^ ^^ ^^ ^^ ^^ ^^
+# |      |    |  |  |  |  +9 next person in the same city (FF = end)
+# |      |    |  |  |  +8 經驗
+# |      |    |  |  +7 用兵
+# |      |    |  +6 統御
+# |      |    +5 戰鬥
+# |      +3 體力, +4 上限
+# +0 bits 0-2 状態 (2 在野), bit 3 外交, bits 4-7 勢力; +2 所在
+# 外交 shows 有 when 用兵 >= 80 or +0 bit 3 (see notes/kouryuuki.md「能力」)
 
-kohryuki_format = '<7s8sBxxxxBBBBBxB'  # 17+10 bytes
+kohryuki_format = '<7s8sBxBxBBBBBBBBB'  # 17+10 bytes + SNDT year BC
 
 KOHRYUKIPersonRaw = namedtuple(
-    'KOHRYUKIPersonRaw', 'name kana age stamina stamina2 skill charm intel mask')
+    'KOHRYUKIPersonRaw', 'name kana birth state city stamina stamina_max battle command tactics exp next year')
 
 
 class KOHRYUKIPerson(KOHRYUKIPersonRaw):
@@ -62,6 +65,10 @@ class KOHRYUKIPerson(KOHRYUKIPersonRaw):
             return str(self.id)
         if key == 'kana':
             return self.kana.decode('shift_jis').strip('\x00')
+        if key == 'age':
+            return str((self.birth - self.year - 50) & 0xFF)
+        if key == 'diplomacy':
+            return '有' if self.tactics >= 80 or self.state & 8 else '無'
         if hasattr(self, key):
             return str(getattr(self, key))
         else:
@@ -71,11 +78,14 @@ class KOHRYUKIPerson(KOHRYUKIPersonRaw):
 kohryuki_table_title = '項劉記 人物表'
 kohryuki_headers = [H('id', 'ID', 'id'), H('name', '姓名', 'name'), H('face', '顏', 'face'),
                     H('kana', '假名', 'base'),
-                    H('age', '齡', 'base'),
+                    H('age', '年齡', 'base'),
                     H('stamina', '體力', 'base'),
-                    H('skill', '戰鬥力', 'base'),
-                    H('charm', '統率力', 'base'),
-                    H('intel', '用兵力', 'base'),
+                    H('stamina_max', '上限', 'base'),
+                    H('battle', '戰鬥', 'base'),
+                    H('command', '統御', 'base'),
+                    H('tactics', '用兵', 'base'),
+                    H('exp', '經驗', 'base'),
+                    H('diplomacy', '外交', 'base'),
                     ]
 
 
@@ -113,14 +123,17 @@ kohryuki_headers = [H('id', 'ID', 'id'), H('name', '姓名', 'name'), H('face', 
 # 00 1E610500 31140000 00000000 0000 # CDBC CCDD 0000, 1778
 # 00 1E515500 2D0E0000 00000000 0000 # CDCC CCCC -000, 1784
 # 0E 04AF6A00 64E96464 00646401 0000 # AABB BBBC 1111, 1819
-# ^^ ^ ^^^^   ^^  ^^     ^^^^
-# 國 城 能     忠  兵      訓士
-#             誠  力      練氣
+# ^^ ^ ^^^^ ^^ ^^ ^^ ^^     ^^^^^^
+# 國 城 能   經 忠 年 兵     訓士官
+#           驗 誠 齡 力     練氣階
+#
+# The 15-byte record starts 2 bytes before the 國 byte (file 2 + 15 * i per scenario, see notes/lempe.md「能力」).
+# Name +15 (masks): bits 0-1 and six flags in bits 2-7, their meaning is unknown.
 
-lempe_format = '<14sBBxBBBBxBxBxxBBxxx'  # 32 bytes
+lempe_format = '<14sBBxxxBBBBBBBBxxBBB'  # 17+15 bytes
 
 LEMPEPersonRaw = namedtuple(
-    'LEMPEPersonRaw', 'name face masks nation city ability1 ability2 loyalty soldiers discipline morale')
+    'LEMPEPersonRaw', 'name face masks nation city ability1 ability2 exp loyalty age soldiers discipline morale rank')
 
 
 class LEMPEPerson(LEMPEPersonRaw):
@@ -135,7 +148,7 @@ class LEMPEPerson(LEMPEPersonRaw):
               ('Moscow', '莫斯科'), ('Kiev', '基輔'), ('Klausenburg', '克勞森堡'), ('Bucharest', '布加勒斯特'),
               ('Budapest', '布達佩斯'), ('Vienna', '維也納'), ('Prague', '布拉格'), ('Munich', '慕尼黑'),
               ('Frankfurt', '法蘭克福'), ('Lille', '里爾'), ('St.Malo', '聖美祿'), ('Paris', '巴黎'),
-              ('Bordeaux', '布倫'), ('Lyon', '里昂'), ('Marseilles', '馬賽'), ('Milano', '米蘭'),
+              ('Bordeaux', '波爾多'), ('Lyon', '里昂'), ('Marseilles', '馬賽'), ('Milano', '米蘭'),
               ('Florence', '佛羅倫斯'), ('Venice', '威尼斯'), ('Sarajevo', '薩拉耶沃'), ('Belgrade', '貝爾格萊德'),
               ('Rome', '羅馬'), ('Naples', '那不勒斯'), ('Istanbul', '伊斯坦堡'), ('Athens', '雅典'),
               ('Corunna', '克魯納'), ('Lisbon', '里斯本'), ('Gibraltar', '直布羅陀'), ('Madrid', '馬德里'),
@@ -158,7 +171,7 @@ class LEMPEPerson(LEMPEPersonRaw):
         if key == 'bui':  # 建設 Build
             v = (self.ability1 & 0b11000000) >> 6
             return self.lookups[v]
-        if key == 'ldr':  # 指揮 Leader
+        if key == 'ldr':  # 領導 Leader
             v = (self.ability2 & 0b00000011)
             return self.lookups[v]
         if key == 'inf':  # 步兵 Infantry
@@ -170,18 +183,10 @@ class LEMPEPerson(LEMPEPersonRaw):
         if key == 'art':  # 砲兵 Artillry
             v = (self.ability2 & 0b11000000) >> 6
             return self.lookups[v]
-        if key == 'calm':
-            v = (self.masks & 0b11000000)
-            return '冷靜' if v == 0b01000000 else '單純' if v == 0b10000000 else ''
-        if key == 'brave':
-            v = (self.masks & 0b00110000)
-            return '勇猛' if v == 0b00010000 else '臆病' if v == 0b00100000 else ''
-        if key == 'charm':
-            v = (self.masks & 0b00001000)
-            return '魅力' if v else ''
-        if key == 'luck':
-            v = (self.masks & 0b00000100)
-            return '幸運' if v else ''
+        if key == 'masks':
+            return f'{self.masks:08b}'
+        if key == 'rank':
+            return str(self.rank & 0xF)
         if key == 'city':
             return self.cities[self.city][1]
         if key == 'nation':
@@ -198,14 +203,18 @@ lempe_headers = [H('id', 'ID', 'id'), H('name', '姓名', 'name'), H('face', '�
                  H('fin', '財政', 'base'),
                  H('sup', '補給', 'base'),
                  H('bui', '建設', 'base'),
-                 H('ldr', '指揮', 'base'),
+                 H('ldr', '領導', 'base'),
                  H('inf', '步兵', 'base'),
                  H('cav', '騎兵', 'base'),
                  H('art', '砲兵', 'base'),
-                 H('calm', '冷靜', 'mask'),
-                 H('brave', '勇敢', 'mask'),
-                 H('charm', '魅力', 'mask'),
-                 H('luck', '幸運', 'mask'),
+                 H('exp', '經驗', 'state'),
+                 H('loyalty', '忠誠', 'state'),
+                 H('age', '年齡', 'state'),
+                 H('soldiers', '兵力', 'state'),
+                 H('morale', '士氣', 'state'),
+                 H('discipline', '訓練', 'state'),
+                 H('rank', '官階', 'state'),
+                 H('masks', '隱藏', 'mask'),
                  H('city', '城市', 'state'),
                  H('nation', '國籍', 'state'),
                  ]
@@ -249,34 +258,35 @@ lempe_headers = [H('id', 'ID', 'id'), H('name', '姓名', 'name'), H('face', '�
 # ^^^^^^ 年齡勢力城市(0base)
 
 
-suikoden_format = '<7s35xBBB'+'3B8B4B3xBB2x'  # 45+22 bytes
+# The 22 bytes from file 4 are P+2..P+0x15 of person record P (file 2 + 22 * i) plus the next record's P+0, P+1:
+# P+0x11 ?, P+0x12 u16 人望; P+0x15 bit 6 船, bits 0-5 身分. Name record +43 is the 口調 (message set) and
+# +44 bit 7 男, bit 6 舵 (see the 水滸伝「能力」section of notes/koei-games.md).
+
+suikoden_format = '<7s35xBBB'+'3B8B4BxHBB2x'  # 45+22 bytes
 
 SUIKODENPersonRaw = namedtuple(
-    'SUIKODENPersonRaw', 'name face unknown1 basic_info age nation city body body_max integrity mercy courage str dex wis str_exp dex_exp wis_exp loyalty men status')
+    'SUIKODENPersonRaw', 'name face tone basic_info age nation city body body_max integrity mercy courage str dex wis str_exp dex_exp wis_exp loyalty popularity men status')
 
 
 class SUIKODENPerson(SUIKODENPersonRaw):
     id: int
+    # the order of the PC-98 MAIN.EXE DS:0x35BC list (6-9 and 30-33 not checked in the Chinese version)
+    identities = ('太尉 太守 官吏 好漢 頭目 強盜 義兄 義弟 死亡 罪犯 僧侶 漁夫 苦力 醫者 生意人 客棧掌櫃 技工 學究 富人 少爺 '
+                  '少女 藝妓 獵人 大力士 壯士 客商 江湖藝人 道士 失業武人 無業遊民 虎 狼 熊 豹').split()
 
     def __getitem__(self, key):
         if key == 'name':
             return to_unicode_name(self.name[:6])
-        if key == 'age':
-            return str(int(self.age) + 1)
         if key == 'gender':
             g = (self.basic_info & 0b10000000) >> 7
             return '男' if g == 1 else '女'
         if key == 'identity':
-            # hero 英雄, wild 豪傑
-            hero_text = {0: '太尉', 1: '太守', 2: '官吏', 3: '好漢', 4: '頭目', 5: '強盜'}  # 義兄, 義弟, 死亡, 罪犯
-            wild_text = {2: '僧侶', 3: '漁夫', 4: '苦力', 5: '醫者', 6: '生意人', 7: '客棧掌櫃', 8: '技工', 9: '學究', 10: '富人', 11: '少爺',
-                         12: '少女', 13: '藝妓', 16: '獵人', 17: '大力士', 18: '壯士', 19: '客商', 20: '江湖藝人', 21: '道士', 22: '失業武人', 23: '無業遊民'}
-            is_wild = (self.status & 0b00100000) >> 5  # 0:英雄, 1:豪傑
-            identity = self.status & 0b00011111
-            if is_wild: # 在野, 職業
-                return wild_text.get(identity, f'不明豪傑({identity})')
-            else:
-                return hero_text.get(identity, f'不明英雄({identity})')
+            # status bits 0-5 -> index (PC-98 MAIN.EXE 0x5B1A): bit 4 -> (b & 0xF) + 22, bit 5 -> (b & 0x1F) + 8
+            b = self.status & 0x3F
+            i = (b & 0xF) + 22 if b & 0x10 else (b & 0x1F) + 8 if b & 0x20 else b
+            return self.identities[i] if i < len(self.identities) else f'不明({b:#x})'
+        if key == 'ship':
+            return '○' if self.status & 0b01000000 else ''
         if key == 'rudder':
             r = (self.basic_info & 0b01000000) >> 6
             return '○' if r == 1 else ''
@@ -292,18 +302,22 @@ suikoden_headers = [H('id', 'ID', 'id'), H('name', '姓名', 'name'), H('face', 
                     # H('nation', '勢力', 'base'),
                     # H('city', '城市', 'base'),
                     H('gender', '性別', 'base'),
-                    # H('unknown1', '不明', 'base'),
                     H('identity', '身份', 'base'),
                     H('body', '體力', 'base'),
+                    H('body_max', '體力上限', 'base'),
                     H('str', '能耐', 'base'),
                     H('dex', '技能', 'base'),
                     H('wis', '智慧', 'base'),
                     H('integrity', '忠義', 'base'),
                     H('mercy', '仁愛', 'base'),
                     H('courage', '勇氣', 'base'),
-                    # H('str_exp', '能耐經驗', 'base'),
-                    # H('dex_exp', '技能經驗', 'base'),
-                    # H('wis_exp', '智慧經驗', 'base'),
-                    # H('loyalty', '忠誠度', 'base'),
+                    H('str_exp', '能耐經驗', 'base'),
+                    H('dex_exp', '技能經驗', 'base'),
+                    H('wis_exp', '智慧經驗', 'base'),
+                    H('men', '士兵', 'base'),
+                    H('loyalty', '忠誠度', 'base'),
+                    H('popularity', '人望', 'base'),
+                    H('ship', '船', 'base'),
                     H('rudder', '舵', 'base'),
+                    H('tone', '口調', 'base'),
                     ]

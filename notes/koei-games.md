@@ -218,6 +218,21 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 發行年份：ja.wikipedia 只寫 PC-9801 版 1991 年，沒有月日，待查。
 - `nameHistorical`：盧俊儀→盧俊義、馬鱗→馬麟、成喜→成貴、潘功雲→潘巧雲（`SUIKODEN_PC98_NAME_HISTORICAL`，中文 DOS 版是對的）。
 
+### 能力
+
+- 狀態視窗（PC-98 `MAIN.EXE` 0x6190–0x6430）分三欄：体力 腕力 技量 知力／体力上限 腕力経験 技量経験 知力経験／小者 忠義 仁愛 勇気，另有 年齢、忠誠度、人気；一覽表（0x6D8C）另有 身分 性 船 舵。DOS 中文版的用語是 體力 能耐 技能 智慧 士兵 體力上限 能耐經驗… 忠義 仁愛 勇氣 人望。
+- 人物記錄 P＝DS:0x44＋22·i（`SUIDATA?.CIM` 檔案 2＋22·i，P+0、P+1 恆為 0，檔案只存 P+2–P+0x15）：
+  - +2 年齢、+3 勢力、+4 所在
+  - +5 体力、+6 体力上限、+7–9 忠義 仁愛 勇気、+0xA–0xC 腕力 技量 知力
+  - +0xD–0xF 経験（能力 100 時顯示「－」）、+0x10 忠誠度、+0x12 u16 人気、+0x14 小者
+  - +0x15：bit 6 是船，bits 0–5 是身分（0x5B1A：bit 4 設時索引＝(b&0xF)+22，bit 5 設時＝(b&0x1F)+8，名稱表 DS:0x35BC 34 種）
+- 名字記錄：PC-98 +18（DOS +43）是口調（0–4，選應答句組，0x3CF2），+19（DOS +44）的 bit 7 是男、bit 6 是舵。
+- 各平台的位置：DOS 與 PC-98 從 4 起、間距 22；PC-88 從 1 起、間距 20，沒有口調；X68000 從 6 起、間距 26，人気是大端序，名字記錄的口調在 +38、旗標在 +39。讀取用 `koei_stats.load_suikoden_stats`，`dekoei.py koei-person suikoden-pc98`。
+- ✅ code：視窗 0x6190–0x6430 的 printf 參數、一覽表 0x6D8C。數值和畫面沒有對過截圖。
+- ✅ cross：四個平台的能力段相同；DOS 只有 4 人的年齢不同（上青、費保、穆弘、穆春兩兩對調），253 白秀英的身分 DOS 是芸妓、PC-98 是旅芸人。
+- 🟡 年齢照原值顯示（0x6312）；人気只在某些身分顯示（0x62BF）。❌ P+0x11（1–15）、旗標 byte 的 bits 0–4。
+- 已修正（2026-10-22）：舊 `SUIKODENPerson` 把年齢多加 1、`unknown1` 其實是口調（改名 `tone`），身分沒處理 bit 4 單獨設的情況（印成「不明英雄」），也沒輸出 上限、経験、小者、忠誠度、人気、船。現在都照上面讀；`PERSONS_TABLE/suikoden_persons_s1.csv` 已重新產生（DOS 中文版，身分的中文名稱 6–9、30–33 沒對過中文版）。
+
 ### PC-88 版（`suikoden-pc88`）
 
 來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Suikoden/`：Disk A、B 取 `[FD].7z` 主檔，Disk C 取同包 `alts/Suikoden (Disk C) [Alt 1].d88`（FD 主檔的 Disk C 在頭像 190 有 1 byte 和其他各組不同，Set 1 則在頭像 257 尾端被寫進 14 bytes ASCII）。用到的檔案解在 `games/suikoden-pc88/`，`build_suikoden_pc98(pc88=True)`。

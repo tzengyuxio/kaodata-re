@@ -47,6 +47,15 @@
 
 - 身分仍待考、也沒填的：84 昂吉迪（Wade／アーチディーケ）、101 布霍布登（Bagavout／バゴブート）、161 路易斯（Luveck／ルイス）、176 科魯華特（Cleves／クレーヴェ）。
 
+### 能力
+
+- 狀態視窗（英文版 `MAIN.EXE` 0x166FA）：Politics Finance Supply Build／Leader Infantry Cavalry Artillry（各 D–A）、Loyal、Exper、Age、Men Mor Trng。中文版的用語（0x3FDC0）：忠誠 政治 財政 補給 建設 領導 步兵 騎兵 砲兵 經驗 兵力 士氣 訓練 年齡。日文版沒找到能力名稱的漢字字串。
+- 人物記錄 R＝`NPDATA.CIM` 檔案 2＋15·i（每劇本 +13270）：+2 國、+3 所在（城市名在檔案 7370，46 個）、+4 政治 財政 補給 建設、+5 領導 步兵 騎兵 砲兵（各 2 bit、低位在前，0–3＝D C B A）、+6 經驗、+7 忠誠（拿破崙顯示「--」）、+8 年齡、+9 兵力、+0xC 訓練、+0xD 士氣、+0xE & 0xF 官階。讀取用 `koei_stats.load_lempe_stats`，`dekoei.py koei-person lempe-dos`。
+- 各平台的位置：PC-88 從 1 起，每劇本 0x3100；X68000 `NPDATA1.DAT` 從 4 起、間距 18。
+- ✅ code：英文版 `MAIN.EXE` 0x166FA、0x659C（等級表 DS:0x8FAE）。✅ cross：PC-88 五個劇本、X68000 劇本 1、英文版和 DOS 中文版相同；1795 年拿破崙 26 歲。
+- 🟡 R+0xB 非 0 是砲兵、否則 R+0xA 非 0 是騎兵、否則步兵（0x6078）。名字 +15 是 bits 0–1（只有 0–5 號是 3，波拿巴家族？）加上 bits 2–7 的 6 個旗標；舊碼的冷靜、勇猛、魅力、幸運等名稱沒有根據。❌ +16（大多是 6）、R+0、R+1。
+- 已修正（2026-10-22）：舊 `lempe_person` 忽略 `--scenario`（`PERSONS_TABLE/lempe-persons-s1…s4-*.csv` 完全相同），第二段錯開 2 bytes、漏了經驗、年齡、官階；ldr 標成「指揮」（遊戲用語是「領導」）；名字 +15 的四欄 冷靜 勇敢 魅力 幸運 沒有根據，改成一欄「隱藏」印出 8 個 bit；Bordeaux 原本譯成「布倫」，改成「波爾多」。`-s` 從 1 起算。s1–s4 的 en／zh 表已重新產生（en 用英文版 `NPDATA.CIM`，不在 `games/`）。
+
 ## 頭像碼 0xFF–0x103
 
 人物資料的頭像碼只有一個 byte，P255–P259 由程式直接把碼傳給畫頭像的函式（0xA17A，參數是頭像碼，0 起算）：

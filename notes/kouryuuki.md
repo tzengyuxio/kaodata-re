@@ -12,7 +12,7 @@
 
 - PKLITE 1.15 壓縮。`pklite.depklite` 是解壓 stub 的 Python 移植（不執行遊戲碼），解出 0x46761 bytes。
 - DGROUP 段 0x3A87（映像 0x3A870）。下文是解壓後映像的 offset。
-- 舊 `kohryuki person` 的 offset（日文版 264260、中文版 276180）是另一份外部解壓檔的位置，和這裡不同。
+- `kohryuki person` 遇到 PKLITE 壓縮的中文版 `MAIN.EXE` 時，解壓後從 `KOHRYUKI_DOS_NAMES` 讀名字；其他 `MAIN.EXE` 仍用舊的日文版 offset 264260（來源不明的外部解壓檔，`games/` 裡沒有對應的檔案）。
 
 ## 頭像：KAO.KR1
 
@@ -31,6 +31,16 @@
 - 沒有頭像欄位，頭像碼就是人物編號：1ECD:2692（臉→名字）在 face < 0x5C 時回傳 DGROUP 0x2864 ＋ 0x11 × face。
 - `id` 從 0 起算，和 `kouryuuki-sfc` 的 92 人、97 張頭像順序相同。
 - `nameHistorical`：79 藏荼→臧荼、80 司馬邛→司馬卬（缺字代用）、82 靳疆→靳彊。不填：陳余（日文版也寫陳余）、歇、楊（單字，SFC 相同）。張逸（22）、孔熙（56）沒查證。
+
+### 能力
+
+- 狀態視窗（PC-98 `MAIN.EXE` 0x5091）：齢 戦闘／体力 統率／上限 用兵／外交 経験；DOS 中文版是 年齡 戰鬥 體力 統御 上限 用兵 外交 經驗。
+- `SNDT?.KR1` 檔頭 +1 月、+3 西元前的年份；從 4 起每 10 bytes 一筆（DS:0x46＋10·i）：+0 bits 0–2 状態（2＝在野）、bit 3 外交、bits 4–7 勢力；+2 所在；+3 体力；+4 上限；+5 戦闘；+6 統率；+7 用兵；+8 経験（劇本都是 0）；+9 同地的下一個人（FF 結尾）。外交在 用兵 ≥80 或 bit 3 時顯示「有」（0x7767 → 0x5C21）。
+- 名字表（DOS load image 0x3D0D4，17 bytes 一筆）+15：齢＝+15 − 檔頭 +3 − 50（mod 256，0x7EE8），生年是西元前 (+15＋206)；+16 是 4 個 2 bit 的隱藏值（讀取在 1EEA:0DD2、0DDE、0DEA、0DF6），名稱不明。讀取用 `koei_stats.load_kouryuuki_stats`，`dekoei.py koei-person kouryuuki-dos`。
+- ✅ code：讀取函式在 1EEA:0C52–0E32。✅ cross：SNDT1–4 的人物段 DOS 和 PC-98 逐 byte 相同，X68000 只有檔頭不同；名字表 +15、+16 三版相同；項羽前 232、劉邦前 247 和史書一致。
+- PC-98、X68000 的 SNDT 只在磁碟映像裡，`games/` 底下沒有，所以指令只支援 DOS 版。
+- 已修正（2026-10-22）：舊 `KOHRYUKIPerson` 把 +15 原值當年齡（只有劇本 1 剛好對），欄名也和遊戲用語不同（skill＝戦闘、charm＝統率、intel＝用兵、stamina2＝上限、mask 是 +9 的串列），註解的「外交C/D/B」不對。現在照上面的欄位讀，另加 上限、經驗、外交；`PERSONS_TABLE/kohryuki-persons-s1-zh.csv` 已重新產生。`-ja.csv` 的來源檔不在 `games/`，沒有重跑。
+- ❌ 隱藏值的名稱、+1、外交「有」的作用。
 
 ## 沒有人物使用的頭像（92–96）
 
