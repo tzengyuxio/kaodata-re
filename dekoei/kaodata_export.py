@@ -146,6 +146,9 @@ def display_entries(meta: dict, blobs: list[bytes]):
             yield f"ch:{ch['id']}/{k}", *face_display(expr)
     for i, p in enumerate(portraits):
         yield f"pt:{i}", *portrait_entry(i)
+    for n, a in enumerate(meta.get("arts", [])):
+        if not isinstance(meta["images"][a["img"]], dict):  # art/ files are checked by their name (spec §8)
+            yield f"art:{n}", get_image(meta, blobs, a["img"]), a.get("palette")
 
 
 def webp_entries(meta: dict):
@@ -180,6 +183,10 @@ def checksums(meta: dict, blobs: list[bytes]) -> dict:
 
 # ---------------------------------------------------------------- writer
 
+# raw bytes per art blob: about 1 MB deflated
+ART_BLOB_BYTES = 3 << 19
+
+
 class ImageStore:
     """Collects indexed (or, with rgba, full-colour RGBA) images into named blobs (blob 0 = pixels.bin)."""
 
@@ -193,6 +200,14 @@ class ImageStore:
         self.refs.append([len(self.blobs[blob]), w, h] + ([blob] if blob else []))
         self.blobs[blob] += px
         return len(self.refs) - 1
+
+    def add_art(self, w: int, h: int, px: bytes) -> int:
+        """An indexed BASE picture (spec §6.5) into the art blobs, which go after all the others (add them last) and
+        are written as art/<SHA-256>.bin; a new one every ART_BLOB_BYTES."""
+        if not self.names[-1].startswith("art/") or len(self.blobs[-1]) + len(px) > ART_BLOB_BYTES:
+            self.names.append(f"art/{len(self.names)}")
+            self.blobs.append(bytearray())
+        return self.add(w, h, px, blob=len(self.names) - 1)
 
 
 def kana_to_hiragana(s: str) -> str:
@@ -252,7 +267,6 @@ def write_dataset(out_dir: str, meta: dict, blobs: list[bytes], webp: bool = Fal
     `artFiles` (BASE pictures, `art_webp`) are written to art/ (`write_arts`)."""
     os.makedirs(out_dir, exist_ok=True)
     art_files = meta.pop("artFiles", None)
-    assert art_files is None or webp
     if webp:
         meta, rgba = webp_images(meta, blobs)
         if art_files:
@@ -268,10 +282,20 @@ def write_dataset(out_dir: str, meta: dict, blobs: list[bytes], webp: bool = Fal
         with open(os.path.join(out_dir, "checksums.json"), "w", encoding="utf-8") as f:
             json.dump(sums, f, indent=1)
         return
+    names = []
     for name, pixels in zip(meta.get("blobs", ["pixels.bin"]), blobs):
         comp = zlib.compressobj(9, zlib.DEFLATED, -15)
+        data = comp.compress(pixels) + comp.flush()
+        if name.startswith("art/"):  # named by the file's SHA-256 (spec §5)
+            name = f"art/{hashlib.sha256(data).hexdigest()}.bin"
+            os.makedirs(os.path.join(out_dir, "art"), exist_ok=True)
+        names.append(name)
         with open(os.path.join(out_dir, name), "wb") as f:
-            f.write(comp.compress(pixels) + comp.flush())
+            f.write(data)
+    if "blobs" in meta:
+        meta = {**meta, "blobs": names}
+    if art_files:
+        meta = write_arts(out_dir, meta, art_files)
     with open(os.path.join(out_dir, "dataset.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
     with open(os.path.join(out_dir, "checksums.json"), "w", encoding="utf-8") as f:
@@ -5658,7 +5682,8 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         if p["name"] in SAN8PK_WIN_ROLES and p["face"] not in used:
             roles.setdefault(p["face"], p["name"])
 
-    faces = sango.koei_archive(files["g_maindy.s8"])[sango.SAN8_FACES:2 * sango.SAN8_FACES]
+    archive = sango.koei_archive(files["g_maindy.s8"])
+    faces = archive[sango.SAN8_FACES:2 * sango.SAN8_FACES]
     first, portraits, index = {}, [], {}
     for code, px in enumerate(faces):
         if first.setdefault(px, code) != code:
@@ -5675,6 +5700,15 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
             assert code not in used
             p["group"] = SAN8PK_WIN_PORTRAIT_GROUPS[code]
         portraits.append(p)
+    # the BASE (spec §6.5): the 160x180 picture of the same code (items 0-845), chest-up, its background painted.
+    # Its 255 moves to 0 as above; 3 pixels of the key colour 0 (570, 669, 781) stay transparent (user, 2026-10-21)
+    art_remap = b"\xff" + bytes(range(1, 255)) + b"\0"
+    arts = []
+    for p in portraits:
+        px = archive[int(p["code"], 16)]
+        assert len(px) == 160 * 180
+        p["art"] = len(arts)
+        arts.append({"img": store.add_art(160, 180, px.translate(art_remap))})
 
     characters = [{"id": p["id"], "name": p["name"],
                    "reading": " ".join(kana_to_hiragana(k) for k in p["kana"] if k),
@@ -5689,6 +5723,7 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
         "images": store.refs,
+        "arts": arts,
         "portraits": portraits,
         "characters": characters,
     }
@@ -5697,7 +5732,7 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 
 # ---------------------------------------------------------------- SAN9 PK (Windows, Japanese, Steam)
 
-SAN9PK_WIN_INPUTS = sango.SAN9_FACE_FILES + ["P_Face.s9", "M_MsgPK.s9"] + sango.SAN9_SCENARIOS
+SAN9PK_WIN_INPUTS = sango.SAN9_FACE_FILES + sango.SAN9_LARGE_FILES + ["P_Face.s9", "M_MsgPK.s9"] + sango.SAN9_SCENARIOS
 # records 693-699 are roles, not people; their faces become named portraits. The tribes' officers share one face each
 SAN9PK_WIN_ROLES = range(693, 700)
 SAN9PK_WIN_NAME_HISTORICAL = {"厳晙": "厳畯"}
@@ -5736,6 +5771,14 @@ def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         if code in SAN9PK_WIN_PK:
             p["pk"] = True
         portraits.append(p)
+    # the BASE (spec §6.5): the 240x240 picture of the same code (G_FaceL / G_FacLPK), same palettes; it does not use
+    # the key colour 0 either
+    arts = []
+    for code, px in enumerate(sango.load_san9_faces(game_dir, sango.SAN9_LARGE_FILES, (240, 240))):
+        assert 0 not in px
+        portraits[code]["art"] = len(arts)
+        arts.append({"img": store.add_art(240, 240, px.translate(remap))})
+    assert len(arts) == len(portraits)
 
     # the kana has no break between surname and given name, so the reading has no space
     characters, seen = [], set()
@@ -5759,6 +5802,7 @@ def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
                      {"id": "sepia", "label": "懷舊", "colors": [sepia[255]] + sepia[1:255]}],
         "blobs": store.names,
         "images": store.refs,
+        "arts": arts,
         "portraits": portraits,
         "characters": characters,
     }
@@ -5767,7 +5811,7 @@ def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 
 # ---------------------------------------------------------------- SAN10 PK (Windows, Japanese, Steam)
 
-SAN10PK_WIN_INPUTS = sango.SAN10_FACE_FILES + sango.SAN10_FACE_TABLES + ["San10WPK.exe", "ScePK000.s10"]
+SAN10PK_WIN_INPUTS = sango.SAN10_FACE_FILES + sango.SAN10_LARGE_FILES + sango.SAN10_FACE_TABLES + ["San10WPK.exe", "ScePK000.s10"]
 SAN10PK_WIN_NAME_HISTORICAL = {"厳晙": "厳畯"}
 # faces below 731 that no officer uses: people of SAN9 who are only in events here, named as in SAN9 (same face codes)
 SAN10PK_WIN_EVENT_FACES = {
@@ -5807,9 +5851,11 @@ def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 
     persons = sango.load_san10_persons(os.path.join(game_dir, "San10WPK.exe"), os.path.join(game_dir, "ScePK000.s10"))
     used = {p["face"] for p in persons}
-    portraits, index = [], {}
-    for archive, table, base in zip(sango.SAN10_FACE_FILES, sango.SAN10_FACE_TABLES, [0, sango.SAN10_PK_FACE_CODE]):
+    portraits, index, arts = [], {}, []
+    for archive, large, table, base in zip(sango.SAN10_FACE_FILES, sango.SAN10_LARGE_FILES, sango.SAN10_FACE_TABLES,
+                                           [0, sango.SAN10_PK_FACE_CODE]):
         entries = sango.load_san10_grp(os.path.join(game_dir, archive))
+        large = sango.load_san10_grp(os.path.join(game_dir, large))
         for slot, e in enumerate(sango.load_san10_face_table(os.path.join(game_dir, table))):
             if e is None:
                 continue
@@ -5828,6 +5874,11 @@ def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
                 p["group"] = SAN10PK_WIN_PORTRAIT_GROUPS.get(code, "新武將")
             if base:
                 p["pk"] = True
+            # the BASE (spec §6.5): the 240x240 of the same entry, with a palette of its own (none equals the face's)
+            w, h, px, bgrx = large[e]
+            assert (w, h) == (240, 240) and 0 not in px
+            p["art"] = len(arts)
+            arts.append({"img": store.add_art(240, 240, px.translate(remap)), "palette": own_palette(bgrx)})
             portraits.append(p)
     assert all(int(p["code"], 16) in used for p in portraits if "group" not in p)
     store.blobs[SAN10PK_WIN_BLOBS.index("palettes.bin")] = palettes
@@ -5851,6 +5902,7 @@ def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "portraitPalettes": {"blob": SAN10PK_WIN_BLOBS.index("palettes.bin")},
         "blobs": store.names,
         "images": store.refs,
+        "arts": arts,
         "portraits": portraits,
         "characters": characters,
     }
@@ -5897,10 +5949,17 @@ def build_san11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     assert {p["face"] for s in scenarios for p in s if p["id"] not in empty} <= set(owner) | set(roles) | \
         {c for v in looks.values() for c in v}
 
-    portraits, index = [], {}
+    # the BASE (spec §6.5): the 240x240 of the same code, 24-bit with its background; the 6 8-bit faces (222, 567,
+    # 734, 750, 754, 775) are only 64x80
+    large = sango.load_san11_large_faces(os.path.join(game_dir, sango.SAN11_FACE_FILE))
+    assert set(large) <= set(codes)
+    portraits, index, arts = [], {}, []
     for n, code in enumerate(codes):
         index[code] = len(portraits)
         p = {"img": store.add(64, 80, faces[code], blob=n // SAN11PK_WIN_PER_BLOB, rgba=True), "code": f"{code:04X}"}
+        if code in large:
+            p["art"] = len(arts)
+            arts.append(art_webp(large[code]))
         if code in roles:
             p["group"], p["name"] = "一般人物", roles[code]
         elif code in SAN11PK_WIN_NEW_FACES:
@@ -5932,6 +5991,7 @@ def build_san11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "portraits": portraits,
         "characters": characters,
+        "artFiles": arts,
     }
     return meta, [bytes(b) for b in store.blobs]
 
@@ -6634,7 +6694,7 @@ def build_nobu8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 
 # ---------------------------------------------------------------- NOBU11 PK (天下創世 with PK, Win, Steam)
 
-NOBU11PK_WIN_INPUTS = ["KAO_M.N11", "DBSCEDA10.N11"]
+NOBU11PK_WIN_INPUTS = ["KAO_M.N11", "KAO_L.N11", "DBSCEDA10.N11"]
 # KAO_M.N11 is an F11N container like 革新's (notes/nobu12.md), but each T11N entry holds 8-bit pixels: after the
 # 22-byte header, a 256 x (B, G, R, X) palette and the 128x128 texture of colour numbers. All faces are 96x120;
 # 405 of them use all 256 colours, so the dataset is opaque. 620-999 are blank and left out
@@ -6659,24 +6719,35 @@ def build_nobu11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(base) - 1) // NOBU11PK_WIN_PER_BLOB + 1)]
     store = ImageStore(blobs + ["extra.bin", "palettes.bin"])
 
-    palettes, palette_index = bytearray(), {}
-    portraits, portrait_of = [], {}
-    for i in faces:
-        offset, = struct.unpack_from("<I", kao, 0x14 + 20 * i + 8)
-        assert kao[offset:offset + 4] == b"T11N"
-        w, h, tw, _ = struct.unpack_from("<4I", kao, offset + 4)
-        bgrx = kao[offset + 22:offset + 22 + 1024]
-        px = b"".join(kao[offset + 1046 + y * tw:offset + 1046 + y * tw + w] for y in range(h))
+    def t11n(data, i):
+        offset, = struct.unpack_from("<I", data, 0x14 + 20 * i + 8)
+        assert data[offset:offset + 4] == b"T11N"
+        w, h, tw, _ = struct.unpack_from("<4I", data, offset + 4)
+        bgrx = data[offset + 22:offset + 22 + 1024]
+        px = b"".join(data[offset + 1046 + y * tw:offset + 1046 + y * tw + w] for y in range(h))
         pal = bytes(v for c in range(256) for v in (bgrx[c * 4 + 2], bgrx[c * 4 + 1], bgrx[c * 4]))
         if pal not in palette_index:
             palette_index[pal] = len(palette_index)
             palettes.extend(pal)
+        return w, h, px, palette_index[pal]
+
+    # the BASE (spec §6.5) is the 240x240 of the same entry in KAO_L.N11 (KAO_M is cut from it at full size), with a
+    # palette of its own; KAO_L's 2 extra entries (1621, 1622) are masks, not faces
+    large = files["KAO_L.N11"]
+    assert large[:4] == b"F11N" and struct.unpack_from("<I", large, 4)[0] == count + 2
+    palettes, palette_index = bytearray(), {}
+    portraits, portrait_of, arts = [], {}, []
+    for i in faces:
+        w, h, px, pal = t11n(kao, i)
         blob = len(blobs) if i in NOBU11PK_WIN_PK else base.index(i) // NOBU11PK_WIN_PER_BLOB
         portrait_of[i] = len(portraits)
-        portraits.append({"img": store.add(w, h, px, blob=blob), "code": f"{i:04X}", "palette": palette_index[pal]})
+        portraits.append({"img": store.add(w, h, px, blob=blob), "code": f"{i:04X}", "palette": pal, "art": len(arts)})
         if i in NOBU11PK_WIN_PK:
             portraits[-1]["pk"] = True
-    store.blobs[-1] = palettes
+        w, h, px, pal = t11n(large, i)
+        assert (w, h) == (240, 240)
+        arts.append({"img": store.add_art(w, h, px), "palette": pal})
+    store.blobs[store.names.index("palettes.bin")] = palettes
 
     # all 7 scenarios hold the same people with the same faces; the last one (1599) has the latest names. Slots
     # 0-999 and 1112-1211 are officers, 1000-1082 princesses, the rest forebears without a face
@@ -6716,6 +6787,7 @@ def build_nobu11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "portraitPalettes": {"blob": len(blobs) + 1},
         "blobs": store.names,
         "images": store.refs,
+        "arts": arts,
         "portraits": portraits,
         "characters": characters,
     }
@@ -6724,7 +6796,7 @@ def build_nobu11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 
 # ---------------------------------------------------------------- NOBU12 PK (革新 with PK, Win, Steam)
 
-NOBU12PK_WIN_INPUTS = ["KAO_M.N12", "sceda12.n12"]
+NOBU12PK_WIN_INPUTS = ["KAO_M.N12", "KAO_L.N12", "sceda12.n12"]
 # KAO_M.N12 ('F11N', u32 count twice, ...) has a 20-byte entry per face from 0x14 (u32 1, rect offset, data offset,
 # id, id); the data is 'T11N', u32 width, height, texture width, height, 2 more bytes and the texture's B, G, R, A
 # pixels (alpha always 255, at most 255 colours per face). The faces are 96x120 (1348 is 100x125); KAO_S (56x70)
@@ -6771,6 +6843,21 @@ def build_nobu12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         if i in NOBU12PK_WIN_PK:
             portraits[-1]["pk"] = True
     store.blobs[-1] = palettes
+    # the BASE (spec §6.5): the 240x240 of the same entry in KAO_L.N12 (same container, alpha all 255, its background
+    # painted), full colour (KAO_M's colours are not a subset), so a lossy WebP file
+    large = files["KAO_L.N12"]
+    assert large[:4] == b"F11N" and struct.unpack_from("<I", large, 4)[0] == count
+    arts = []
+    for i, p in enumerate(portraits):
+        offset, = struct.unpack_from("<I", large, 0x14 + 20 * i + 8)
+        assert large[offset:offset + 4] == b"T11N"
+        w, h, tw, th = struct.unpack_from("<4I", large, offset + 4)
+        assert (w, h) == (240, 240)
+        art = Image.frombytes("RGBA", (tw, th), large[offset + 22:offset + 22 + tw * th * 4], "raw",
+                              "BGRA").crop((0, 0, w, h))
+        assert art.getextrema()[3] == (255, 255), i
+        p["art"] = len(arts)
+        arts.append(art_webp(art.convert("RGB")))
 
     # all 8 scenarios hold the same 1526 people with the same faces; the last one (1600) has the names most people
     # are known by (豊臣秀吉, 徳川家康). Slots 0-1099 are officers, the rest princesses, cultural and event people,
@@ -6806,6 +6893,7 @@ def build_nobu12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "portraits": portraits,
         "characters": characters,
+        "artFiles": arts,
     }
     return meta, [bytes(b) for b in store.blobs]
 
@@ -6813,7 +6901,7 @@ def build_nobu12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 # ---------------------------------------------------------------- NOBU13PK (天道 with PK, Windows, Steam)
 
 NOBU13PK_WIN_SCENARIOS = [f"sceda{n:02d}.n13" for n in [*range(1, 12), *range(21, 32)]]
-NOBU13PK_WIN_INPUTS = ["KAO_M.N13"] + NOBU13PK_WIN_SCENARIOS
+NOBU13PK_WIN_INPUTS = ["KAO_M.N13", "KAO_L.N13"] + NOBU13PK_WIN_SCENARIOS
 # names come from scenario 11 (慶長大転封, after 関ヶ原); the two what-if people of slots 1190 and 1191 take the
 # names of the people they become there (上杉謙信, 徳川家康), so they keep the ones of scenario 1
 NOBU13PK_WIN_NAMES_FROM = "sceda11.n13"
@@ -6836,7 +6924,14 @@ def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // NOBU13PK_WIN_PER_BLOB + 1)]
     store = ImageStore(blobs)
     portraits = [{"img": store.add(w, h, rgba, blob=i // NOBU13PK_WIN_PER_BLOB, rgba=True),
-                  "code": f"{koei_games.nobu13_face_code(i):04X}"} for i, (w, h, rgba) in enumerate(faces)]
+                  "code": f"{koei_games.nobu13_face_code(i):04X}", "art": i} for i, (w, h, rgba) in enumerate(faces)]
+    # the BASE (spec §6.5): the 240x240 of the same entry in KAO_L.N13 (alpha all 255, its background painted)
+    arts = []
+    for w, h, rgba in koei_games.load_nobu13_win_kao(os.path.join(game_dir, "KAO_L.N13")):
+        art = Image.frombytes("RGBA", (w, h), rgba)
+        assert (w, h) == (240, 240) and art.getextrema()[3] == (255, 255)
+        arts.append(art_webp(art.convert("RGB")))
+    assert len(arts) == len(faces)
 
     scenarios = {n: koei_games.load_nobu13_win_persons(os.path.join(game_dir, n)) for n in NOBU13PK_WIN_SCENARIOS}
     persons = scenarios[NOBU13PK_WIN_NAMES_FROM]
@@ -6899,6 +6994,7 @@ def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "portraits": portraits,
         "characters": characters,
+        "artFiles": arts,
     }
     return meta, [bytes(b) for b in store.blobs]
 
@@ -6932,13 +7028,15 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         boxes = json.load(f)["faces"]
     large = sango.load_san12_faces(game_dir, SAN12PK_WIN_LARGE)
     assert set(large) == set(faces) == {int(c) for c in boxes}
+    art_of = {}
     for code, (w, h, rgba) in large.items():
         b = boxes[str(code)]
         assert abs(b["w"] / b["h"] - 0.8) < 1e-3 and b["x"] >= 0 and b["y"] >= 0 \
             and b["x"] + b["w"] <= w and b["y"] + b["h"] <= h, code
-        im = Image.frombytes("RGBA", (w, h), rgba).convert("RGB").resize(
-            SAN12PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
+        art = Image.frombytes("RGBA", (w, h), rgba).convert("RGB")
+        im = art.resize(SAN12PK_WIN_CROP, Image.LANCZOS, box=(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]))
         faces[code] = (*SAN12PK_WIN_CROP, im.convert("RGBA").tobytes())
+        art_of[code] = art_webp(art)  # the BASE (spec §6.5): the whole 360x512, opaque like the faces
     # the base game's faces: Data/KAO_F_M.S12 and AddKao00
     base_faces = set(sango.load_san12_faces(game_dir, sango.SAN12_FACE_FILES[:2]))
     codes = sorted(faces)
@@ -6970,7 +7068,7 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     portraits = []
     for n, code in enumerate(codes):
         w, h, rgba = faces[code]
-        p = {"img": store.add(w, h, rgba, blob=n // SAN12PK_WIN_PER_BLOB, rgba=True), "code": f"{code:04X}"}
+        p = {"img": store.add(w, h, rgba, blob=n // SAN12PK_WIN_PER_BLOB, rgba=True), "code": f"{code:04X}", "art": n}
         if code in roles:
             p["group"], p["name"] = "一般人物", "／".join(dict.fromkeys(roles[code]))
         elif code in groups:
@@ -7006,6 +7104,7 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         "images": store.refs,
         "portraits": portraits,
         "characters": characters,
+        "artFiles": [art_of[c] for c in codes],
     }
     return meta, [bytes(b) for b in store.blobs]
 
@@ -7675,16 +7774,24 @@ def export(dataset, game_dir, out_dir):
     meta, blobs = DATASETS[dataset](game_dir)
     webp = dataset in WEBP_DATASETS
     write_dataset(out_dir, meta, blobs, webp)
+    # as written: the blob names of art/ and the "file" images
+    meta = json.load(open(os.path.join(out_dir, "dataset.json"), encoding="utf-8"))
     if webp:
-        meta, blobs = json.load(open(os.path.join(out_dir, "dataset.json"), encoding="utf-8")), []
+        blobs = []
     faces = [c["face"] for c in meta["characters"] if "face" in c]
     n_portrait = sum("portrait" in f for f in faces)
     print(f"{dataset}: {len(meta['characters'])} characters "
           f"({len(faces) - n_portrait} composite, {n_portrait} portrait), "
           f"{len(meta['portraits'])} portraits, {len(meta['images'])} images")
-    for name, px in [*zip(meta["blobs"], blobs), ("dataset.json", None), ("checksums.json", None)]:
-        raw = f"{len(px)} px -> " if px is not None else ""
-        print(f"  {name}: {raw}{os.path.getsize(os.path.join(out_dir, name))} B")
-    if webp:
-        print(f"  faces/: {len(meta['images'])} WebP, "
-              f"{sum(os.path.getsize(os.path.join(out_dir, i['file'])) for i in meta['images'])} B")
+    for name, px in [*zip(meta.get("blobs", ["pixels.bin"]), blobs), ("dataset.json", None), ("checksums.json", None)]:
+        if not name.startswith("art/"):
+            raw = f"{len(px)} px -> " if px is not None else ""
+            print(f"  {name}: {raw}{os.path.getsize(os.path.join(out_dir, name))} B")
+    faces = [i["file"] for i in meta["images"] if isinstance(i, dict) and i["file"].startswith("faces/")]
+    if faces:
+        print(f"  faces/: {len(faces)} WebP, {sum(os.path.getsize(os.path.join(out_dir, f)) for f in faces)} B")
+    art = [*(n for n in meta.get("blobs", []) if n.startswith("art/")),
+           *(i["file"] for i in meta["images"] if isinstance(i, dict) and i["file"].startswith("art/"))]
+    if art:
+        print(f"  art/: {len(meta['arts'])} arts in {len(art)} files, "
+              f"{sum(os.path.getsize(os.path.join(out_dir, f)) for f in art)} B")

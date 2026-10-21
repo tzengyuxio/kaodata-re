@@ -45,3 +45,23 @@
   - `build_nobu5_pc98`（信長の野望・覇王伝 PC-98）只有逐人頭像：KAO.NB5 是 929 張 64×80，索引在 MAIN.EXE 檔案 0x40630，壓縮和天翔記相同（`nobu_pc98_face`），色盤是 MAIN.EXE 檔案 0x4131E 的色號 8–15；人物是 SN1–3.NB5（XOR 0xB4）與 S1T–S3T.NB5（`koei_games.load_nobu5_pc98_scenario`／`load_nobu5_pc98_arrivals`），一個頭像號一人，見 `notes/nobu5.md`。
   - `build_nobu6_pc98`（信長の野望・天翔記 PC-98）：KAODATA.NB6 是有索引的 410 張 64×80 自訂壓縮頭像（`nobu_pc98_face`），MONDATA.NB6 是 LS11 的 19 種組合臉（上、下 3bpp，眼、口是遮罩＋圖，遮罩保留處匯出成透明），類型在頭像碼 bit 0–4；人物是 SNDATA.NB6／TAIKI.NB6 的姓名記錄（`koei_games.load_nobu6_pc98_persons`），一個頭像碼一人、別名合併（`NOBU6_PC98_ALIASES`），色盤在 MAIN.EXE 檔案 0x38724，見 `notes/nobu6.md`。`nobu6pk-pc98`（`pk=True`）讀 PK 安裝後的 MAINPK.EXE：人物的頭像欄改成 0–1299 的頭像編號（`nobu6pk_pc98_face`：0–378 是 KAODATA、1000–1036 是 KAO2.N6P 的頭像 410–446，其餘查 TABLE.N6P 的組合臉碼），組合臉多了 MONDATA2.N6P 的類型 19–31，劇本是 SNDATA／TAIKI.N6P 的 6 個，PK 才有的頭像與人物（名字不在本體劇本）標 `pk`。
   - `build_lempe`（`lempe-dos`、`lempe-pc88`、`lempe-x68`）只有逐人頭像（像素格式同三國志II），人物用 `koei_games.load_lempe_persons`；`pc88=True` 的 KAODATA.DAT 和 DOS 相同，人物用 `load_lempe_pc88_persons`（半形片假名）；`x68=True` 的 KAODATA.DAT 是重畫的 64×80 全高頭像（byte k＝plane k），人物讀 NPDATA1.DAT（和 PC-88 相同），數位 8 色，見 `notes/lempe.md`。
+
+## BASE（`arts`，kaodata data-format §6.5）
+
+頭像之外畫面更完整、原始解析度的人物像，每張頭像用 `portraits[].art` 指到頂層 `arts`（2026-10-21 起，使用者決定收這 10 款）。
+
+- 全彩的 BASE：builder 用 `art_webp` 編成有損 WebP（q90、`alpha_quality` 100、method 6），放在 meta 的 `artFiles`（`portraits[].art` 是它的索引）。`write_dataset` 把它們寫成 `art/<檔案 SHA-256>.webp`，加進 `images`、`arts`；同一個檔只收一次（`write_arts`）。checksums 不列。
+- indexed 的 BASE：用 `ImageStore.add_art` 加進接在所有 blob 之後的 art blob，每約 1.5 MB 原始像素切一個。寫出時檔名換成 `art/<壓縮後檔案的 SHA-256>.bin`；checksums 列 `art:<n>`。
+
+| dataset | BASE | 色盤／背景 | 備註 |
+| ---- | ---- | ---- | ---- |
+| `san8pk-win` | `g_maindy.s8` 第 0–845 項，160×180（同頭像碼） | 共用頭像的色盤，255 搬到 0 | 3 點用去背色 0（570、669、781），照使用者決定留透明 |
+| `san9pk-win` | `G_FaceL.s9`＋`G_FacLPK.s9`，240×240 | 共用頭像的兩組色盤 | |
+| `san10pk-win` | `GrpFaceL.s10`＋`GpkFaceL.s10`，240×240（項號同 S） | 每張自帶色盤，另加進 `portraitPalettes`（`arts[].palette`） | |
+| `san11pk-win` | `San11Face00.fce` 第 0–2199 項（項號＝頭像碼），240×240 24 bit | WebP，不透明 | 222、567、734、750、754、775 只有 8 bit 的 64×80，沒有 BASE |
+| `san12pk-win` | `KAO_W_L`（各 LINK），360×512 | WebP，只取 RGB（alpha 0 底下有背景） | 就是頭像裁切用的那張 |
+| `san13pk-win` | 第 8 項 kao_a，633×900 | WebP，第一層的 RGB | 第 1266 項用第 13 項 1024×1024 |
+| `san14pk-win` | `face_NNNN_a`，636×900 | WebP，`_a` 的 RGB | 聯動 5000–5007、5100–5105 與 1023 用 1024×1024 `_unique`，保留 alpha |
+| `nobu11pk-win` | `KAO_L.N11`，240×240（項號同 M） | 每張自帶色盤（`arts[].palette`），`opaque` | KAO_L 多出的 1621、1622 是遮罩 |
+| `nobu12pk-win` | `KAO_L.N12`，240×240 BGRA | WebP，alpha 全 255 | 頭像是 indexed，BASE 是全彩 |
+| `nobu13pk-win` | `KAO_L.N13`，240×240 BGRA | WebP，alpha 全 255 | |

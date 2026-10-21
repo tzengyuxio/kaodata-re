@@ -73,6 +73,7 @@ Python 端沒有 linter／formatter 設定。
 - **kaodata 統一格式匯出**（`kaodata_export.py`）：
   - 產出給 kaodata 網站 repo 用的 `kaodata/1` 格式：`dataset.json`＋raw-deflate 的 pixel blobs（`pixels.bin`、`portraits.bin`）＋`checksums.json`。規格在**網站 repo** 的 `docs/data-format.md`，不在本 repo。
   - 檔內有一份依規格 §6 實作的 reference renderer（`compose_display`、`portrait_display` 等），`checksums.json` 由它算出；改資料結構時要同步讓 renderer 結果正確。頂層 `"opaque": true` 的資料集沒有透明色，色號 255 照色盤顯示（`to_rgba`）；有 `portraitPalettes` 的資料集，頭像用自己那組色盤算雜湊（`portrait_palette`）；列在 `rgbaBlobs` 的 blob 是全彩 RGBA（`ImageStore.add(..., rgba=True)`），雜湊直接算原始 RGBA（`rgba_image`）。`WEBP_DATASETS`（`san11pk-win`、`nobu13pk-win`、`santsukuru-win`、`san12pk-win`、`san13pk-win`）在寫出時把全彩圖改成逐張無損 WebP（`faces/0000.webp`，images 項是 `{"file", "w", "h"}`，`"blobs": []`，不寫 `rgbaBlobs`，`write_dataset(..., webp=True)`／`webp_images`），alpha 照原樣（可以是半透明），alpha 0 的點存成 0,0,0,0，checksums 不變。
+  - BASE（規格 §6.5，`arts`）：全彩的用 `art_webp` 放進 meta 的 `artFiles`，indexed 的用 `ImageStore.add_art`；兩種都由 `write_dataset` 寫到 `art/<SHA-256>`。哪 10 款有、各用哪張圖，見 `notes/kaodata-datasets.md`「BASE」。
   - `DATASETS` dict 對應 dataset id → builder 函式。同一款遊戲的各平台多半共用一個 builder，用旗標切換（`pc98=True`、`x68=True`、`pc88=True`、`dos=True`、`pk=True`）。每個 builder 讀哪些檔、用哪些解碼函式、有什麼例外，見 `notes/kaodata-datasets.md`；格式細節在各遊戲的 `notes/<game>.md`。
   - 新增或改動 dataset 時，同步更新 `notes/kaodata-datasets.md` 的對應條目。
   - PK 資料集（本體完全包含在內、只保留 PK 版的）在 PK 才有的頭像與人物加 `"pk": true`，`group` 照原本的類別名稱、不自己加「PK」：`san4pk-*` 是 340 之後的頭像與 NBDATA.SUI 的人物，`san5pk-*` 是 733 之後的頭像，`tk3pk-pc98` 是 KAODATA2 的頭像 197–204 與用到它們的劇本人物。`tk2pk-pc98` 只改了兩個提督名的寫法，沒有標記。

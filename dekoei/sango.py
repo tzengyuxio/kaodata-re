@@ -462,6 +462,7 @@ def load_san8_persons(sce) -> list[dict]:
 # header (u32 size incl. header, ?, width, height) and 64x80 8-bit pixels; face numbers run on across both files.
 # P_Face.s9: u32 count 2, then 2 x (BITMAPINFOHEADER + 256 x RGBX): the normal and a sepia palette.
 SAN9_FACE_FILES = ["G_FaceS.s9", "G_FacSPK.s9"]
+SAN9_LARGE_FILES = ["G_FaceL.s9", "G_FacLPK.s9"]
 SAN9_SCENARIOS = [f"D_Sce{k:03d}.S9" for k in range(1, 21)]
 # S9gaiji.tte glyphs used in names: the SAN8 ones plus these. U+E06A is 孫𩅦's name (Sun Xiu's eldest son)
 SAN9_GAIJI = {**SAN8_GAIJI, 0xE001: "昱", 0xE002: "彧", 0xE008: "汜", 0xE00A: "鄧", 0xE010: "晙", 0xE01B: "琮",
@@ -470,16 +471,18 @@ SAN9_GAIJI = {**SAN8_GAIJI, 0xE001: "昱", 0xE002: "彧", 0xE008: "汜", 0xE00A:
 SAN9_PERSONS = 700
 
 
-def load_san9_faces(game_dir) -> list[bytes]:
+def load_san9_faces(game_dir, files=SAN9_FACE_FILES, size=(64, 80)) -> list[bytes]:
+    """The 64x80 faces; with SAN9_LARGE_FILES and (240, 240), the large faces of the same codes."""
     faces = []
-    for name in SAN9_FACE_FILES:
+    w0, h0 = size
+    for name in files:
         with open(os.path.join(game_dir, name), "rb") as f:
             data = f.read()
         assert struct.unpack_from("<I", data)[0] == len(data)
         o = 4
         while o < len(data):
             size, _, w, h = struct.unpack_from("<4I", data, o)
-            assert (size, w, h) == (16 + 64 * 80, 64, 80)
+            assert (size, w, h) == (16 + w0 * h0, w0, h0)
             faces.append(data[o + 16:o + size])
             o += size
     return faces
@@ -525,6 +528,8 @@ def load_san9_persons(game_dir) -> list[dict]:
 # LS11-packed when its packed size differs, and holds width x height 8-bit pixels and a 256 x BGRX palette.
 # The left- and right-facing versions of a face are separate entries sharing a palette.
 SAN10_FACE_FILES = ["GrpFaceS.s10", "GpkFaceS.s10"]
+# the 240x240 faces, entry for entry the same as SAN10_FACE_FILES
+SAN10_LARGE_FILES = ["GrpFaceL.s10", "GpkFaceL.s10"]
 # D_FacTbl.s10 / D_FacPK.s10: u16 count, then four u16 tables of 885 / 40 slots; the first maps a face code to the
 # entry of the face as drawn (0xFFFF = no face). The PK's faces have codes 4000 + k (San10WPK.exe 0x40A130)
 SAN10_FACE_TABLES = ["D_FacTbl.s10", "D_FacPK.s10"]
@@ -622,6 +627,25 @@ def load_san11_small_faces(path) -> dict[int, bytes]:
         rgba = bytearray(b"\xff") * (w * h * 4)
         rgba[0::4], rgba[1::4], rgba[2::4] = px[2::3], px[1::3], px[0::3]
         faces[k] = bytes(rgba)
+    return faces
+
+
+def load_san11_large_faces(path) -> dict:
+    """Face code -> 240 x 240 face (entry = face code, 24-bit BGR, its background painted) as an RGB image."""
+    with open(path, "rb") as f:
+        data = f.read()
+    assert data[:5] == b"FACE@"
+    n1, n2 = struct.unpack_from("<II", data, 12)
+    entries = struct.unpack_from(f"<{2 * n2}I", data, 20 + 4 * n1)
+    faces = {}
+    for k in range(2200):
+        start, size = entries[2 * k:2 * k + 2]
+        if not size:
+            continue
+        assert data[start:start + 8] == b"WFTX0010"
+        w, h, bpp = struct.unpack_from("<HHB", data, start + 16)
+        assert (w, h, bpp) == (240, 240, 24)
+        faces[k] = Image.frombytes("RGB", (w, h), data[start + 24:start + 24 + w * h * 3], "raw", "BGR")
     return faces
 
 
