@@ -17,6 +17,7 @@ kaodata 覺得 `san12pk-win`（48×60）、`san13pk-win`（72×72）的頭像偏
 | `san13_a_boxes.py` | 三國志13：每張 72×72 在 633×900（kao_a）上的框，以及照 4:5 規則換出的裁切框，寫到 `data/san13_a_boxes.json`；`san13pk-win` 的匯出讀它 |
 | `san14_boxes.py` | 三國志14：每張 484×512（`face_NNNN_ctr`）在 636×900（`face_NNNN_a`）上的框，以及 4:5 裁切框，寫到 `data/san14_boxes.json`；`san14pk-win` 的匯出讀它 |
 | `san14_rules.py` | 三國志14：候選的 4:5 裁法和三國志13 同一批人並排，輸出 `samples/san14_rules.png` |
+| `san14_vs_san12.py` | 三國志14 對三國志12：同一張畫的人（預設 5 人，`--names` 是兩邊同名的全部），把三國志12 的 4:5 框換到三國志14 上、用 ctr 框表示成 s、t；`san14_boxes.py` 的 S、T 取這裡的中位數 |
 | `eye_level.py` | 用 OpenCV 的 Haar 眼睛偵測量 4:5 頭像裡眼睛的高度，算出三國志14 的框要上移多少才和三國志13 一樣（要另外帶 `opencv-python-headless==4.10.0.84`，5.0 沒有 `CascadeClassifier`） |
 | `data/san12_boxes.json` | 三國志12 全部 933 張的框，鍵是頭像號 |
 | `data/san13_boxes.json` | 三國志13 抽樣 30 張的框，鍵是圖號 |
@@ -36,6 +37,7 @@ uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --w
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python sizes.py            # 不加參數：samples/sizes/ 下每一代
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python san14_boxes.py      # 不加參數：全部 1489 張（十多分鐘）；加頭像號：重算那幾張
 uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy --with opencv-python-headless==4.10.0.84 python eye_level.py
+uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --with numpy --with scipy python san14_vs_san12.py --names   # 平行，幾分鐘
 ```
 
 - `san12_boxes.py` 不加參數會跑全部 933 張並寫回 JSON；加頭像號只印結果。

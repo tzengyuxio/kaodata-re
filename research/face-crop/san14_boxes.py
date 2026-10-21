@@ -5,10 +5,13 @@ it -> data/san14_boxes.json.
                                       # keys: redo those
 
 The base is the RGB of the _a sprite (the _a/_b/_c layers share one whole picture with its background, differing
-only in alpha), opaque; the 1024x1024 _unique (no background) for the 15 faces whose _a is not theirs. The ctr face frames head to chest, so the 4:5 crop (the user's rule, 2026-10-21) is a box
-of height S * h centered on the ctr box (x, y, w, h), its top moved down by T of the height lost:
-(x + (w - 0.8 * S * h) / 2, y + T * (1 - S) * h, 0.8 * S * h, S * h). T puts the eyes where they sit in
-三國志13's 96x120 (eye_level.py).
+only in alpha), opaque; the 1024x1024 _unique (no background) for the 15 faces whose _a is not theirs.
+
+The ctr face frames head to chest, so the 4:5 crop (the user's rule, 2026-10-21) is a box of height S * h centered
+on the ctr box (x, y, w, h), its top moved down by T of the height lost:
+(x + (w - 0.8 * S * h) / 2, y + T * (1 - S) * h, 0.8 * S * h, S * h). S and T are the medians of 三國志12's 96x120
+crop carried over to the 383 people drawn with the same picture in both games (san14_vs_san12.py), so the two
+games' faces are framed alike.
 """
 import json
 import os
@@ -26,7 +29,7 @@ import sango  # noqa: E402
 
 GAME = os.path.join(HERE, "../../games/steam/872410/")
 OUT = os.path.join(HERE, "data/san14_boxes.json")
-S, T = 0.6, 0.12
+S, T = 0.554, 0.065
 _sprites = {}
 
 

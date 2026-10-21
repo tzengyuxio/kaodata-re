@@ -6,7 +6,8 @@ detected eye centers' heights as a share of the crop height.
 
 Used to place 三國志14's crop (the user's idea, 2026-10-21): its ctr face frames head to chest, so its 4:5 box is
 shrunk to 0.6 and moved up until the eyes sit where they do in 三國志13. 2026-10-21: san13 median 0.408 (294 faces),
-san14 median t 0.118 (295 faces) -> T = 0.12 in san14_boxes.py.
+san14 median t 0.118 (295 faces) -> T = 0.12 in san14_boxes.py; later the same day replaced by S and T matched to
+三國志12 (san14_vs_san12.py).
 """
 import json
 import os
