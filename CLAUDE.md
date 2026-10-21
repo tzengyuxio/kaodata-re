@@ -68,7 +68,7 @@ Python 端沒有 linter／formatter 設定。
 - **CLI 組裝**：`dekoei.py` 定義根 group `dekoei`，底部一長串 `dekoei.add_command(...)` 掛上每款遊戲的 click group（一款遊戲一個 group，底下多半有 `face`、`person` 等子命令）。新增遊戲時寫好 group 後要在這裡註冊。
   - SAN10–14 的 group 與解碼直接寫在 `dekoei.py`；SAN1/2/3 在 `san1.py`／`san2.py`／`san3.py`；其他三國志在 `sango.py`；信長在 `nobu.py`；其餘遊戲大多集中在 `koei_games.py`；源平、獨立戰爭各有獨立模組。
 - **人物能力（CSV）**：信長 2–13 是 `nobu.py` 的 `nobu-person`；ジンギスカン、英傑傳、大航海時代系列與水滸伝、源平、項劉記、ランペルール是 `koei_stats.py` 的 `koei-person`（`dekoei.py koei-person <dataset id> --game-dir …`）。各代有哪些屬性見 `notes/*-attributes.md`，欄位證據在各遊戲筆記的「能力」段。
-- **戰場地圖**：三國志 I–V 各有 `battlemap` 子命令（`san1`／`san2`／`san3` 在各自模組，IV、V 在 `sango.py`），讀 PC-98 版輸出 PNG 到 `games/<id>/extract/battlemap/`；格式與未確認的部分見各遊戲筆記的「戰場地圖」段。
+- **戰場地圖**：三國志 I–V 各有 `battlemap` 子命令（`san1`／`san2`／`san3` 在各自模組，IV、V 在 `sango.py`），讀 PC-98 版輸出 PNG 到 `games/<id>/extract/battlemap/`；英傑傳（`eiketsu`，PC-98）、孔明傳（`koumei`）、曹操傳（`eiketsu5`）也有，在 `koei_games.py`（英傑傳另有交戰背景 `battlebg`，曹操傳另有劇情場景與人物動作圖 `scene`）；格式與未確認的部分見各遊戲筆記的「戰場地圖」段。
 - 魔眼邪神（`celt.py`）的 `celt` group 不匯出 kaodata，而是把圖、地圖拼塊、MIDI 全部拆到 `games/celt-win/extract/`，見 `notes/celt.md`。
 - **共用解碼**：`utils.py`（bpp 轉色號、NPK/RLE 解壓 `unpack_npk_3bits` 等、Big5／光榮內碼字表）、`ls11.py`（LS11 壓縮）、`koei_person.py`／`san_person.py`（人物資料結構）、`font.py`（字型）。
   - 注意各遊戲的 planar 位元順序不一定相同：`utils.to_3bpp_indexes` 把第一個 byte 當 bit 2，源平合戰則是 byte k＝bit k（用 `genpei.decode_planar`）。

@@ -2918,3 +2918,235 @@ def load_santsukuru_win_faces(game_dir: str) -> list[tuple[int | None, int, str,
     out.append((None, 254, "", "", _santsukuru_bmp(b[o:o + s])))
     link.close()
     return out
+
+
+# Battle maps of the 英傑傳 series (see the 戰場地圖 sections of notes/eiketsu.md, koumei.md, eiketsu5.md)
+
+# 英傑傳 PC-98: HEXZMAP.R3 part = (w, h) in 16 px tiles, w*h tile numbers, then (w/2)*(h/2) terrain cells.
+# Tiles 0-79 are HEXZCHP.R3 part 0, 80- are part 2 for the maps listed at DGROUP 0x32BC (MAIN.EXE 0x257AC), else part 1.
+EIKETSU_BATTLE_TILESET2 = [0, 1, 4, 8, 10, 16, 20, 28, 29, 30, 35, 36, 39, 40, 42, 43, 44, 50, 52]
+EIKETSU_PC98_BATTLE_PALETTES = 0x359AC  # MAIN.EXE: 9 x 16 colours, B R G 4 bit; picked by state +5 (0x159B8)
+
+
+def render_eiketsu_battle_maps(game_dir, palette=1):
+    with open(os.path.join(game_dir, 'MAIN.EXE'), 'rb') as f:
+        exe = f.read()
+    pal = exe[EIKETSU_PC98_BATTLE_PALETTES + 48 * palette:EIKETSU_PC98_BATTLE_PALETTES + 48 * (palette + 1)]
+    pal = [v * 17 for k in range(16) for v in (pal[3 * k + 1], pal[3 * k + 2], pal[3 * k])]
+    with open(os.path.join(game_dir, 'HEXZCHP.R3'), 'rb') as f:
+        chips = ls11_decode_parts(f.read())
+    with open(os.path.join(game_dir, 'HEXZMAP.R3'), 'rb') as f:
+        maps = ls11_decode_parts(f.read())[:58]
+
+    def tile(t):  # 16 x 16, 4 planes of 32 bytes
+        px = bytes(sum(((t[p * 32 + y * 2 + x // 8] >> (7 - x % 8)) & 1) << p for p in range(4))
+                   for y in range(16) for x in range(16))
+        return Image.frombytes('P', (16, 16), px)
+
+    sets = [[tile(c[k:k + 128]) for k in range(0, len(c), 128)] for c in chips]
+    images = []
+    for i, m in enumerate(maps):
+        w, h = m[0], m[1]
+        tiles = sets[0] + sets[2 if i in EIKETSU_BATTLE_TILESET2 else 1]
+        im = Image.new('P', (w * 16, h * 16))
+        im.putpalette(pal)
+        for n in range(w * h):
+            im.paste(tiles[m[2 + n]], (n % w * 16, n // w * 16))
+        images.append(im)
+    return images
+
+
+@click.command(help='戰場地圖（PC-98）')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+@click.option('--palette', type=click.IntRange(0, 8), default=1, help='色盤 0–8（遊戲執行時決定，1 是綠地）')
+def eiketsu_battlemap(game_dir, out_dir, palette):
+    """
+    dekoei.py eiketsu battlemap --game-dir ../games/eiketsu-pc98 --out ../games/eiketsu-pc98/extract/battlemap
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(render_eiketsu_battle_maps(game_dir, palette)):
+        im.save(os.path.join(out_dir, f'{k:02d}.png'))
+
+
+eiketsu.add_command(eiketsu_battlemap, 'battlemap')
+
+
+@click.group()
+def koumei():
+    """三國志孔明傳"""
+    pass
+
+
+# 孔明傳 Win: HEXZMAP.E2 part = tileset, w, h (16 px tiles), w*h tile numbers, then (w/3)*(h/3) terrain cells.
+# Tiles 0-65 are HEXZCHP.E2 part 0, 66- are part 1 + tileset; PALET.E2 is B R G.
+def render_koumei_battle_maps(game_dir):
+    with open(os.path.join(game_dir, 'PALET.E2'), 'rb') as f:
+        p = f.read()
+    pal = [v for k in range(256) for v in (p[3 * k + 1], p[3 * k + 2], p[3 * k])]
+    with open(os.path.join(game_dir, 'HEXZCHP.E2'), 'rb') as f:
+        chips = [[Image.frombytes('P', (16, 16), c[k:k + 256]) for k in range(0, len(c), 256)]
+                 for c in ls11_decode_parts(f.read())]
+    with open(os.path.join(game_dir, 'HEXZMAP.E2'), 'rb') as f:
+        maps = ls11_decode_parts(f.read())[:55]
+    images = []
+    for m in maps:
+        tileset, w, h = m[0], m[1], m[2]
+        tiles = chips[0] + chips[1 + tileset]
+        im = Image.new('P', (w * 16, h * 16))
+        im.putpalette(pal)
+        for n in range(w * h):
+            im.paste(tiles[m[3 + n]], (n % w * 16, n // w * 16))
+        images.append(im)
+    return images
+
+
+@click.command(help='戰場地圖')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+def koumei_battlemap(game_dir, out_dir):
+    """
+    dekoei.py koumei battlemap --game-dir ../games/koumei-win --out ../games/koumei-win/extract/battlemap
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(render_koumei_battle_maps(game_dir)):
+        im.save(os.path.join(out_dir, f'{k:02d}.png'))
+
+
+koumei.add_command(koumei_battlemap, 'battlemap')
+
+
+@click.group()
+def eiketsu5():
+    """三國志曹操傳"""
+    pass
+
+
+# 曹操傳 Win: HMnn.E5 is the whole map, 8 bit, in 48 x 48 tiles left to right, top to bottom.
+# HEXZMAP.E5 part nn = (w, h) in 16 px, then (w/3)*(h/3) terrain cells; SPALET.E5 part nn is its palette (B R G).
+def render_eiketsu5_battle_maps(game_dir):
+    with open(os.path.join(game_dir, 'HEXZMAP.E5'), 'rb') as f:
+        sizes = [(m[0] * 16, m[1] * 16) for m in ls11_decode_parts(f.read())]
+    with open(os.path.join(game_dir, 'SPALET.E5'), 'rb') as f:
+        palettes = ls11_decode_parts(f.read())
+    images = []
+    for i, ((w, h), p) in enumerate(zip(sizes, palettes)):
+        with open(os.path.join(game_dir, f'HM{i:02d}.E5'), 'rb') as f:
+            data = f.read()
+        im = Image.new('P', (w, h))
+        im.putpalette([v for k in range(len(p) // 3) for v in (p[3 * k + 1], p[3 * k + 2], p[3 * k])])
+        for t in range(w // 48 * (h // 48)):
+            im.paste(Image.frombytes('P', (48, 48), data[t * 2304:(t + 1) * 2304]), (t % (w // 48) * 48, t // (w // 48) * 48))
+        images.append(im)
+    return images
+
+
+@click.command(help='戰場地圖')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+def eiketsu5_battlemap(game_dir, out_dir):
+    """
+    dekoei.py eiketsu5 battlemap --game-dir ../games/eiketsu5-win --out ../games/eiketsu5-win/extract/battlemap
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(render_eiketsu5_battle_maps(game_dir)):
+        im.save(os.path.join(out_dir, f'{k:02d}.png'))
+
+
+eiketsu5.add_command(eiketsu5_battlemap, 'battlemap')
+
+
+# 英傑傳 PC-98: backgrounds of the attack scene (0x2F856). HEXBMAP.R3 parts 0-4 are the far view (23 x 10 tiles),
+# parts 5-8 the ground (24 x 22); HEXBCHP.R3 holds their 224 tiles (same encoding as HEXZCHP).
+def render_eiketsu_battle_backgrounds(game_dir, palette=1):
+    with open(os.path.join(game_dir, 'MAIN.EXE'), 'rb') as f:
+        exe = f.read()
+    pal = exe[EIKETSU_PC98_BATTLE_PALETTES + 48 * palette:EIKETSU_PC98_BATTLE_PALETTES + 48 * (palette + 1)]
+    pal = [v * 17 for k in range(16) for v in (pal[3 * k + 1], pal[3 * k + 2], pal[3 * k])]
+    with open(os.path.join(game_dir, 'HEXBCHP.R3'), 'rb') as f:
+        chips = ls11_decode_parts(f.read())[0]
+    with open(os.path.join(game_dir, 'HEXBMAP.R3'), 'rb') as f:
+        parts = ls11_decode_parts(f.read())
+    tiles = [Image.frombytes('P', (16, 16), bytes(sum(((chips[k + p * 32 + y * 2 + x // 8] >> (7 - x % 8)) & 1) << p
+                                                         for p in range(4)) for y in range(16) for x in range(16)))
+             for k in range(0, len(chips), 128)]
+    images = []
+    for m in parts:
+        w = 23 if len(m) == 230 else 24
+        im = Image.new('P', (w * 16, len(m) // w * 16))
+        im.putpalette(pal)
+        for n, t in enumerate(m):
+            im.paste(tiles[t], (n % w * 16, n // w * 16))
+        images.append(im)
+    return images
+
+
+@click.command(help='交戰畫面的背景（PC-98）')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+@click.option('--palette', type=click.IntRange(0, 8), default=1, help='色盤 0–8（同 battlemap）')
+def eiketsu_battlebg(game_dir, out_dir, palette):
+    """
+    dekoei.py eiketsu battlebg --game-dir ../games/eiketsu-pc98 --out ../games/eiketsu-pc98/extract/battlebg
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(render_eiketsu_battle_backgrounds(game_dir, palette)):
+        im.save(os.path.join(out_dir, f'{k}.png'))
+
+
+eiketsu.add_command(eiketsu_battlebg, 'battlebg')
+
+
+# 曹操傳 Win: MMAP.E5 part n is a 640 x 400 scene with palette PMPALET.E5 part n (B R G).
+# Parts 0-39 (outside the cities) and 114 (map of China) are stored row by row, 40-113 (interiors, gates, roads) in 8 x 8 blocks.
+EIKETSU5_SCENE_ROWS = set(range(40)) | {114}
+
+
+def render_eiketsu5_scenes(game_dir):
+    with open(os.path.join(game_dir, 'MMAP.E5'), 'rb') as f:
+        scenes = ls11_decode_parts(f.read())
+    with open(os.path.join(game_dir, 'PMPALET.E5'), 'rb') as f:
+        palettes = ls11_decode_parts(f.read())
+    images = []
+    for i, (d, p) in enumerate(zip(scenes, palettes)):
+        if i in EIKETSU5_SCENE_ROWS:
+            im = Image.frombytes('P', (640, 400), d)
+        else:
+            im = Image.new('P', (640, 400))
+            for t in range(4000):
+                im.paste(Image.frombytes('P', (8, 8), d[t * 64:(t + 1) * 64]), (t % 80 * 8, t // 80 * 8))
+        im.putpalette([v for k in range(len(p) // 3) for v in (p[3 * k + 1], p[3 * k + 2], p[3 * k])])
+        images.append(im)
+    return images
+
+
+# PMAPOBJ.E5: 412 parts of 20 frames, 48 x 64 each, stacked; colour 0 is transparent.
+# All PMPALET.E5 parts agree on the colours 1-173 they use (part 40 is the one the faces use).
+def render_eiketsu5_sprites(game_dir):
+    with open(os.path.join(game_dir, 'PMAPOBJ.E5'), 'rb') as f:
+        parts = ls11_decode_parts(f.read())
+    with open(os.path.join(game_dir, 'PMPALET.E5'), 'rb') as f:
+        p = ls11_decode_parts(f.read())[40]
+    rgb = [tuple(p[3 * k + j] for j in (1, 2, 0)) for k in range(256)]
+    images = []
+    for d in parts:
+        im = Image.new('RGBA', (48, 1280))
+        im.putdata([rgb[c] + (0 if c == 0 else 255,) for c in d])
+        images.append(im)
+    return images
+
+
+@click.command(help='劇情場景（MMAP）與人物動作圖（PMAPOBJ）')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+def eiketsu5_scene(game_dir, out_dir):
+    """
+    dekoei.py eiketsu5 scene --game-dir ../games/eiketsu5-win --out ../games/eiketsu5-win/extract
+    """
+    for sub, images in (('scene', render_eiketsu5_scenes(game_dir)), ('sprite', render_eiketsu5_sprites(game_dir))):
+        os.makedirs(os.path.join(out_dir, sub), exist_ok=True)
+        for k, im in enumerate(images):
+            im.save(os.path.join(out_dir, sub, f'{k:03d}.png'))
+
+
+eiketsu5.add_command(eiketsu5_scene, 'scene')

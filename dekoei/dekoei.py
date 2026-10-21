@@ -856,6 +856,8 @@ dekoei.add_command(nobu_person, "nobu-person")
 dekoei.add_command(koei_person, "koei-person")
 
 dekoei.add_command(eiketsu)
+dekoei.add_command(koumei)  # 孔明傳
+dekoei.add_command(eiketsu5)  # 曹操傳
 dekoei.add_command(europe)
 dekoei.add_command(ishin)  # 維新之嵐
 # dekoei.add_command(ishin2)  # 維新之嵐2

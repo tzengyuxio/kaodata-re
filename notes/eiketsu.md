@@ -92,6 +92,22 @@
 - 兵種、一般人物用日文名稱（`EIKETSU_PC98_TROOPS`／`EIKETSU_PC98_FOLK`），共 264 人，分組和 DOS 相同。
 - `nameHistorical`：沙摩可→沙摩柯（日文版也是這樣寫）、歩鷙→歩騭；宋謙→宋憲（呂布的部將）、蔡仲→蔡中，這兩筆在 BAKDATA 是一般 Shift-JIS 碼（8CAA 謙、9287 仲），不是外字，是遊戲本身的寫法（DOS 中文版寫宋憲、蔡中）。
 
+## 戰場地圖（PC-98）
+
+`dekoei.py eiketsu battlemap --game-dir ../games/eiketsu-pc98 --out ../games/eiketsu-pc98/extract/battlemap`（`koei_games.render_eiketsu_battle_maps`），輸出 `00.png`–`57.png`，檔名是 HEXZMAP 的段號。下文位址是 PC-98 `MAIN.EXE` 的檔案位移（DGROUP 在 0x35370）。
+
+- `HEXZMAP.R3`：LS11，59 段，前 58 段是戰場。每段是寬、高（以 16 px 的圖塊為單位）2 bytes，接著寬×高個圖塊號，最後是 (寬/2)×(高/2) 的地形格（一格 32 px，地形值的意義沒查）。✅ code：0x242F6 開檔，段號是參數結構的第 0 byte，寬、高右移 1 存到 DGROUP 0xD518／0xD519。
+  - 第 58 段（388 bytes）不是戰場；DOS 版的 HEXZMAP 只有這一段和 PC-98 不同，其他段 byte 相同。
+- `HEXZCHP.R3`：LS11，3 段，每塊 128 bytes＝16×16、4 個 plane 各 32 bytes（plane 0 是 bit 0）。✅ code：0x241DB 把第 0 段（80 塊）讀到開頭，再把第 1 或第 2 段接在 0x2800（80 塊）之後。
+  - 用哪一段由 0x257AC 決定：地圖號在 DGROUP 0x32BC 的 19 個 u16（0 1 4 8 10 16 20 28 29 30 35 36 39 40 42 43 44 50 52）裡就用第 2 段（175 塊），否則第 1 段（174 塊）。✅ cross：圖塊號 254 只有第 2 段才有，用到 254 的只有地圖 0 和 52，兩張都在表裡。
+- 色盤：0x359AC 起 9 組 16 色（B、R、G 各 4 bit，前 8 色是頭像色），0x159B8 依遊戲狀態結構 DGROUP 0x6DF0 的 +5 低 4 bit 選一組（呼叫者在 0x15A30）。
+  - 套在地圖上看：0 偏藍、1 和 3 是綠地、2 和 5–8 是黃土、4 是 0／F 的閃光用。
+  - 🟡 +5 在哪裡設定沒追到（沒有直接寫 DS:0x6DF5 的指令，推定是整塊載入）。`--palette` 預設 1，每張實際用哪組沒和遊戲畫面比過。
+- 交戰畫面的背景：`dekoei.py eiketsu battlebg`（`koei_games.render_eiketsu_battle_backgrounds`），輸出 `0.png`–`8.png`。
+  - ✅ code：0x2F856 是兩軍交戰的側面畫面（附近的訊息是「反撃しました！」「反撃された！」）。它讀 `HEXBCHP.R3`（1 段 224 塊，編碼同 HEXZCHP），再讀 `HEXBMAP.R3` 的兩段：段號查 DGROUP 0x428A 和 0x429E 的 20 筆表（索引是參數結構 +0xC，推定是地形種類），分別放到 +0x2110、+0x21F6。
+  - 表一 `4 3 0 0 1 0 2 4 4 0 0 0 0 2 4 2 2 0 0 0` 選第 0–4 段（230 bytes），是遠景：23×10 塊，藍天、白雲、遠山。表二 `7 7 7 5 6 5 5 7 7 5 5 8 5 5 7 5 5 5 5 5` 選第 5–8 段（528 bytes），是地面：24×22 塊。
+  - 🟡 寬 23、24 是看圖試出來的。第 6 段的地面只用 8、9、10 號色，用戰場色盤（8 號是黑色）畫出來每隔一列是黑線，交戰畫面可能另設色盤，沒追到。
+
 ## Win31 版（不另做資料集）
 
 來源是 `games/archives/win/[系列] 英傑傳/三國志英傑傳 Win31 繁體化 (reko_win).zip`：DOSBox＋Windows 3.1 的整包，遊戲在 `reko_win/C_DRIVE/R3WIN/`，`R3WIN.EXE`（Win16）與同人繁體化修改的 `R3W_CHT.EXE`。沒有找到 Win31 版的發售日。

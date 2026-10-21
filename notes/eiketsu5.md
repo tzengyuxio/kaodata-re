@@ -64,3 +64,25 @@
   - 其他歸「一般人物」
 - 228 張都有用到，沒有未使用的臉。
 - `nameHistorical`：沙摩可→沙摩柯、費褘→費禕（褘是另一個字）。
+
+## 戰場地圖
+
+`dekoei.py eiketsu5 battlemap --game-dir ../games/eiketsu5-win --out ../games/eiketsu5-win/extract/battlemap`（`koei_games.render_eiketsu5_battle_maps`），輸出 `00.png`–`57.png`，檔名同 `HMnn.E5`。
+
+- `HMnn.E5`（00–57）：沒有壓縮，整張地圖的 8 bit 色號，依 48×48 的方塊由左到右、由上到下存（每塊 2304 bytes，塊內逐列）。
+- `HEXZMAP.E5`：LS11（Ls12），58 段，第 nn 段對應 `HMnn.E5`：寬、高（以 16 px 為單位）2 bytes，接著 (寬/3)×(高/3) 的地形格（一格 48 px，地形值的意義沒查）。58 張的 寬×高 都等於 HM 檔的大小。
+- 色盤：`SPALET.E5` 第 nn 段（B、R、G；246 或 256 色），HM 檔用到的色號最大 245，不超過任何一段的色數。
+- 🟡 HM、HEXZMAP、SPALET 同號對應只靠段數相同、尺寸吻合和渲染結果（58 張顏色都自然），讀取程式沒追。
+- `SMLMAP.E5`：Ls12，58 段，第 nn 段是 `HMnn.E5` 縮成 1/8（寬×高 都吻合），逐列存，推定是小地圖。沒做輸出。
+
+## 劇情場景與人物動作圖
+
+`dekoei.py eiketsu5 scene --game-dir ../games/eiketsu5-win --out ../games/eiketsu5-win/extract`（`koei_games.render_eiketsu5_scenes`、`render_eiketsu5_sprites`），輸出 `scene/000–114.png`、`sprite/000–411.png`。
+
+- `MMAP.E5`：Ls12，115 段，每段 256000 bytes＝640×400、8 bit，色盤是 `PMPALET.E5` 的同號段（兩者都是 115 段）。
+  - 第 0–39 段（城外的遠景）和 114（中國全圖）逐列存；第 40–113 段（室內、城門、道路）以 8×8 的方塊由左到右、由上到下存。分法是用相鄰像素的差值比較兩種排法得出的，115 段分得很乾淨，畫出來都正常。
+  - 第 76–113 段和 40–75 段大致是同樣的場景，差異沒比。
+  - 🟡 HM、PMPALET 的同號對應和存法都沒追讀取程式。
+- `PMAP.E5`：Ls12，74 段，段數等於 MMAP 第 40–113 段。每段 16 bytes 開頭（u16：23／54／56／61 等不同的值、100、100、1、200、100、1、0x3A41）加 20000 bytes（100×100 個 u16？），推定是那些場景的格子資料。沒解。
+- `PMAPOBJ.E5`：Ls12，412 段，每段 61440 bytes＝48×1280，是 20 格 48×64 的人物動作圖（站、走、坐、舉手、哭、倒地、拔劍等），同一人物正面、背面各一段。色號 0 是透明（色盤裡是 #ff00ff），其他用 1–173，各段色盤在這個範圍相同，匯出用第 40 段。
+- 沒看：`MAPATR.DLL`、`MCALL00–08.E5`。
