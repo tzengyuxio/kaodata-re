@@ -5949,8 +5949,8 @@ def build_san11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     assert {p["face"] for s in scenarios for p in s if p["id"] not in empty} <= set(owner) | set(roles) | \
         {c for v in looks.values() for c in v}
 
-    # the BASE (spec §6.5): the 240x240 of the same code, 24-bit with its background; the 6 8-bit faces (222, 567,
-    # 734, 750, 754, 775) are only 64x80
+    # the BASE (spec §6.5): the 240x240 of the same code, 24-bit with its background (also for the 6 faces whose 64x80
+    # is 8-bit: 222, 567, 734, 750, 754, 775)
     large = sango.load_san11_large_faces(os.path.join(game_dir, sango.SAN11_FACE_FILE))
     assert set(large) <= set(codes)
     portraits, index, arts = [], {}, []

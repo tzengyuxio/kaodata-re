@@ -58,7 +58,7 @@
 | `san8pk-win` | `g_maindy.s8` 第 0–845 項，160×180（同頭像碼） | 共用頭像的色盤，255 搬到 0 | 3 點用去背色 0（570、669、781），照使用者決定留透明 |
 | `san9pk-win` | `G_FaceL.s9`＋`G_FacLPK.s9`，240×240 | 共用頭像的兩組色盤 | |
 | `san10pk-win` | `GrpFaceL.s10`＋`GpkFaceL.s10`，240×240（項號同 S） | 每張自帶色盤，另加進 `portraitPalettes`（`arts[].palette`） | |
-| `san11pk-win` | `San11Face00.fce` 第 0–2199 項（項號＝頭像碼），240×240 24 bit | WebP，不透明 | 222、567、734、750、754、775 只有 8 bit 的 64×80，沒有 BASE |
+| `san11pk-win` | `San11Face00.fce` 第 0–2199 項（項號＝頭像碼），240×240 24 bit | WebP，不透明 | 964 張都有；222、567、734、750、754、775 的 64×80 是 8 bit，240×240 照樣是 24 bit |
 | `san12pk-win` | `KAO_W_L`（各 LINK），360×512 | WebP，只取 RGB（alpha 0 底下有背景） | 就是頭像裁切用的那張 |
 | `san13pk-win` | 第 8 項 kao_a，633×900 | WebP，第一層的 RGB | 第 1266 項用第 13 項 1024×1024 |
 | `san14pk-win` | `face_NNNN_a`，636×900 | WebP，`_a` 的 RGB | 聯動 5000–5007、5100–5105 與 1023 用 1024×1024 `_unique`，保留 alpha |
