@@ -172,14 +172,16 @@ class S3Person(S3PersonRaw):
             return to_unicode_name(self.name)
         if key == 'face':
             return kao2str(self.face, 307, True)
+        # mask is four 0-15 nibbles (most often 0x7777); which nibble is which is inferred from known
+        # characters (張飛 0x4FBC: calm 4, brave 15; 司馬懿 0xC6FA: ambition 15), see notes/san-attributes.md
         if key == 'ambition':
-            return str((self.mask & 0b11000000) >> 6)
+            return str((self.mask >> 4) & 0xF)
         if key == 'luck':
-            return str((self.mask & 0b00110000) >> 4)
+            return str(self.mask & 0xF)
         if key == 'calmness':
-            return str((self.mask & 0b00001100) >> 2)
+            return str((self.mask >> 12) & 0xF)
         if key == 'bravery':
-            return str((self.mask & 0b00000011) >> 0)
+            return str((self.mask >> 8) & 0xF)
         if key == 'attrkey':
             war = self.war if self.war < 100 else 'A0'
             intl = self.intl if self.intl < 100 else 'A0'
