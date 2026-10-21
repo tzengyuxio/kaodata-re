@@ -493,26 +493,21 @@ def kohryuki_person(game_dir, to, scenario):
     """
     人物資料解析
 
-    MAIN.EXE    人名 (offset: 264260, 17bytes)
+    MAIN.EXE    人名，17 bytes × 92（DOS 中文版是 PKLITE，解開後 KOHRYUKI_DOS_NAMES；PC-98 是 KOHRYUKI_PC98_NAMES）
     SNDT1.KR1   劇本1
     SNDT2.KR1   劇本2
     SNDT3.KR1   劇本3
     SNDT4.KR1   劇本4
 
-    TODO(yuxioz): 中日文版差異
-        - main.exe filename
-        - main.exe offset
-        - decode name with different encoding
-
-    ./dekoei.py kohryuki person -d ../games/kouryuuki-dos
     ./dekoei.py kohryuki person -d ../games/kouryuuki-dos --to csv > ../PERSONS_TABLE/kohryuki-persons-s1-zh.csv
+    ./dekoei.py kohryuki person -d ../games/kouryuuki-pc98 --to csv > ../PERSONS_TABLE/kohryuki-persons-s1-ja.csv
     """
     import pklite
     main_exe = os.path.join(game_dir, 'MAIN.EXE')
     with open(main_exe, 'rb') as f:
         exe = f.read()
     zh = exe[30:36] == b'PKLITE'  # DOS Chinese MAIN.EXE: names in the load image
-    names = pklite.depklite(exe)[KOHRYUKI_DOS_NAMES:] if zh else exe[264260:]  # 日文版 (source unknown)
+    names = pklite.depklite(exe)[KOHRYUKI_DOS_NAMES:] if zh else exe[KOHRYUKI_PC98_NAMES:]
     with open(os.path.join(game_dir, 'SNDT{}.KR1'.format(scenario + 1)), 'rb') as f:
         sndt = f.read()
     person_data = [names[i * 17:i * 17 + 17] + sndt[4 + i * 10:4 + i * 10 + 10] + sndt[3:4] for i in range(92)]

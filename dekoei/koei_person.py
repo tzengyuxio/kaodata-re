@@ -51,7 +51,7 @@ class KOHRYUKIPerson(KOHRYUKIPersonRaw):
 
     # 下列字超出了 Shift_JIS 的範圍，KOEI 有自行造字
     # 但解碼時需先使用 shift_jis_2004 以避免錯誤，解碼後再轉換為對應字
-    extends = {'浘': '卭', '洱': '噲', '浥': '靳', '洹': '芮', '洮': '酈', '櫧': '蒯'}
+    extends = {'浘': '卬', '洱': '噲', '浥': '靳', '洹': '芮', '洮': '酈', '櫧': '蒯'}
 
     def __getitem__(self, key):
         if key == 'name-zh':

@@ -38,8 +38,9 @@
 - `SNDT?.KR1` 檔頭 +1 月、+3 西元前的年份；從 4 起每 10 bytes 一筆（DS:0x46＋10·i）：+0 bits 0–2 状態（2＝在野）、bit 3 外交、bits 4–7 勢力；+2 所在；+3 体力；+4 上限；+5 戦闘；+6 統率；+7 用兵；+8 経験（劇本都是 0）；+9 同地的下一個人（FF 結尾）。外交在 用兵 ≥80 或 bit 3 時顯示「有」（0x7767 → 0x5C21）。
 - 名字表（DOS load image 0x3D0D4，17 bytes 一筆）+15：齢＝+15 − 檔頭 +3 − 50（mod 256，0x7EE8），生年是西元前 (+15＋206)；+16 是 4 個 2 bit 的隱藏值（讀取在 1EEA:0DD2、0DDE、0DEA、0DF6），名稱不明。讀取用 `koei_stats.load_kouryuuki_stats`，`dekoei.py koei-person kouryuuki-dos`。
 - ✅ code：讀取函式在 1EEA:0C52–0E32。✅ cross：SNDT1–4 的人物段 DOS 和 PC-98 逐 byte 相同，X68000 只有檔頭不同；名字表 +15、+16 三版相同；項羽前 232、劉邦前 247 和史書一致。
-- PC-98、X68000 的 SNDT 只在磁碟映像裡，`games/` 底下沒有，所以指令只支援 DOS 版。
-- 已修正（2026-10-22）：舊 `KOHRYUKIPerson` 把 +15 原值當年齡（只有劇本 1 剛好對），欄名也和遊戲用語不同（skill＝戦闘、charm＝統率、intel＝用兵、stamina2＝上限、mask 是 +9 的串列），註解的「外交C/D/B」不對。現在照上面的欄位讀，另加 上限、經驗、外交；`PERSONS_TABLE/kohryuki-persons-s1-zh.csv` 已重新產生。`-ja.csv` 的來源檔不在 `games/`，沒有重跑。
+- PC-98 的 `SNDT1–4.KR1` 取自 `games/archives/pc98/neo-kobe-2017-11-17/Koei/Kouryuuki/Kouryuuki [FD].zip` 的 Disk A（headerless 2HD 的 HDM，FAT12），放進 `games/kouryuuki-pc98/`；同一片的 `MAIN.EXE`、`KAO.KR1` 和原本的檔 byte 相同。X68000 的 SNDT 還在磁碟映像裡。
+- 已修正（2026-10-22）：舊 `KOHRYUKIPerson` 把 +15 原值當年齡（只有劇本 1 剛好對），欄名也和遊戲用語不同（skill＝戦闘、charm＝統率、intel＝用兵、stamina2＝上限、mask 是 +9 的串列），註解的「外交C/D/B」不對。現在照上面的欄位讀，另加 上限、經驗、外交；`PERSONS_TABLE/kohryuki-persons-s1-zh.csv` 已重新產生。`-ja.csv` 改讀 PC-98 `MAIN.EXE` 的人名表（`KOHRYUKI_PC98_NAMES`）與 PC-98 的 SNDT1，也已重新產生，能力值和中文版逐筆相同。
+- 外字 EBE5 是「卬」（司馬卬，看字形判讀，同 `KOHRYUKI_X68_GAIJI`）；`KOHRYUKIPerson.extends` 原本寫成「卭」，已修正。
 - ❌ 隱藏值的名稱、+1、外交「有」的作用。
 
 ## 沒有人物使用的頭像（92–96）

@@ -231,7 +231,8 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - ✅ code：視窗 0x6190–0x6430 的 printf 參數、一覽表 0x6D8C。數值和畫面沒有對過截圖。
 - ✅ cross：四個平台的能力段相同；DOS 只有 4 人的年齢不同（上青、費保、穆弘、穆春兩兩對調），253 白秀英的身分 DOS 是芸妓、PC-98 是旅芸人。
 - 🟡 年齢照原值顯示（0x6312）；人気只在某些身分顯示（0x62BF）。❌ P+0x11（1–15）、旗標 byte 的 bits 0–4。
-- 已修正（2026-10-22）：舊 `SUIKODENPerson` 把年齢多加 1、`unknown1` 其實是口調（改名 `tone`），身分沒處理 bit 4 單獨設的情況（印成「不明英雄」），也沒輸出 上限、経験、小者、忠誠度、人気、船。現在都照上面讀；`PERSONS_TABLE/suikoden_persons_s1.csv` 已重新產生（DOS 中文版，身分的中文名稱 6–9、30–33 沒對過中文版）。
+- 已修正（2026-10-22）：舊 `SUIKODENPerson` 把年齢多加 1、`unknown1` 其實是口調（改名 `tone`），身分沒處理 bit 4 單獨設的情況（印成「不明英雄」），也沒輸出 上限、経験、小者、忠誠度、人気、船。現在都照上面讀；`PERSONS_TABLE/suikoden_persons_s1.csv` 已重新產生（DOS 中文版）。
+- ✅ code：身分的中文名稱是 DOS 中文版 `MAIN.EXE` 的 34 個字串（LZEXE 0.91，用 `deark -m lzexe` 解開後在檔案 0x2B3EC，光榮台灣內碼、NUL 分隔，後面接指標表），順序和 `SUIKODENPerson.identities` 逐項相同，包括 6–9 義兄 義弟 死亡 罪犯、30–33 虎 狼 熊 豹。
 
 ### PC-88 版（`suikoden-pc88`）
 
