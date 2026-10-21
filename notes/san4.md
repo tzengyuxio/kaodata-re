@@ -95,6 +95,30 @@ PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網�
   - 1.0 版的童子台詞用 336（老人），舉兵表是 [330, 331, 332, 335, 337]（335 是少年）。PK 和 DOS 版是童子 335、舉兵 336，所以 1.0 是把兩張弄反了。匯出依圖片：335 童子，336 舉兵事件。
 - 發行年份：PC-9801 版 1994-02-13（ja.wikipedia〈三國志IV〉）；`SAN4.VER` 寫 Feb.14,1994 Ver 1.0。
 
+### 戰場地圖
+
+`dekoei.py san4 battlemap --game-dir ../games/san4-pc98 --out ../games/san4-pc98/extract/battlemap [--kind 0–2] [--season 0–3]` 寫出 `01.png`–`88.png`（640×352）：01–45 是野戰，46–88 是攻城。下文的位址：`MAIN.EXE` 程式碼用映像位址（檔案 − 0x4E00），色盤表用檔案 offset。
+
+- 檔案都是 LS11（`ls11.ls11_decode_parts`）：
+  - `HEXMAP.S4`（野戰）有 135 個 part：45 張 2640 bytes 的圖塊圖，接著 45 個 220 bytes 和 45 個 220 bytes 的串流。
+  - `HKMAP.S4`（攻城）有 129 個 part，同樣三段，每段 43 個。
+  - 220 bytes 的兩段是 20 × 11 六角格的配置與地形，和 SFC 版相同（`superfamicom-re:san4/docs/ROM_FORMAT.md` §10），這裡沒有解。
+- 圖塊圖：三層 40 × 22，每格 1 byte，`FF` 是空格。每層的值加上該層的起點，就是圖塊編號：
+  - 野戰的三層起點是 0、154、270（`HEXGRP.S4` 395 張，154＋116＋125 剛好用完）。
+  - 攻城的起點是 0、213、213。`HKGRP.S4` 的 8 個 part 接起來共 362 張，前 3 個 part 是 213 張。
+  - 第 0 層是不透明的地面，上兩層的色 0 是透明。
+- 圖塊：16×16 點、128 bytes，4 個色面依序排，每面 32 bytes，每列 2 bytes。
+- 色盤（0xB126，戰鬥中 DGROUP 0xBFCE ≠ 0 時呼叫）：
+  - 色 0–7 取自檔案 0x380C6 的表，每組 24 bytes，共 3 種類 × 4 季。組號＝4 × 種類＋季節（DGROUP 0x5C9）。
+  - 種類是 `es:[0x156A + (DGROUP 0xC027)]`，這張表在執行時才填好，檔案裡找不到，所以用 `--kind` 指定。種類 0 偏乾黃，1 黃綠，2 翠綠，季節 3 是雪地。
+  - 色 4–5 是水面動畫，初始值有三種：DGROUP 0x7D38、0x7D4A、0x7D5C，依另一個執行時才有的值選。匯出用 0x7D4A。
+  - 色 8–15 照預設色盤（DGROUP 0xF88）。
+  - 每張圖實際用哪組色盤是 🟡，預設的種類 0、季節 0 是看圖挑的，沒和遊戲畫面比過。
+- ✅ cross：
+  - 和 SFC 版（`superfamicom-re:san4/output/battle/`）的 00_field、45_siege_襄平 比過，地形形狀相同，所以攻城圖 46–88 依序是 SFC 命名的都市（46 襄平、47 北平……）。
+  - DOS 中文版的 `HEXMAP`、`HEXGRP`、`HKGRP` 解開後 byte 相同；`HKMAP` 有 3 個 part 不同（part 38 差 2 bytes，part 103、104 各差 1 byte）。
+- 畫面上沒有畫六角格線。
+
 ## PC-98 日文版 PK（`san4pk-pc98`）
 
 `dekoei.py export san4pk-pc98` 用到的差異（`build_san4(..., pk=True)`）。來源是 `games/archives/pc98/【PC98】三國志４　パワーアップキット.rar` 的 HDI 硬碟映像（已安裝 PK），解出放在 `games/san4pk-pc98/`。PK `MAIN.EXE`（1995-09-01）MZ 檔頭 0x5E00，DGROUP 段 0x4780（檔案 0x4D600）；下文是檔案 offset。

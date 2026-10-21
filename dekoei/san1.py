@@ -116,7 +116,7 @@ PC98_FACE_ROWS = 40
 # composite code 0xGTMB: group G (6-10) is the five faces at 6 * (G + 8); half-height rows of
 # face T, M, B for the top / middle / bottom bands (DOS MAIN.EXE 0x467B)
 PC98_BANDS = [(0, 15), (15, 25), (25, 40)]
-# SAVEDATA: 10 x 30-byte slot headers, then 10 slots of 29364 bytes; slot 0 holds the person table
+# SAVEDATA: 10 x 30-byte slot headers, then 10 slots of 22904 bytes; slot 0 holds the person table
 PC98_PERSONS = 300 + 0x1096
 PC98_PERSON_SIZE = 34
 # KOEI gaiji JIS 0x7620.. (glyphs in KANJIF.DAT at 0x4000 + 32 * k), read off the glyphs
@@ -161,6 +161,99 @@ def load_san1_pc98_persons(savedata):
         rec = data[PC98_PERSONS + i * PC98_PERSON_SIZE:PC98_PERSONS + (i + 1) * PC98_PERSON_SIZE]
         persons.append((int.from_bytes(rec[22:24], "little"), pc98_name(rec[8:14])))
     return persons
+
+
+# Battle maps (same layout as FC): 58 provinces x 14 columns x 12 rows, one byte per cell row by row;
+# bits 3-5 terrain 0-5, bits 0-2 deployment zone. Odd columns sit half a cell lower.
+PC98_SLOT = 22904
+PC98_BATTLE_MAPS = 300 + 0x3278
+BATTLE_COLS, BATTLE_ROWS, BATTLE_MAPS = 14, 12, 58
+# The 200-line screen draws each cell as a 32x16 block (SANMAIN.EXE 0x5D54 is the hex mask). The terrain
+# graphics are not found in the files, so they are cut from NP2kai window captures (1280x864: 64-pixel title
+# bar, every 200-line pixel drawn 2 wide and 4 high with a scanline gap).
+BATTLE_CELL_W, BATTLE_CELL_H = 32, 16
+
+
+def load_san1_pc98_battle_maps(savedata, slot=0):
+    """58 maps of 168 cell bytes from a save slot (the scenario files are encoded)."""
+    with open(savedata, "rb") as f:
+        data = f.read()
+    start = PC98_BATTLE_MAPS + slot * PC98_SLOT
+    size = BATTLE_COLS * BATTLE_ROWS
+    return [data[start + i * size:start + (i + 1) * size] for i in range(BATTLE_MAPS)]
+
+
+def np2kai_capture_screen(path):
+    """640x200 8-colour screen of an NP2kai window capture."""
+    from PIL import Image
+    src = Image.open(path).convert("RGB").load()
+    screen = Image.new("RGB", (640, 200))
+    screen.putdata([tuple(255 if v > 127 else 0 for v in src[2 * x + 1, 64 + 4 * y + 1])
+                    for y in range(200) for x in range(640)])
+    return screen
+
+
+def battle_cell_box(col, row):
+    x, y = col * BATTLE_CELL_W, row * BATTLE_CELL_H + (BATTLE_CELL_H // 2 if col % 2 else 0)
+    return x, y, x + BATTLE_CELL_W, y + BATTLE_CELL_H
+
+
+def battle_tiles(captures):
+    """Terrain -> 32x16 tile: the most common cell image of each terrain over the captured battles
+    [(screen, map cells)]; cells under units or the cursor are outvoted."""
+    from collections import Counter, defaultdict
+    from PIL import Image
+    votes = defaultdict(Counter)
+    for screen, cells in captures:
+        for col in range(BATTLE_COLS):
+            for row in range(BATTLE_ROWS):
+                votes[cells[row * BATTLE_COLS + col] >> 3 & 7][screen.crop(battle_cell_box(col, row)).tobytes()] += 1
+    return {t: Image.frombytes("RGB", (BATTLE_CELL_W, BATTLE_CELL_H), v.most_common(1)[0][0]) for t, v in votes.items()}
+
+
+def render_battle_map(cells, tiles):
+    """448x400 image of one map (200-line screen, line-doubled)."""
+    from PIL import Image
+    w, h = BATTLE_COLS * BATTLE_CELL_W, BATTLE_ROWS * BATTLE_CELL_H + BATTLE_CELL_H // 2
+    im = Image.new("RGB", (w, h))
+    for col in range(BATTLE_COLS):
+        for row in range(BATTLE_ROWS):
+            im.paste(tiles[cells[row * BATTLE_COLS + col] >> 3 & 7], battle_cell_box(col, row)[:2])
+    return im.resize((w, h * 2), Image.NEAREST)
+
+
+@click.command(help="戰場地圖（PC-98）")
+@click.option("--savedata", required=True, help="SAVEDATA（讀第 0 槽）")
+@click.option("--capture", "captures", multiple=True, required=True,
+              help="NP2kai 戰場截圖:國號，例 battle-04.png:4；要涵蓋 6 種地形")
+@click.option("--out", "out_dir", required=True, help="輸出目錄")
+def san1_battlemap(savedata, captures, out_dir):
+    """
+    dekoei.py san1 battlemap --savedata ../games/san1-pc98/SAVEDATA \\
+        --capture ../captures/screenshots/san1-pc98/battle-04.png:4 \\
+        --capture ../captures/screenshots/san1-pc98/battle-10.png:10 --out ../games/san1-pc98/extract/battlemap
+    """
+    import os
+    maps = load_san1_pc98_battle_maps(savedata)
+    shots = []
+    for c in captures:
+        path, n = c.rsplit(":", 1)
+        shots.append((np2kai_capture_screen(path), maps[int(n) - 1]))
+    tiles = battle_tiles(shots)
+    missing = [t for t in range(6) if t not in tiles]
+    if missing:
+        raise click.UsageError(f"截圖沒有地形 {missing}")
+    os.makedirs(out_dir, exist_ok=True)
+    for i, cells in enumerate(maps):
+        render_battle_map(cells, tiles).save(os.path.join(out_dir, f"{i + 1:02d}.png"))
+    from PIL import Image
+    sheet = Image.new("RGB", (6 * (BATTLE_CELL_W + 4), BATTLE_CELL_H * 2))
+    for t in range(6):
+        sheet.paste(tiles[t].resize((BATTLE_CELL_W, BATTLE_CELL_H * 2), Image.NEAREST), (t * (BATTLE_CELL_W + 4), 0))
+    sheet.save(os.path.join(out_dir, "terrain.png"))
+
+
+san1.add_command(san1_battlemap, "battlemap")
 
 
 # X68000 SAVEDATA (Disk B, all 10 slots the factory start): slot 0's table at 0x1E42 is an extra copy of 曹操,

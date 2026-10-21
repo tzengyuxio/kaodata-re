@@ -249,6 +249,50 @@ def san2_map(game_dir, out_dir):
         output_images(images, out_dir, "")
 
 
+BATTLE_COLS, BATTLE_ROWS, BATTLE_MAPS = 13, 12, 41
+BATTLE_TERRAINS = 7
+
+
+def render_san2_battle_maps(hex_file):
+    """41 battle maps of the 400-line HEXDATA.DAT (PC-98/X68000): 32x32 terrain tiles,
+    odd columns half a cell lower."""
+    palette = color_codes_to_palette(
+        ["#000000", "#00FF00", "#FF0000", "#FFFF00", "#0000FF", "#00FFFF", "#FF00FF", "#FFFFFF"]
+    )
+    with open(hex_file, "rb") as f:
+        data = f.read()
+    size = BATTLE_COLS * BATTLE_ROWS
+    base = size * BATTLE_MAPS * 2  # terrain layer, then deployment layer
+    tiles = [data_to_image(data[base + 384 * t:base + 384 * (t + 1)], 32, 32, palette)
+             for t in range(BATTLE_TERRAINS)]
+    maps = []
+    for k in range(BATTLE_MAPS):
+        cells = data[size * k:size * (k + 1)]
+        im = Image.new("RGB", (BATTLE_COLS * 32, BATTLE_ROWS * 32 + 16))
+        for row in range(BATTLE_ROWS):
+            for col in range(BATTLE_COLS):
+                im.paste(tiles[cells[row * BATTLE_COLS + col]], (col * 32, row * 32 + 16 * (col % 2)))
+        maps.append(im)
+    return maps, tiles
+
+
+@click.command(help="戰場地圖（PC-98／X68000 的 HEXDATA.DAT）")
+@click.option("--game-dir", "game_dir", required=True, help="遊戲目錄")
+@click.option("--out", "out_dir", required=True, help="輸出目錄")
+def san2_battlemap(game_dir, out_dir):
+    """
+    dekoei.py san2 battlemap --game-dir ../games/san2-pc98 --out ../games/san2-pc98/extract/battlemap
+    """
+    maps, tiles = render_san2_battle_maps(os.path.join(game_dir, "HEXDATA.DAT"))
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(maps):
+        im.save(os.path.join(out_dir, f"{k + 1:02d}.png"))
+    strip = Image.new("RGB", (32 * len(tiles), 32))
+    for t, tile in enumerate(tiles):
+        strip.paste(tile, (32 * t, 0))
+    strip.save(os.path.join(out_dir, "terrain.png"))
+
+
 @click.command(help="其他資料解析")
 @click.option("--game_dir", "game_dir", default="san2", help="game directory")
 @click.option("--out_dir", "out_dir", default="_output", help="output directory")
@@ -550,4 +594,5 @@ san2.add_command(san2_face, "face")
 san2.add_command(san2_grp, "grp")
 san2.add_command(san2_grpa, "grpa")
 san2.add_command(san2_map, "map")
+san2.add_command(san2_battlemap, "battlemap")
 san2.add_command(san2_person, "person")

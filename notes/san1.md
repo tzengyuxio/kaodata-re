@@ -22,14 +22,27 @@
 ## 人物
 
 - 原始劇本有編碼（PACKDATA.DAT、SANGOKU.OVL），沒有解開。人物改從 `SAVEDATA` 讀（`san1.load_san1_pc98_persons`）：
-  - 前 300 bytes 是 10 × 30 bytes 的存檔槽標頭，之後是 10 個 29364 bytes 的槽。
-  - 槽 0 的人物表在 300 ＋ 0x1096，255 筆 × 34 bytes。其他槽在同一 offset 讀到的是亂的。
+  - 前 300 bytes 是 10 × 30 bytes 的存檔槽標頭，之後是 10 個 22904 bytes 的槽（之後 64600 bytes 不明）。
+  - 槽 k 的人物表在 300 ＋ 22904k ＋ 0x1096，255 筆 × 34 bytes（匯出讀槽 0）。舊筆記把槽長寫成 29364，所以以為其他槽是亂的。
   - 這份 SAVEDATA 的日期是 1991-08-15，有玩家存檔（槽名 "YAWARA!" 等），換一份磁碟映像時要重新確認。
 - 記錄 34 bytes：+0 讀音（8 bytes 半形片假名，不匯出）、+8 姓名（3 個 little-endian JIS word）、+14 年齡、+15–20 能力、+22 u16 頭像碼、+26 城、+27 勢力。
 - 255 個頭像碼和英文 DOS 版 `SINADATA.DAT` 5 個劇本完全一致，所以頭像碼不隨劇本變，從存檔取可行。
 - 外字：JIS 0x7620–0x7672，字形在 `KANJIF.DAT` 的 0x4000 ＋ 32 ×（碼 − 0x7620），看字形判讀，見 `san1.PC98_GAIJI`。0x766D 起是地名用字，人名沒用到。
 - 夏侯尚的「尚」存成 0xBE30（多了 bit 15），讀的時候 `& 0x7FFF`，原因不明。
 - 順序和 `san1-fc` 相同，`id` 也照 FC 從 1 起算。和 FC 寫法不同的 10 人照遊戲寫法：干禁、旬攸、許収、蔡仲、雷同、李湛、諸葛謹、刑道栄、鮑龍、沙摩可，以及和 FC 相同的尚寵（向寵）。都是錯字，依 `nameHistorical` 規則（見 CLAUDE.md）填史書寫法（`SAN1_PC98_NAME_HISTORICAL`，11 筆）。陳嬉（197）找不到對應的史書人物，不填。
+
+## 戰場地圖
+
+58 國各一張，14 欄 × 12 列，每格 1 byte，逐列存放；奇數欄往下錯半格排成六角格。格式和 FC 版相同（`famicom-re:sangokushi/docs/BATTLE_MAP.md`）：bit 3–5 是地形 0–5（平地、山、森林、河、城、雪山，名稱是 FC 那邊看圖取的），bit 0–2 是布陣區。
+
+- 位置：`SAVEDATA` 每槽 +0x3278（PC-98 檔案 13220 ＋ 22904k）起 58 × 168 bytes。原始劇本在編碼過的 `PACKDATA.DAT`／`SANGOKU.OVL` 裡，沒有解開，所以和人物一樣從存檔讀。
+- 其他版本的位置：DOS 英文版 `SAVEDATA` 12770 ＋ 22474k；X68000 主檔（原廠初始資料）`SAVEDATA` 19018 ＋ 28702k。
+- ✅ cross：DOS、X68000 的 58 張地形和 FC 逐格相同；布陣區（bit 0–2）兩版和 FC 有 61 格不同（DOS 與 X68000 彼此相同）。
+- PC-98 這份 `SAVEDATA` 全是玩家存檔（槽名 YAWARA! 等），各槽的地形和 FC 相同，只有幾格從 0x05（平地）變成 0x24（城）：所有槽都有 48、50 國的 (2,7)，部分槽另有 38 國 (7,8)、45 國 (3,7) 等。槽之間不一致，推定是遊玩中改寫的，🟡。槽 0 的布陣區和 FC 完全相同。
+- ✅ capture：`captures/screenshots/san1-pc98/battle-04.png`（4 國 冀州）、`battle-10.png`（10 國 徐州），使用者遊玩、Claude 擷取 NP2kai（5939e0c，日文字型用 Osaka 代替）視窗。兩張的 168 格地形都和槽 0 的資料相同，只差畫面上的白圈（部隊與布陣標記）。
+- 畫面：640×200 模式，每格 32×16 點，奇數欄往下 8 列；六角遮罩在 `SANMAIN.EXE 0x5D54`（64 bytes）。NP2kai 視窗是 1280×864（標題列 64），每點畫成 2×4 並有掃描線空隙，取 (2x＋1, 64＋4y＋1)、門檻 127 還原。
+- 地形圖案：檔案裡找不到（`PICDATA.DAT` 113 號之後是事件插圖；`KANJIF.DAT` 0x2000–0x4000 的彩色花紋圖塊排法沒確定；`SANMAIN.EXE`／`SANGOKU.OVL` 有編碼），改從截圖切：每種地形取所有格的多數決，偶數欄、奇數欄與兩張截圖的圖案相同，6 種都有出現。PC-98 畫面上 0 平地、1 綠色山、2 水上長草（FC 叫森林）、3 河、4 城、5 灰白山頂（FC 叫雪山，多在南方地圖）。
+- 輸出：`dekoei.py san1 battlemap --savedata ../games/san1-pc98/SAVEDATA --capture ../captures/screenshots/san1-pc98/battle-04.png:4 --capture ../captures/screenshots/san1-pc98/battle-10.png:10 --out ../games/san1-pc98/extract/battlemap` 寫出 `01.png`–`58.png`（448×400，列加倍）與 `terrain.png`。不畫布陣區。
 
 ## 發行年份
 

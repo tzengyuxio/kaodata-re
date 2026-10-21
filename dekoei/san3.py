@@ -258,5 +258,60 @@ def san3_person(file, to):
     print_table(s3_table_title, s3_headers, persons, to)
 
 
+# PC-98 battle maps (see notes/san3.md): HEXDATA.DAT holds three 68 x 440-byte layers
+# (22 x 20 cells) and 68 x 22 bytes; layer 0 is the tile number of each cell.
+BATTLE_COLS, BATTLE_ROWS, BATTLE_MAPS = 22, 20, 68
+BATTLE_LAYER = BATTLE_COLS * BATTLE_ROWS
+# HEXGRP.DAT tile sets (offset, tiles) of 24x20 3-plane tiles, 180 bytes each
+BATTLE_TILESETS = [(0, 228), (41040, 219), (80460, 124)]
+# tile set of each map; the game fills this table at run time, so it was picked by eye
+BATTLE_MAP_TILESET = [0] * 46 + [1] * 7 + [2] + [1] * 14
+PC98_PALETTE = ["#000000", "#0044FF", "#FF5500", "#FF55DD", "#11BB55", "#00CCFF", "#FFEE00", "#FFFFFF"]
+
+
+def battle_tile(data, palette):
+    """24x20 tile, each 8 px as 3 bytes with byte k = colour bit k."""
+    im = Image.new("RGB", (24, 20))
+    im.putdata([palette[sum(((data[(y * 3 + x // 8) * 3 + p] >> (7 - x % 8)) & 1) << p for p in range(3))]
+                for y in range(20) for x in range(24)])
+    return im
+
+
+def render_san3_battle_maps(game_dir):
+    palette = color_codes_to_palette(PC98_PALETTE)
+    with open(f"{game_dir}/HEXGRP.DAT", "rb") as f:
+        grp = f.read()
+    with open(f"{game_dir}/HEXDATA.DAT", "rb") as f:
+        hexdata = f.read()
+    tilesets = [[battle_tile(grp[off + 180 * t:off + 180 * (t + 1)], palette) for t in range(n)]
+                for off, n in BATTLE_TILESETS]
+    maps = []
+    for k in range(BATTLE_MAPS):
+        cells = hexdata[BATTLE_LAYER * k:BATTLE_LAYER * (k + 1)]
+        tiles = tilesets[BATTLE_MAP_TILESET[k]]
+        im = Image.new("RGB", (BATTLE_COLS * 24, BATTLE_ROWS * 20))
+        for row in range(BATTLE_ROWS):
+            for col in range(BATTLE_COLS):
+                if col % 2 and row == BATTLE_ROWS - 1:
+                    continue  # the game skips the last cell of odd columns
+                im.paste(tiles[cells[row * BATTLE_COLS + col]], (col * 24, row * 20 + 10 * (col % 2)))
+        maps.append(im)
+    return maps
+
+
+@click.command(help="戰場地圖（PC-98）")
+@click.option("--game-dir", "game_dir", required=True, help="遊戲目錄")
+@click.option("--out", "out_dir", required=True, help="輸出目錄")
+def san3_battlemap(game_dir, out_dir):
+    """
+    dekoei.py san3 battlemap --game-dir ../games/san3-pc98 --out ../games/san3-pc98/extract/battlemap
+    """
+    import os
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(render_san3_battle_maps(game_dir)):
+        im.save(f"{out_dir}/{k + 1:02d}.png")
+
+
 san3.add_command(san3_face, "face")
 san3.add_command(san3_person, "person")
+san3.add_command(san3_battlemap, "battlemap")

@@ -102,6 +102,29 @@
 - 事件人物照遊戲寫法：華佗、司馬徽、許子将、献帝、吉平、干吉、左慈、管輅、紫虚上人、李意、貂蝉。新君主／新武將的範圍和 DOS 相同。
 - 發行年份：PC-9801 版 1992-02-05（ja.wikipedia〈三國志III〉）。`VERSION` 是 ver 1.2。
 
+### 戰場地圖
+
+`dekoei.py san3 battlemap --game-dir ../games/san3-pc98 --out ../games/san3-pc98/extract/battlemap` 寫出 `01.png`–`68.png`（528×400）。下文位址是 `MAIN.EXE` 的映像位址。
+
+- `HEXDATA.DAT`（91256 bytes，DOS 版大小相同，內容不同）：
+  - 0、0x74E0、0xE9C0 起各是一層 68 張 × 440 bytes，每張 22 欄 × 20 列，逐列存放；0x15EA0 起是 68 × 22 bytes。
+  - 程式碼：0x3847C 依目前地圖號（DGROUP 0xA8DA）讀三層各 440 bytes 到 0x49EB 段的 0xA84、0xC3C、0xDF4，再讀 22 bytes 到 DGROUP 0xAA9E。
+  - 第 0 層是每格的圖塊號，由 0x33CA2 讀取。另外兩層和 22 bytes 的意義還沒查。SFC 版同樣是每張 1342 bytes 的三層（`superfamicom-re:san3/docs/ROM_FORMAT.md` §9），但 SFC 第 0 層是 22 × 21。
+- `HEXGRP.DAT`：
+  - 開頭三段是圖塊組（0x38438 依 DGROUP 0xB3F0 的位移表、0xB3FC 的大小表讀入）：0 起 228 張、41040 起 219 張、80460 起 124 張。
+  - 每張圖塊 24×20 點、180 bytes，每 8 點 3 bytes，第 k 個 byte 是色號 bit k，色盤同頭像。
+  - 之後的 102780–127056 是其他圖（0x38568 讀取），還沒解。
+- 畫法：0x3662E 算位置，x＝欄 × 24，y＝列 × 20，奇數欄往下 10 點；0x37AB3 跳過奇數欄的最後一列。圖塊不重疊，畫面是等角視角的拼圖。
+- 每張圖用哪組圖塊：0x38438 從 0x49EB 段 0xFAC＋地圖號讀出，這張表在執行時才填好，檔案裡找不到。所以改成逐張都拼一次，看哪組拼得通順，結果寫在 `san3.BATTLE_MAP_TILESET`：
+  - 1–46 用第 0 組。
+  - 54 用第 2 組。
+  - 其餘 47–68 用第 1 組。
+  - 這個對照是 🟡，沒有讀到表，也沒和遊戲畫面比過。
+- 內容（看圖判斷）：
+  - 1–46 是 46 州的城，有城牆、建築和城外的道路與河流。
+  - 47–58、60、61 是野戰地形；59、62、63 是大片水域；64–68 有柵欄。
+  - 哪一張在什麼情況下用到，還沒查。
+
 ## X68000 版（`san3-x68`）
 
 `dekoei.py export san3-x68` 用 `build_san3(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `sangokushi_iii_1992_koei_disk_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片 DIM，A 片另有一份 `[a]`，檔案相同）。A 片的 `KAODATA.DAT`、`MONTAGE.DAT`、`MAIN.Z`、`CONFIG.SYS` 與 C 片的 `SNDATA1–6.CIM` 放在 `games/san3-x68/`。`CONFIG.SYS` 寫 `三國志Ⅲ For X68000 Series MAY.29,1992 Ver 1.1`。

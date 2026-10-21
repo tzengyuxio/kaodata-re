@@ -213,6 +213,84 @@ def san4_person(game_dir, pc98, scenario):
 san4.add_command(san4_person, 'person')
 
 
+# battle maps (PC-98; see notes/san4.md): HEXMAP.S4 (45 field) / HKMAP.S4 (43 siege) are LS11 with
+# n tile maps of 3 x 40 x 22 bytes, then n x 220-byte and n x 220-byte cell streams.
+# Tiles are 16x16, 4 planes one after another (32 bytes each); each layer adds a base to its bytes.
+SAN4_BATTLE_MAPS = [('HEXMAP.S4', 'HEXGRP.S4', 45, (0, 154, 270)), ('HKMAP.S4', 'HKGRP.S4', 43, (0, 213, 213))]
+
+
+def san4_pc98_palette(main_exe) -> list[tuple]:
+    """16 colours at DGROUP 0xF70, B R G 4 bits each, v x 17."""
+    with open(main_exe, 'rb') as f:
+        f.seek(0x45E50)
+        p = f.read(48)
+    return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
+
+
+def san4_pc98_battle_palette(main_exe, kind=0, season=0) -> list[tuple]:
+    """Battle palette (MAIN.EXE 0xB126): colours 0-7 from the 3 kinds x 4 seasons table at file 0x380C6,
+    4-5 the first frame of the water animation (DGROUP 0x7D4A), 8-15 as the default palette."""
+    with open(main_exe, 'rb') as f:
+        exe = f.read()
+    low = bytearray(exe[0x380C6 + 24 * (4 * kind + season):][:24])
+    low[12:18] = exe[0x44EE0 + 0x7D4A:][:6]
+    p = bytes(low) + exe[0x45E50 + 24:][:24]
+    return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
+
+
+def battle_tiles(grp) -> list[list[int]]:
+    """16x16 tiles of 128 bytes: 4 planes one after another, 32 bytes each."""
+    return [[sum(((grp[128 * t + p * 32 + y * 2 + x // 8] >> (7 - x % 8)) & 1) << p for p in range(4))
+             for y in range(16) for x in range(16)] for t in range(len(grp) // 128)]
+
+
+def render_tile_layers(m, cols, rows, bases, tiles, palette) -> Image.Image:
+    """Layers of cols x rows tile bytes (FF = none), each byte + the layer's base; colour 0 is
+    transparent on the upper layers."""
+    im = Image.new('RGB', (cols * 16, rows * 16))
+    px = im.load()
+    for layer, base in enumerate(bases):
+        for i, v in enumerate(m[cols * rows * layer:cols * rows * (layer + 1)]):
+            if v == 0xFF:
+                continue
+            x0, y0 = i % cols * 16, i // cols * 16
+            for j, c in enumerate(tiles[v + base]):
+                if layer == 0 or c:
+                    px[x0 + j % 16, y0 + j // 16] = palette[c]
+    return im
+
+
+def render_san4_battle_maps(game_dir, kind=0, season=0) -> list[Image.Image]:
+    """88 maps of 640x352: 45 field, then 43 siege."""
+    palette = san4_pc98_battle_palette(os.path.join(game_dir, 'MAIN.EXE'), kind, season)
+    images = []
+    for map_file, grp_file, count, bases in SAN4_BATTLE_MAPS:
+        with open(os.path.join(game_dir, grp_file), 'rb') as f:
+            grp = b''.join(ls11.ls11_decode_parts(f.read()))
+        tiles = battle_tiles(grp)
+        with open(os.path.join(game_dir, map_file), 'rb') as f:
+            maps = ls11.ls11_decode_parts(f.read())[:count]
+        images += [render_tile_layers(m, 40, 22, bases, tiles, palette) for m in maps]
+    return images
+
+
+@click.command(help='戰場地圖（PC-98）')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+@click.option('--kind', type=click.IntRange(0, 2), default=0, help='色盤種類 0–2（遊戲執行時依地圖決定）')
+@click.option('--season', type=click.IntRange(0, 3), default=0, help='季節 0–3（3 是雪地）')
+def san4_battlemap(game_dir, out_dir, kind, season):
+    """
+    dekoei.py san4 battlemap --game-dir ../games/san4-pc98 --out ../games/san4-pc98/extract/battlemap
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    for k, im in enumerate(render_san4_battle_maps(game_dir, kind, season)):
+        im.save(os.path.join(out_dir, f'{k + 1:02d}.png'))
+
+
+san4.add_command(san4_battlemap, 'battlemap')
+
+
 # PK: NBDATA.SUI holds 117 水滸伝 officers (117 x 20-byte blocks, then 117 x 30-byte person records,
 # face codes 340-456); the PC-98 PK's FONT.S4 adds the gaiji they need
 SAN4PK_SUIKODEN_GAIJI = {**SAN4_PC98_GAIJI, 0xEBE2: "龔", 0xEBF9: "玘", 0xEBFA: "俅"}
@@ -371,6 +449,41 @@ def san5_person(game_dir, pc98, tail, scenario):
 
 
 san5.add_command(san5_person, 'person')
+
+
+# battle maps (PC-98; see notes/san5.md): HEXMAP.S5 is LS11 with 47 tile maps of 3 x 50 x 48 bytes,
+# then 2 x 47 600-byte cell streams; HEXGRP.S5 holds 488 tiles, the layers start at 0, 138 and 323.
+SAN5_BATTLE_BASES = (0, 138, 323)
+SAN5_PC98_DEFAULT_PALETTE = 0x49E12  # MAIN.EXE file offset (DGROUP 0x8C2)
+SAN5_PC98_BATTLE_PALETTES = 0x372B0  # 6 x 8 colours, which one the game uses is not traced
+
+
+def san5_pc98_battle_palette(main_exe, palette=0) -> list[tuple]:
+    with open(main_exe, 'rb') as f:
+        exe = f.read()
+    p = exe[SAN5_PC98_BATTLE_PALETTES + 24 * palette:][:24] + exe[SAN5_PC98_DEFAULT_PALETTE + 24:][:24]
+    return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
+
+
+@click.command(help='戰場地圖（PC-98）')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+@click.option('--palette', type=click.IntRange(0, 5), default=0, help='色盤 0–5（MAIN.EXE 0x372B0 的第幾組）')
+def san5_battlemap(game_dir, out_dir, palette):
+    """
+    dekoei.py san5 battlemap --game-dir ../games/san5-pc98 --out ../games/san5-pc98/extract/battlemap
+    """
+    pal = san5_pc98_battle_palette(os.path.join(game_dir, 'MAIN.EXE'), palette)
+    with open(os.path.join(game_dir, 'HEXGRP.S5'), 'rb') as f:
+        tiles = battle_tiles(ls11.ls11_decode_parts(f.read())[0])
+    with open(os.path.join(game_dir, 'HEXMAP.S5'), 'rb') as f:
+        maps = ls11.ls11_decode_parts(f.read())[:47]
+    os.makedirs(out_dir, exist_ok=True)
+    for k, m in enumerate(maps):
+        render_tile_layers(m, 50, 48, SAN5_BATTLE_BASES, tiles, pal).save(os.path.join(out_dir, f'{k + 1:02d}.png'))
+
+
+san5.add_command(san5_battlemap, 'battlemap')
 
 
 @click.group()

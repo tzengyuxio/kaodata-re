@@ -9,6 +9,11 @@
 - [ ] 修正 `genpei montage` 的位元順序 — 它走 `utils.to_3bpp_indexes`，把第一個 byte 當 bit 2，源平是 byte k = bit k，輸出的顏色會錯（藍綠、膚色黃對調）。新函式 `decode_planar` 是對的（2026-10-10）
 - [ ] 修正或移除 `genpei face` — 從未解包的 Main.exe 0x4D51F 讀大小表，呼叫 `unpack_npk_3bits` 少一個參數，實際跑不起來；也沒處理 Kaodata 的 mask 與 trailer。新的 `load_kaodata` 已涵蓋（2026-10-10）
 
+## 人物表
+
+- [ ] 重跑 `PERSONS_TABLE/kohryuki-persons-s1-ja.csv` — 還是舊欄名、舊年齡算法；`kohryuki person` 的日文版路徑讀 `MAIN.EXE` 264260，來源檔不在 `games/`。可改用 `games/kouryuuki-pc98/MAIN.EXE` 的 `KOHRYUKI_PC98_NAMES`，但 PC-98 的 `SNDT?.KR1` 只在磁碟映像裡，要先取出（2026-10-22）
+- [ ] 確認水滸傳中文版身分名稱 6–9、30–33 — `SUIKODENPerson.identities` 的義兄 義弟 死亡 罪犯、虎 狼 熊 豹 是照日文版順序補的，沒對過中文版 `MAIN.EXE` 字串或畫面（2026-10-22）
+
 ## 環境
 
 - [ ] 更新 `requirements.txt` 的 bitarray — 鎖定的 2.7.3 沒有 Python 3.12 wheel，本機編譯失敗，目前 `.venv` 只能用 3.11（2026-10-10）
@@ -85,4 +90,4 @@
 
 ## 戰場地圖
 
-- [ ] 三國志 I–V 的戰場地圖 — 能力總覽（`notes/san-attributes.md`）完成後做；正傳每代只挑一個平台（PC-98 或 DOS），不每個平台都做。II 已有 `san2 map` 切出 7 種地形圖案、`HEXDATA.DAT` 開頭是 41 張 12×13 格，還沒拼成圖；III 看 `HEXDATA`／`HEXGRP`／`MAPDATA`，IV／V 看 `HEXMAP`／`HEXGRP`。FC／SFC 版在別的 repo，已完成的拿來對照：FC 初代 58 張、FC II 41 張（famicom-re）、SFC 初代 58 張、SFC II 41 張、SFC IV 88 張（superfamicom-re）；SFC III 只有格子資料、沒渲染（那邊的事，不在本 repo 改）（2026-10-21）
+- [x] 三國志 I–V 的戰場地圖 — 能力總覽（`notes/san-attributes.md`）完成後做；正傳每代只挑一個平台（PC-98 或 DOS），不每個平台都做。I 已完成（PC-98，`san1 battlemap`，圖案從截圖切）。II 已完成（PC-98，`san2 battlemap`，排法和色盤還沒和畫面比過）；III 已完成（PC-98，`san3 battlemap`，每張用哪組圖塊是看圖判斷的）；IV 已完成（PC-98，`san4 battlemap`，色盤種類執行時才決定）；V 已完成（PC-98，`san5 battlemap`，戰場色盤沒追到）。FC／SFC 版在別的 repo，已完成的拿來對照：FC 初代 58 張、FC II 41 張（famicom-re）、SFC 初代 58 張、SFC II 41 張、SFC IV 88 張（superfamicom-re）；SFC III 只有格子資料、沒渲染（那邊的事，不在本 repo 改）（2026-10-21）
