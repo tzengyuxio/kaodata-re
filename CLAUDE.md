@@ -83,4 +83,4 @@ Python 端沒有 linter／formatter 設定。
     - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
     - 不填：同一字的不同字形（関／關、羣／群、彝／彞、万／萬、胄／冑、瞱／曄、毘／毗）、《三國演義》本身的寫法（喬瑁、范疆）、史書就有兩種寫法的（干吉／于吉、朱儁／朱雋、梁綱／梁剛）。
   - `source.revision` 會呼叫 `git rev-parse HEAD`，所以必須在 git 工作目錄下執行。
-- **舊 vs 新程式碼**：`genpei.py` 前段的舊命令（`genpei face`、`genpei montage`、舊色表 `genpei_face_colors`）已知有錯，見 `BACKLOG.md`；新匯出以 `load_mainpal` 等新函式為準，不要拿舊函式來用。
+- **源平合戰**：`genpei.py` 的色盤一律用 `load_mainpal`（Mainpal.pld），像素一律用 `decode_planar`／`read_rle3`；`genpei cg` 的 NPK 解碼（`utils.unpack_npk`）是舊程式，沒有和截圖逐 pixel 比對過。

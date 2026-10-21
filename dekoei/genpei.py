@@ -1,140 +1,16 @@
 import math
 import os
 import struct
-import bitarray
 import click
 from PIL import Image
 from utils import (
-    BGCOLOR,
     LITTLE_ENDIAN,
-    color_codes_to_palette,
-    data_to_image,
-    save_single_images,
     unpack_npk,
     unpack_npk_3bits,
 )
 
-# color value: 00, 10, 20, 30, 41, 51, 61, 71, 82, 92, a2, b2, c3, d3, e3, f3
-
-genpei_face_colors = [
-    "#000000",  # #000
-    "#1041a2",  # #14a
-    "#d34100",  # #d40
-    "#e38251",  # #e85
-    "#009230",  # #093
-    "#71b2b2",  # #7bb
-    "#f3b241",  # #fb4
-    "#f3f3d3",  # #ffd
-]
-genpei_item_colors = genpei_face_colors
-genpei_map_colors = [
-    *genpei_face_colors,
-    "#302000",
-    "#302051",
-    "#925130",
-    "#c39241",
-    "#718251",
-    "#102041",
-    "#a2a2b2",
-    "#c3c3b2",
-]
-genpei_select_colors = [
-    *genpei_face_colors,
-    "#302000",
-    "#304100",  # "#302051"
-    "#925130",
-    "#c39241",
-    "#718251",
-    "#102041",
-    "#FFFF55",  # ?
-    "#a2b241",  # "#c3c3b2"
-]
-genpei_opendat_colors = [
-    *genpei_face_colors,
-    "#000000",
-    "#55FF55",
-    "#FF5555",
-    "#FFFF55",
-    "#5555FF",
-    "#55FFFF",
-    "#FF55FF",
-    "#FFFFFF",
-]
-
-# 000000: 51200 # 000
-# a27130: 38263 # a73
-# 302000: 36990 # 320
-# c39251: 33608
-# 926120: 27491
-# b28251: 22333
-# a27151: 15647
-# e3a271: 15141
-# e3e3a2: 14619
-# 307100: 12660
-# c39282: 9193
-# c3a282: 6673
-# 6182c3: 6626
-# f3c371: 6465
-# 005182: 6275
-# d35120: 4016
-
-# color value: 00, 10, 20, 30, 41, 51, 61, 71, 82, 92, a2, b2, c3, d3, e3, f3
-color_value = [
-    0x00,
-    0x10,
-    0x20,
-    0x30,
-    0x41,
-    0x51,
-    0x61,
-    0x71,
-    0x82,
-    0x92,
-    0xA2,
-    0xB2,
-    0xC3,
-    0xD3,
-    0xE3,
-    0xF3,
-]
-
-xgenpei_opendat_colors = [
-    "#000000",
-    "#512030",
-    "#B292A2",
-    "#C3B2B2",
-    "#927182",
-    "#106192",
-    "#e38251",  # not yet
-    "#f3f3d3",  # not yet
-    "#304100",  # 以下未排序
-    "#718251",
-    "#102041",
-    "#a2b241",
-    "#302000",
-    "#c39241",
-    "#925130",
-    "#a2a2b2",
-]
-
-# Binary file ./Enddat.gp matches
-# Binary file ./Main.ori matches
-# Binary file ./Opendat.gp matches
-# Binary file ./Hikback.gp matches
-# Binary file ./Mainmap.gp matches
-# Binary file ./Main.exe matches
-# Binary file ./Maincmd2.gp matches
-# Binary file ./FONT.DAT matches
-# Binary file ./Mainitem.gp matches
-# Binary file ./Kaodata.gp matches
-
-# cmd2
-# 87,292 + 4267 
-# 91,559 + 4336 # A000 8000 開始
-# 95,895 + 3633 0x0e31
-# 99,528 + 2848 0x0b20
-# 102376 + 6176 0x1820
-# 108552
+# Colours come from Mainpal.pld (load_mainpal); the colour tables measured from
+# screenshots that used to be here did not match it (see notes/genpei.md).
 
 @click.group()
 def genpei():
@@ -164,10 +40,10 @@ def genpei():
 @click.option("--out_dir", "out_dir", default="_output", help="output directory")
 @click.option("--prefix", "prefix", default="", help="filename prefix of output files")
 def genpei_cg(cg_file, out_dir, prefix):
-    """CG 解析"""
+    """CG 解析（色盤用同目錄 Mainpal.pld 的第 0 組）"""
     os.makedirs(out_dir, exist_ok=True)
 
-    palette = color_codes_to_palette(genpei_map_colors)
+    palette = load_mainpal(read_game_file(os.path.dirname(cg_file), "Mainpal.pld"))
 
     with open(cg_file, "rb") as f:
         offsets = []
@@ -262,100 +138,79 @@ def genpei_cg(cg_file, out_dir, prefix):
             # "cmd2" 目前到 0x02502f, 151599, 後面還有 162,372 bytes
                 f.seek(0x02502f)
                 data = f.read(1920)
-                img = data_to_image(data, 64, 80, color_codes_to_palette(genpei_face_colors))
-                img.save(f"{out_dir}/cmd2kao.png")
+                planar_image(data, 64, 80, palette).save(f"{out_dir}/cmd2kao.png")
                 # f.seek(279604)
                 f.seek(279603)
                 data = f.read(1920*18-192)
-                img = data_to_image(data, 64, 1432, color_codes_to_palette(genpei_face_colors))
-                img.save(f"{out_dir}/cmd2word.png")
+                planar_image(data, 64, 1432, palette).save(f"{out_dir}/cmd2word.png")
             
 
 
 
-@click.command(help="顏 CG 解析")
-@click.option("-f", "--face", "face_file", help="頭像檔案", required=True)
+def read_game_file(game_dir, name):
+    """Read a game file whatever its case (DOS Mainpal.pld, PC-98 MAINPAL.PLD)."""
+    for n in os.listdir(game_dir):
+        if n.lower() == name.lower():
+            with open(os.path.join(game_dir, n), "rb") as f:
+                return f.read()
+    raise FileNotFoundError(os.path.join(game_dir, name))
+
+
+def planar_image(data, w, h, palette):
+    """3bpp planar (byte k = bit k) image."""
+    im = Image.new("RGB", (w, h))
+    im.putdata([palette[c] for c in decode_planar(data, 0, w, h, 3)])
+    return im
+
+
+def rgba_image(px, w, h, palette):
+    """Indexed pixels to RGBA, GENPEI_TRANSPARENT clear."""
+    im = Image.new("RGBA", (w, h))
+    im.putdata([(0, 0, 0, 0) if c == GENPEI_TRANSPARENT else (*palette[c], 255) for c in px])
+    return im
+
+
+@click.command(help="專屬頭像（Kaodata.gp）")
+@click.option("--game-dir", "game_dir", required=True, help="遊戲目錄（DOS 或 PC-98）")
 @click.option("--out_dir", "out_dir", default="_output", help="output directory")
 @click.option("--prefix", "prefix", default="", help="filename prefix of output files")
-def genpei_face(face_file, out_dir, prefix):
-    """顏 CG 解析"""
+def genpei_face(game_dir, out_dir, prefix):
+    """90 張 128×160 頭像，透明處輸出成 alpha 0；檔名後的 (x, y) 是遊戲內 64×80 頭像窗的左上角。
+
+    dekoei.py genpei face --game-dir ../games/genpei-pc98 --out_dir ../games/genpei-pc98/extract/face
+    """
     os.makedirs(out_dir, exist_ok=True)
-    main_file = face_file.lower().replace("kaodata.gp", "main.exe")
-
-    palette = color_codes_to_palette(genpei_face_colors)
-    face_w, face_h = 128, 160
-
-    offset_infos = []
-    offset = 0
-    with open(main_file, "rb") as f:
-        n = 90
-        for i in range(n):
-            # part 1
-            f.seek(0x4D51F + i * 2)
-            size = int.from_bytes(f.read(2), LITTLE_ENDIAN)
-            offset_infos.append((offset, size))
-            print(f"{i=} {offset=} {size=}")
-            offset += size
-            # part 2
-            f.seek(0x4D51F + 180 + i * 2)
-            size = int.from_bytes(f.read(2), LITTLE_ENDIAN)
-            offset_infos.append((offset, size))
-            print(f"{i=} {offset=} {size=}")
-            offset += size
-            offset += 2  # skip 2 bytes
-
-    images = []
-    with open(face_file, "rb") as f:
-        for idx, (offset, size) in enumerate(offset_infos):
-            f.seek(offset)
-            data = f.read(size)
-            color_indexes = unpack_npk_3bits(data[4:], face_w)
-            image = Image.new("RGB", (face_w, face_h), BGCOLOR)
-            for px_index, color_index in enumerate(color_indexes):
-                if px_index >= face_w * face_h:
-                    break
-                y, x = divmod(px_index, face_w)
-                c = palette[color_index]
-                image.putpixel((x, y), c)
-            image.save(f"{out_dir}/{prefix}{idx:04d}.png")
-            # print(f'{idx=} {offset=} {size=} {len(data)=} {len(color_indexes)=}')  # len(output): 20480, 20492
-            if idx % 2 == 1:
-                data = f.read(2)
-                print(f"{idx=} {data.hex()} {data[0]=} {data[1]=}")
-    return
-    images = (
-        {str(i): img for i, img in enumerate(images)}
-        if isinstance(images, list)
-        else images
-    )
-    save_single_images(images, out_dir, prefix)
+    palette = load_mainpal(read_game_file(game_dir, "Mainpal.pld"))
+    for i, (px, (x, y)) in enumerate(load_kaodata(read_game_file(game_dir, "Kaodata.gp"))):
+        rgba_image(px, 128, 160, palette).save(f"{out_dir}/{prefix}{i:02d}_{x}_{y}.png")
 
 
-@click.command(help="顏 CG 解析")
-@click.option("-f", "--face", "face_file", help="頭像檔案", required=True)
+@click.command(help="組合頭像零件（Montage.gp、Haikei.gp）")
+@click.option("--game-dir", "game_dir", required=True, help="遊戲目錄（DOS 或 PC-98）")
 @click.option("--out_dir", "out_dir", default="_output", help="output directory")
 @click.option("--prefix", "prefix", default="", help="filename prefix of output files")
-def genpei_montage(face_file, out_dir, prefix):
-    palette = color_codes_to_palette(genpei_face_colors)
-    face_w, face_h = 72, 77
-    areas = [(72, 77), (128, 99), (72, 88), (128, 103), (120, 78), (128, 99)]
-    areas = [x for x in areas for _ in range(8)]
+def genpei_montage(game_dir, out_dir, prefix):
+    """3 種類型 × 頭、身、眼、口的零件，檔名是 類型-部位-編號。
 
-    # extract_images(face_file, face_w, face_h, palette, out_dir, prefix)
-
-    file_size = os.stat(face_file).st_size
-    with open(face_file, "rb") as f:
-        for idx, (w, h) in enumerate(areas):
-            data_size = int(w * h / 8 * 3)
-            mask_size = int(w * h / 8)
-            data = f.read(data_size)
-            mask = f.read(mask_size)
-            bits = bitarray.bitarray()
-            bits.frombytes(mask)
-            alpha = [0 if b else 255 for b in bits]
-            img = data_to_image(data, w, h, palette, alpha=alpha)
-            save_single_images({f"{idx}": img}, out_dir, prefix)
-        print(f"{f.tell()=} / {file_size=}")
+    dekoei.py genpei montage --game-dir ../games/genpei-pc98 --out_dir ../games/genpei-pc98/extract/montage
+    """
+    from kaodata_export import GENPEI_PART_COUNT, GENPEI_PC98_MONTAGE_TABLE
+    os.makedirs(out_dir, exist_ok=True)
+    palette = load_mainpal(read_game_file(game_dir, "Mainpal.pld"))
+    exe = read_game_file(game_dir, "Main.exe")
+    try:
+        table = montage_types(unpack_main_exe(exe))
+    except ValueError:  # the PC-98 Main.exe is not packed
+        table = montage_types(exe, GENPEI_PC98_MONTAGE_TABLE)
+    files = {}
+    for t, layers in enumerate(table):
+        for slot, count in GENPEI_PART_COUNT.items():
+            src, off, w, h, _ = layers[slot]
+            data = files.setdefault(src, read_game_file(game_dir, src))
+            step = w * h * 3 // 8 + w * h // 8
+            for i in range(count):
+                px = masked_part(data, off + i * step, w, h)
+                rgba_image(px, w, h, palette).save(f"{out_dir}/{prefix}{t + 1}-{slot}-{i:02d}.png")
 
 
 genpei.add_command(genpei_cg, "cg")
@@ -366,8 +221,8 @@ genpei.add_command(genpei_montage, "montage")
 # ---------------------------------------------------------------- face data
 # Verified decoders for the portraits, ported from genpei-zh (tools/gfx.py,
 # tools/dump_gfx.py, tools/unpack_exe.py, tools/dump_data.py). Format notes:
-# notes/genpei.md. These supersede genpei_face_colors and the planar order of
-# utils.to_3bpp_indexes for this game.
+# notes/genpei.md. Use these instead of the planar order of utils.to_3bpp_indexes
+# for this game.
 
 GENPEI_TRANSPARENT = 255
 SCENARIO_SIZE = 41266         # Sndata.gp: 4 scenarios

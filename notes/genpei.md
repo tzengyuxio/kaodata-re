@@ -14,7 +14,8 @@
 - 4 組 × 48 bytes。每組 16 色 × 3 bytes，每 byte 是一個 4-bit 值，順序 **B、R、G**。換成 8-bit 時乘上 `0x11`。
 - 四組只差色 9 與色 15，對應四季（0 春、1 夏、2 秋、3 冬）。頭像只用色 0–7，所以匯出時用第 0 組。
 - 第 0 組：`#000000 #1144aa #dd4400 #ee8855 #009933 #77bbbb #ffbb44 #ffffdd #332200 #334400 #995533 #cc9944 #778855 #112244 #aaaabb #aabb44`
-- 舊的 `genpei_face_colors`（`#1041a2` 等）是從截圖量出來的，nibble 相同（`#14a`），但換算不是 ×0x11；色 8–15 也和 Mainpal 不同。以 Mainpal 為準。
+- 以前 `genpei.py` 有一組從截圖量出來的色表（`#1041a2` 等），nibble 相同（`#14a`），但換算不是 ×0x11，色 8–15 也和 Mainpal 不同，已經移除。`genpei cg`、`genpei face`、`genpei montage` 都改用同目錄 Mainpal 的第 0 組。
+- `genpei face --game-dir` 輸出 Kaodata 的 90 張 128×160 RGBA，檔名是 `編號_x_y.png`（頭像窗左上角）；`genpei montage --game-dir` 依組合表輸出 3 類型 × 頭、身、眼、口的零件。DOS 與 PC-98 都可以，PC-98 的 Main.exe 沒有壓縮，組合表改讀檔案 0x5DAF4。
 
 ## Kaodata.gp：90 張專屬頭像
 
