@@ -93,6 +93,11 @@
 
 `dekoei.py san2 battlemap --game-dir ../games/san2-pc98 --out ../games/san2-pc98/extract/battlemap` 寫出 `01.png`–`41.png`（416×400）與 `terrain.png`（7 種地形）。
 
+- `china.png`、`china_labeled.png`（3328×3472）：41 張依州的六角相鄰關係拼成的全中國戰場，拼法照 FC 版（`famicom-re:san2/docs/ROM_FORMAT.md`〈全中國戰場拼接測試〉）：州 (q, r) 放在第 -(q+r) 欄、第 -r 列，隔欄往下錯半張，奇數欄多出的半格剛好填進下一張的空位。
+  - 六角座標抄自 FC 版相鄰表推出的 `hex_layout`（`san2.SAN2_PROVINCE_HEX`，famicom-re@bd59cff）。執行時會檢查每州在六角格上的鄰居和 PC-98 布陣層出現的州號相同，41 州都相同，✅ cross。
+  - 從布陣層 5 格的位置推方向不可靠：和 FC 的邊方向比，有 9 組猜錯（多在地圖角落），所以只拿布陣層驗證鄰州集合。
+  - 拼起來後河流和地形跨接縫連續（看圖確認，🟡），遊戲本身不會拼接。
+
 - `HEXDATA.DAT`：
   - 0 起是地形層，41 張 × 156 bytes。每張 13 欄 × 12 列，逐列存放，每格 1 byte，值 0–6。
   - 6396 起是布陣層，格式相同。值是州號：本州 20 格，每個鄰州 5 格。推定是守方和從該州進攻的攻方的布陣區，🟡（只看了數值，沒在遊戲裡確認）。

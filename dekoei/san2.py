@@ -2,7 +2,7 @@ import io
 import os
 import struct
 import click
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from utils import (
     BGCOLOR,
@@ -276,6 +276,51 @@ def render_san2_battle_maps(hex_file):
     return maps, tiles
 
 
+# Axial hex coordinates of provinces 1-41, walked from the FC adjacency table
+# (famicom-re@bd59cff:san2/rom.py hex_layout); checked against the PC-98 deployment layer below.
+SAN2_PROVINCE_HEX = [
+    (0, 0), (1, 0), (2, 0), (3, 0), (4, -1), (2, -1), (3, -1), (2, -2), (3, -2), (4, -2),
+    (5, -2), (6, -2), (7, -2), (7, -1), (6, 0), (3, -3), (4, -3), (4, -4), (5, -3), (6, -3),
+    (6, -4), (6, -5), (7, -5), (3, -4), (4, -5), (5, -6), (5, -5), (5, -4), (7, -3), (8, -3),
+    (7, -4), (8, -4), (9, -4), (9, -5), (10, -5), (10, -6), (6, -6), (7, -6), (8, -6), (8, -5),
+    (9, -6),
+]
+HEX_DIRS = [(1, 0), (1, -1), (0, -1), (0, 1), (-1, 1), (-1, 0)]
+
+
+def render_san2_china_map(hex_file, maps):
+    """The 41 battle maps joined into one map of China, the column layout of famicom-re san2
+    china_battle_map: province (q, r) goes to field column -(q + r), row -r, every other column
+    half a field lower. Returns the plain map and a copy with province numbers."""
+    with open(hex_file, "rb") as f:
+        data = f.read()
+    size = BATTLE_COLS * BATTLE_ROWS
+    base = size * BATTLE_MAPS  # deployment layer: province numbers, 5 cells per neighbour
+    where = {q_r: k + 1 for k, q_r in enumerate(SAN2_PROVINCE_HEX)}
+    for k, (q, r) in enumerate(SAN2_PROVINCE_HEX):
+        lattice = {where[q + dq, r + dr] for dq, dr in HEX_DIRS if (q + dq, r + dr) in where}
+        deploy = set(data[base + size * k:base + size * (k + 1)]) - {0, k + 1}
+        assert lattice == deploy, (k + 1, lattice, deploy)
+    fw, fh = BATTLE_COLS * 32, BATTLE_ROWS * 32
+    cells = [(-(q + r), -r) for q, r in SAN2_PROVINCE_HEX]
+    org = [(c * fw, row * fh - c * fh // 2) for c, row in cells]
+    x0, y0 = min(x for x, _ in org), min(y for _, y in org)
+    org = [(x - x0, y - y0) for x, y in org]
+    im = Image.new("RGB", (max(x for x, _ in org) + fw, max(y for _, y in org) + fh + 16))
+    for (ox, oy), field in zip(org, maps):
+        # odd columns stick out 16 px below the field, into the gap the field below leaves
+        for col in range(BATTLE_COLS):
+            strip = field.crop((col * 32, 16 * (col % 2), col * 32 + 32, 16 * (col % 2) + fh))
+            im.paste(strip, (ox + col * 32, oy + 16 * (col % 2)))
+    labeled = im.copy()
+    dr = ImageDraw.Draw(labeled)
+    for k, (ox, oy) in enumerate(org):
+        cx, cy = ox + fw // 2, oy + fh // 2 + 8
+        dr.rectangle([cx - 24, cy - 14, cx + 24, cy + 14], fill="white")
+        dr.text((cx, cy), str(k + 1), fill="black", anchor="mm", font_size=20)
+    return im, labeled
+
+
 @click.command(help="戰場地圖（PC-98／X68000 的 HEXDATA.DAT）")
 @click.option("--game-dir", "game_dir", required=True, help="遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")
@@ -291,6 +336,9 @@ def san2_battlemap(game_dir, out_dir):
     for t, tile in enumerate(tiles):
         strip.paste(tile, (32 * t, 0))
     strip.save(os.path.join(out_dir, "terrain.png"))
+    china, labeled = render_san2_china_map(os.path.join(game_dir, "HEXDATA.DAT"), maps)
+    china.save(os.path.join(out_dir, "china.png"))
+    labeled.save(os.path.join(out_dir, "china_labeled.png"))
 
 
 @click.command(help="其他資料解析")

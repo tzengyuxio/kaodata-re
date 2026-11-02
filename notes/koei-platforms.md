@@ -259,3 +259,19 @@
 | 1995? | 信長の野望・天翔記 | 沒有檔案 |  | 日文維基列了 DOS/V 版 | — |
 | 1995? | 三國志英傑伝 | 沒有檔案 |  | 維基百科沒有列 DOS/V 版；IA 有一筆 `sangokushi-eiketsuden-dosv`，沒有下載 | — |
 | 1995? | 三國志V | 沒有檔案 |  | 維基百科沒有列 DOS/V 版 | — |
+
+## 主機版（其他 repo）
+
+FC、SFC 版不在本 repo，正本在 famicom-re（`~/works/famicom-re`）與 superfamicom-re（`~/works/superfamicom-re`），也是由它們直接匯出 kaodata 資料集。下表只列三國志系列，方便和本 repo 的 PC 版對照；其他光榮作品見 famicom-re 的 `README.md` 和 superfamicom-re 的 `CLAUDE.md` 遊戲總表。整理日期：2026-10-27（famicom-re@d9edada、superfamicom-re@e41cc49）。
+
+| 遊戲 | 平台 | 資料夾 | 資料集 | 戰場地圖 | 和 PC 版的對照 |
+| ---- | ---- | ------ | ------ | -------- | -------------- |
+| 三國志 | FC | `famicom-re:sangokushi/` | `san1-fc` | 58 張（`output/battle_maps/`），格式在 `docs/BATTLE_MAP.md`；拼成全中國：否定（§7，國的相鄰關係嵌不進六角格） | 人物順序同 `san1-pc98`；戰場地形和 DOS、X68000 逐格相同（`notes/san1.md`） |
+| スーパー三國志 | SFC | `superfamicom-re:sangokushi/` | `san1-sfc` | 58 張（`output/battle/`），格式在 `docs/ROM_FORMAT.md` | |
+| 三國志II | FC | `famicom-re:san2/` | `san2-fc` | 41 張（`output/battle_maps/`），拼成全中國戰場 `output/china_battle_map.png`（另有 `_labeled`、`_framed`、`_rot30`），做法在 `docs/ROM_FORMAT.md`〈全中國戰場拼接測試〉 | 戰場地形和 PC-98 等版逐格相同、鄰州相同；PC-98 版的拼接圖見 `notes/san2.md` |
+| スーパー三國志II | SFC | `superfamicom-re:san2/` | `san2-sfc` | 41 張（`output/battle_maps/`），也有 `output/china_battle_map.png` | 組合臉結構同 DOS 版（`notes/san2.md`） |
+| 三國志III | SFC | `superfamicom-re:san3/` | `san3-sfc` | 46 州戰場資料（`output/tactical/`），等角渲染未解 | |
+| 三國志IV | SFC | `superfamicom-re:san4/` | `san4-sfc` | 88 張（野戰 45、攻城 43，`output/battle/`） | |
+| 三國志英傑伝 | SFC | `superfamicom-re:eiketsu/` | `eiketsu-sfc` | 58 張（`output/battle/`） | 本 repo 的 PC-98 版也是 58 張（`notes/eiketsu.md`） |
+
+FC 的 `chuugen/`（三國志 中原の覇者）、`haou/`（三國志II 覇王の大陸）是 Namco 的作品，不是光榮的，不列入。
