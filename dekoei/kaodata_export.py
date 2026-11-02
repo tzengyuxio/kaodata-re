@@ -6011,10 +6011,13 @@ KOUMEI_WIN_TROOPS = {"運糧隊", "軍樂隊", "物資隊", "步兵隊", "弓兵
                      "象兵團", "蛇兵團", "南蠻兵", "藤甲兵", "北狄兵", "羌族兵", "士兵", "賊"}
 KOUMEI_WIN_FOLK = {"首", "武術家", "老婦", "民", "旅客", "男孩", "童子", "女孩", "美人", "商人", "道具屋", "武器屋", "宮吏",
                    "老翁", "仙人", "文官", "武官", "使者", "幻術師", "官差"}
-# ages shown by the faces of people with several (the ending shows them young), by face code
-KOUMEI_WIN_AGES = {4: "壯年", 261: "少年", 262: "青年", 165: "壯年", 266: "嬰兒", 267: "幼年", 268: "少年",
+# ages shown by the faces of people with several (the ending shows them young), by face code; 諸葛亮 ages by
+# chapter through script variable 6 (SNR?D.E2 `2b 06 <face>`)
+KOUMEI_WIN_AGES = {4: "第一章", 261: "少年", 262: "青年", 169: "第二章", 170: "第三章", 171: "四章五丈原後", 165: "壯年", 266: "嬰兒", 267: "幼年", 268: "少年",
                    72: "壯年", 263: "青年", 115: "壯年", 264: "少年", 265: "青年", 5: "壯年", 269: "青年",
                    270: "青年", 271: "壯年", 134: "少女"}
+# faces only the scripts set: 諸葛亮 at the start of chapters 2, 3 and 4-3 (五丈原)
+KOUMEI_WIN_SCRIPT_FACES = {"諸葛亮": [169, 170, 171]}
 KOUMEI_WIN_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "劉貴": "劉璝", "粱緒": "梁緒", "秦郎": "秦朗", "金環結": "金環三結",
                               "董茶那": "董荼那", "朵思王": "朵思大王", "木鹿王": "木鹿大王", "帶來": "帶來洞主"}
 
@@ -6038,6 +6041,8 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
     for name, code in records:
         if name not in generic and code not in faces_of.setdefault(name, []):
             faces_of[name].append(code)
+    for name, codes in KOUMEI_WIN_SCRIPT_FACES.items():
+        faces_of[name] += codes
     # face = the first one in game order; later ages (the ending) follow as expressions
     characters = []
     for name, codes in faces_of.items():
@@ -6053,7 +6058,7 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
         if code not in person_faces:
             portraits[code].update(name=names[0], group="部隊" if names[0] in KOUMEI_WIN_TROOPS else "一般人物")
     for i, p in enumerate(portraits):
-        if i not in users:
+        if i not in users and i not in person_faces:
             p["group"] = "未使用"
 
     meta = {
