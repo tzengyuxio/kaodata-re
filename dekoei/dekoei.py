@@ -18,6 +18,7 @@ from celt import celt
 from genpei import genpei
 from kaodata_export import export
 from biography import biography
+from wiki_stats import stats_export
 from san1 import san1
 from san2 import san2
 from san3 import san3
@@ -878,6 +879,7 @@ dekoei.add_command(liberty)  # 獨立戰爭
 dekoei.add_command(celt)  # 魔眼邪神
 dekoei.add_command(export)  # kaodata 統一格式
 dekoei.add_command(biography)  # 武將列傳（koei-wiki）
+dekoei.add_command(stats_export, "stats-export")  # 武將能力值（koei-wiki）
 # dekoei.add_command(genghis)  # 成吉思汗
 # dekoei.add_command(genchoh)  # 元朝秘史
 
