@@ -6016,6 +6016,10 @@ KOUMEI_WIN_FOLK = {"首", "武術家", "老婦", "民", "旅客", "男孩", "童
 KOUMEI_WIN_AGES = {4: "第一章", 261: "少年", 262: "青年", 169: "第二章", 170: "第三章", 171: "四章五丈原後", 165: "壯年", 266: "嬰兒", 267: "幼年", 268: "少年",
                    72: "壯年", 263: "青年", 115: "壯年", 264: "少年", 265: "青年", 5: "壯年", 269: "青年",
                    270: "青年", 271: "壯年", 134: "少女"}
+# troop / townsfolk faces that named people also use are listed under the troop's name with a note, except 首
+# (關羽's own face as a severed head); P133 is named for 童子 (三顧茅廬), the boy 男孩 shares it
+KOUMEI_WIN_SHARED_SKIP = {"首"}
+KOUMEI_WIN_PORTRAIT_NAMES = {133: "童子"}
 # faces only the scripts set: 諸葛亮 at the start of chapters 2, 3 and 4-3 (五丈原)
 KOUMEI_WIN_SCRIPT_FACES = {"諸葛亮": [169, 170, 171]}
 KOUMEI_WIN_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "劉貴": "劉璝", "粱緒": "梁緒", "秦郎": "秦朗", "金環結": "金環三結",
@@ -6055,8 +6059,16 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
         characters.append(ch)
     person_faces = {c for codes in faces_of.values() for c in codes}
     for code, names in users.items():
-        if code not in person_faces:
-            portraits[code].update(name=names[0], group="部隊" if names[0] in KOUMEI_WIN_TROOPS else "一般人物")
+        folk = [n for n in names if n in generic and n not in KOUMEI_WIN_SHARED_SKIP]
+        people = [n for n in names if n not in generic]
+        if code in person_faces and not folk:
+            continue
+        name = KOUMEI_WIN_PORTRAIT_NAMES.get(code, (folk or names)[0])
+        portraits[code].update(name=name, group="部隊" if name in KOUMEI_WIN_TROOPS else "一般人物")
+        if code in person_faces:
+            portraits[code]["note"] = f"與{'、'.join(people)}共用"
+        elif code in KOUMEI_WIN_PORTRAIT_NAMES:
+            portraits[code]["note"] = f"{'、'.join(n for n in names if n != name)}也用這張臉"
     for i, p in enumerate(portraits):
         if i not in users and i not in person_faces:
             p["group"] = "未使用"
