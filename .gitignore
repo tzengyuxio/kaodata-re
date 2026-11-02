@@ -148,3 +148,6 @@ status-screens/*
 
 # Run-time captures (screenshots, saves) are game material
 captures/
+
+# Biographies for koei-wiki (game text)
+export/
