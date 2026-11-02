@@ -151,3 +151,7 @@ captures/
 
 # Biographies for koei-wiki (game text)
 export/
+
+# Social posts: rendered media hold game art
+posts/**/*.mp4
+posts/**/*.png
