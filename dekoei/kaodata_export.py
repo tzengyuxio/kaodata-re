@@ -6041,8 +6041,8 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
     for name, code in records:
         if name not in generic and code not in faces_of.setdefault(name, []):
             faces_of[name].append(code)
-    for name, codes in KOUMEI_WIN_SCRIPT_FACES.items():
-        faces_of[name] += codes
+    for name, codes in KOUMEI_WIN_SCRIPT_FACES.items():  # the chapters first, then the ending's younger faces
+        faces_of[name][1:1] = codes
     # face = the first one in game order; later ages (the ending) follow as expressions
     characters = []
     for name, codes in faces_of.items():
