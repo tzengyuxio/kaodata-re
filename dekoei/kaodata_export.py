@@ -636,6 +636,7 @@ SAN3_NAME_HISTORICAL = {
 SAN3_PC98_NAME_HISTORICAL = {
     0xC4E8: "桓階", 0x8AA8: "于糜", 86: "鍾繇", 0x96A5: "鍾進", 53: "鍾会", 0x9512: "梁剛", 76: "諸葛瑾",
     0xCC33: "向挙", 0xCE79: "龐羲", 72: "沙摩柯", 38: "毌丘倹", 49: "金環三結", 135: "董荼那", 112: "朶思大王",
+    0x84E4: "劉晙",
 }
 # event characters (MAIN.EXE DGROUP 0x2FB6 names / 0x2FCA codes) and 貂蟬 (連環計 sets face 307)
 SAN3_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子將", 223: "獻帝", 224: "吉平", 225: "于吉", 226: "左慈",
@@ -836,7 +837,7 @@ SAN4_PORTRAIT_GROUPS = {
 }
 # historical spelling by face code; the DOS release also writes 孔秀 (another person) for 孔伷
 SAN4_NAME_HISTORICAL = {0x38: "孔伷", 199: "盧植", 0xE85A: "龐羲", 135: "沙摩柯", 0xE56A: "吳綱"}
-SAN4_PC98_NAME_HISTORICAL = {199: "盧植", 0xE85A: "龐羲", 135: "沙摩柯", 0xE56A: "呉綱"}
+SAN4_PC98_NAME_HISTORICAL = {199: "盧植", 0xE85A: "龐羲", 135: "沙摩柯", 0xE56A: "呉綱", 134: "劉豹"}
 # PC-98: the same palette bytes as DOS (DGROUP 0xF70), widened as v * 17; names as the game spells them.
 # 1.0 speaks as 童子 with 336 and picks 335 for 舉兵 (swapped, PK fixed it); labelled by the pictures here
 SAN4_PC98_PALETTE = ["#332200", "#224488", "#BB4422", "#CC8855", "#447722", "#448899", "#DDBB88", "#DDDDBB"]
@@ -866,7 +867,7 @@ SAN4PK_DOS_EXTRA_NAMES = (
 # DOS PK: scenario 10 misspells three names that scenarios 1-9 have right
 SAN4PK_DOS_NAME_FIX = {"惇于瓊": "淳于瓊", "鐘會": "鍾會", "鐘繇": "鍾繇"}
 # DOS PK fixed 劉瞱, 蘆植, 沙摩可, 吳鋼; 孔秀 and 龐義 remain
-SAN4PK_DOS_NAME_HISTORICAL = {0x38: "孔伷", 0xE85A: "龐羲"}
+SAN4PK_DOS_NAME_HISTORICAL = {0x38: "孔伷", 0xE85A: "龐羲", 134: "劉豹"}
 # NBDATA.SUI: DOS writes 彭汜 for 彭玘 (玘 is a PC-98 PK gaiji)
 SAN4PK_DOS_SUIKODEN_HISTORICAL = {"彭汜": "彭玘"}
 SAN4_PC98_PORTRAIT_NAMES = {250: "華佗", 251: "馬鈞", 252: "司馬徽", 253: "許子将", 254: "干吉", 255: "左慈",
@@ -990,8 +991,9 @@ SAN5PK_PC98_PORTRAIT_NAMES = {500: "献帝", 501: "貂蝉", 502: "民衆", 503: 
 # 盧植 is 蘆植 in scenarios 1-2 and 盧植 in 8, 9, 12
 SAN5PK_PC98_NAME_PICK = {199: "盧植"}
 # historical spelling by face code
-SAN5PK_NAME_HISTORICAL = {56: "孔伷", 467: "龐羲"}
-SAN5PK_PC98_NAME_HISTORICAL = {467: "龐羲"}
+# 134 左賢王 is the title of 劉豹; 494 許子将 is 許劭 by his courtesy name
+SAN5PK_NAME_HISTORICAL = {56: "孔伷", 467: "龐羲", 134: "劉豹", 494: "許劭"}
+SAN5PK_PC98_NAME_HISTORICAL = {467: "龐羲", 134: "劉豹", 494: "許劭"}
 # base game (PC-98): no KAOEX.S5; 7 scenarios whose SNDATA person table ends 64 bytes before the end
 SAN5_PC98_INPUTS = ["KAODATA.S5", "SNDATA.S5", "TAIKI.S5"]
 SAN5_PC98_SNDATA_TAIL = 64
