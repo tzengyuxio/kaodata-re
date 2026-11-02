@@ -402,7 +402,7 @@ SAN2_FACE = 960  # 64x40 half-height, 3bpp
 SAN2_NAME_HISTORICAL = {
     31: "張顗", 61: "蔡瑁", 67: "張咨", 98: "趙範", 121: "劉璝", 122: "雷銅", 157: "于禁", 164: "夏侯楙",
     167: "桓階", 181: "陳紀", 218: "李堪", 220: "廖化", 249: "嚴畯", 258: "步騭", 260: "蔡中", 264: "向舉",
-    284: "向寵", 297: "鮑隆", 306: "朵思大王", 308: "阿會喃", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
+    284: "向寵", 295: "劉賢", 297: "鮑隆", 306: "朵思大王", 308: "阿會喃", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
     317: "龐羲", 332: "毌丘儉",
 }
 # KAODATA portraits no character uses (0-based), per koei-wiki 遊戲/三國志II/人物顏
@@ -421,7 +421,7 @@ SAN2_JP_PORTRAIT_NAMES = {27: "華陀", 177: "司馬徽", 190: "許子将"}
 # misspelt names in the Japanese release (the SAN2_NAME_HISTORICAL ones it shares, plus 粱剛), by character id
 SAN2_JP_NAME_HISTORICAL = {
     67: "張咨", 122: "雷銅", 167: "桓階", 181: "陳紀", 218: "李堪", 258: "歩騭", 260: "蔡中", 264: "向挙", 284: "向寵",
-    297: "鮑隆", 306: "朶思大王", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
+    295: "劉賢", 297: "鮑隆", 306: "朶思大王", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
     125: "梁剛", 317: "龐羲", 332: "毌丘倹",
 }
 
@@ -1064,7 +1064,7 @@ SAN1_PC98_INPUTS = ["PICDATA.DAT", "SAVEDATA"]
 SAN1_DOS_INPUTS = ["PICDATA.DAT", "SINADATA.DAT"]
 # misspelt names (checked against san1-fc), by character id
 SAN1_PC98_NAME_HISTORICAL = {18: "于禁", 22: "荀攸", 62: "許攸", 89: "蔡中", 119: "雷銅", 127: "李堪", 155: "諸葛瑾",
-                             205: "邢道栄", 206: "鮑隆", 229: "沙摩柯", 239: "向寵"}
+                             204: "劉賢", 205: "邢道栄", 206: "鮑隆", 229: "沙摩柯", 239: "向寵"}
 # DOS (English): Chinese names by character id (the PC-98 names with SAN1_PC98_NAME_HISTORICAL, in traditional glyphs)
 SAN1_DOS_NAME_ZH = """
 曹操 孫堅 劉備 袁紹 袁術 劉表 董卓 劉焉 馬騰 公孫瓚 夏侯惇 夏侯淵 曹仁 曹洪 曹昂
@@ -1080,7 +1080,7 @@ SAN1_DOS_NAME_ZH = """
 陳武 虞翻 王朗 魯肅 諸葛瑾 呂蒙 陸遜 陳群 朱儁 楊彪 宋憲 魏續 侯成 張遼 張繡
 周倉 廖化 顧雍 呂曠 呂翔 郭嘉 伊籍 徐庶 諸葛亮 司馬懿 糜芳 魏延 簡雍 蔣幹 步騭
 薛綜 陸績 嚴畯 闞澤 傅幹 丁奉 潘璋 毛玠 龐統 呂虔 徐盛 凌統 馬延 張顗 陳矯
-牛金 陳嬉 馬良 馬謖 金旋 韓玄 趙範 劉度 劉延 邢道榮 鮑隆 陳應 鞏志 黃忠 宋謙
+牛金 陳嬉 馬良 馬謖 金旋 韓玄 趙範 劉度 劉賢 邢道榮 鮑隆 陳應 鞏志 黃忠 宋謙
 朱靈 文聘 華歆 張既 張魯 閻圃 張衛 鍾繇 鍾進 楊修 楊松 夏侯德 夏侯尚 滿寵 傅士仁
 賈逵 許靖 吳班 沙摩柯 孟獲 雍闓 高定 朱褒 呂凱 孟優 郭攸之 費禕 董允 向寵 譙周
 鄧芝 夏侯楙 姜維 郭淮 辛毗 司馬昭 司馬師 蔣琬 郝昭 朱桓 全琮 王雙 王平 李嚴 楊儀
@@ -5534,7 +5534,7 @@ SAN6PK_WIN_PORTRAIT_GROUPS = {
     **{i: "其他頭像（男）" for i in [*range(551, 621), *range(675, 684)]},
     **{i: "其他頭像（女）" for i in [*range(621, 651), 684]},
 }
-SAN6PK_WIN_NAME_HISTORICAL = {"孔冑": "孔伷", "士變": "士燮"}
+SAN6PK_WIN_NAME_HISTORICAL = {"孔冑": "孔伷", "士變": "士燮", "毋丘儉": "毌丘儉", "太史亨": "太史享", "傅儉": "傅僉"}
 # faces used by characters are split over 4 blobs (about 1 MB each); the grouped, unused ones go last in extra.bin
 SAN6PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "portraits4.bin", "extra.bin"]
 
@@ -5662,6 +5662,9 @@ SAN8PK_WIN_CUTS = [273, 545]
 SAN8PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "extra.bin"]
 
 
+SAN8PK_WIN_NAME_HISTORICAL = {"田与": "田予"}  # 与 for 豫 (予 in Japanese)
+
+
 def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     files = {}
     for name in SAN8PK_WIN_INPUTS:
@@ -5711,6 +5714,8 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
         arts.append({"img": store.add_art(160, 180, px.translate(art_remap))})
 
     characters = [{"id": p["id"], "name": p["name"],
+                   **({"nameHistorical": SAN8PK_WIN_NAME_HISTORICAL[p["name"]]}
+                      if p["name"] in SAN8PK_WIN_NAME_HISTORICAL else {}),
                    "reading": " ".join(kana_to_hiragana(k) for k in p["kana"] if k),
                    "face": {"portrait": index[p["face"]]}} for p in people]
 
@@ -5812,7 +5817,7 @@ def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 # ---------------------------------------------------------------- SAN10 PK (Windows, Japanese, Steam)
 
 SAN10PK_WIN_INPUTS = sango.SAN10_FACE_FILES + sango.SAN10_LARGE_FILES + sango.SAN10_FACE_TABLES + ["San10WPK.exe", "ScePK000.s10"]
-SAN10PK_WIN_NAME_HISTORICAL = {"厳晙": "厳畯"}
+SAN10PK_WIN_NAME_HISTORICAL = {"厳晙": "厳畯", "鐘離牧": "鍾離牧"}
 # faces below 731 that no officer uses: people of SAN9 who are only in events here, named as in SAN9 (same face codes)
 SAN10PK_WIN_EVENT_FACES = {
     296: "禰衡", 496: "于吉", 497: "華佗", 498: "管輅", 499: "許劭", 500: "左慈", 501: "司馬徽", 538: "孫尚香",
