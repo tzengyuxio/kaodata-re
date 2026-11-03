@@ -1504,8 +1504,8 @@ SUIKODEN_DOS_INPUTS = ["KAOIBM.DAT", "SUIDATA1.CIM"]
 SUIKODEN_DOS_PORTRAIT_GROUPS = {255: "設施", 256: "設施", 257: "設施", 258: "特殊人物", 259: "特殊人物"}
 SUIKODEN_DOS_PORTRAIT_NAMES = {255: "造船所", 256: "雜貨店", 257: "兵工廠", 258: "徽宗皇帝", 259: "金國太宗"}
 # misspelt names, against the novel, by character id
-SUIKODEN_DOS_NAME_HISTORICAL = {115: "黃文燁", 127: "彭玘", 133: "縻貹", 154: "党世英", 180: "湯隆", 185: "党世雄",
-                                217: "時遷", 227: "梁世傑"}
+SUIKODEN_DOS_NAME_HISTORICAL = {47: "朱仝", 56: "褚亨", 115: "黃文燁", 127: "彭玘", 133: "縻貹", 154: "党世英",
+                                159: "鄭之瑞", 180: "湯隆", 185: "党世雄", 191: "寇烕", 217: "時遷", 227: "梁世傑"}
 
 
 def build_suikoden_dos(game_dir: str) -> tuple[dict, list[bytes]]:
