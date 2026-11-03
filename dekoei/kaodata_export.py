@@ -6059,22 +6059,18 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
             ch["nameHistorical"] = KOUMEI_WIN_NAME_HISTORICAL[name]
         characters.append(ch)
     person_faces = {c for codes in faces_of.values() for c in codes}
-    default_faces = {codes[0] for codes in faces_of.values()}
     for code, names in users.items():
         folk = [n for n in names if n in generic and n not in KOUMEI_WIN_SHARED_SKIP]
-        people = [n for n in names if n not in generic]
         if code in person_faces and not folk:
             continue
-        name = KOUMEI_WIN_PORTRAIT_NAMES.get(code, (folk or names)[0])
-        group = "部隊" if name in KOUMEI_WIN_TROOPS else "一般人物"
-        portraits[code]["name"] = name
-        if code in default_faces:  # a group would move the person's own face out of the person list
-            portraits[code]["note"] = f"{group}「{name}」也用這張臉"
+        if code in person_faces:  # the person keeps the face; each troop or townsfolk use is listed as alsoAs
+            portraits[code]["alsoAs"] = [
+                {"group": "部隊" if n in KOUMEI_WIN_TROOPS else "一般人物", "name": n} for n in folk]
             continue
-        portraits[code]["group"] = group
-        if code in person_faces:
-            portraits[code]["note"] = f"與{'、'.join(people)}共用"
-        elif code in KOUMEI_WIN_PORTRAIT_NAMES:
+        name = KOUMEI_WIN_PORTRAIT_NAMES.get(code, (folk or names)[0])
+        portraits[code]["name"] = name
+        portraits[code]["group"] = "部隊" if name in KOUMEI_WIN_TROOPS else "一般人物"
+        if code in KOUMEI_WIN_PORTRAIT_NAMES:
             portraits[code]["note"] = f"{'、'.join(n for n in names if n != name)}也用這張臉"
     for i, p in enumerate(portraits):
         if i not in users and i not in person_faces:
