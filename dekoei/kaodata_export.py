@@ -6071,7 +6071,8 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
         portraits[code]["name"] = name
         portraits[code]["group"] = "部隊" if name in KOUMEI_WIN_TROOPS else "一般人物"
         if code in KOUMEI_WIN_PORTRAIT_NAMES:
-            portraits[code]["note"] = f"{'、'.join(n for n in names if n != name)}也用這張臉"
+            portraits[code]["alsoAs"] = [
+                {"group": "部隊" if n in KOUMEI_WIN_TROOPS else "一般人物", "name": n} for n in names if n != name]
     for i, p in enumerate(portraits):
         if i not in users and i not in person_faces:
             p["group"] = "未使用"
