@@ -1,4 +1,5 @@
 import bitarray
+import csv
 import click
 import unicodedata
 import re
@@ -1895,6 +1896,92 @@ def load_suikoden_pc98_persons(sndata, pc88: bool = False, x68: bool = False) ->
 
 suikoden.add_command(suikoden_face, 'face')
 suikoden.add_command(suikoden_person, 'person')
+
+
+# PC-98 州 table: SUIDATA?.CIM 0x2FC0, 49 x 21 bytes (same layout as FC): +0 name 4 bytes Shift-JIS (no 州), +5 城數,
+# +12 neighbours x 8 (0-based, 0xFF ends). DOS 中文版: 18600, 49 x 27 bytes, +0 name 10 bytes (KOEI TW code),
+# +11 城數, +18 neighbours.
+SUIKODEN_PC98_PROVINCES, SUIKODEN_DOS_PROVINCES = 0x2FC0, 18600
+SUIKODEN_PC98_PROVINCE_GAIJI = {0xEB9F: "鄆", **SUIKODEN_PC98_GAIJI}  # 0xEB9F: X68000 FONT68K.DAT glyph 0
+# HEXMAP.DAT (PC-98): 49 x 168 terrain bytes (14 x 12, row by row; the spring tile kind), 49 x 168 州歸屬 bytes at
+# 0x2028 (0xFF none), 19 hex tiles of 40 x 32 at 0x4050 (0x1E0 bytes, 3 bytes per 8 px, digital 8 colours).
+# MAIN.EXE 0x18540 changes the kinds by season with the table DS:0x8452 (kind = table[4 * terrain + season]).
+SUIKODEN_SEASON_KINDS = bytes.fromhex("00010203 04050607 08080808 0909090a 0b0c0d0e 0f0f0f0a 10101010 11111212")
+SUIKODEN_TERRAINS = ("平地", "森林", "城", "湿地", "山地", "川", "海・湖", "高山")  # names from the tiles (FC notes)
+
+
+def load_suikoden_provinces(game_dir: str, dos: bool = False, scenario: int = 1) -> list[tuple[str, int, list[int]]]:
+    """(name, 城數, neighbours) of the 49 州."""
+    with open(os.path.join(game_dir, f"SUIDATA{scenario}.CIM"), "rb") as f:
+        data = f.read()
+    out = []
+    for i in range(49):
+        if dos:
+            r = data[SUIKODEN_DOS_PROVINCES + 27 * i:][:27]
+            name, cities, nb = koei_tw_name(r[:10]), r[11], r[18:26]
+        else:
+            r = data[SUIKODEN_PC98_PROVINCES + 21 * i:][:21]
+            name = "".join(SUIKODEN_PC98_PROVINCE_GAIJI.get(int.from_bytes(r[j:j + 2], "big"))
+                           or r[j:j + 2].decode("cp932") for j in (0, 2) if r[j])
+            cities, nb = r[5], r[12:20]
+        out.append((name, cities, [n for n in nb if n != 0xFF]))
+    return out
+
+
+def render_suikoden_battle_maps(game_dir: str, season: int = 0) -> list[Image.Image]:
+    """The 49 PC-98 battle maps, 456 x 400: cell (x, y) at (32x, 32y + 16 if x is even) (MAIN.EXE 0x1B49A: byte
+    column 4x + 0x16, line (16y + 8) * 2 for even x). Pixels that are black in all 19 tiles are left out of the hex."""
+    with open(os.path.join(game_dir, "HEXMAP.DAT"), "rb") as f:
+        h = f.read()
+    pal = [0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255]
+    tiles = []
+    for k in range(19):
+        t = h[0x4050 + k * 0x1E0:][:0x1E0]
+        px = bytearray(40 * 32)
+        for g in range(160):
+            p0, p1, p2 = t[3 * g:3 * g + 3]
+            for bit in range(8):
+                m = 0x80 >> bit
+                px[g * 8 + bit] = (p0 & m and 1) | (p1 & m and 2) | (p2 & m and 4)
+        tiles.append(px)
+    mask = Image.frombytes("L", (40, 32), bytes(255 if any(t[i] for t in tiles) else 0 for i in range(40 * 32)))
+    springs = SUIKODEN_SEASON_KINDS[::4]
+    images = []
+    for p in range(49):
+        im = Image.new("P", (13 * 32 + 40, 12 * 32 + 16))
+        im.putpalette(pal)
+        for c in range(168):
+            x, y = c % 14, c // 14
+            kind = SUIKODEN_SEASON_KINDS[4 * springs.index(h[p * 168 + c]) + season]
+            tile = Image.frombytes("P", (40, 32), bytes(tiles[kind]))
+            im.paste(tile, (32 * x, 32 * y + (0 if x & 1 else 16)), mask)
+        images.append(im)
+    return images
+
+
+@click.command(help='戰場地圖')
+@click.option('--game-dir', 'game_dir', required=True, help='PC-98 遊戲目錄（HEXMAP.DAT、SUIDATA1.CIM）')
+@click.option('--dos-dir', 'dos_dir', help='DOS 中文版目錄，用來填 provinces.csv 的中文州名')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+def suikoden_battlemap(game_dir, dos_dir, out_dir):
+    """49 州的戰場地圖，四季各一套（春夏秋冬/NN.png，NN 是州號 1–49），以及 provinces.csv。
+
+    dekoei.py suikoden battlemap --game-dir ../games/suikoden-pc98 --dos-dir ../games/suikoden-dos --out ../games/suikoden-pc98/extract/battlemap
+    """
+    for season, label in enumerate("春夏秋冬"):
+        os.makedirs(os.path.join(out_dir, label), exist_ok=True)
+        for k, im in enumerate(render_suikoden_battle_maps(game_dir, season)):
+            im.save(os.path.join(out_dir, label, f'{k + 1:02d}.png'))
+    ja = load_suikoden_provinces(game_dir)
+    zh = load_suikoden_provinces(dos_dir, dos=True) if dos_dir else [("", None, None)] * 49
+    with open(os.path.join(out_dir, 'provinces.csv'), 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['id', 'name_zh', 'name_ja', 'cities', 'cities_zh', 'neighbours'])
+        for i, ((n, c, nb), (nz, cz, _)) in enumerate(zip(ja, zh)):
+            w.writerow([i + 1, nz, n, c, cz if cz is not None else '', ' '.join(str(x + 1) for x in nb)])
+
+
+suikoden.add_command(suikoden_battlemap, 'battlemap')
 
 
 def koei_tw_name(raw: bytes) -> str:
