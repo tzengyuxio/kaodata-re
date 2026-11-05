@@ -124,6 +124,7 @@ PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網�
   - 每張圖實際用哪組色盤是 🟡，預設的種類 0、季節 0 是看圖挑的，沒和遊戲畫面比過。
 - ✅ cross：
   - 和 SFC 版（`superfamicom-re:san4/output/battle/`）的 00_field、45_siege_襄平 比過，地形形狀相同，所以攻城圖 46–88 依序是 SFC 命名的都市（46 襄平、47 北平……）。
+  - 野戰圖依「守方都市＋攻方是第幾個鄰城」查 `MAIN.EXE` 檔案 0x3855A 的表（和 SFC 的表 byte 相同），見 `notes/san-maps.md`「IV」。
   - DOS 中文版的 `HEXMAP`、`HEXGRP`、`HKGRP` 解開後 byte 相同；`HKMAP` 有 3 個 part 不同（part 38 差 2 bytes，part 103、104 各差 1 byte）。
 - 畫面上沒有畫六角格線。
 
