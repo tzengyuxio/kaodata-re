@@ -1,5 +1,5 @@
 """Officer stats of the KOEI series other than 三國志 and 信長の野望 (ジンギスカン, 英傑傳, 大航海時代, 水滸伝,
-源平合戦, 項劉記, ランペルール). Every loader returns rows (slot, name, *values) in the order of its <GAME>_STATS
+源平合戦, 項劉記, ランペルール, 維新の嵐). Every loader returns rows (slot, name, *values) in the order of its <GAME>_STATS
 labels; the evidence of each field is in the game's notes/<game>.md「能力」."""
 import fnmatch
 import glob
@@ -643,6 +643,60 @@ def load_lempe_stats(npdata: str, scenario: int = 0, platform: str = "dos") -> l
 
 
 ##############################################################################
+# 維新の嵐 (ISHIN, PC-98): SHINARIO.DAT, 3 scenarios of 0xA770 bytes. The scenario offset 0xAC8 is offset 0 of
+# the game's segment 0x2690, where ISIN.EXE keeps two person tables (ISINS.OVL 0xF1BF draws the status window):
+# - 0x606:0xD3 (image 0x6133): 28 bytes at 0x3A35 + id * 28 (ids <= 450): +1 u16 身分 code, +3 年齢, +0xC 剣道
+#   (max 100), +0xD 学力, +0xE 魅力 (max 200), +0x10 u16 レベル, +0x12 戦闘経験 (max 100); +0x16..+0x19 are read
+#   as 尊王 公議 佐幕 攘夷 from the values only (🟡).
+# - 0x606:0xF (image 0x606F): 19 bytes at 0x537 + id * 19: +0xF 武力, +0x11 原体力 (max 200).
+# Names: the surname table of ISIN.EXE and the scenario's given names (+0x983A, 9 bytes each), which the load puts
+# over the exe's default table (DS:0xA034, read by 0x622:0x198).
+ISHIN_PC98_STATS = ("年齢", "身分", "原体力", "武力", "剣道", "学力", "魅力", "戦闘経験", "レベル", "身分碼",
+                    "尊王", "公議", "佐幕", "攘夷")
+ISHIN_PC98_TABLES = (0xAC8 + 0x3A35, 28), (0xAC8 + 0x537, 19)
+ISHIN_PC98_GIVEN = 0x983A  # scenario offset of the 9-byte given names
+ISHIN_PC98_HANS = 0x95D9  # scenario offset of the 7-byte han and province names; han n is entry n - 1
+ISHIN_PC98_BAKUFU = 0x46  # 0x622:0x6B6; the name is 幕府 (DS:0x651E)
+# ISIN.EXE DS:0x6790: the far pointers of the 身分 names, indexed by 0x622:0x80A's result
+ISHIN_PC98_RANKS = ("天皇 大臣 議奏 朝臣 将軍 老中 奉行 幕臣 浪人 藩主 家老 重臣 藩士 浪人 独立諸隊 儒学者 国学者 蘭学者 "
+                    "兵学者 砲学者 学者 女性 女房 女官 将軍家御台所 勤王家 天理教々祖 おいらん 仁侠親分 仁侠子分 商人 総領事 "
+                    "外交官 艦隊司令 外国商人 僧 神官 金光教々租 志士 町人").split()
+ISHIN_PC98_UNITS = "新撰組 奇兵隊 海援隊 彰義隊 天狗党 見廻組 天誅組 白虎隊 諸生党".split()  # DS:0x6578, codes 0x5D-0x65
+
+
+def ishin_pc98_rank(code: int, hans: list[str]) -> str:
+    """身分 name of a person's +1 code, as 0x622:0x80A (the decoder of the high nibble) and 0x622:0x198 do."""
+    kind, n, low = code >> 12, code >> 8 & 0xF, code & 0xFF
+    if kind == 1:
+        if 0x5C < low < 0x66:
+            return ISHIN_PC98_UNITS[low - 0x5D]
+        index = n + 4 if low == ISHIN_PC98_BAKUFU else n + 9 if 0 < low < 0x57 else n
+        han = "幕府" if low == ISHIN_PC98_BAKUFU else hans[low - 1] if low else ""
+        return han + ISHIN_PC98_RANKS[index] if 9 <= index <= 12 else ISHIN_PC98_RANKS[index]
+    index = {2: 0xE + low, 3: 0x15 + low, 4: 0x1C if n == 0 else 0x1D, 5: 0x1E, 6: 0x1F + n, 7: 0x23 + low, 8: 0x26,
+             9: 0x27}.get(kind)
+    return ISHIN_PC98_RANKS[index] if index is not None and index < len(ISHIN_PC98_RANKS) else f"?{code:04X}"
+
+
+def load_ishin_pc98_stats(isin_exe, shinario, scenario: int = 0) -> list[tuple]:
+    with open(isin_exe, "rb") as f:
+        exe = f.read()
+    with open(shinario, "rb") as f:
+        sc = f.read()[scenario * k.ISHIN_PC98_SCENARIO:][:k.ISHIN_PC98_SCENARIO]
+    hans = [k._ishin_pc98_text(sc[ISHIN_PC98_HANS + i * 7:][:7].split(b"\0")[0]).strip() for i in range(87)]
+    (b0, bs), (a0, as_) = ISHIN_PC98_TABLES
+    rows = []
+    for i in range(k.ISHIN_PC98_PEOPLE):
+        name = "".join(k._ishin_pc98_text(raw[o + i * n:][:n].split(b"\0")[0])
+                       for raw, o, n in ((exe, 0x42312, 7), (sc, ISHIN_PC98_GIVEN, 9)))
+        b, a = sc[b0 + i * bs:][:bs], sc[a0 + i * as_:][:as_]
+        code = int.from_bytes(b[1:3], "little")
+        rows.append((i, name, b[3], ishin_pc98_rank(code, hans), a[0x11], a[0xF], b[0xC], b[0xD], b[0xE], b[0x12],
+                     int.from_bytes(b[0x10:0x12], "little"), f"{code:04X}", *b[0x16:0x1A]))
+    return rows
+
+
+##############################################################################
 
 def _koei_stats(game, game_dir):
     """(labels, rows of (scenario or table, name, *stats)) of one dataset."""
@@ -709,6 +763,9 @@ def _koei_stats(game, game_dir):
         names, table = k.load_kohryuki_dos_names(exe), kouryuuki_dos_name_table(exe)
         return KOURYUUKI_STATS, [(os.path.basename(f), *r[1:]) for f in files("SNDT*.KR1")
                                  for r in load_kouryuuki_stats(names, table, 17, open(f, "rb").read())]
+    if game == "ishin-pc98":
+        return ISHIN_PC98_STATS, [(f"劇本{s + 1}", *r[1:]) for s in range(3)
+                                  for r in load_ishin_pc98_stats(path("ISIN.EXE"), path("SHINARIO.DAT"), s)]
     if game.startswith("lempe-"):
         if platform == "x68":
             return LEMPE_STATS, [(os.path.basename(f), *r[1:]) for f in files("NPDATA*.DAT")
@@ -729,7 +786,7 @@ def koei_person(game, game_dir, scenario):
     GAME 是 dataset id：genghis-pc88（-pc98、-x68、-dos）、genchou-pc88（-pc98、-x68、-dos）、genghis4pk-win、
     eiketsu-dos（-pc98）、koumei-win、eiketsu3-win、eiketsu4-win、eiketsu5-win、koukai-dos（-pc98、-pc88）、
     koukai2-pc98、koukaigd-win、koukai3-win、koukai4pk-win、suikoden-dos（-pc98、-pc88、-x68）、genpei-pc98（-dos）、
-    kouryuuki-dos、lempe-dos（-pc88、-x68）
+    kouryuuki-dos、lempe-dos（-pc88、-x68）、ishin-pc98
 
     dekoei.py koei-person genghis-pc98 --game-dir ../games/genghis-pc98 -s MDATA
     """

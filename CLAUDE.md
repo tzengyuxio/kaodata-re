@@ -67,7 +67,7 @@ Python 端沒有 linter／formatter 設定。
 
 - **CLI 組裝**：`dekoei.py` 定義根 group `dekoei`，底部一長串 `dekoei.add_command(...)` 掛上每款遊戲的 click group（一款遊戲一個 group，底下多半有 `face`、`person` 等子命令）。新增遊戲時寫好 group 後要在這裡註冊。
   - SAN10–14 的 group 與解碼直接寫在 `dekoei.py`；SAN1/2/3 在 `san1.py`／`san2.py`／`san3.py`；其他三國志在 `sango.py`；信長在 `nobu.py`；其餘遊戲大多集中在 `koei_games.py`；源平、獨立戰爭各有獨立模組。
-- **人物能力（CSV）**：信長 2–13 是 `nobu.py` 的 `nobu-person`；ジンギスカン、英傑傳、大航海時代系列與水滸伝、源平、項劉記、ランペルール是 `koei_stats.py` 的 `koei-person`（`dekoei.py koei-person <dataset id> --game-dir …`）。各代有哪些屬性見 `notes/*-attributes.md`，欄位證據在各遊戲筆記的「能力」段。
+- **人物能力（CSV）**：信長 2–13 是 `nobu.py` 的 `nobu-person`；ジンギスカン、英傑傳、大航海時代系列與水滸伝、源平、項劉記、ランペルール、維新の嵐（PC-98）是 `koei_stats.py` 的 `koei-person`（`dekoei.py koei-person <dataset id> --game-dir …`）。各代有哪些屬性見 `notes/*-attributes.md`，欄位證據在各遊戲筆記的「能力」段。
 - **戰場地圖**：三國志 I–V 各有 `battlemap` 子命令（`san1`／`san2`／`san3` 在各自模組，IV、V 在 `sango.py`），讀 PC-98 版輸出 PNG 到 `games/<id>/extract/battlemap/`；英傑傳（`eiketsu`，PC-98）、孔明傳（`koumei`）、曹操傳（`eiketsu5`）也有，在 `koei_games.py`（英傑傳另有交戰背景 `battlebg`，曹操傳另有劇情場景與人物動作圖 `scene`）；`san2 battlemap` 另外把 41 張拼成全中國戰場 `china.png`；格式與未確認的部分見各遊戲筆記的「戰場地圖」段，FC／SFC 版在別的 repo，對照表見 `notes/koei-platforms.md`「主機版（其他 repo）」。
 - **武將列傳**（`biography.py`）：`dekoei.py biography <dataset> --game-dir … --out export/koei-wiki/<dataset>.jsonl` 匯出繁中版的列傳給 koei-wiki，一段一行（`{"dataset","id","name","lang","kind","text"}`，`kind` 是 簡介／演義／史實／單段，`id` 同 kaodata 資料集）。`export/` 不進版控。各代的編碼與人數見 `notes/san-biographies.md`，格式細節見各遊戲筆記的「列傳」段。
 - **武將能力值（koei-wiki）**（`wiki_stats.py`）：`dekoei.py stats-export <dataset> --game-dir … --out export/koei-wiki/stats/<dataset>.jsonl` 匯出三國志 I–14 的主能力，一人一行，`id` 同 kaodata 資料集；各代的取值來源見 `notes/san-attributes.md`「koei-wiki 匯出」。
