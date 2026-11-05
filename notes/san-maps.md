@@ -24,7 +24,8 @@
 
 ## I（PC-98）
 
-- 國沒有名字，只有 1–58 的號碼，州名 15 個。國表（國號、所屬州、相鄰國）取自 FC 版 `famicom-re:sangokushi/docs/BATTLE_MAP.md` §4（ROM 檔案 0x3B211，58 × 14 bytes，相鄰關係雙向一致）。PC-98 版的國表沒有找，戰場地形和 FC 逐格相同（見 `notes/san1.md`），所以推定相鄰關係也相同 🟡。
+- 國沒有名字，只有 1–58 的號碼，州名 15 個。國表（國號、所屬州、相鄰國）取自 FC 版 `famicom-re:sangokushi/docs/BATTLE_MAP.md` §4（ROM 檔案 0x3B211，58 × 14 bytes，相鄰關係雙向一致）。
+- PC-98 的國記錄在 `SAVEDATA`：每槽 22904 bytes，國 n 的相鄰國清單在 404 ＋ 22904 × 槽 ＋ 48 ×（n − 1），9 bytes、0 結尾。4 個槽 58 國都和 FC 的相鄰表相同（✅ cross）。所屬州在 PC-98 的檔裡沒找到，沿用 FC（國依州的順序編號，4 國冀州、10 國徐州和 PC-98 畫面相同）。
 - 戰場是「被攻打的國」那一張：國 n 用 `NN.png`（`san1 battlemap` 的檔名就是國號）。FC 版在模擬器驗證過 5 國（famicom-re 同文件），✅ cross。
 
 
@@ -917,3 +918,27 @@ EXE 的 `.text` 沒有解開，以下是資料交叉比對的結果。
 関的兩端：壺關（晉陽–鄴）、虎牢關（陳留–洛陽）、潼關（長安–函谷關）、函谷關（洛陽–潼關）、武關（宛–長安）、陽平關（長安–漢中–羌）、白水關（漢中–劍閣）、劍閣（梓潼–白水關）、涪水關（梓潼–綿竹關）、綿竹關（成都–涪水關）。
 
 府 242 個（一般的郡），完整列表在子任務的 CSV，沒有抄進這裡。
+
+## koei-wiki 匯出（`places-export`）
+
+`dekoei.py places-export <dataset> --game-dir ../games/<dataset> --out ../export/koei-wiki/places`（`places_export.py`）把上面的地點表輸出成 koei-wiki 的 koei-places/1 格式（規格在 `koei-wiki:docs/sanguo-places-format.mkdn`）：`<dataset>.jsonl` 一個地點一行，戰場圖 PNG 放 `<dataset>/`。交接記錄見 `docs/backlog/sanguo-places-export.md`。
+
+- 每次匯出都會檢查：引用的地點號存在、戰場圖檔案存在、`from` 和該地點相鄰、相鄰關係雙向一致，印出「N checked, M mismatched」。
+- I–III 只有一種戰鬥，`role` 填「戰場」（規格的列舉沒有，已告知 koei-wiki）。
+- 各代的取法：
+  - I（`san1-pc98`）：相鄰取 PC-98 `SAVEDATA` 第 0 槽，所屬州照 FC（`uncertain: province`）；戰場圖同 `san1 battlemap`，圖塊從 `captures/screenshots/san1-pc98/battle-04.png`、`battle-10.png` 切。
+  - II（`san2-pc98`）：`name` 是 null，`nameBorrowed` 取三国志ツクール的州名；`pos` 是六角格的軸座標（`SAN2_PROVINCE_HEX`）。
+  - III（`san3-pc98`）：46 州＋22 據點，`level` 據點標 uncertain；`pos` 是 15 × 16 的六角格。
+  - IV（`san4pk-pc98`）：讀 PK 的 `MAIN.EXE`（都市表 0x4615D、野戰表 0x3FC28，和本體 byte 相同）；戰場圖用 PK 的 `HEXMAP.S4`／`HKMAP.S4`（`HKMAP.S4` 第 38 段和本體不同），色盤用本體 `MAIN.EXE` 的位置（PK 的同一組 bytes 在別處，byte 相同），種類 0、季節 0。每個鄰城一筆野戰圖（`from`）。
+
+  - IX（`san9pk-win`）：45 都市、5 異民族、8 関、35 港、94 個只有地名的地點（`level`「地名」是這邊的分類，標 uncertain）；地點號是 `bldg` 序號＋50，`parentCity` 是 bldg +14，`pos` 是 200 × 200 格。沒有相鄰表、沒有戰場圖。
+  - X（`san10pk-win`）：200 筆＝地點表全部，119–199 號是市街戰、平地／山地街道、水路的戰場項目，不是地名（`level` 依名稱分類，標 uncertain）。都市、拠点有 `pos`（雙倍寬座標的六角格，200 × 255）與 `region`；拠点的 `parentCity` 取自大地圖格子的所屬都市（uncertain）。沒有相鄰表；戰場圖第三批補。地名外字補了譙、祁、嶲、鄴、邳、淄、并、兗（`SAN10_GAIJI`）。
+  - 11（`san11pk-win`）：42 都市、10 関、35 港；都市的州、地方取州記錄，相鄰取 `Scenario.s11`。関、港的 `parentCity`（以及州、地方）是大地圖 SHEX0008 上和它的領地接壤最長的都市，推定（uncertain）。沒有座標。
+  - 14（`san14pk-win`）：242 府、40 港、51 都市（含 5 異民族）、10 關，`name` 用繁中版、`nameJa` 填日文寫法不同的。相鄰是地區記錄 +47 起 8 個 u16；只有羌（341，PK 新增）→陰平（302）是單向，繁中、日文版相同，是遊戲資料本身（`SAN14_ONE_WAY`，兩邊的 `notes` 有說明）。`level` 依治所格的地形碼分。
+  - V（`san5pk-pc98`）：47 都市，PK 的都市表、`HEXMAP.S5`、`HEXGRP.S5` 和本體 byte 相同；戰場圖第 n 張推定是第 n 個都市（`uncertain: battlemaps`），色盤取本體 `games/san5-pc98/MAIN.EXE`、第 0 組。
+  - VI（`san6pk-win`）：45 都市、6 外族、117 個野戰地點（號碼是遊戲地點號 ＋ 51，名稱是「鄴９」這類開發標記）；攻城圖 SHIRO、野戰圖 SENJOU 共 79 張。鄰城表哪一方是攻方照古戰場地理推定（`uncertain: battlemaps`），「野戰地點」是這邊的分類。
+  - VII（`san7pk-win`）：54 都市、192 個戰場；戰場圖是 `G_YMap00–29.s7` 30 張。「戰場」是這邊的分類；會稽第 4 格有戰場沒鄰城，照遊戲資料不輸出那一筆。
+  - VIII（`san8pk-win`）：50 都市、172 個道路地點（`name` null：191 個戰場名和地點對不上；`parentCity` 取道路 A 端的都市）。每個地點用 `G_W01Map.s8` 哪兩張拼成寫在 `notes`，但色盤沒找到，沒有輸出圖。
+  - 12（`san12pk-win`）：40 都市，日文版名稱（沒找到繁中版的資料），沒有圖（3D）。
+  - 13（`san13pk-win`）：60 都市、147 縣級地點、8 關、22 港、2 渡口、7 沖、20 個其他地點；縣級地點的 `level`、`parentCity`（取相關都市的第一個）標 uncertain。攻城、關的場景名寫在 `notes`，野戰依地域碼選圖、不掛在地點上；沒有圖（3D）。繁中版外字 FA70 照日文版補成「坂」。
+- 還沒做：X 的 200 張戰場圖、VIII 的色盤、VI 的攻守方向。

@@ -260,9 +260,10 @@ def render_tile_layers(m, cols, rows, bases, tiles, palette) -> Image.Image:
     return im
 
 
-def render_san4_battle_maps(game_dir, kind=0, season=0) -> list[Image.Image]:
-    """88 maps of 640x352: 45 field, then 43 siege."""
-    palette = san4_pc98_battle_palette(os.path.join(game_dir, 'MAIN.EXE'), kind, season)
+def render_san4_battle_maps(game_dir, kind=0, season=0, palette_exe=None) -> list[Image.Image]:
+    """88 maps of 640x352: 45 field, then 43 siege. palette_exe: the MAIN.EXE with the palette at the base
+    game's offsets (the PK has the same bytes elsewhere)."""
+    palette = san4_pc98_battle_palette(palette_exe or os.path.join(game_dir, 'MAIN.EXE'), kind, season)
     images = []
     for map_file, grp_file, count, bases in SAN4_BATTLE_MAPS:
         with open(os.path.join(game_dir, grp_file), 'rb') as f:
