@@ -2169,7 +2169,8 @@ ISHIN_PC98_SCENARIO = 0xA770  # SHINARIO.DAT: 3 scenarios, each loaded to DS:0x9
 ISHIN_PC98_FACES = 0x3C  # scenario offset of the 6-byte face records (DS:0x9346, 0x4AB1)
 # KOEI gaiji in the names; glyphs in USKCG.SYS
 ISHIN_PC98_GAIJI = {0xEB9F: "恂", 0xEBA0: "寛", 0xEBA1: "屏", 0xEBA2: "佶", 0xEBA3: "溥", 0xEBA5: "叟", 0xEBA6: "孚",
-                    0xEBA7: "訥", 0xEBA8: "阮", 0xEBA9: "煕", 0xEBAA: "襄", 0xEBAB: "奎", 0xEBAC: "霖", 0xEBAD: "謨"}
+                    0xEBA7: "訥", 0xEBA8: "阮", 0xEBA9: "煕", 0xEBAA: "襄", 0xEBAB: "奎", 0xEBAC: "霖", 0xEBAD: "謨",
+                    0xEBAE: "耆", 0xEBB2: "忱", 0xEBB3: "韶"}  # EBAE: 伯耆 in the scenario place names; EBB2/EBB3: scenario 2-3 given names (小笠原忠忱, 細川韶邦)
 
 
 def _ishin_pc98_text(raw: bytes) -> str:
@@ -2182,21 +2183,27 @@ def _ishin_pc98_text(raw: bytes) -> str:
     return "".join(out)
 
 
-def load_ishin_pc98_persons(isin_exe, shinario) -> list[tuple[str, list[bytes]]]:
-    """(name, face record of each scenario) of the historical people.
+ISHIN_PC98_GIVEN = 0x983A  # scenario offset of the 9-byte given names
 
-    Names are in ISIN.EXE (surname 7 bytes at 0x42312, given name 9 bytes at 0x449F4); the face records are
-    in SHINARIO.DAT: 0xFF and a KAODAT.DAT face, or a MONDAT.DAT composite."""
+
+def load_ishin_pc98_persons(isin_exe, shinario) -> list[tuple[list[str], list[bytes]]]:
+    """(name in each scenario, face record of each scenario) of the historical people.
+
+    Surnames are in ISIN.EXE (7 bytes at 0x42312). Given names are 9 bytes in each scenario of SHINARIO.DAT
+    (+0x983A); the load puts them over ISIN.EXE's default table (0x449F4 = DS:0xA034, which 0x622:0x198 reads),
+    which differs in 4 people of scenario 1 and the successors of scenarios 2-3. The face records are in
+    SHINARIO.DAT too: 0xFF and a KAODAT.DAT face, or a MONDAT.DAT composite."""
     with open(isin_exe, "rb") as f:
         exe = f.read()
     with open(shinario, "rb") as f:
         sc = f.read()
     persons = []
     for i in range(ISHIN_PC98_PEOPLE):
-        name = "".join(_ishin_pc98_text(exe[o + i * n:o + (i + 1) * n].split(b"\0")[0])
-                       for o, n in ((0x42312, 7), (0x449F4, 9)))
+        surname = _ishin_pc98_text(exe[0x42312 + i * 7:][:7].split(b"\0")[0])
+        names = [surname + _ishin_pc98_text(sc[s + ISHIN_PC98_GIVEN + i * 9:][:9].split(b"\0")[0])
+                 for s in range(0, len(sc), ISHIN_PC98_SCENARIO)]
         faces = [sc[s + ISHIN_PC98_FACES + i * 6:][:6] for s in range(0, len(sc), ISHIN_PC98_SCENARIO)]
-        persons.append((name, faces))
+        persons.append((names, faces))
     return persons
 
 

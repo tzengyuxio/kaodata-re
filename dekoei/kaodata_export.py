@@ -2934,6 +2934,7 @@ ISHIN_PC98_LAYERS = {
 ISHIN_PC98_SHIFTS = range(-2, 2)  # y-offset fields are 2 bits - 2
 # misspelt names (the PC-88 version spells them right)
 ISHIN_PC98_NAME_HISTORICAL = {"徳川義勝": "徳川慶勝", "福島種臣": "副島種臣", "村田信八": "村田新八"}
+ISHIN_PC98_SAME_PERSON = {"明冶天皇": "明治天皇"}  # scenarios 2-3 misspell the given name
 
 
 def ishin_pc98_fields(rec: bytes) -> list[int]:
@@ -3035,22 +3036,31 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
             # in scenario 2 the successor takes over the record (and the face)
             later += [{"name": n, "face": dict(f)} for n in names[1:] if n != names[0]]
         characters += [{"id": len(characters) + k, **ch} for k, ch in enumerate(later)]
-    for name, recs in [] if pc88 else koei_games.load_ishin_pc98_persons(os.path.join(game_dir, "ISIN.EXE"),
-                                                         os.path.join(game_dir, "SHINARIO.DAT")):
-        ch = {"id": len(characters), "name": name, "face": face(recs[0])}
-        if name in ISHIN_PC98_NAME_HISTORICAL:
-            ch["nameHistorical"] = ISHIN_PC98_NAME_HISTORICAL[name]
-        # a few people have another face in a later scenario
-        looks = []
-        for s, rec in enumerate(recs):
-            if looks and looks[-1][0] == rec:
-                looks[-1][1].append(s + 1)
+    later = []
+    for names, recs in [] if pc88 else koei_games.load_ishin_pc98_persons(os.path.join(game_dir, "ISIN.EXE"),
+                                                          os.path.join(game_dir, "SHINARIO.DAT")):
+        # a successor takes over the record in a later scenario (another given name); each name is a character
+        people = {}
+        for s, (name, rec) in enumerate(zip(names, recs)):
+            people.setdefault(ISHIN_PC98_SAME_PERSON.get(name, name), []).append((s + 1, rec))
+        for k, (name, uses) in enumerate(people.items()):
+            ch = {"name": name, "face": face(uses[0][1])}
+            if name in ISHIN_PC98_NAME_HISTORICAL:
+                ch["nameHistorical"] = ISHIN_PC98_NAME_HISTORICAL[name]
+            looks = []  # a few people have another face in a later scenario
+            for s, rec in uses:
+                if looks and looks[-1][0] == rec:
+                    looks[-1][1].append(s)
+                else:
+                    looks.append((rec, [s]))
+            if len(looks) > 1:
+                ch["face"]["label"] = "劇本" + "、".join(map(str, looks[0][1]))
+                ch["expressions"] = [{**face(rec), "label": "劇本" + "、".join(map(str, ss))} for rec, ss in looks[1:]]
+            if k:
+                later.append(ch)
             else:
-                looks.append((rec, [s + 1]))
-        if len(looks) > 1:
-            ch["face"]["label"] = "劇本" + "、".join(map(str, looks[0][1]))
-            ch["expressions"] = [{**face(rec), "label": "劇本" + "、".join(map(str, ss))} for rec, ss in looks[1:]]
-        characters.append(ch)
+                characters.append({"id": len(characters), **ch})
+    characters += [{"id": len(characters) + k, **ch} for k, ch in enumerate(later)]
 
     meta = {
         "format": FORMAT, "id": "ishin-pc88" if pc88 else "ishin-pc98", "game": "ISHIN",
