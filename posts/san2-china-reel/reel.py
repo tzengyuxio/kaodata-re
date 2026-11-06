@@ -11,8 +11,8 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 W, H, FPS = 1080, 1920, 30
-FONT = "/Users/user/.local/share/fonts/STHeiti Medium.ttc"
-FC = "/Users/user/works/famicom-re/san2/output"
+FONT = os.path.expanduser("~/.local/share/fonts/STHeiti Medium.ttc")
+FC = os.path.expanduser("~/works/famicom-re/san2/output")
 
 # axial hex coordinates of provinces 1-41 (kaodata-re dekoei/san2.py SAN2_PROVINCE_HEX)
 HEX = [
@@ -32,7 +32,7 @@ FC_LABELS = [
     (152, 264),
 ]
 
-SFC = "/Users/user/works/superfamicom-re/san2/output"
+SFC = os.path.expanduser("~/works/superfamicom-re/san2/output")
 SFC_LABELS = [
     (409, 24), (343, 24), (296, 24), (247, 24), (231, 56), (327, 56), (279, 56), (359, 88),
     (312, 104), (264, 104), (216, 104), (184, 88), (136, 88), (104, 72), (56, 24), (375, 120),
@@ -50,7 +50,7 @@ PC98_LABELS = [
     (217, 316), (170, 328), (139, 332), (112, 297), (101, 345),
 ]
 VIDEO = os.path.dirname(os.path.abspath(__file__))  # pc98_map.png, pc98_司馬懿.png from pc98_assets.py
-PC98 = "/Users/user/works/kaodata-re/games/san2-pc98/extract/battlemap"
+PC98 = os.path.expanduser("~/works/kaodata-re/games/san2-pc98/extract/battlemap")
 
 VERSIONS = {
     "fc": dict(
@@ -243,7 +243,7 @@ XF = 0.9
 SETTLE = 0.9  # map alone before the narrator shows up
 MAIN0 = TEASER - XF + SETTLE  # video time of main_frame(0)
 TOTAL = MAIN0 + T_END
-MUSIC = "/Users/user/works/kaodata/posts/reel/out/theme-sangokushi.wav"
+MUSIC = os.path.expanduser("~/works/kaodata/posts/reel/out/theme-sangokushi.wav")
 
 
 def frame_at(t):
