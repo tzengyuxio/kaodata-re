@@ -2,6 +2,7 @@
 <out>/<dataset>.jsonl and the battle maps as PNG in <out>/<dataset>/, in the koei-places/1 format
 (koei-wiki docs/places-format.mkdn). Where each table comes from and how sure it is: notes/san-maps.md, and for
 水滸傳 notes/koei-games.md「州與戰場地圖」."""
+import importlib
 import json
 import os
 import struct
@@ -898,6 +899,10 @@ DATASETS = {"san1-pc98": places_san1_pc98, "san2-pc98": places_san2_pc98, "san3-
             "san10pk-win": places_san10pk_win,
             "san11pk-win": places_san11pk_win, "san12pk-win": places_san12pk_win, "san13pk-win": places_san13pk_win,
             "san14pk-win": places_san14pk_win, "suikoden-dos": places_suikoden_dos}
+# 信長の野望: dataset -> module wiki_<game>.py with places(game_dir, out_dir)
+MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
+           "nobu5pk-win": "wiki_nobu5", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
+           "nobu8pk-win": "wiki_nobu8"}
 
 
 def check(dataset, rows, out_dir):
@@ -931,7 +936,7 @@ def check(dataset, rows, out_dir):
 
 
 @click.command()
-@click.argument("dataset", type=click.Choice(list(DATASETS)))
+@click.argument("dataset", type=click.Choice(list(DATASETS) + list(MODULES)))
 @click.option("--game-dir", "game_dir", required=True)
 @click.option("--out", "out", required=True, help="輸出目錄（寫 <dataset>.jsonl 與 <dataset>/ 的戰場圖）")
 def places_export(dataset, game_dir, out):
@@ -940,7 +945,8 @@ def places_export(dataset, game_dir, out):
     dekoei.py places-export san3-pc98 --game-dir ../games/san3-pc98 --out ../export/koei-wiki/places
     """
     map_dir = os.path.join(out, dataset)
-    rows = [{"dataset": dataset, **r} for r in DATASETS[dataset](game_dir, map_dir)]
+    reader = importlib.import_module(MODULES[dataset]).places if dataset in MODULES else DATASETS[dataset]
+    rows = [{"dataset": dataset, **r} for r in reader(game_dir, map_dir)]
     with open(os.path.join(out, f"{dataset}.jsonl"), "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

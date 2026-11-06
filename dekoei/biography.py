@@ -2,6 +2,7 @@
 section, {"dataset", "id", "name", "lang", "kind", "text"}. id is the person id of the kaodata dataset; kind is 簡介
 (the one-line summary), 演義, 史實, or 單段 for a biography that is not split. Sections that only say 無記述 are left
 out. Formats are in notes/<game>.md「列傳」."""
+import importlib
 import json
 import os
 import struct
@@ -256,23 +257,29 @@ def san14_names(game_dir) -> dict[int, str]:
 DATASETS = {"san4pk-dos": (san4_bios, lambda d: {i: v[0] for i, v in san4_persons(d).items()}),
             "san5pk-dos": (san5_bios, lambda d: {i: v[0] for i, v in san5_persons(d).items()}),
             "san6pk-win": (san6_bios, san6_names), "san13pk-win": (san13_bios, san13_names), "san14pk-win": (san14_bios, san14_names)}
+# 信長の野望: dataset -> module wiki_<game>.py with bios(game_dir) -> {id: [(kind, text)]}, bio_names(game_dir) -> {id:
+# name} and BIO_LANG (the text's language)
+MODULES = {"nobu5pk-win": "wiki_nobu5", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7", "nobu8pk-win": "wiki_nobu8"}
 
 
 def records(dataset, game_dir):
-    bios, names = DATASETS[dataset]
+    if dataset in MODULES:
+        m = importlib.import_module(MODULES[dataset])
+        bios, names, lang = m.bios, m.bio_names, m.BIO_LANG
+    else:
+        (bios, names), lang = DATASETS[dataset], "zh-Hant"
     names = names(game_dir)
     for n, parts in sorted(bios(game_dir).items()):
         for kind, text in parts:
-            yield {"dataset": dataset, "id": n, "name": names.get(n, ""), "lang": "zh-Hant", "kind": kind,
-                   "text": text}
+            yield {"dataset": dataset, "id": n, "name": names.get(n, ""), "lang": lang, "kind": kind, "text": text}
 
 
 @click.command()
-@click.argument("dataset", type=click.Choice(sorted(DATASETS)))
+@click.argument("dataset", type=click.Choice(sorted({**DATASETS, **MODULES})))
 @click.option("--game-dir", "game_dir", required=True)
 @click.option("--out", "out", required=True, help="JSONL 檔")
 def biography(dataset, game_dir, out):
-    """匯出繁中版的武將列傳（JSONL，給 koei-wiki）"""
+    """匯出武將列傳（JSONL，給 koei-wiki；三國志是繁中版，信長の野望照主資料集的語言）"""
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     n = 0
     with open(out, "w", encoding="utf-8") as f:
