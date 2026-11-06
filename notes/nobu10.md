@@ -123,6 +123,20 @@
 - `pos`：GMAP_POS.NBX 的座標，`grid` 寫 `pixel`，標 `uncertain`。畫出 250 點與道路連線，每條路都連到附近的點，整體是橫向拉長的日本列島（✅ cross：和相鄰表一致），但沒有和地圖圖檔對過，單位與地圖寬高不明。
 - 檢查：1972 項、0 筆不符。沒有戰場圖。
 
+### 人物與列伝（2026-11-07）
+
+`dekoei.py persons-export nobu10pk-win --game-dir ../games/nobu10pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_nobu10.persons`，koei-persons/1）、`dekoei.py biography nobu10pk-win --game-dir ../games/nobu10pk-win --out ../export/koei-wiki/nobu10pk-win.jsonl`（`bios`、`bio_names`）。`games/nobu10pk-win/RETSUDEN.NBX` 是 Steam 版 `DATA/RETSUDEN.NBX` 的硬連結。
+
+- 1990 人（id＝武將序號 0–1989，同 kaodata）；檢查 21052 項、0 筆不符，koei-wiki `verify_persons.py` 58926 項、0 筆不符。列伝 1790 筆（0–1499、1600–1889，日文 `ja`，`kind` 單段）。
+- `name`、`reading`：劇本 06 的姓＋名、讀音。`born`、`died`（+57、+61）✅。
+- `stats`：政治、統率、知略取原始值（未誕生、元服前、死亡與状態 10–12 的記錄存的值，各劇本相同、經驗 0）✅ cross；100 人在 11 個劇本都已登場，取最早劇本（09，1495 年）成長過的值，標 `uncertain: stats`。
+- `hidden`：相性Ａ、相性Ｂ、義理、野心（+75、+76、+78、+80）🟡。`skills`：特技（+113）✅ cross、策戦（+107..+109 bits）✅ code＋cross。
+- `relations`：father（+69）✅ cross、children／siblings 由 father 反推、clan（+67 血族）🟡。義父、養父（+71、+73）寫進 `notes`；女性記錄的「夫」（+66）指向的人，在 `notes` 寫妻的名字（女性不是 kaodata 人物）。
+- `game`：出自（+56）🟡、出身国（+60）🟡、兵種（+98，取最後一個登場的劇本）🟡。
+- `scenarios`（11 個劇本，依劇本年排）：`status` 是 +52 状態的名稱 ✅；死亡的不列；未誕生填 `debut`＝生年（不在 verify 的「未登場」集合裡，但照遊戲稱呼）；其他填 `location`（+83 居城）、`lord`（+82 所属勢力在大名家表的大名武將，🟡）、一般／城主／軍団長填 `loyalty`（+90）。状態 10–12 的 90 人（1900– 的蠣崎信広、藤原秀衡、北畠顕家…）沒有劇本放，不列 `scenarios`。
+- 列伝本文的轉換同 9 代（半形片假名→平假名、ESC K…ESC H 片假名、去掉折行）；76 人的標題寫法和劇本 06 不同（松平秀康／結城秀康等），寫在 `notes`。
+- 沒給：重視（+77 ❌）、口調（+114 🟡 對不上）、官位（+117 🟡）、武名、知行、兵士等隨劇本變的值。
+
 ## 負面結論／未解
 
 - 重視（+77）的 bit 和畫面上的三種「重視」對不上；+114、+117 的意義沒確認。要確認得看人物畫面的截圖（沒跑模擬器）。

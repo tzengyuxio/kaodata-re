@@ -10,7 +10,8 @@ import click
 # dataset -> module with persons(game_dir)
 DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
             "nobu5pk-win": "wiki_nobu5", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
-            "nobu8pk-win": "wiki_nobu8"}
+            "nobu8pk-win": "wiki_nobu8", "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10",
+            "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13"}
 
 
 def check(rows, places):

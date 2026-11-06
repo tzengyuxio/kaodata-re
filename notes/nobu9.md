@@ -19,7 +19,8 @@
 
 - 從人物記錄的姓起算，u32 政治 +176、統率 +184、知略 +192、野望 +200；中間的 u32（0–99）像是各項的經驗（`koei_games.load_nobu9_win_stats`，`dekoei.py nobu-person nobu9pk-win`）。存的值最高到 政治 113、統率 137、知略 115、野望 100。
 - 🟡 capture（web，4Gamer 試玩版）：`status-screens/nobu9pk-win-web-01.jpg` 柴田勝家（35 歲，劇本 02）顯示 政治 30、統率 45、知略 27、野望 83；檔案是 60、91、54、83，前三項顯示成一半（無條件捨去）。只有這一張，發售版是否也減半未確認。
-- 值隨劇本成長。劇本年：01 1534、02 1556、03 1570、04、05 1582；PK 08–14 的檔頭沒有年份。
+- 值隨劇本成長。劇本年：01 1534、02 1556、03 1570、04、05 1582；PK 08–14 的檔頭沒有年份，從人物推出 08 1545、09 1560、10 1573、11 1585、12、13 1599、14 1614（每個劇本裡，有勢力的人的元服年最大值剛好等於他們的歿年最小值；01–05 也符合 ✅ cross，PK 的和劇本說明文的年份相符）。
+- 不在場的記錄（元服前、已死）存原始值：1465 人在所有不在場的劇本裡值都相同 ✅ cross。
 
 ## 頭像的分配
 
@@ -99,3 +100,17 @@
 - **国**（77 筆）：place id 是国號＋1000。`level` 0–53 是「国」，54–76 是「海」（海峡、灘、湾；遊戲裡這類的稱呼沒找到，`uncertain: level`）。`region` 是国記錄 +0x2C 的地方名，海沒有地方。`adjacent` 是陸上 6 格加海上 3 格，77 國雙向一致 ✅。
 - **城**（135 筆）：id 是城號 0–134，`level`「城」，`province` 取国記錄的城串列（和城記錄 +0x2C 的国一致，assert 過），`region` 取所屬国的地方。名稱取劇本 01（1534 年），12 個劇本裡有 50 座城換過名，其他名稱寫在 `notes`。
 - 沒有給：城與城的相鄰、大地圖座標（都沒找到）、戰場圖（`war/00–53.NB9` 一國一張只是張數相符 🟡，沒渲染）。都市、寺社、国人衆、忍者衆、水軍衆的記錄沒解，沒匯出。
+
+### 人物與列伝（2026-11-07）
+
+`dekoei.py persons-export nobu9pk-win --game-dir ../games/nobu9pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_nobu9.persons`，koei-persons/1）、`dekoei.py biography nobu9pk-win --game-dir ../games/nobu9pk-win --out ../export/koei-wiki/nobu9pk-win.jsonl`（`bios`、`bio_names`）。`games/nobu9pk-win/RETSUDEN.NB9` 是 Steam 版的硬連結。
+
+- 1465 人（id 同 kaodata：武將 0–1449、史實武將 30000–30014）；檢查 19939 項、0 筆不符，koei-wiki `verify_persons.py` 49714 項、0 筆不符。列伝 1450 筆（武將全有，日文 `ja`，`kind` 單段）。
+- `name`、`reading`：劇本 14 的姓＋名、讀音。`born`、`died` +0x5E、+0x66 ✅。
+- `stats`：政治、統率、知略、野望，取原始值（不在場的劇本存的值）✅ cross；顯示是否減半 🟡（見「能力」）。
+- `hidden.元服年`（+0x62）🟡；`relations`：father（+0x7A，0x8000｜n 不填）✅ cross、children／siblings 由 father 反推、clan（+0x6A 血族）🟡。配偶者（+0x7E）都是姫，不是 kaodata 人物，名字寫進 `notes`。
+- `game`：通称（+10）✅、出身国（+0x76）🟡、兵種（+0xDC，取最後一個登場的劇本）🟡。
+- `scenarios`（12 個劇本，依劇本年排）：歿年早於劇本年的不列；元服年晚於劇本年是「未登場」，`debut`＝元服年、`location` 是記錄裡的居城（登場的城）；有勢力的是大名（同勢力裡主君 +0xAC 是 0xFFFF 的那一人，每個勢力剛好一人）或家臣，`lord` 是那個大名；沒有勢力但有居城是浪人；`loyalty` 是家臣的 +0xE0。遊戲的身分稱呼沒找到，`status` 全是推的 🟡；`year` 見上面推出的劇本年 🟡。
+- 30000 起的史實武將劇本裡沒有勢力，不列 `scenarios`；生歿年照存的值（和史實不同）。
+- 列伝本文：半形片假名顯示成平假名、ESC K…ESC H 是片假名、換行只是視窗折行，去掉。55 人的列伝標題寫法和劇本 14 的名字不同（雫石詮貞／斯波詮貞等改名前後），寫在 `notes`。
+- 沒給：勲功、知行、身分（+0xD8 0–3，名稱沒找到）、特技、相性、義理、口調（位置沒找到 ❌）。
