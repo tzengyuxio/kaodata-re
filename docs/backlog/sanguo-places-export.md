@@ -44,7 +44,7 @@ koei-wiki 要建三國地點與州條目。請把 `notes/san-maps.md` 整理好�
 ## 現況（2026-11-06）
 
 - 三批都已輸出：`dekoei.py places-export <dataset>`（`dekoei/places_export.py`），14 個資料集（三1–三14）每個都印 0 mismatched；三9 原本漏在三批的計畫外，已補上。各代的取法與未確認的部分見 `notes/san-maps.md`「koei-wiki 匯出」。
-- 有戰場圖 PNG 的：三1–三7（三5 是推定對應）。三8 缺色盤、三10 還沒寫渲染、三12／13 是 3D。
+- 有戰場圖 PNG 的：三1–三8（三5 是推定對應；三8 的色盤是看圖找的）。三10 還沒寫渲染、三12／13 是 3D。
 - 和 koei-wiki 談定的格式調整：`battlemaps[].from`、`nameBorrowed`、`pos.grid` 自由字串＋`w`／`h`、I–III 的 `role` 填「戰場」。
 
 ## 下一步
@@ -52,5 +52,6 @@ koei-wiki 要建三國地點與州條目。請把 `notes/san-maps.md` 整理好�
 - 2026-11-06 交付 kaodata-re@58f2f12，koei-wiki 複驗 14 個資料集 23609 項、0 筆不符，已收下。
 
 - 2026-11-06 koei-wiki 追加水滸傳：`suikoden-dos` 49 州，每州每季一張戰場圖（196 張）。新增的選填欄位是 `cities` 和 `battlemaps[].season`。本地檢查 668 項，koei-wiki 的 `scripts/verify_sanguo_places.py` 檢查 1217 項，都是 0 筆不符。還沒 commit，也還沒交付。
-- 之後：三10 戰場圖、三8 色盤（已在 `p_main.s8` 找到，第 174＋k%35 組，🟡，還沒接進匯出）、三6 攻守方向。
+- 2026-11-06 三8 戰場圖補進匯出：43 張 2016×648 PNG，色盤是 `p_main.s8` 第 174＋k%35 組（🟡）。本地檢查 1832 項，koei-wiki 的 verify 檢查 3559 項，都是 0 筆不符。還沒 commit，也還沒交付。
+- 之後：三10 戰場圖、三6 攻守方向。
 

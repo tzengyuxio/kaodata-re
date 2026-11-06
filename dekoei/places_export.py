@@ -8,6 +8,7 @@ import struct
 import unicodedata
 
 import click
+from PIL import Image
 
 import koei_games
 import san1
@@ -601,8 +602,20 @@ def places_san7pk_win(game_dir, out_dir):
 # +1 5, reading +6 7, 州 +13), 86 roads from 0xB22 (7 bytes: kind, city A, city B, A-end place, B-end place, FF FF);
 # the 172 places are the road ends (D_YMap.s8 part k is place k). San8WPK.exe VA 0x5D8A00 finds the place of the
 # city pair; place -> picture: file 0x363EF0, 172 x (u32 left, u32 right) into G_W01Map.s8 (left, 35 + right).
-# The pictures' palette is not found, so no PNG. Place ids here: cities 0-49, place k is 50 + k.
-SAN8_STATES, SAN8_CITIES, SAN8_ROADS, SAN8_PICTURES = 0x22, 0x7F3, 0xB22, 0x363EF0
+# Each half is 1008 x 648 in its own palette: half k (and 35 + k) uses p_main.s8 palette 174 + k (256 x RGBX; 209-243
+# repeat 174-208), found by colour statistics and by eye, not in the code. Place ids here: cities 0-49, place k is
+# 50 + k.
+SAN8_STATES, SAN8_CITIES, SAN8_ROADS, SAN8_PICTURES, SAN8_PALETTES = 0x22, 0x7F3, 0xB22, 0x363EF0, 174
+
+
+def san8_picture(halves, palettes, left, right):
+    """The 2016 x 648 battle map of W01Map[left] + W01Map[35 + right], each half in palette 174 + its number."""
+    out = Image.new("RGB", (2016, 648))
+    for x, k in ((0, left), (1008, 35 + right)):
+        im = Image.frombytes("P", (1008, len(halves[k]) // 1008), halves[k])
+        im.putpalette(b"".join(palettes[SAN8_PALETTES + k % 35][4 * c:4 * c + 3] for c in range(256)))
+        out.paste(im.convert("RGB"), (x, 0))
+    return out
 
 
 def places_san8pk_win(game_dir, out_dir):
@@ -626,20 +639,44 @@ def places_san8pk_win(game_dir, out_dir):
     end = {}
     for kind, a, b, pa, pb in roads:
         end[pa], end[pb] = (a, b, kind), (b, a, kind)
+    file = {p: f"W01Map_{pictures[2 * p]:02d}_{35 + pictures[2 * p + 1]:02d}.png" for p in end}
+    with open(os.path.join(game_dir, "G_W01Map.s8"), "rb") as f:
+        halves = sango.koei_archive(f.read())
+    with open(os.path.join(game_dir, "p_main.s8"), "rb") as f:
+        palettes = sango.koei_archive(f.read())
+    os.makedirs(out_dir, exist_ok=True)
+    for p in sorted(end, key=file.get):
+        path = os.path.join(out_dir, file[p])
+        if not os.path.exists(path):
+            san8_picture(halves, palettes, pictures[2 * p], pictures[2 * p + 1]).save(path)
+    users = {}
+    for p in end:
+        users.setdefault(file[p], []).append(50 + p)
+    palette_note = "戰場圖的色盤是 p_main.s8 第 174＋（半張號 mod 35）組，用色彩統計和看圖找到，程式裡的出處沒追。"
     rows = []
     for k, r in enumerate(cities):
-        adjacent = [b if a == k else a for _, a, b, _, _ in roads if k in (a, b)]
+        adjacent, maps = [], []
+        for _, a, b, pa, pb in roads:
+            if k in (a, b):
+                adjacent.append(b if a == k else a)
+                maps.append({"file": file[pa if a == k else pb], "role": "野戰", "from": b if a == k else a})
         rows.append({"id": k, "name": s(r[1:6]), "reading": _reading(r[6:13]), "level": "都市",
-                     "province": states[r[13]], "adjacent": adjacent,
-                     "notes": "相鄰是 D_Sce.s8 的道路表，照道路順序。戰場圖的色盤沒找到，沒有輸出圖。"})
+                     "province": states[r[13]], "adjacent": adjacent, "battlemaps": maps, "uncertain": ["battlemaps"],
+                     "notes": "相鄰是 D_Sce.s8 的道路表，照道路順序。戰場圖取道路在這個都市一端的地點；"
+                              "遊戲用守方還是攻方那一端沒確認，所以標 uncertain。" + palette_note})
     for p in range(len(end)):
         a, b, kind = end[p]
-        rows.append({"id": 50 + p, "name": None, "level": "道路地點", "parentCity": a, "uncertain": ["level"],
+        m = {"file": file[p], "role": "野戰"}
+        shared = [x for x in users[file[p]] if x != 50 + p]
+        if shared:
+            m["sharedWith"] = shared
+        rows.append({"id": 50 + p, "name": None, "level": "道路地點", "parentCity": a, "battlemaps": [m],
+                     "uncertain": ["level"],
                      "notes": f"道路 {s(cities[a][1:6])}—{s(cities[b][1:6])} 的{s(cities[a][1:6])}端（號碼是遊戲的地點號＋50，"
                               f"也是 D_YMap.s8 的段號），道路種類碼 {kind}。這一代的 191 個戰場名和 172 個地點對不上，"
                               "所以不填名稱；「道路地點」是這邊的分類。戰場圖是 G_W01Map.s8 第 "
-                              f"{pictures[2 * p]} 張（左）與第 {35 + pictures[2 * p + 1]} 張（右）拼成，172 個地點只有 43 種組合；"
-                              "哪一端是攻方沒確認。色盤沒找到，沒有輸出圖。"})
+                              f"{pictures[2 * p]} 張（左）與第 {35 + pictures[2 * p + 1]} 張（右）拼成，172 個地點只有 43 種組合，"
+                              "同組合的地形相同，差在布陣點和旗標。" + palette_note})
     return rows
 
 
