@@ -253,6 +253,13 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 🟡 +6、+7（中文版 +12、+13）和 +8、+10 的 u16（中文版 +14、+16）看起來是大地圖上的座標。PC-98 的 +8、+10 和 FC 的值相同，中文版的有些不同；兩版畫面不同，所以應該是畫州名或州圖示的位置，沒有追程式。+20（中文版 +26）是 0–7，三版相同，意義不明。
 - 49 筆之後還有 42 bytes（PC-98 0x33C5 起），沒解。
 
+**koei-wiki 匯出**：`dekoei.py places-export suikoden-dos --game-dir ../games/suikoden-dos --out ../export/koei-wiki/places`（`places_export.places_suikoden_dos`，koei-places/1，規格在 `koei-wiki:docs/places-format.mkdn`）。PC-98 版要放在旁邊的 `../suikoden-pc98`。
+
+- 49 州，`level` 是「州」。`name` 用中文版的寫法；`nameJa` 只在 PC-98 的寫法去掉「州」字後仍然不同時才填（大原、風翔、晋、隆徳、済、寿、峡）。
+- `cities` 填中文版的城數，所以 13 延安是 4；日文版寫 5，這點記在 `notes`。
+- 每州 4 筆 `battlemaps`，依季節分（`season`），`role` 是「戰場」，圖檔是 `春／夏／秋／冬/NN.png`。圖是用 PC-98 的 `HEXMAP.DAT` 和圖塊畫的。
+- `pos` 取中文版州表的 +14、+16。這是推定（🟡），所以 `uncertain` 標了 `pos`，`grid` 寫 `pixel`，單位沒確認。+12、+13 的兩個 byte 是另一組像座標的值，沒有匯出。
+
 | 州 | 中文版 | 日文版 | 城數 | 相鄰州 |
 |---:|---|---|---:|---|
 | 1 | 嵐州 | 嵐 | 2 | 2 代州、12 太原、13 延安 |

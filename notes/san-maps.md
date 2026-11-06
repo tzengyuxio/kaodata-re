@@ -921,7 +921,7 @@ EXE 的 `.text` 沒有解開，以下是資料交叉比對的結果。
 
 ## koei-wiki 匯出（`places-export`）
 
-`dekoei.py places-export <dataset> --game-dir ../games/<dataset> --out ../export/koei-wiki/places`（`places_export.py`）把上面的地點表輸出成 koei-wiki 的 koei-places/1 格式（規格在 `koei-wiki:docs/sanguo-places-format.mkdn`）：`<dataset>.jsonl` 一個地點一行，戰場圖 PNG 放 `<dataset>/`。交接記錄見 `docs/backlog/sanguo-places-export.md`。
+`dekoei.py places-export <dataset> --game-dir ../games/<dataset> --out ../export/koei-wiki/places`（`places_export.py`）把上面的地點表輸出成 koei-wiki 的 koei-places/1 格式（規格在 `koei-wiki:docs/places-format.mkdn`）：`<dataset>.jsonl` 一個地點一行，戰場圖 PNG 放 `<dataset>/`。交接記錄見 `docs/backlog/sanguo-places-export.md`。水滸傳（`suikoden-dos`）也用同一個指令，取法見 `notes/koei-games.md`「州與戰場地圖」。
 
 - 每次匯出都會檢查：引用的地點號存在、戰場圖檔案存在、`from` 和該地點相鄰、相鄰關係雙向一致，印出「N checked, M mismatched」。
 - I–III 只有一種戰鬥，`role` 填「戰場」（規格的列舉沒有，已告知 koei-wiki）。

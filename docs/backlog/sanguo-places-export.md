@@ -5,7 +5,7 @@ from: koei-wiki
 sources:
   - koei-wiki@048adb5:EDITORIAL.mkdn
   - koei-wiki@048adb5:assets/location_sanguo_template.mkdn
-  - koei-wiki:docs/sanguo-places-format.mkdn（未 commit，格式草案）
+  - koei-wiki:docs/places-format.mkdn（原 docs/sanguo-places-format.mkdn，2026-11-06 改名）
   - kaodata-re@e7cfc3b:notes/san-maps.md
 ---
 
@@ -13,7 +13,7 @@ sources:
 
 ## 結論
 
-koei-wiki 要建三國地點與州條目。請把 `notes/san-maps.md` 整理好的各代地點匯出成 `export/koei-wiki/places/<dataset>.jsonl`，一個地點一行；戰場圖 PNG 放 `export/koei-wiki/places/<dataset>/`。欄位照 koei-wiki 的 `docs/sanguo-places-format.mkdn`（koei-places/1 草案）：`dataset`、`id`、`name`、`level`（遊戲中的等級）、`province`、`region`、`parentCity`、`adjacent`、`battlemaps`、`pos`、`uncertain`、`notes`。
+koei-wiki 要建三國地點與州條目。請把 `notes/san-maps.md` 整理好的各代地點匯出成 `export/koei-wiki/places/<dataset>.jsonl`，一個地點一行；戰場圖 PNG 放 `export/koei-wiki/places/<dataset>/`。欄位照 koei-wiki 的 `docs/places-format.mkdn`（koei-places/1 草案）：`dataset`、`id`、`name`、`level`（遊戲中的等級）、`province`、`region`、`parentCity`、`adjacent`、`battlemaps`、`pos`、`uncertain`、`notes`。
 
 - 三1 到三14 都要，資料集 ID 和能力值匯出相同（`san1-pc98` … `san14pk-win`）。
 - 遊戲資料裡的地點**全部匯出**（野戰地點、三10 的拠点、三13 的縣級地點、三14 的府都要）；收不收條目由 koei-wiki 決定。
@@ -49,6 +49,8 @@ koei-wiki 要建三國地點與州條目。請把 `notes/san-maps.md` 整理好�
 
 ## 下一步
 
-- 使用者同意 commit 後，把 commit 與驗證數字傳給 koei-wiki。
-- 之後：三10 戰場圖、三8 色盤、三6 攻守方向。
+- 2026-11-06 交付 kaodata-re@58f2f12，koei-wiki 複驗 14 個資料集 23609 項、0 筆不符，已收下。
+
+- 2026-11-06 koei-wiki 追加水滸傳：`suikoden-dos` 49 州，每州每季一張戰場圖（196 張）。新增的選填欄位是 `cities` 和 `battlemaps[].season`。本地檢查 668 項，koei-wiki 的 `scripts/verify_sanguo_places.py` 檢查 1217 項，都是 0 筆不符。還沒 commit，也還沒交付。
+- 之後：三10 戰場圖、三8 色盤（已在 `p_main.s8` 找到，第 174＋k%35 組，🟡，還沒接進匯出）、三6 攻守方向。
 

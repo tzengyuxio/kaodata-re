@@ -1,6 +1,7 @@
-"""Places (provinces, cities, passes...) of 三國志 I-14 for koei-wiki: one JSONL line per place in
+"""Places (provinces, cities, passes...) of 三國志 I-14 and 水滸傳 for koei-wiki: one JSONL line per place in
 <out>/<dataset>.jsonl and the battle maps as PNG in <out>/<dataset>/, in the koei-places/1 format
-(koei-wiki docs/sanguo-places-format.mkdn). Where each table comes from and how sure it is: notes/san-maps.md."""
+(koei-wiki docs/places-format.mkdn). Where each table comes from and how sure it is: notes/san-maps.md, and for
+水滸傳 notes/koei-games.md「州與戰場地圖」."""
 import json
 import os
 import struct
@@ -8,6 +9,7 @@ import unicodedata
 
 import click
 
+import koei_games
 import san1
 import san2
 import san3
@@ -814,6 +816,42 @@ def places_san9pk_win(game_dir, out_dir):
     return rows
 
 
+##############################################################################
+# 水滸傳・天命之誓 DOS 中文版 (main dataset) with the PC-98 version beside it (../suikoden-pc98): 49 州 from the
+# SUIDATA1.CIM 州 tables (koei_games.load_suikoden_provinces; FC, PC-98 and DOS have the same neighbours). The
+# battle map is the attacked 州's, one per season; the DOS EGA tiles are not decoded, so the PNGs are the PC-98
+# HEXMAP.DAT drawn with the PC-98 tiles (the DOS terrain and 州歸屬 layers decode to the same cells).
+SUIKODEN_SEASONS = "春夏秋冬"
+
+
+def places_suikoden_dos(game_dir, out_dir):
+    pc98 = os.path.join(game_dir, "..", "suikoden-pc98")
+    for season, label in enumerate(SUIKODEN_SEASONS):
+        _save(koei_games.render_suikoden_battle_maps(pc98, season), os.path.join(out_dir, label),
+              [f"{n:02d}.png" for n in range(1, 50)])
+    zh = koei_games.load_suikoden_provinces(game_dir, dos=True)
+    ja = koei_games.load_suikoden_provinces(pc98)
+    with open(os.path.join(game_dir, "SUIDATA1.CIM"), "rb") as f:
+        data = f.read()
+    rows = []
+    for k, ((name, cities, nb), (name_ja, cities_ja, _)) in enumerate(zip(zh, ja)):
+        x, y = struct.unpack_from("<HH", data, koei_games.SUIKODEN_DOS_PROVINCES + 27 * k + 14)
+        row = {"id": k + 1, "name": name}
+        if name_ja != name.removesuffix("州"):
+            row["nameJa"] = name_ja
+        row.update({"level": "州", "cities": cities, "adjacent": [n + 1 for n in nb],
+                    "battlemaps": [{"file": f"{s}/{k + 1:02d}.png", "role": BATTLE, "season": s}
+                                   for s in SUIKODEN_SEASONS],
+                    "pos": {"x": x, "y": y, "grid": "pixel"}, "uncertain": ["pos"],
+                    "notes": "日文版（PC-98）的州表不寫「州」字。戰場圖是 PC-98 版的圖塊（中文版的 EGA 圖塊沒解，"
+                             "兩版的地形與州歸屬相同）。pos 是州表 +14、+16（日文版 +8、+10）的值，看起來是大地圖上的位置，"
+                             "沒有追程式，單位未確認。"})
+        if cities != cities_ja:
+            row["notes"] += f"城數：中文版 {cities}，日文版與 FC {cities_ja}；中文版的數字和戰場圖上的城格數一致。"
+        rows.append(row)
+    return rows
+
+
 # (dataset, from, to) adjacencies that are one-way in the game data, explained in the rows' notes
 ONE_WAY = {("san14pk-win", *pair) for pair in SAN14_ONE_WAY}
 
@@ -822,7 +860,7 @@ DATASETS = {"san1-pc98": places_san1_pc98, "san2-pc98": places_san2_pc98, "san3-
             "san7pk-win": places_san7pk_win, "san8pk-win": places_san8pk_win, "san9pk-win": places_san9pk_win,
             "san10pk-win": places_san10pk_win,
             "san11pk-win": places_san11pk_win, "san12pk-win": places_san12pk_win, "san13pk-win": places_san13pk_win,
-            "san14pk-win": places_san14pk_win}
+            "san14pk-win": places_san14pk_win, "suikoden-dos": places_suikoden_dos}
 
 
 def check(dataset, rows, out_dir):
@@ -860,7 +898,7 @@ def check(dataset, rows, out_dir):
 @click.option("--game-dir", "game_dir", required=True)
 @click.option("--out", "out", required=True, help="輸出目錄（寫 <dataset>.jsonl 與 <dataset>/ 的戰場圖）")
 def places_export(dataset, game_dir, out):
-    """匯出三國志各代的地點與戰場圖（koei-places/1，給 koei-wiki）
+    """匯出三國志各代與水滸傳的地點與戰場圖（koei-places/1，給 koei-wiki）
 
     dekoei.py places-export san3-pc98 --game-dir ../games/san3-pc98 --out ../export/koei-wiki/places
     """
@@ -872,5 +910,5 @@ def places_export(dataset, game_dir, out):
     checked, bad = check(dataset, rows, map_dir)
     for b in bad:
         print(b)
-    maps = len(os.listdir(map_dir)) if os.path.isdir(map_dir) else 0
+    maps = sum(len(files) for _, _, files in os.walk(map_dir))
     print(f"{dataset}: {len(rows)} places, {maps} maps; {checked} checked, {len(bad)} mismatched")
