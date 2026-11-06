@@ -134,9 +134,8 @@ def persons(game_dir):
         for a in _arrivals(exe, n):
             face = _u16(a, 28)
             r = row(face, n, 1453 + a[20], a[21:26], a[26], a[27], a[1])
-            if rows[face][0] == n:
-                r["debut"] = 1453 + a[0]
-            e = {"scenario": n + 1, "year": years[n], "status": "後登場"}
+            r.setdefault("debut", 1453 + a[0])
+            e = {"scenario": n + 1, "year": years[n], "status": "後登場", "debut": 1453 + a[0]}
             if a[2] != 0xFF:
                 e["lord"] = ids[lord_face[a[2]]]
             if a[3] != 0xFF:

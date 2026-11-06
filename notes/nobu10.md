@@ -113,6 +113,16 @@
   - 3780 筆以後是通用範本（国人衆、僧侶、宣教師、水軍衆…），再來是家宝、官位、役職與城的說明。
 - 只有日文；Steam 版之外沒有中文版（`games/archives/win/` 也沒有）。
 
+## koei-wiki 匯出
+
+`dekoei.py places-export nobu10pk-win --game-dir ../games/nobu10pk-win --out ../export/koei-wiki/places`（`wiki_nobu10.places`，koei-places/1）。`games/nobu10pk-win/` 要有 11 個 `SCEDAT??.NBX` 與 `GMAP_POS.NBX`（硬連結自 Steam 版）。
+
+- 325 筆：250 城（id＝城號 0–249）、64 國（id＝1000＋國號）、11 地方（id＝2000＋地方號）。
+- 城：`name` 是記錄裡的名稱（不含接尾詞），`level` 是接尾詞去掉「の」（城 137、砦 32、寺 26、湊 16、町 10、里 8、館 6、御所 5、社 4、御坊 4、村 2）。`province`、`region`、`adjacent`（+29，對稱）。名稱與種類取劇本 01（1534 年）；有 4 個城的種類會隨劇本變（臼杵の村→デウス聖堂、古河御所→結城城等），其他劇本的名稱與種類寫在 `notes`，劇本 01 的石高、商業也寫在 `notes`。
+- 國：`region`、`adjacent`（對稱）。地方沒有相鄰。
+- `pos`：GMAP_POS.NBX 的座標，`grid` 寫 `pixel`，標 `uncertain`。畫出 250 點與道路連線，每條路都連到附近的點，整體是橫向拉長的日本列島（✅ cross：和相鄰表一致），但沒有和地圖圖檔對過，單位與地圖寬高不明。
+- 檢查：1972 項、0 筆不符。沒有戰場圖。
+
 ## 負面結論／未解
 
 - 重視（+77）的 bit 和畫面上的三種「重視」對不上；+114、+117 的意義沒確認。要確認得看人物畫面的截圖（沒跑模擬器）。

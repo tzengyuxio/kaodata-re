@@ -5,6 +5,9 @@ import os
 import struct
 import unicodedata
 
+from PIL import Image
+
+import genpei
 import koei_games
 
 # SNDATA1/2.CIM (PC-98 and DOS alike): +4 u16 year; lords from 0x4C (46 bytes: +0 the lord's person pointer, 0 ends);
@@ -16,6 +19,15 @@ import koei_games
 NOBU3_LORDS, NOBU3_PROVINCES, NOBU3_PERSONS, NOBU3_PROVINCE_COUNT = 0x4C, 0x722, 0xD38, 38
 NOBU3_BASE = 1560
 NOBU3_LABELS = ["政治力", "戦闘力", "魅力", "野望"]
+# HEXDATA.DAT (PC-98 MAIN.EXE image 0x1265 loads all of it): 32x32 tiles of 3 interleaved planes (byte k = bit k)
+# from 0x1200, 0x180 each (0x150AD); maps from 0x46E0, 0x138 per 國: field 13 x 12 then castle at +0x9C (0xA02).
+# Castle cells draw tile v & 0xF, field cells (v & 7) + 11 (0x143AC adds 11 when [0x57D0] is 0; bit 3 of field
+# cells is taken as cleared, as on FC). The tile draw clears the red plane of a cell with bit 0x10 (0x150E2 calls
+# 0x13D6C, which tests the bit, then zeroes every third tile byte from +1). In the data only the castle maps keep the
+# bit for that: field cells with it are red in the capture (the field path clears it somewhere; not traced). Odd columns
+# are 16 px lower. The game uses the digital 8 colours (bit 0 blue, 1 red, 2 green; checked against a capture).
+NOBU3_TILES, NOBU3_MAPS = 0x1200, 0x46E0
+PC98_DIGITAL = [0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255]
 
 
 def _read(game_dir, n):
@@ -84,6 +96,7 @@ def persons(game_dir):
                 s["loyalty"] = r[31]
             if NOBU3_BASE + r[26] > year:
                 s["status"] = "未登場"
+                s["debut"] = NOBU3_BASE + r[26]
             rows[sid[k]]["scenarios"].append(s)
     for row in rows:
         if any(s["status"] == "未登場" for s in row["scenarios"]):
@@ -91,8 +104,26 @@ def persons(game_dir):
     return rows
 
 
+def _battle_map(hexdata, n, castle):
+    cells = hexdata[NOBU3_MAPS + 0x138 * n + (0x9C if castle else 0):][:156]
+    im = Image.new("P", (13 * 32, 12 * 32 + 16))
+    im.putpalette(PC98_DIGITAL)
+    for c, v in enumerate(cells):
+        t = v & 0xF if castle else (v & 7) + 11
+        raw = bytearray(hexdata[NOBU3_TILES + 0x180 * t:][:0x180])
+        if castle and v & 0x10:
+            raw[1::3] = bytes(0x80)
+        tile = Image.frombytes("P", (32, 32), bytes(genpei.decode_planar(raw, 0, 32, 32, 3)))
+        im.paste(tile, (32 * (c % 13), 32 * (c // 13) + (16 if c % 13 & 1 else 0)))
+    return im
+
+
 def places(game_dir, out_dir):
     p, d = _read(game_dir, 1), _read(os.path.join(game_dir, "..", "nobu3-dos"), 1)
+    with open(os.path.join(game_dir, "HEXDATA.DAT"), "rb") as f:
+        hexdata = f.read()
+    for kind in ("field", "castle"):
+        os.makedirs(os.path.join(out_dir, kind), exist_ok=True)
     rows = []
     for c in range(NOBU3_PROVINCE_COUNT):
         r, q = p[NOBU3_PROVINCES + 41 * c:][:41], d[NOBU3_PROVINCES + 41 * c:][:41]
@@ -100,8 +131,14 @@ def places(game_dir, out_dir):
         row = {"id": c + 1, "name": zh}
         if zh != ja:
             row["nameJa"] = ja
-        row.update({"level": "國", "adjacent": [(b & 0x3F) + 1 for b in r[31:38] if b != 0xFF],
+        maps = []
+        for kind, role in (("field", "野戰"), ("castle", "攻城")):
+            file = f"{kind}/{c + 1:02d}.png"
+            _battle_map(hexdata, c, kind == "castle").save(os.path.join(out_dir, file))
+            maps.append({"file": file, "role": role})
+        row.update({"level": "國", "adjacent": [(b & 0x3F) + 1 for b in r[31:38] if b != 0xFF], "battlemaps": maps,
                     "notes": "國號照遊戲從 1 起算。鄰國的高 2 bit 是進攻方向（布陣區），沒有輸出。沒有地方分類，也沒找到大地圖座標。"
-                             "戰場圖 HEXDATA.DAT 每國一張野戰、一張攻城（打哪一國用那一國的），圖塊沒解，沒有輸出圖。"})
+                             "戰場圖 HEXDATA.DAT 每國一張野戰、一張攻城（打哪一國用那一國的），13×12 格，"
+                             "遊戲用 PC-98 數位 8 色；信濃的兩張和遊戲截圖逐點相同（部隊與布陣標記除外）。"})
         rows.append(row)
     return rows

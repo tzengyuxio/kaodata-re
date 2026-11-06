@@ -4,8 +4,12 @@ nameJa the PC-98 Japanese. Field sources and how sure they are: notes/nobu4.md�
 import os
 import struct
 
+from PIL import Image
+
+import genpei
 import koei_games
 from kaodata_export import NOBU4_DOS_NAME_PICK, NOBU4_PC98_ALIASES
+from wiki_nobu3 import PC98_DIGITAL
 
 # SNDATAn.CIM: +1 year - 1476; 48 國 from 0x4 (45 bytes: +4 name 4 bytes, +30 7 neighbours, low 6 bits the 國
 # (0-based), FF ends); lords from 0xB90 (32 bytes: +0 the lord's pointer, +31 lord number); persons from 0x1192
@@ -17,6 +21,20 @@ from kaodata_export import NOBU4_DOS_NAME_PICK, NOBU4_PC98_ALIASES
 NOBU4_PROVINCES, NOBU4_LORDS, NOBU4_PERSONS, NOBU4_PROVINCE_COUNT = 0x4, 0xB90, 0x1192, 48
 # the PC-98 dataset names 松平元康 after his later name (NOBU4_PC98_ALIASES); the Chinese name follows it
 NOBU4_ZH_ALIASES = {"松平元康": "德川家康"}
+# HEXDATA.DAT battle maps (PC-98 MAIN.EXE image addresses; the DOS file is the same): field maps 20 x 7 from 0
+# (140 each), castle 13 x 11 from 7280 (143 each) with a second layer from 31036. Startup (0x3F8E) loads 0x3FC0
+# bytes from file 0x397C: 32x32 tiles of 3 interleaved planes (byte k = bit k), 0x180 each. A cell v = byte & 0xF
+# draws tile v - 1 (0x1A002-0x1A114), odd columns 16 px lower (0x19C60). "Above" (0x19ED0): the cell above exists
+# and is not 0, 0xB or 0xD. Field: 0xB above +4 tiles, 0xD above +1, 0xA right of column 10 +6; there are 3
+# weather sets 0xF00 apart ([0x42FC]), set 1 is drawn. Castle: 0 is two 32x16 pieces chosen by the second layer
+# (k = low 4 bits, 7 above -> 0x10) through the byte table at DS:0x41FC (image 0x37990 + 0x41FC), piece p at
+# NOBU4_PIECES.get(p, 0x3900 + 0xC0 p); 0xD is 0x3600 (+0x180 above). Field cells with v 0 have no tile (drawn as
+# plain here). The half cells left open at the top of odd and the bottom of even columns are filled as in
+# _battle_map (matched against captures; castle bottom cells next to 0xD still differ).
+NOBU4_TILES, NOBU4_PIECE_TABLE = 0x397C, 0x37990 + 0x41FC
+# battle screens: the digital 8 colours with white as #FFFFCF (captures/screenshots/nobu4-pc98, guest os_025-028)
+NOBU4_BATTLE_PALETTE = PC98_DIGITAL[:21] + [255, 255, 207]
+NOBU4_PIECES = {13: 0x3600, 50: 0x480, 100: 0x900, 200: 0x3780}
 NOBU4_LABELS = ["政治力", "戦闘力", "教養", "魅力", "野望"]
 NOBU4_NOTES = ("義理是 +20 的推定名稱（謙信 253、松永 0），寿命是 0–3 的等級（+23 bit 6–7），都沒讀程式。一門編號（+24 低 4 bit）"
                "只在同一劇本內有效、16 組重複使用，沒有輸出。身分只分得出大名、浪人，城主與軍師沒找到欄位。")
@@ -95,7 +113,7 @@ def persons(game_dir):
         for (_, code), r in zip(names[2 * n - 1], arrivals):
             row = rows[ids[code]]
             row.setdefault("debut", 1476 + r[0])
-            s = {"scenario": n, "year": year, "location": r[2] + 1, "status": "未登場"}
+            s = {"scenario": n, "year": year, "location": r[2] + 1, "status": "未登場", "debut": 1476 + r[0]}
             if r[1] != 0xFF:
                 s["lord"] = at[lords[r[1]]]
             row["scenarios"].append(s)
@@ -104,8 +122,66 @@ def persons(game_dir):
     return rows
 
 
+def _battle_map(hexdata, table, n, castle):
+    w, h = (13, 11) if castle else (20, 7)
+    cells = hexdata[7280 + 143 * n:][:143] if castle else hexdata[140 * n:][:140]
+    layer2 = hexdata[31036 + 143 * n:][:143]
+    im = Image.new("P", (32 * w, 32 * h + 16))
+    im.putpalette(NOBU4_BATTLE_PALETTE)
+
+    def block(off, height):
+        px = genpei.decode_planar(hexdata, NOBU4_TILES + off, 32, height, 3)
+        return Image.frombytes("P", (32, height), bytes(px))
+
+    for i in range(w * h):
+        c, r = i % w, i // w
+        v, x, y = cells[i] & 0xF, 32 * c, 32 * r + (16 if c & 1 else 0)
+        above = r > 0 and cells[i - w] & 0xF not in (0, 0xB, 0xD)
+        if castle and v == 0:
+            k = 0x10 if layer2[i] & 0xF == 7 and above else layer2[i] & 0xF
+            tile = Image.new("P", (32, 32))
+            for half in (0, 1):
+                p = table[2 * k + half]
+                tile.paste(block(NOBU4_PIECES.get(p, 0x3900 + 0xC0 * p), 16), (0, 16 * half))
+        else:
+            off = 0x180 * (v - 1)
+            if castle and v == 0xD:
+                off = 0x3600 + (0x180 if above else 0)
+            elif not castle:
+                off += (0x600 if v == 0xB and above else 0) + (0x180 if v == 0xD and above else 0) + \
+                    (0x900 if v == 0xA and c > 10 else 0)
+            tile = block(0x180 * 6 if off < 0 else off, 32)
+        im.paste(tile, (x, y))
+        # the half cells left open by the odd-column offset: at the top, the lower half of the cell's tile (field)
+        # or the upper half of the tile to its left (castle); at the bottom, the upper half of the cell's tile (field 0xD: the
+        # plain tile v - 1)
+        if c & 1 and r == 0:
+            im.paste(left.crop((0, 0, 32, 16)) if castle else tile.crop((0, 16, 32, 32)), (x, 0))
+        elif not c & 1 and r == h - 1:
+            im.paste(block(0x180 * (v - 1), 16) if v == 0xD and not castle else tile.crop((0, 0, 32, 16)), (x, y + 32))
+        left = tile
+    return im
+
+
 def places(game_dir, out_dir):
     p, d = _read(game_dir, "SNDATA1.CIM"), _read(os.path.join(game_dir, "..", "nobu4-dos"), "SNDATA1.CIM")
+    hexdata = _read(game_dir, "HEXDATA.DAT")
+    exe = _read(game_dir, "MAIN.EXE")
+    table = exe[struct.unpack_from("<H", exe, 8)[0] * 16 + NOBU4_PIECE_TABLE:][:34]
+    for kind in ("field", "castle"):
+        os.makedirs(os.path.join(out_dir, kind), exist_ok=True)
+    # map files are named map number + 1: field 01-48 the 國, 50-52 the shared maps 49-51 (route kinds 1-3);
+    # castle 01-48 the 國, 49 安土 (近江 under flags)
+    for n in list(range(48)) + [49, 50, 51]:
+        _battle_map(hexdata, table, n, False).save(os.path.join(out_dir, f"field/{n + 1:02d}.png"))
+    for n in range(49):
+        _battle_map(hexdata, table, n, True).save(os.path.join(out_dir, f"castle/{n + 1:02d}.png"))
+    routes = [[(b & 0x3F, b >> 6) for b in p[NOBU4_PROVINCES + 45 * c + 30:][:7].split(b"\xff")[0]]
+              for c in range(NOBU4_PROVINCE_COUNT)]
+    users = {}
+    for c, rs in enumerate(routes):
+        for _, t in rs:
+            users.setdefault(t, set()).add(c + 1)
     rows = []
     for c in range(NOBU4_PROVINCE_COUNT):
         r, q = p[NOBU4_PROVINCES + 45 * c:][:45], d[NOBU4_PROVINCES + 45 * c:][:45]
@@ -113,9 +189,21 @@ def places(game_dir, out_dir):
         row = {"id": c + 1, "name": zh}
         if zh != ja:
             row["nameJa"] = ja
-        row.update({"level": "國", "adjacent": [(b & 0x3F) + 1 for b in r[30:37].split(b"\xff")[0]],
-                    "notes": "國號照遊戲從 1 起算，3 個劇本相同。鄰國的高 2 bit 是進攻路線的種類（決定野戰圖），沒有輸出。"
-                             "沒有讀音、地方與大地圖座標。戰場圖 HEXDATA.DAT：城圖每國一張，野戰圖依守方國與路線種類選，"
-                             "圖塊與色盤沒解，沒有輸出圖。"})
+        maps = [{"file": f"castle/{c + 1:02d}.png", "role": "攻城"}]
+        if c == 24:
+            maps.append({"file": "castle/49.png", "role": "攻城"})
+        for a, t in routes[c]:
+            m = {"file": f"field/{(c if t == 0 else 48 + t) + 1:02d}.png", "role": "野戰", "from": a + 1}
+            if t:
+                m["sharedWith"] = sorted(users[t] - {c + 1})
+            maps.append(m)
+        row.update({"level": "國", "adjacent": [a + 1 for a, _ in routes[c]], "battlemaps": maps,
+                    "uncertain": ["battlemaps"],
+                    "notes": "國號照遊戲從 1 起算，3 個劇本相同。沒有讀音、地方與大地圖座標。"
+                             "戰場圖 HEXDATA.DAT：城圖每國一張（13×11 格）；野戰圖（14×10 格）看攻方從哪一國來，"
+                             "守方相鄰表那一格的路線種類是 0 用守方自己那張，1、2、3 用共用的 50、51、52 號圖"
+                             "（推定是平地、山地、海上；種類 3 在某個條件下改成不打野戰、直接攻城）。"
+                             + ("近江另有安土城圖（castle/49.png），開局後滿足條件才用。" if c == 24 else "")
+                             + "類比色盤沒找到，圖是用 PC-98 數位 8 色畫的，顏色不是遊戲畫面的顏色；野戰用天候第 1 組圖塊。"})
         rows.append(row)
     return rows

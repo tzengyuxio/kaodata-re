@@ -7,6 +7,8 @@ import re
 import struct
 import unicodedata
 
+from PIL import Image
+
 import koei_games
 import ls11
 
@@ -29,6 +31,12 @@ GRADES = " EDCBAS"
 DOMESTIC = [(1, "農業"), (2, "商業"), (4, "建設"), (8, "外交"), (0x10, "登用"), (0x20, "抜穴")]
 BATTLE = [(1, "騎突"), (2, "三段"), (4, "焙烙"), (8, "騎鉄")]  # 1 = 騎突 is inferred
 BIO_LANG = "zh-Hant"
+# 攻城圖: ATKMAP.NB7 holds 12 pictures of 768 x 512, 8 bit (u32 count, count x (offset, size, w, h), data from 4 + 16
+# count). Castle k fights the siege on picture (城 +0x26): the ATKDATA.NB7 record of each castle (642 bytes, read by
+# San7WPK VA 0x4065d0; type 11 = 安土 reads record 65, VA 0x4f87dc) gives cell positions that sit on that picture's
+# marked squares for all 11 types in use (type 9 is never used). The palette is GRPPAL.NB7 part 0 (B, R, G), the one
+# the screen code loads (VA 0x463fe0, part index < 2), judged by eye.
+ATKMAP_TYPE = 0x26
 
 
 def _read(path):
@@ -256,10 +264,34 @@ def persons(game_dir):
     return rows
 
 
+def _siege_maps(game_dir, out_dir, types):
+    """Write the 攻城圖 of the given types as Atkmap_NN.png; returns {type: file}."""
+    data = _read(os.path.join(game_dir, "ATKMAP.NB7"))
+    pal = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "grppal.nb7")))[0]
+    pal = b"".join(bytes((pal[3 * c + 1], pal[3 * c + 2], pal[3 * c])) for c in range(256))
+    base = 4 + 16 * struct.unpack_from("<I", data, 0)[0]
+    os.makedirs(out_dir, exist_ok=True)
+    files = {}
+    for t in sorted(types):
+        offset, size, w, h = struct.unpack_from("<4I", data, 4 + 16 * t)
+        im = Image.frombytes("P", (w, h), data[base + offset:base + offset + size])
+        im.putpalette(pal)
+        files[t] = f"Atkmap_{t:02d}.png"
+        im.convert("RGB").save(os.path.join(out_dir, files[t]))
+    return files
+
+
 def places(game_dir, out_dir):
     scenarios = _scenarios(game_dir)
     zh = [_zh(game_dir, n) for n in ZH_SCENARIOS]
     main = scenarios[MAIN]
+    types = {k: [struct.unpack_from("<H", d, CASTLES + 0x34 * k + ATKMAP_TYPE)[0] for d in scenarios]
+             for k in range(1, 65)}
+    files = _siege_maps(game_dir, out_dir, {t for ts in types.values() for t in ts})
+    users = {}
+    for k, ts in types.items():
+        for t in set(ts):
+            users.setdefault(t, []).append(k)
     rows = []
     for k in range(1, 65):
         name, name_ja = _castle_name(zh[MAIN], k, "big5"), _castle_name(main, k, "cp932")
@@ -267,8 +299,15 @@ def places(game_dir, out_dir):
         row = {"id": k, "name": name}
         if name_ja != name:
             row["nameJa"] = name_ja
+        maps = []
+        for t in sorted(set(types[k]), key=types[k].index):
+            m = {"file": files[t], "role": "攻城"}
+            shared = [x for x in users[t] if x != k]
+            if shared:
+                m["sharedWith"] = shared
+            maps.append(m)
         row.update({"level": "城", "pos": {"x": x, "y": y, "grid": "square", "w": 176, "h": 151},
-                    "uncertain": ["pos"]})
+                    "battlemaps": maps, "uncertain": ["pos"]})
         others = []
         for s, data in enumerate(zh):
             n = _castle_name(data, k, "big5")
@@ -282,6 +321,11 @@ def places(game_dir, out_dir):
                 "所以不給 province、adjacent。pos 是城記錄 +0x22、+0x24，在 Mapdata.nb7 的 176×151 格上，沒和畫面對過。"
         if others:
             notes += "其他劇本的名稱：" + "、".join(others) + "。"
+        notes += "攻城圖照城的樣式（城記錄 +0x26）選 12 張 Atkmap 之一，同樣式的城共用一張，色盤是 grppal.nb7 第 0 組（看圖判斷）。" \
+                 "野戰在大地圖上打，沒有獨立的野戰圖。"
+        if len(set(types[k])) > 1:
+            notes += "樣式隨劇本不同：" + "、".join(f"PK 劇本 {s + 1} 是 {files[t]}" for s, t in enumerate(types[k])
+                                                if t != types[k][0]) + f"，其餘是 {files[types[k][0]]}。"
         row["notes"] = notes
         rows.append(row)
     return rows

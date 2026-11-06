@@ -155,7 +155,7 @@ def persons(game_dir):
                 entry["location"] = where
             entry["status"] = state
             if rank and state != "姫":
-                entry["身分"] = rank
+                entry["rank"] = rank
             if state not in ("大名", "姫") and arrival is None:
                 entry["loyalty"] = r[0x11]
             if arrival is not None:

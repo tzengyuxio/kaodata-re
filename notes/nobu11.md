@@ -132,6 +132,16 @@
 
 已硬連結到 `games/nobu11pk-win/`：`DBSCEDA01–10.N11`（7 個）、`Bfile01–22.n11`、`Nobunaga11WPK.exe`、`NOBU11PK.map`。探測腳本在 session scratchpad 的 `nobu11/`（`db11.py` 表解析、`bfile.py` 列伝、`dis11.py` 反組譯）。
 
+## koei-wiki 匯出
+
+`dekoei.py places-export nobu11pk-win --game-dir ../games/nobu11pk-win --out ../export/koei-wiki/places`（`wiki_nobu11.places`，koei-places/1），讀 7 個 `DBSCEDA??.N11`。
+
+- 176 筆：100 拠点（id＝拠点槽 0–99）、64 國（id＝1000＋國號）、12 地方（id＝2000＋地方號）。
+- 拠点：`name` 是城名表的名稱（含「城」「館」「御所」「御坊」），`level` 照名稱結尾。名稱取劇本 01（1551 年）；37 個槽會換名，其他劇本的名稱寫在 `notes`（例：槽 1 観音寺城→1582 年安土城→1584 年起八幡城）。`province`（+15342）、`region`、`adjacent`（街道表 169 條，對稱）。
+- 國：`region`（+40）、`adjacent`（+28）。遊戲資料有 2 筆單向：能登→加賀、加賀→伊勢；加賀的表寫伊勢（29）、沒寫能登（19），推測是寫錯，照原樣輸出並在 `notes` 說明（`wiki_nobu11.ONE_WAY`）。
+- `pos`：拠点 +15338、+15339，`grid` 寫 `square`，標 `uncertain`。畫出 100 點與 169 條街道，每條街道都連到附近的點（✅ cross：和街道表一致），但沒有和地圖圖檔對過。
+- 檢查：1112 項，2 筆不符，就是上面 2 筆單向相鄰。沒有戰場圖。
+
 ## 負面結論與未解
 
 - 列伝不是 LS11：`Bfile` 的本文是 4 bytes XOR，直接搜 Shift-JIS「織田信長」找不到。

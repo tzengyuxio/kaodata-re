@@ -71,6 +71,13 @@
 - `HEXMAP.50`（2816 bytes）：50 張 × 55 bytes（11 欄 × 5 列），地形碼同 FC（`02` 場外、`04` 平地、`08` 町、`10` 林、`20` 城、`40` 川・海、`80` 山），後面補 0。和 FC PRG `0x1256E` 比，只有第 38 國（三備）第 40 格不同（PC-88 `40`、FC `10`）。
 - 選圖：DOS 英文版 `MAIN.EXE` 映像 0x1026D–0x102AE 開 `HEXMAP.50`，seek 到（DS:0x1F86 的國號經一次換算）× 0x37，讀 0x37 bytes。✅ code（DOS）。換算前是不是被攻打的國，照 FC 的模擬器結果（打哪一國用那一國的圖，17 國劇本經上面的對照表）✅ cross；PC-88 的程式沒追。
 - `HATA.50`（5504 bytes）是旗子的圖，不是座標。
+- DOS 版的圖塊（2026-11-07，✅ capture）：遊戲檔裡沒找到，改從 DOS 英文版的截圖切（`captures/screenshots/nobu2-dos/`，說明在那裡的 `index.md`）。
+  - 畫面 640×400（EGA 640×200 兩倍），地圖區從 x 192 起，448×352。格 (0,0) 中心在 (215, 32)，欄距 40、列距 64，奇數欄下移 32。六角形上下邊離中心 ±16、左右角 ±24（量自布陣游標的藍色格）。
+  - 7 種地形：`04` 平地、`08` 町、`20` 城、`40` 川・海（深綠點）取自尾張（圖 24）；`10` 林（樹叢）、`80` 山取自下野（圖 11，AI 對 AI）；`02` 場外取自伊勢志摩（圖 25）：整格黑色、沒有外框。
+  - 驗證：用切出的圖塊畫尾張、蝦夷（圖 0，沒拿來切）、伊勢志摩，和截圖比，除了部隊所在的格子，只有地圖外框的斜線約 450 點不同（外框屬於地圖外的格子，規則沒找到）🟡。
+  - 程式在 `wiki_nobu2_dos.py`（從截圖切圖塊、畫 50 張），匯出 `places-export nobu2-dos`。DOS 版是重畫的美術，主資料集 `nobu2-pc88` 不掛這些圖（使用者 2026-11-07 定）。
+- PC-88 的圖塊沒找到 ❌：PC-88 Disk A 的 `PICDATA`（畫成 3 平面是雜訊）、`HOGEN.HEX`（Shift-JIS 文字）都不是；DOS 英文版 `HOGEN.HEX`（1408 bytes，指標表＋英文訊息）、`PICDATA.DAT` 也不是。`ODA.OVL`、`PACKDATA.DAT`、Disk B 沒查。
+- DOS 英文版的完整檔案在 `games/archives/dos/信長之野望_英文版_nobunagas-ambition.zip`（`games/nobu2-dos/` 只放頭像用的三個檔），`HEXMAP.50` 和 PC-88 相同。DOS 版是重畫的 EGA 圖，用 DOS 截圖切圖塊時，要不要拿來畫 `nobu2-pc88` 的戰場圖待決定。
 
 ## 負面結論與未解
 
@@ -83,7 +90,8 @@
 `dekoei.py persons-export nobu2-pc88 --game-dir ../games/nobu2-pc88 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places` 和 `places-export nobu2-pc88`（`wiki_nobu2.py`，koei-persons/1、koei-places/1，規格在 koei-wiki 的 `docs/persons-format.mkdn`、`docs/places-format.mkdn`）。
 
 - 人物 53 位，`id` 同 kaodata（0 起）。`stats` 是健康、野心、運、魅力、ＩＱ，`more.年令` 是 1560 年的年令，`born`＝1560－年令。劇本只有一個 `50國`，大名 k 在國 k＋1；明智、羽柴、柴田沒有 `scenarios`。
-- 地點是 50 國劇本的 50 國，`id` 1–50，`adjacent` 照 `DATA50N.DAT` 的順序。地方只有號碼（寫在 `notes`），沒有 `region`；地方地圖的座標單位沒確認，沒有 `pos`；戰場圖的圖塊沒解，沒有 PNG。17 國劇本的國沒有匯出。
+- 地點是 50 國劇本的 50 國，`id` 1–50，`adjacent` 照 `DATA50N.DAT` 的順序。地方只有號碼（寫在 `notes`），沒有 `region`；地方地圖的座標單位沒確認，沒有 `pos`；戰場圖的圖塊沒找到（見「戰場」），沒有 PNG。17 國劇本的國沒有匯出。
+- `places-export nobu2-dos --game-dir ../games/nobu2-dos`（`wiki_nobu2_dos.py`）：同樣 50 國（國表、地方號讀 `games/nobu2-dos/PC88_DISK_A.D88`，`name` 用漢字，DOS 的英文國名 `DATA50N.DAT` 0x3A 起每筆 14 bytes 寫進 `notes`），加上 50 張戰場圖 `01.png`–`50.png`（448×352，`role` 戰場，圖塊見「戰場」）。`games/nobu2-dos/` 另從 DOS 壓縮檔取出 `HEXMAP.50`、`DATA50N.DAT`；圖塊要讀 `captures/screenshots/nobu2-dos/` 的截圖。
 
 ## 和 FC 版比較
 

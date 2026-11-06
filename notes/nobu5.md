@@ -225,7 +225,7 @@ Windows 版的 `Nobunaga5WPK.exe` 有武將列伝，PC-98 版的檔案裡沒找�
 - 地點 237 筆：城 0–172（`level`「城」，`province` 是國名，`name` 取劇本 1，其他劇本的名稱寫在 `notes`），國 173–236（國號＋173，`level`「國」）。沒有 `adjacent`、`pos`（遊戲資料裡沒有，見上面的負面結論）。
 - 人物 998 筆，`id` 和 kaodata 的 `nobu5pk-win` 相同（同一頭像號一人，本體劇本優先）。公主（頭像 878–913）在 kaodata 不是人物，沒有匯出。
   - `born`、`stats`（政治 戦闘 智謀 采配 野望）、`hidden`（義理、寿命）、`relations.clan`（一門編號）取 id 所依的第一個劇本；生年在各劇本只有 2 人不同。
-  - `scenarios`：劇本 1–5 依年份（1534、1551、1568、1582、1583）。`status` 是 大名（在大名表）、家臣、浪人（+7＝0xFF）、後登場（EXE 的後登場表）；`lord` 是大名本人的 id，`location` 是城號，`loyalty` 是 +13。後登場的人另填 `debut`（id 所依的劇本的登場年）。
+  - `scenarios`：劇本 1–5 依年份（1534、1551、1568、1582、1583）。`status` 是 大名（在大名表）、家臣、浪人（+7＝0xFF）、後登場（EXE 的後登場表）；`lord` 是大名本人的 id，`location` 是城號，`loyalty` 是 +13。後登場的劇本那一筆填 `debut`（後登場表 +0 ＋ 1453）；頂層的 `debut` 取第一次遇到的後登場劇本（照 kaodata 的劇本順序）。
   - `died` 取列伝的没年（803 人有）；`born` 照劇本，不用列伝的生年。
   - `uncertain`：`hidden.義理`、`relations.clan`、`scenarios.loyalty`。
 - 列伝：`wiki_nobu5.bios`／`bio_names`／`BIO_LANG = "ja"`，給 `biography.py` 用（`dekoei.py biography nobu5pk-win`），998 人各一段（`kind` 是「單段」），本文去掉換行。

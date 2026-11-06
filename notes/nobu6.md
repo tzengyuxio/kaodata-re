@@ -314,7 +314,7 @@ LS11，1597 段：
   - 能力、`more`、`hidden`、`aptitude`、`skills` 取第一次出現的劇本（檔案順序 1534、1560、1571、1582、1546、1599），政治、戦闘、智謀是上限×千分比÷1000。`more` 的 政才、戦才、智才、勲功、仕官、職業 用 `MAINPK.EXE` 武將一覽的欄名。
   - `reading`、`died` 取列伝標頭（`????` 不填），`born` 取劇本檔 +0x23。
   - `relations`：`clan`＝+0x14，`father`＝+0x24 的頭像編號換成 id（`children` 反推），`siblings`＝+0x24 相同的人（含 2000 以上的兄弟組），`spouse`＝同一劇本 +0x22 相同的人；都標 uncertain。
-  - `scenarios`：每個劇本一筆，`lord` 是所屬大名的當主（大名表 +0），`location` 是居城（城表號），`status` 是狀態欄，另加 `身分`（身分欄）；後登場的人 `status` 是待機，`location` 是登場的城，另加 `debut`。
+  - `scenarios`：每個劇本一筆，`lord` 是所屬大名的當主（大名表 +0），`location` 是居城（城表號），`status` 是狀態欄，另加 `rank`（身分欄）；後登場的人 `status` 是待機，`location` 是登場的城，另加 `debut`。
 - **地點**（koei-places/1，214 城＋74 國）：
   - 城 `id` 是城表號（1 起算），國是 1000＋國表號。
   - 城名取劇本 1，其他劇本的改名寫在 `notes`。`pos` 是大地圖格（左上角，`square`，170×42）。

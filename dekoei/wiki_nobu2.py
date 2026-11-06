@@ -14,8 +14,8 @@ NOBU2_PROVINCES, NOBU2_NAMES, NOBU2_NEIGHBOURS, NOBU2_REGIONS = 50, 0x104, 0x881
 NOBU2_LABELS = ["年令", "健康", "野心", "運", "魅力", "ＩＱ"]
 
 
-def _disk(game_dir):
-    with open(os.path.join(game_dir, "DISK_A.D88"), "rb") as f:
+def _disk(game_dir, name="DISK_A.D88"):
+    with open(os.path.join(game_dir, name), "rb") as f:
         return pc88.cpm_files(pc88.d88_image(f.read()))
 
 
@@ -35,8 +35,8 @@ def persons(game_dir):
     return rows
 
 
-def places(game_dir, out_dir):
-    d = _disk(game_dir)["DATA50N.DAT"]
+def places(game_dir, out_dir, disk="DISK_A.D88"):
+    d = _disk(game_dir, disk)["DATA50N.DAT"]
     rows = []
     for k in range(NOBU2_PROVINCES):
         nb = d[NOBU2_NEIGHBOURS + 8 * k:][:8]
