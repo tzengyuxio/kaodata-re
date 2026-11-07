@@ -1,0 +1,232 @@
+"""三國志12 PK (Steam 628080): event stills, items (名品) and event text, extracted for archiving.
+
+See notes/san12.md「事件、插圖、道具」. Usage (from dekoei/):
+    dekoei.py san12-extras --game-dir ../games/steam/628080 --out ../games/san12pk-win/extract
+"""
+import csv
+import json
+import os
+import struct
+import unicodedata
+
+import click
+from PIL import Image
+
+from sango import SAN12_GAIJI, san12_decrypt
+
+# Data/EventStill, PK/Data/EventStill: headerless BGRA, the size gives the shape
+STILL_SHAPES = {1280 * 960 * 4: (1280, 960), 576 * 432 * 4: (576, 432), 400 * 224 * 4: (400, 224)}
+STILL_DIRS = [("Data/EventStill", False), ("PK/Data/EventStill", True)]
+# Scenario0.dat part 27 (PK) / 17 (base): 300 item records of 76 (PK) / 60 (base) bytes; +4 name (13 bytes),
+# +0x11 reading, u16 +0x30: kind (bits 0-5), stat (6-7), effect type (8-9: 0 the stat, 1 other, 3 none), amount
+# (10-15); u16 +0x32 bits 5-9 the 特技 (31 none); +0x34 value; u16 +0x3A >> 6 the picture number
+# (unused bits hold leftovers, as in the person records)
+ITEM_PART, ITEM_SIZE, BASE_ITEM_PART, BASE_ITEM_SIZE = 27, 76, 17, 60
+SKILL_PART, SKILL_SIZE = 41, 136  # PK Scenario0 part 41: 20 特技 (name +4, reading +9, description +16)
+STATS = {0: "統率", 1: "武力", 2: "知力", 3: "政治"}
+# item kinds read off the item names (no kind-name table found)
+KINDS = {0: "馬・乗り物", 1: "剣", 2: "刀", 3: "長柄刀", 4: "矛", 5: "戟", 6: "斧", 7: "鞭", 8: "鎚", 9: "暗器",
+         10: "弓", 11: "兵法書", 12: "法家書", 13: "史書", 14: "経書", 15: "論", 16: "医書", 17: "術書", 18: "地図",
+         19: "装飾品", 20: "薬", 21: "宝物", 22: "玉璽"}
+ITEM_GAIJI = {0xE059: "蒺"}  # 蒺藜棒 (reading ｼﾂﾚｲﾎﾞｳ)
+# item pictures: ITEM_STL.S12 (179) then resfiles_additem20_pk.bin (21) = picture numbers 0-199;
+# resfiles_spitem0_pk.bin holds 20 more 名品CG (special edition bonus) with no item record
+ITEM_PICTURES = [("Data/ITEM_STL.S12", 0), ("resfiles_additem20_pk.bin", 0x18)]
+SP_PICTURES = ("resfiles_spitem0_pk.bin", 0x18)
+MSG = "PK/Msg/S12MSG0{}.s12"
+VOICE_DIR = "SND/voice/Strategy"
+EVENT_TITLES = range(98, 136)  # S12MSG01: the history list (some entries are templates)
+
+
+def scenario_parts(path):
+    """ILNK: u32 part count at +4, part offsets at +8; every part but 0 is encrypted."""
+    with open(path, "rb") as f:
+        d = f.read()
+    n = struct.unpack_from("<I", d, 4)[0]
+    offs = list(struct.unpack_from(f"<{n}I", d, 8)) + [len(d)]
+    return [d[offs[0]:offs[1]]] + [san12_decrypt(d[offs[i]:offs[i + 1]]) for i in range(1, n)]
+
+
+def sjis(b, gaiji=None):
+    s = b.split(b"\0")[0].decode("cp932", "replace")
+    table = {**SAN12_GAIJI, **(gaiji or {})}
+    return "".join(table.get(ord(c), c) for c in s)
+
+
+def messages(path):
+    """S12MSG: u16 count, then count u32 offsets."""
+    with open(path, "rb") as f:
+        d = f.read()
+    n = struct.unpack_from("<H", d)[0]
+    offs = list(struct.unpack_from(f"<{n}I", d, 2)) + [len(d)]
+    return [d[offs[i]:offs[i + 1]] for i in range(n)]
+
+
+def decode_message(b):
+    """Half-width kana are hiragana unless ESC K (katakana) is active, ESC H goes back; 02 96 <n> x is a colour
+    ({cN}), 02 97 h / 02 97 z bracket a reading (dropped, the reading itself is kept); 0A newline, 05 padding.
+    Other control bytes stay as {xx}."""
+    out, i, kata = [], 0, False
+    while i < len(b):
+        c = b[i]
+        if c == 0x1B and i + 1 < len(b):
+            kata, i = b[i + 1] == 0x4B, i + 2
+        elif c == 0x02 and i + 1 < len(b) and b[i + 1] == 0x96:
+            j = b.find(b"x", i + 2)
+            out.append("{c%s}" % b[i + 2:j].decode("ascii", "replace"))
+            i = j + 1
+        elif c == 0x02 and i + 2 < len(b) and b[i + 1] == 0x97:
+            i += 3
+        elif c == 0x0A:
+            out.append("\n")
+            i += 1
+        elif c == 0x05:
+            i += 1
+        elif (0x81 <= c <= 0x9F or 0xE0 <= c <= 0xFC) and i + 1 < len(b):
+            ch = b[i:i + 2].decode("cp932", "replace")
+            out.append(SAN12_GAIJI.get(ord(ch), ch) if len(ch) == 1 else ch)
+            i += 2
+        elif 0xA1 <= c <= 0xDF:
+            ch = unicodedata.normalize("NFKC", bytes([c]).decode("cp932"))
+            if ch in "゙゚゛゜" and out:
+                mark = "゙" if ch in "゙゛" else "゚"
+                out[-1] = unicodedata.normalize("NFC", out[-1] + mark)
+            else:
+                out.append(chr(ord(ch) - 0x60) if not kata and "ァ" <= ch <= "ヶ" else ch)
+            i += 1
+        elif 0x20 <= c < 0x7F:
+            out.append(chr(c))
+            i += 1
+        else:
+            out.append("{%02x}" % c)
+            i += 1
+    return "".join(out)
+
+
+def link_entries(d, base=0):
+    """LINK: +4 count, +0x10 rect table (u16 x, y, w, h per 12 bytes; 0 = none), (u32 offset, u32 size) from +0x20,
+    offsets relative to the LINK."""
+    assert d[base:base + 4] == b"LINK"
+    n, rects = struct.unpack_from("<I", d, base + 4)[0], struct.unpack_from("<I", d, base + 0x10)[0]
+    for k in range(n):
+        o, size = struct.unpack_from("<II", d, base + 0x20 + 8 * k)
+        rect = struct.unpack_from("<4H", d, base + rects + 12 * k) if rects else None
+        yield d[base + o:base + o + size], rect
+
+
+def gt1g(t, rect=None):
+    """GT1G0500: +0x26 log2 height << 4 | log2 width, BGRA from +0x2C."""
+    assert t[:8] == b"GT1G0500"
+    w, h = 1 << (t[0x26] & 15), 1 << (t[0x26] >> 4)
+    im = Image.frombytes("RGBA", (w, h), t[0x2C:0x2C + w * h * 4], "raw", "BGRA")
+    return im.crop((rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])) if rect and rect[2] else im
+
+
+def write_csv(path, header, rows):
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(header)
+        w.writerows(rows)
+
+
+def event_stills(game_dir, out):
+    os.makedirs(out, exist_ok=True)
+    rows = []
+    for folder, pk in STILL_DIRS:
+        for name in sorted(os.listdir(os.path.join(game_dir, folder))):
+            if not name.endswith(".bin"):
+                continue
+            with open(os.path.join(game_dir, folder, name), "rb") as f:
+                d = f.read()
+            w, h = STILL_SHAPES[len(d)]
+            im = Image.frombytes("RGBA", (w, h), d, "raw", "BGRA")
+            stem = name[:-4]
+            parts = stem.split("_")
+            if parts[1] == "look":  # ev_look_<face number>_<expression>: a cut-out close-up
+                kind, face, mood = "look", int(parts[2]), parts[3]
+            else:
+                kind, face, mood = parts[2], "", ""
+                im = im.convert("RGB") if im.getextrema()[3] == (255, 255) else im
+            im.save(os.path.join(out, stem + ".png"))
+            rows.append([stem + ".png", f"{folder}/{name}", kind, face, mood, w, h, "pk" if pk else "", "✅ code"])
+    write_csv(os.path.join(out, "index.csv"), ["file", "source", "kind", "face", "expression", "width", "height",
+                                               "pk", "evidence"], rows)
+    return len(rows)
+
+
+def items(game_dir, out):
+    os.makedirs(os.path.join(out, "pictures"), exist_ok=True)
+    os.makedirs(os.path.join(out, "sp"), exist_ok=True)
+    parts = scenario_parts(os.path.join(game_dir, "PK/Scenario/Scenario0.dat"))
+    base = scenario_parts(os.path.join(game_dir, "Scenario/Scenario0.dat"))[BASE_ITEM_PART]
+    base_names = {k for k in range(len(base) // BASE_ITEM_SIZE) if base[BASE_ITEM_SIZE * k + 4]}
+    skills_part = parts[SKILL_PART]
+    skills = [sjis(skills_part[SKILL_SIZE * k + 4:SKILL_SIZE * k + 9]) for k in range(len(skills_part) // SKILL_SIZE)]
+    write_csv(os.path.join(out, "skills.csv"), ["skill", "name", "reading", "description"],
+              [[k, skills[k], sjis(skills_part[SKILL_SIZE * k + 9:SKILL_SIZE * k + 15]),
+                sjis(skills_part[SKILL_SIZE * k + 16:SKILL_SIZE * (k + 1)])] for k in range(len(skills))])
+    desc = messages(os.path.join(game_dir, MSG.format(4)))
+    table = parts[ITEM_PART]
+    rows = []
+    for k in range(len(table) // ITEM_SIZE):
+        r = table[ITEM_SIZE * k:ITEM_SIZE * (k + 1)]
+        name = sjis(r[4:0x11], ITEM_GAIJI)
+        if not name:
+            continue
+        a, b = struct.unpack_from("<HH", r, 0x30)
+        kind, stat, flag, amount, skill = a & 63, a >> 6 & 3, a >> 8 & 3, a >> 10, b >> 5 & 31
+        picture = struct.unpack_from("<H", r, 0x3A)[0] >> 6
+        rows.append([k, name, sjis(r[0x11:0x30]), kind, KINDS.get(kind, ""), STATS[stat] if flag == 0 else "",
+                     amount, stat | flag << 2, skill if skill != 31 else "", skills[skill] if skill < len(skills) else "", r[0x34],
+                     f"{picture:03d}.png", "" if k in base_names else "pk",
+                     decode_message(desc[k]).replace("\n", "") if k < len(desc) else ""])
+    write_csv(os.path.join(out, "items.csv"),
+              ["id", "name", "reading", "kind", "kindName", "stat", "amount", "effect", "skill", "skillName", "value",
+               "picture", "pk", "description"], rows)
+    n = 0
+    for f, base_off in ITEM_PICTURES:
+        with open(os.path.join(game_dir, f), "rb") as fh:
+            d = fh.read()
+        for t, rect in link_entries(d, base_off):
+            gt1g(t, rect).convert("RGB").save(os.path.join(out, "pictures", f"{n:03d}.png"))
+            n += 1
+    with open(os.path.join(game_dir, SP_PICTURES[0]), "rb") as fh:
+        d = fh.read()
+    sp = 0
+    for t, rect in link_entries(d, SP_PICTURES[1]):
+        gt1g(t, rect).convert("RGB").save(os.path.join(out, "sp", f"{sp:02d}.png"))
+        sp += 1
+    return len(rows), n, sp
+
+
+def events(game_dir, out):
+    os.makedirs(out, exist_ok=True)
+    script = messages(os.path.join(game_dir, MSG.format(5)))
+    # S12MSG05: 0 "Start of script voice message.", 1-520 voiced lines, 521 end, 522 "Begin of script message.",
+    # 523-2973 other event lines, 2974 end, 2975 the unification message. The voiced lines follow the sorted
+    # voice files EV<event>_<part>_<line>.g1l one to one (520 files).
+    voices = sorted(f[:-4] for f in os.listdir(os.path.join(game_dir, VOICE_DIR)) if f.startswith("EV"))
+    assert decode_message(script[521]).startswith("End of script voice") and len(voices) == 520
+    with open(os.path.join(out, "voiced.jsonl"), "w", encoding="utf-8") as f:
+        for k, v in enumerate(voices):
+            f.write(json.dumps({"event": v[:7], "voice": v, "msg": k + 1, "text": decode_message(script[k + 1])},
+                               ensure_ascii=False) + "\n")
+    with open(os.path.join(out, "script.jsonl"), "w", encoding="utf-8") as f:
+        for k in range(523, len(script)):
+            f.write(json.dumps({"msg": k, "text": decode_message(script[k])}, ensure_ascii=False) + "\n")
+    ui = messages(os.path.join(game_dir, MSG.format(1)))
+    write_csv(os.path.join(out, "history.csv"), ["msg", "text"],
+              [[k, decode_message(ui[k])] for k in EVENT_TITLES])
+    return len(voices), len(script) - 523
+
+
+@click.command("san12-extras")
+@click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628080)")
+@click.option("--out", required=True, type=click.Path())
+def san12_extras(game_dir, out):
+    """三國志12 PK: event stills, items and event text."""
+    stills = event_stills(game_dir, os.path.join(out, "eventcg"))
+    n_items, pictures, sp = items(game_dir, os.path.join(out, "items"))
+    voiced, script = events(game_dir, os.path.join(out, "events"))
+    print(f"{stills} stills, {n_items} items, {pictures} item pictures + {sp} sp, {voiced} voiced lines, "
+          f"{script} script lines")

@@ -21,6 +21,15 @@ from biography import biography
 from wiki_stats import stats_export
 from persons_export import persons_export
 from places_export import places_export
+from nobu4_extras import nobu4_extras
+from nobu5_extras import nobu5_extras
+from nobu6_extras import nobu6_extras
+from nobu12_extras import nobu12_extras
+from san4_extras import san4_extras
+from san12_extras import san12_extras
+from san13_extras import san13_extras
+from san14_extras import san14_extras
+from nobu13_extras import nobu13_extras
 from san1 import san1
 from san2 import san2
 from san3 import san3
@@ -884,6 +893,15 @@ dekoei.add_command(biography)  # 武將列傳（koei-wiki）
 dekoei.add_command(stats_export, "stats-export")  # 武將能力值（koei-wiki）
 dekoei.add_command(places_export, "places-export")  # 地點與戰場圖（koei-wiki）
 dekoei.add_command(persons_export, "persons-export")  # 人物全部欄位（koei-wiki）
+dekoei.add_command(san4_extras, "san4-extras")  # 三國志IV 事件、插圖、道具
+dekoei.add_command(san14_extras, "san14-extras")  # 三國志14 事件、插圖、寶物
+dekoei.add_command(san13_extras, "san13-extras")  # 三國志13 事件、插圖、寶物
+dekoei.add_command(san12_extras, "san12-extras")  # 三國志12 事件、插圖、名品
+dekoei.add_command(nobu4_extras, "nobu4-extras")  # 信長4 事件、插圖、茶器
+dekoei.add_command(nobu6_extras, "nobu6-extras")  # 信長6 事件、插圖、家宝、官位
+dekoei.add_command(nobu5_extras, "nobu5-extras")  # 信長5 事件、插圖、家宝
+dekoei.add_command(nobu12_extras, "nobu12-extras")  # 信長12 事件、插圖、家宝
+dekoei.add_command(nobu13_extras, "nobu13-extras")  # 信長13 事件、插圖、家宝
 # dekoei.add_command(genghis)  # 成吉思汗
 # dekoei.add_command(genchoh)  # 元朝秘史
 
