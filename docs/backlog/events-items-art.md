@@ -83,10 +83,10 @@ created: 2026-11-07
 
 ## 發現的問題（範圍外）
 
-- 信長4 PC-98：事件圖與扇圖對截圖逐點相同時，畫面上色號 1 是綠、4 是藍，和 kaodata 頭像用的 `NOBU4_PC98_PALETTE`（1 藍、4 綠）相反，頭像可能藍綠對調，要拿頭像截圖確認（`captures/screenshots/nobu4-pc98/`）。
+- 信長4 PC-98 頭像的藍綠：fork 回報可能對調，2026-11-07 查證沒有對調（`guest os_024` 的織田信長頭像逐點相同，見 `notes/nobu4.md`「事件、插圖、道具」色盤）。是事件圖解碼器的 plane 順序不同。
 
 ## 未收尾
 
-- 第一輪 10 款（2026-11-07）都還沒 commit：`dekoei/*_extras.py` 9 個、`dekoei/san1.py`、`dekoei/dekoei.py`（註冊）、10 份 notes、這份文件。
+- 第一輪 10 款已 commit（4fe35fa），還沒 push。
 - 第二輪候選（三國志 II、III、V，信長 2、3）還沒開始。
 - 封存還沒做；每款「封存前還缺」見上表。新作的影音不留（見「結論」）。

@@ -256,6 +256,7 @@ DOS 和 PC-98 版 byte 相同。位址是 DOS 中文版 `MAIN.EXE` 的映像位�
 - `ENDING.DAT`：22 張接到檔尾（人物、騎馬、風景、「完」、KOEI 標誌、版權）。
 - 色盤：
   - 遊戲本體（事件圖）：plane bit 0–2 依序是 #000000 #0000CF #00FF00 #00FFFF #FF0000 #FF00CF #FFFF00 #FFFFCF（✅ capture，031、032）。
+  - 這裡的色號是事件圖解碼器自己的 plane 順序（bit 1＝G），和頭像解碼（`genpei.decode_planar`，bit 1＝R）不同，所以「色號 1 是綠」不代表頭像色盤藍綠對調。✅ capture：`guest os_024` 的織田信長頭像（KAODATA 第 29 張，(376, 52)）用 kaodata 的解碼與 `NOBU4_PC98_PALETTE` 逐點相同（5120 點，色號 1 藍、4 綠）；截圖的 #CF 是 DOSBox-X 對 4-bit 值 0xC 的展開，kaodata 寫 #CC。
   - 開場：#000000 #1010FF #10FF10 #10FFFF #FF1010 #FF10FF #FFFF10 #FFFFFF（✅ capture，007）。結局沒有截圖，先用開場的 🟡。
 
 ### 未壓縮圖（OUGICHAK.DAT、KAIGA.DAT）
