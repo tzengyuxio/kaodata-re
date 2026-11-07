@@ -71,6 +71,12 @@ created: 2026-11-07
 5. 三國志 IV、V 的美術檔：NPK016 的解碼器（源平、英傑傳）也許可以直接用。
 6. 事件文字：從 EXE、`MESSAGE`、`STR` 切成一則一則，工作量最大，等 koei-wiki 訂格式。
 
+koei-wiki 事件條目（2026-11-07 提案，koei-wiki 回了草案，**等它的使用者定格式，先不匯出**）：
+
+- 第一輪只做天災與豐凶（洪水、飢饉、蝗害、台風、疫病、地震、大雪、豊作、凶作、一揆、一向一揆、日照り），歷史事件之後另一輪。
+- 草案格式：`export/koei-wiki/events/<dataset>.jsonl`，一張圖一行 `{"dataset","file","name"（遊戲原文）,"nameZh"?,"confidence":"code|picture","notes"?}`；規則之後再加欄位。規格會寫在 koei-wiki `docs/events-format.mkdn`。
+- 圖的網址 `img.simagame.me/kaodata/event/<dataset>/<file>.png`＋`index.json`，R2 上傳由 koei-wiki 做。
+
 封存前要先跑完成品、具名素材打包（cbz）、`_original/` 登記（§11「封存的步驟」）。
 
 ## 負面結論
