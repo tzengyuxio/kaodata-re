@@ -189,6 +189,7 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `nobu4-win`  | 信長の野望・武将風雲録         | Win 日文版（Steam） |  507 |  567 |        | [notes/nobu4.md](notes/nobu4.md)   |
 | `nobu5-pc98` | 信長の野望・覇王伝           | PC-98      |  818 |  929 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu5-x68`  | 信長の野望・覇王伝           | X68000     |  818 |  929 |        | [notes/nobu5.md](notes/nobu5.md)   |
+| `nobu5pk-pc98` | 信長の野望・覇王伝 with パワーアップキット | PC-98 |  998 | 1067 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu5pk-win` | 信長の野望・覇王伝 with パワーアップキット | Win 日文版（Steam） |  998 | 1067 |        | [notes/nobu5.md](notes/nobu5.md)   |
 | `nobu6-pc98` | 信長の野望・天翔記           | PC-98      | 1000 |  410 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |
 | `nobu6pk-pc98` | 信長の野望・天翔記 with パワーアップキット | PC-98 | 1300 | 547 |   ○    | [notes/nobu6.md](notes/nobu6.md)   |

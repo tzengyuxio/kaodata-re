@@ -71,9 +71,18 @@
 - 沒人用的頭像：姫、事件人物同 PC-98；139、140、914–916、921–924、927、928 與 PK 的 1049–1052、1054、1055、1057–1066 歸「不明」。1057–1066 由 EXE 0x4039A0 特別檢查，呼叫處只有一個清空欄位的對話框（0x4018F0），用途沒追到。
 - 頭像 0–928 放 `portraits.bin`，PK 的 929–1066 放 `extra.bin`。
 
-## PC-98 版 パワーアップキット（沒有另做資料集）
+## PC-98 版 パワーアップキット（`nobu5pk-pc98`，5 代的主資料集）
 
-neo-kobe 合集的 `Nobunaga no Yabou - Haouden (Powerup Kit) [HD].zip` 多了 `KAO2.NB5`（128 張）、`KAO3.NB5`（10 張）與劇本 SN0、SN4。這 138 張依序和 `nobu5pk-win` 的頭像 929–1066 逐點相同，色盤也相同，所以不另做 `nobu5pk-pc98`。`NKAO.NB5` 只有開場程式 `SOPEN.EXE` 用到，格式和頭像不同，不是臉。
+2026-11-07 起 5 代的主資料集（koei-wiki 的人物、地點、列伝與 kaodata）改用這一版，`nobu5pk-win` 保留。
+
+- 來源：`games/archives/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Haouden/Nobunaga no Yabou - Haouden (Powerup Kit) [HD].zip` 裡的 HDI。FAT12 分割區（每磁區 1024 bytes）的全部檔案取出在 `games/archives/pc98/disks/nobu5pk-pc98/hdi/`，其中 `HAOU/` 複製到 `games/nobu5pk-pc98/`。`MAIN.EXE` 日期 1993-09-03。
+- 和本體的差別：多了 `KAO2.NB5`（128 張）、`KAO3.NB5`（10 張）、`BFILE.NB5`（列伝）與劇本 `SN0`／`SN4`、`S0T`／`S4T`；`KAO.NB5` 和本體 byte 相同；`MAIN.EXE`、`SN1–3`、`S1T–S3T` 不同。`NKAO.NB5` 只有開場程式 `SOPEN.EXE` 用到，格式和頭像不同，不是臉。
+- 頭像：PK 的 `MAIN.EXE` 有三個索引表，`KAO.NB5` 在 0x46858（930 個 u16，929 張）、`KAO2.NB5` 在 0x46756（129 個，頭像 929–1056）、`KAO3.NB5` 在 0x46740（11 個，1057–1066），單位 20 bytes，解法同本體（`nobu_pc98_face`）。色盤在 0x4754E（本體 0x4131E）。1067 張和 `nobu5pk-win` 逐點相同 ✅ checksum。
+- 劇本：配置同本體（見下一節），唯一的不同是年份改從 1453 起算（同 Win 版）：檔頭的年、人物 +14 生年、`S*T` 的 +0 登場年與 +18 生年。`SN1` 和本體比，除了這些只有頭像 432 的姓改成「楽巌寺」（本體「楽厳寺」，同 Win）；`S1T` 只差 +0、+18 ✅ code（逐 byte 比對）。5 個劇本依序是 1534、1551、1568、1582、1583 年，各 322、413、459、413、412 人，大名 51、48、43、27、30 家，後登場 418、284、133、59、53 筆。
+- 國名：`MAIN.EXE` 0x603D8 起 64 個 NUL 分隔的字串（本體 0x58E78），順序同國 0–63。
+- 列伝：`BFILE.NB5`（180400 bytes），1100 筆 × 164 bytes，排法和 Win 版 EXE 0x876D8 的列伝相同（u16 生年、u16 没年、160 bytes 本文），第 n 筆是頭像 n，1057 以後是空的。生没年和 Win 版 1057 筆全部相同、空的記錄也相同；本文有 477 筆不同（Win 版改寫過字句，例：頭像 4「その合理的かつ冷静」→「合理的かつ冷静な判断は」），匯出的 998 人裡 460 段不同。
+- kaodata（`build_nobu5_pc98(pk=True)`）：998 人、1067 張，和 `nobu5pk-win` 比，人物（名字、頭像、`pk`）、頭像（checksum、分組、名字）0 筆不同；`pnpm verify` 2065 項 0 筆不符。
+- koei-wiki（`wiki_nobu5_pc98.py`）：地點 237、人物 998，和 `nobu5pk-win` 的匯出比，除了 `dataset` 以外每一個欄位都相同（人物連 `notes` 也相同；地點只有國的 `notes` 寫國名的出處不同）。
 
 ## 劇本檔的整體配置（SN1–3.NB5，XOR 0xB4 之後）
 
@@ -210,7 +219,7 @@ neo-kobe 合集的 `Nobunaga no Yabou - Haouden (Powerup Kit) [HD].zip` 多了 `
 
 ## 列伝（Win 版）
 
-Windows 版的 `Nobunaga5WPK.exe` 有武將列伝，PC-98 版的檔案裡沒找到（只搜過「尾張」「織田信長」，`STR*.NB5` 沒解）。
+Windows 版的 `Nobunaga5WPK.exe` 有武將列伝。PC-98 本體沒有（只搜過「尾張」「織田信長」，`STR*.NB5` 沒解），PK 的 `BFILE.NB5` 有同樣排法的列伝（見「PC-98 版 パワーアップキット」）。
 
 - 位置：`.data` 檔案 0x876D8 起，1057 筆 × 164 bytes，第 n 筆就是頭像 n 的列伝（0–1056；0xAB100 起是頭像 890–913 的空記錄，1057 以後的位置是別的資料）。
 - 每筆：u16 生年、u16 没年（0xFFFF 是不明），之後 160 bytes Shift-JIS 本文，用 0x0A 照視窗 19 字換行，NUL 補齊。沒有名字、讀音。
@@ -219,6 +228,8 @@ Windows 版的 `Nobunaga5WPK.exe` 有武將列伝，PC-98 版的檔案裡沒找�
 - 空的：頭像 890–913（沒名字的公主）、925–927、1049–1052、1054–1057。
 
 ## koei-wiki 匯出
+
+主資料集是 `nobu5pk-pc98`（`wiki_nobu5_pc98.py`，指令同下，把 dataset 與 `--game-dir` 換成 `nobu5pk-pc98`、`../games/nobu5pk-pc98`；結果和 Win 版的關係見「PC-98 版 パワーアップキット」）。下面是 Win 版的說明，兩版相同。
 
 `dekoei.py places-export nobu5pk-win --game-dir ../games/nobu5pk-win --out ../export/koei-wiki/places` 與 `dekoei.py persons-export nobu5pk-win --game-dir ../games/nobu5pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_nobu5.py`，koei-places/1 與 koei-persons/1）。
 

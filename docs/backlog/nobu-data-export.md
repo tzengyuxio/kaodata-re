@@ -28,7 +28,7 @@ to: koei-wiki
 | 2 全国版 | `nobu2-pc88` | 同 |
 | 3 戦国群雄伝 | `nobu3-pc98` | `nobu3-dos`（中文） |
 | 4 武将風雲録 | `nobu4-pc98` | `nobu4-dos`（中文） |
-| 5 覇王伝 | `nobu5pk-win` | 同 |
+| 5 覇王伝 | `nobu5pk-pc98` | 同 |
 | 6 天翔記 | `nobu6pk-pc98` | 同（Steam HD 版帳號沒有） |
 | 7 将星録 | `nobu7pk-win` | `nobu7-win`（中文視窗版，序號相同） |
 | 8 烈風伝 | `nobu8pk-win` | 同 |
@@ -71,6 +71,7 @@ to: koei-wiki
   | `nobu3-pc98` | 38 國 | 385 | — |
   | `nobu4-pc98` | 48 國 | 507 | — |
   | `nobu5pk-win` | 173 城＋64 國（沒有相鄰、座標） | 998 | 998（EXE 0x876D8，日文） |
+  | `nobu5pk-pc98`（2026-11-07 改為主資料集） | 同 Win | 998（全部欄位同 Win） | 998（BFILE.NB5，日文；460 段的文字和 Win 不同） |
   | `nobu6pk-pc98` | 214 城＋74 國（相鄰由道路推算 🟡） | 1300 | 1300（日文） |
   | `nobu7pk-win` | 64 城（沒有相鄰） | 716 | 713（繁中） |
   | `nobu8pk-win` | 181 城＋64 國 | 900 | 898（日文） |

@@ -902,7 +902,7 @@ DATASETS = {"san1-pc98": places_san1_pc98, "san2-pc98": places_san2_pc98, "san3-
             "san14pk-win": places_san14pk_win, "suikoden-dos": places_suikoden_dos}
 # 信長の野望: dataset -> module wiki_<game>.py with places(game_dir, out_dir)
 MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu2-dos": "wiki_nobu2_dos", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
-           "nobu5pk-win": "wiki_nobu5", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
+           "nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
            "nobu8pk-win": "wiki_nobu8", "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10",
            "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13"}
 
