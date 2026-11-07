@@ -20,6 +20,7 @@ from kaodata_export import export
 from biography import biography
 from wiki_stats import stats_export
 from persons_export import persons_export
+from events_export import events_export
 from places_export import places_export
 from nobu4_extras import nobu4_extras
 from nobu5_extras import nobu5_extras
@@ -893,6 +894,7 @@ dekoei.add_command(biography)  # 武將列傳（koei-wiki）
 dekoei.add_command(stats_export, "stats-export")  # 武將能力值（koei-wiki）
 dekoei.add_command(places_export, "places-export")  # 地點與戰場圖（koei-wiki）
 dekoei.add_command(persons_export, "persons-export")  # 人物全部欄位（koei-wiki）
+dekoei.add_command(events_export, "events-export")  # 遊戲內事件的圖（koei-wiki）
 dekoei.add_command(san4_extras, "san4-extras")  # 三國志IV 事件、插圖、道具
 dekoei.add_command(san14_extras, "san14-extras")  # 三國志14 事件、插圖、寶物
 dekoei.add_command(san13_extras, "san13-extras")  # 三國志13 事件、插圖、寶物
