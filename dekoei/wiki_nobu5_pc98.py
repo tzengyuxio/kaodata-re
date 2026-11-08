@@ -18,6 +18,8 @@ year, u16 death year (0xFFFF unknown), 160 bytes of Shift-JIS text; 1057 and aft
 import os
 import struct
 
+from PIL import Image
+
 import kaodata_export as K
 import koei_games as G
 from wiki_nobu5 import LIFESPAN, PROVINCE_BASE, STATS, _name
@@ -27,6 +29,19 @@ DAIMYO, CITIES = 0x122, 0x50F8
 PROVINCE_NAMES = 0x603D8
 BIO_SIZE = 164
 BIO_LANG = "ja"
+
+# World map (notes/nobu5.md「大地圖」). M_PARTS.NB5 starts with the 120 x 23 cell grid, 3 bytes a cell at
+# (column * 23 + row) * 3: +0 terrain tile, +1 sprite (0xFF none), +2 overlay shape in the low nibble (0xE castle,
+# 0xFF none). M_CHIKEI.NB5 holds 239 terrain tiles of 96 bytes from 0, 128-byte sprites from 0x59A0 (96 bytes OR'd,
+# 32-byte mask AND'd first) and 64-byte overlay shapes from 0xAFA0 (32-byte shape, 32-byte mask). Tiles are 16 x 16,
+# a row is 6 bytes: left 8 dots in planes 0-2, then right 8 dots. The cell draw is MAIN.EXE image 0x7024. Odd columns
+# sit 8 dots lower (image 0x6F16). The castle cells are a table of (column, row) bytes for the 173 castles at image
+# 0x43870 + 0x114 (searched by image 0x6F49). The colours 0-7 are the season table at file 0x47596 + 0x18 x season
+# (B, R, G nibbles); table 0 is taken as spring.
+MAP_COLS, MAP_ROWS, CELL = 120, 23, 16
+MAP_W, MAP_H = MAP_COLS * CELL, MAP_ROWS * CELL + CELL // 2
+MAP_CASTLES, MAP_SEASONS = 0x43870 + 0x114, 0x47596
+NOBU5_WORLD_FILE = "M_CHIKEI-spring.png"
 
 
 def _u16(b, o):
@@ -158,8 +173,85 @@ def persons(game_dir):
     return sorted(out, key=lambda r: r["id"])
 
 
+def _map_files(game_dir):
+    def read(name):
+        with open(os.path.join(game_dir, name), "rb") as f:
+            return f.read()
+    return read("M_PARTS.NB5")[:MAP_COLS * MAP_ROWS * 3], read("M_CHIKEI.NB5"), read("MAIN.EXE")
+
+
+def _cell(grid, c, r):
+    return grid[(c * MAP_ROWS + r) * 3:(c * MAP_ROWS + r) * 3 + 3]
+
+
+def _cell_dots(grid, chikei, c, r):
+    terrain, sprite, overlay = _cell(grid, c, r)
+    buf = bytearray(chikei[terrain * 96:terrain * 96 + 96])
+    if overlay != 0xFF and overlay & 0xF < 0xE:
+        o = 0xAFA0 + (overlay & 0xF) * 64
+        colour = 2 if terrain >= 0x5F else 7
+        for i in range(32):
+            for p in range(3):
+                buf[i * 3 + p] &= chikei[o + 32 + i]
+                if colour >> p & 1:
+                    buf[i * 3 + p] |= chikei[o + i]
+    if sprite != 0xFF:
+        o = 0x59A0 + sprite * 128
+        for i in range(96):
+            buf[i] = buf[i] & chikei[o + 0x60 + i // 3] | chikei[o + i]
+    return [sum((buf[y * 6 + x // 8 * 3 + p] >> (7 - x % 8) & 1) << p for p in range(3))
+            for y in range(CELL) for x in range(CELL)]
+
+
+def world_map(game_dir):
+    grid, chikei, exe = _map_files(game_dir)
+    pal = []
+    for i in range(8):
+        b, r, g = exe[MAP_SEASONS + 3 * i:MAP_SEASONS + 3 * i + 3]
+        pal += [r * 17, g * 17, b * 17]
+    im = Image.new("P", (MAP_W, MAP_H))
+    im.putpalette(pal)
+    tile = Image.new("P", (CELL, CELL))
+    for c in range(MAP_COLS):
+        for r in range(MAP_ROWS):
+            tile.putdata(_cell_dots(grid, chikei, c, r))
+            im.paste(tile, (c * CELL, r * CELL + (CELL // 2 if c & 1 else 0)))
+    return im
+
+
+def _castle_cells(exe):
+    base = _u16(exe, 8) * 16
+    return [tuple(exe[base + MAP_CASTLES + 2 * k:base + MAP_CASTLES + 2 * k + 2]) for k in range(173)]
+
+
+def _cell_at(x, y):
+    c = x // CELL
+    return c, (y - (CELL // 2 if c & 1 else 0)) // CELL
+
+
+def world_check(game_dir, rows):
+    """Every castle pos falls on a castle cell (overlay 0xE) of the grid, the one the castle table gives for it."""
+    grid, _, exe = _map_files(game_dir)
+    cells = _castle_cells(exe)
+    checked, bad = 0, []
+    for r in rows:
+        if "pos" not in r:
+            continue
+        checked += 1
+        c, row = _cell_at(r["pos"]["x"], r["pos"]["y"])
+        if (c, row) != cells[r["id"]] or _cell(grid, c, row)[2] & 0xF != 0xE:
+            bad.append(f"{r['id']}: pos {r['pos']['x']},{r['pos']['y']} is not on its castle cell")
+    flagged = sum(1 for c in range(MAP_COLS) for r in range(MAP_ROWS) if _cell(grid, c, r)[2] & 0xF == 0xE)
+    if flagged != len(set(cells)):
+        bad.append(f"{flagged} castle cells on the grid, {len(set(cells))} in the castle table")
+    return checked, bad
+
+
 def places(game_dir, out_dir):
     sns, _, exe, _ = _load(game_dir)
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    world_map(game_dir).save(os.path.join(out_dir, "world", NOBU5_WORLD_FILE))
+    cells = _castle_cells(exe)
     years = _years(sns)
     provinces = province_names(exe)
     rows = []
@@ -169,7 +261,11 @@ def places(game_dir, out_dir):
         assert all(sn[CITIES + 38 * k + 11] == province for sn in sns)
         row = {"id": k, "name": names[0], "level": "城", "province": provinces[province],
                "notes": f"城的號碼是遊戲的城號（九州往東北排）。名稱取劇本 1（{years[0]} 年）；城表裡的名字不含「城」字。"
-                        "遊戲資料沒有城與城的相鄰關係，也沒有大地圖座標，所以沒給 adjacent、pos。"}
+                        f"pos 是大地圖 world/{NOBU5_WORLD_FILE}（{MAP_W}×{MAP_H}）上城格的中心像素；"
+                        "大地圖是 120×23 格、一格 16 點，奇數欄往下錯半格。遊戲資料沒有城與城的相鄰關係，所以沒給 adjacent。",
+               "pos": {"x": cells[k][0] * CELL + CELL // 2,
+                       "y": cells[k][1] * CELL + (CELL // 2 if cells[k][0] & 1 else 0) + CELL // 2,
+                       "grid": "pixel", "w": MAP_W, "h": MAP_H}}
         renamed = [f"劇本 {n + 1}（{years[n]}）{name}" for n, name in enumerate(names) if name != names[0]]
         if renamed:
             row["notes"] += "其他劇本的名稱：" + "、".join(renamed) + "。"

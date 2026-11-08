@@ -90,7 +90,7 @@
 `dekoei.py persons-export nobu2-pc88 --game-dir ../games/nobu2-pc88 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places` 和 `places-export nobu2-pc88`（`wiki_nobu2.py`，koei-persons/1、koei-places/1，規格在 koei-wiki 的 `docs/persons-format.mkdn`、`docs/places-format.mkdn`）。
 
 - 人物 53 位，`id` 同 kaodata（0 起）。`stats` 是健康、野心、運、魅力、ＩＱ，`more.年令` 是 1560 年的年令，`born`＝1560－年令。劇本只有一個 `50國`，大名 k 在國 k＋1；明智、羽柴、柴田沒有 `scenarios`。
-- 地點是 50 國劇本的 50 國，`id` 1–50，`adjacent` 照 `DATA50N.DAT` 的順序。地方只有號碼（寫在 `notes`），沒有 `region`；地方地圖的座標單位沒確認，沒有 `pos`；戰場圖的圖塊沒找到（見「戰場」），沒有 PNG。17 國劇本的國沒有匯出。
+- 地點是 50 國劇本的 50 國，`id` 1–50，`adjacent` 照 `DATA50N.DAT` 的順序。地方只有號碼（寫在 `notes`），沒有 `region`；地方地圖的圖和座標單位沒解（見「負面結論」），沒有大地圖與 `pos`；戰場圖的圖塊沒找到（見「戰場」），沒有 PNG。17 國劇本的國沒有匯出。
 - `places-export nobu2-dos --game-dir ../games/nobu2-dos`（`wiki_nobu2_dos.py`）：同樣 50 國（國表、地方號讀 `games/nobu2-dos/PC88_DISK_A.D88`，`name` 用漢字，DOS 的英文國名 `DATA50N.DAT` 0x3A 起每筆 14 bytes 寫進 `notes`），加上 50 張戰場圖 `01.png`–`50.png`（448×352，`role` 戰場，圖塊見「戰場」）。`games/nobu2-dos/` 另從 DOS 壓縮檔取出 `HEXMAP.50`、`DATA50N.DAT`；圖塊要讀 `captures/screenshots/nobu2-dos/` 的截圖。
 
 ## 和 FC 版比較
@@ -123,3 +123,13 @@
 - 圖是重畫的 4 色版，和 PC-88 的 8 色圖不同，人物順序相同。匯出時 200 線的列重複一次（64×80、88×96），組合臉的 4 段橫條和碼同 PC-88。
 - 人名：`DATA50S.DAT` 0x1760 起是 53 個羅馬拼音的姓、0x19A8 起是 53 個名，各 11 bytes（Kakizaki Yoshihiro … Shibata Katsuie）。`name` 照遊戲原文（Ruzoji＝竜造寺、Kinoi＝城井、Kosa＝光佐、Hideyosi 等怪拼法照錄），`nameZh` 依 id 取 PC-88 的漢字名，別所長冶照 PC-88 的 `nameHistorical` 改成別所長治。
 - 色盤：`ega`（預設）照 DS:0xB22 的色盤暫存器換算；`mono` 是單色模式（色號 0 黑、其他白）。
+
+## 下一輪候選
+
+- PC-88 的地方地圖（koei-wiki 要的大地圖）— 前置：找到 `ODAMAIN.COM`／`ODA.OVL`（Z80）裡畫地方地圖的程式，或在模擬器（PC-88）拍一張地方地圖的截圖，知道圖的大小與位置；做法：從程式讀出存圖的檔案與位移，再用 `DATA50N.DAT` 0xA75 的 `[國][x][y]` 對圖驗證座標單位。
+
+## 負面結論
+
+- 在 Disk A `PICDATA` 找地方地圖（2026-11-08）：照 `pc88.brg_pixels` 試寬 64–128 點、自相關找列寬，最常見的列寬是 102 bytes（272 點），畫出來是許多小圖（事件或圖示），沒有地圖 → 圖的大小、存放順序要從程式讀出來才值得再試。
+- 在 Disk B 映像頭像以外的部分（0x28000–0x50000）找地方地圖：資料像是以 0x96 為跳脫碼的 RLE（`96 n` 重複），照「前一個 byte 重複」解開後，以 640 點一列畫成單平面是雜訊，平面排法和列寬都沒對上 → 同上，要先找到解壓與畫圖的程式。
+- 沒有 PC-88 版的截圖，也沒有全國一張的大地圖：遊戲只有 7 張地方地圖，一國可以出現在幾張上，所以就算解出圖，也要決定交付哪幾張。

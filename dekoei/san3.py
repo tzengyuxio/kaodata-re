@@ -299,6 +299,76 @@ def render_san3_battle_maps(game_dir):
     return maps
 
 
+# PC-98 main map (see notes/san-maps.md): MAPDATA.DAT is three compressed bands (MAIN.EXE image 0x464E reads
+# 0x7C72, 0x9ACC, 0x6C1C bytes; 0x1E0F decodes) stacked into one 640 x 400 screen. Palette: entries 0-7 at
+# DGROUP 0x2A3A, entries 8-15 per season (month // 3) from DGROUP 0x1AE6 + 24 * season, 3 bytes B, R, G.
+WORLD_BANDS = [0x7C72, 0x9ACC, 0x6C1C]
+WORLD_W, WORLD_H = 640, 400
+WORLD_DGROUP = 0x8C00 + 0x4B200  # MAIN.EXE file offset of DGROUP
+WORLD_PALETTE, WORLD_SEASONS = 0x2A3A, 0x1AE6
+
+
+def world_band(data):
+    """One band: u16 width (bit 15 ignored), u16 height, 8 u16 colour words, then codes. A unit is 4 pixels,
+    one 16-bit word holding 4 bits of each plane (plane k in bits 4k-4k+3, the high bit is the left pixel)."""
+    w, h = struct.unpack_from("<HH", data)
+    w &= 0x7FFF
+    table = struct.unpack_from("<8H", data, 4)
+    units, pos = (w + 3) // 4, 20
+    out = [0] * (units * h + 16)  # a run may overshoot the last row
+
+    def byte():
+        nonlocal pos
+        pos += 1
+        return data[pos - 1]
+
+    for row in range(h):
+        di, left = row * units, units
+        while left > 0:
+            c = byte()
+            if c & 0x80:  # copy n units from k units back in this row, or from k rows up
+                n, k = (c & 0xF) + 1, ((c >> 4) & 3) + 1
+                src = di - k * (units if c & 0x40 else 1)
+                for i in range(n):
+                    out[di + i] = out[src + i]
+            else:
+                n, a = (c & 7) + 1, c & 0x78
+                if a == 0:
+                    v = 0
+                elif a & 0x40:
+                    v = table[(c >> 3) & 7]
+                elif a == 0x38:
+                    v = byte() << 8
+                    v |= byte()
+                else:
+                    b = byte()
+                    v = [b, (b & 0xF) | (b & 0xF0) << 4, (b & 0xF0) << 8 | (b & 0xF), b << 4,
+                         (b & 0xF0) << 8 | (b & 0xF) << 4, b << 8][(a - 8) >> 3]
+                for i in range(n):
+                    out[di + i] = v
+            di, left = di + n, left - n
+    px = bytearray(units * 4 * h)
+    for i, v in enumerate(out[:units * h]):
+        for j in range(4):
+            px[i * 4 + j] = sum(((v >> (4 * k + 3 - j)) & 1) << k for k in range(4))
+    return Image.frombytes("P", (units * 4, h), bytes(px)).crop((0, 0, w, h))
+
+
+def render_san3_world_map(game_dir, season=0):
+    with open(f"{game_dir}/MAPDATA.DAT", "rb") as f:
+        data = f.read()
+    with open(f"{game_dir}/MAIN.EXE", "rb") as f:
+        exe = f.read()
+    im, y, off = Image.new("P", (WORLD_W, WORLD_H)), 0, 0
+    for n in WORLD_BANDS:
+        band = world_band(data[off:off + n])
+        im.paste(band, (0, y))
+        y, off = y + band.height, off + n
+    raw = exe[WORLD_DGROUP + WORLD_PALETTE:][:24] + exe[WORLD_DGROUP + WORLD_SEASONS + 24 * season:][:24]
+    im.putpalette([17 * raw[3 * i + k] for i in range(16) for k in (1, 2, 0)])
+    return im
+
+
 @click.command(help="戰場地圖（PC-98）")
 @click.option("--game-dir", "game_dir", required=True, help="遊戲目錄")
 @click.option("--out", "out_dir", required=True, help="輸出目錄")

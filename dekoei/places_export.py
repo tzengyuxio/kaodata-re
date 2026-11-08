@@ -104,7 +104,84 @@ def santsukuru_provinces(game_dir):
     return out
 
 
+# MAPDATA.DAT: the left panel of the main screen, 296 x 400, 3 planes interleaved per 8 pixels (111 bytes a row,
+# bit 0 B, bit 1 R, bit 2 G; the first 44400 bytes); all 400 rows match the capture main_000.raw1.png, where the
+# white 州 are filled with the owners' colours. The game's 州 numbers are drawn on it. Each 州 is one white area;
+# SAN2_MAP_POS is the point of each 州 (1-41) farthest from its border, picked by reading the numbers.
+SAN2_MAP, SAN2_MAP_W, SAN2_MAP_H, SAN2_WHITE = "MAPDATA.DAT", 296, 400, 7
+SAN2_MAP_POS = [(268, 44), (212, 86), (170, 79), (142, 88), (145, 111), (198, 126), (190, 115), (250, 122),
+                (210, 141), (170, 134), (136, 130), (110, 122), (66, 157), (60, 104), (40, 94), (230, 157),
+                (211, 171), (220, 182), (185, 211), (145, 207), (142, 232), (168, 299), (130, 261), (249, 188),
+                (272, 259), (245, 271), (224, 277), (214, 219), (106, 208), (75, 179), (108, 253), (90, 257),
+                (52, 213), (52, 277), (18, 312), (36, 333), (200, 326), (156, 317), (151, 346), (110, 276),
+                (94, 332)]
+
+
+def san2_world_map(game_dir):
+    with open(os.path.join(game_dir, SAN2_MAP), "rb") as f:
+        d = f.read()
+    px = bytearray(SAN2_MAP_W * SAN2_MAP_H)
+    for y in range(SAN2_MAP_H):
+        for x in range(SAN2_MAP_W):
+            o, bit = y * 111 + x // 8 * 3, 7 - x % 8
+            px[y * SAN2_MAP_W + x] = sum(((d[o + k] >> bit) & 1) << k for k in range(3))
+    im = Image.frombytes("P", (SAN2_MAP_W, SAN2_MAP_H), bytes(px))
+    im.putpalette([255 * ((c >> b) & 1) for c in range(8) for b in (1, 2, 0)])
+    return im
+
+
+def _areas(im, colour):
+    """4-connected areas of one colour: label per pixel (0 = other colour)."""
+    w, h = im.size
+    px, lab, n = im.tobytes(), [0] * (w * h), 0
+    for i in range(w * h):
+        if px[i] == colour and not lab[i]:
+            n += 1
+            lab[i], stack = n, [i]
+            while stack:
+                j = stack.pop()
+                x, y = j % w, j // w
+                for u, v in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    k = v * w + u
+                    if 0 <= u < w and 0 <= v < h and px[k] == colour and not lab[k]:
+                        lab[k] = n
+                        stack.append(k)
+    return lab
+
+
+def world_check_san2(game_dir, rows):
+    """Each 州 pos is on a white area of its own, and the areas touch (across a border of up to 8 px) exactly as
+    the adjacency says."""
+    im = san2_world_map(game_dir)
+    w, h = im.size
+    lab = _areas(im, SAN2_WHITE)
+    area = {lab[r["pos"]["y"] * w + r["pos"]["x"]]: r["id"] for r in rows}
+    checked, bad = len(rows), [f"{r['id']}: pos not on a white area" for r in rows
+                               if not lab[r["pos"]["y"] * w + r["pos"]["x"]]]
+    if len(area) != len(rows):
+        bad.append("two 州 share a white area")
+    touch = set()
+    for y in range(h):
+        for x in range(w):
+            a = area.get(lab[y * w + x])
+            if a is None:
+                continue
+            for dx in range(-4, 5):
+                for dy in range(-4, 5):
+                    u, v = x + dx, y + dy
+                    b = area.get(lab[v * w + u]) if 0 <= u < w and 0 <= v < h else None
+                    if b and b != a:
+                        touch.add((a, b))
+    for r in rows:
+        checked += 1
+        if sorted(b for a, b in touch if a == r["id"]) != r["adjacent"]:
+            bad.append(f"{r['id']}: map neighbours differ from adjacent")
+    return checked, bad
+
+
 def places_san2_pc98(game_dir, out_dir):
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    san2_world_map(game_dir).save(os.path.join(out_dir, "world", "MAPDATA.png"))
     maps, _ = san2.render_san2_battle_maps(os.path.join(game_dir, "HEXDATA.DAT"))
     _save(maps, out_dir, [f"{n:02d}.png" for n in range(1, 42)])
     where = {qr: k + 1 for k, qr in enumerate(san2.SAN2_PROVINCE_HEX)}
@@ -117,10 +194,11 @@ def places_san2_pc98(game_dir, out_dir):
         rows.append({"id": k + 1, "name": None, "nameBorrowed": {"name": name, "from": "santsukuru-win"},
                      "level": "州", "adjacent": adjacent,
                      "battlemaps": [{"file": f"{k + 1:02d}.png", "role": BATTLE}],
-                     "pos": {"x": q, "y": r, "grid": "hex-axial"},
+                     "pos": {"x": SAN2_MAP_POS[k][0], "y": SAN2_MAP_POS[k][1], "grid": "pixel", "w": SAN2_MAP_W,
+                             "h": SAN2_MAP_H},
                      "uncertain": ["battlemaps"],
                      "notes": "州只有號碼，借用的名字來自三国志ツクール範例劇本（41 州的順序與相鄰關係和本作相同）。"
-                              "pos 是把 41 州排成六角格的軸座標（由相鄰關係推出）。"
+                              "pos 是大地圖 world/MAPDATA.png（296×400）上這一州白色區塊裡離州界最遠的點。"
                               "從哪個鄰州進攻只換布陣位置、不換地圖，沒在遊戲裡確認。"})
     return rows
 
@@ -131,6 +209,19 @@ def places_san2_pc98(game_dir, out_dir):
 # MAIN.EXE 0x53431 (location id, 0x80 road, 0xFF none), the step table at 0x53418 (0x70C4 / 0x7261). The battle
 # map is HEXDATA.DAT map (location id) (0x2EF8B / 0x3847C).
 SAN3_GAIJI = {6: "鄴", 16: "下邳", 19: "譙", 60: "涪城"}  # names with gaiji, by location id
+# World map (san3.render_san3_world_map, 640 x 400): each 州 has a black 8 x 8 square (filled with the owner's
+# colour in play) and each 據點 a blue number box; SAN3_MAP_POS is the centre of that square or box, picked by
+# reading the game's numbers (1-68) printed beside them.
+SAN3_MAP_W, SAN3_MAP_H, SAN3_SQUARE, SAN3_BOX = 640, 400, 0, 1
+SAN3_MAP_POS = [(588, 30), (492, 46), (420, 36), (364, 62), (452, 80), (428, 102), (380, 122), (500, 114), (412, 138),
+                (388, 164), (316, 168), (306, 133), (244, 124), (228, 96), (180, 124), (140, 52), (468, 192),
+                (444, 176), (364, 186), (404, 186), (388, 212), (308, 194), (268, 194), (276, 220), (228, 190),
+                (356, 228), (316, 244), (260, 260), (308, 268), (300, 292), (235, 289), (420, 212), (452, 214),
+                (476, 232), (468, 260), (412, 248), (388, 276), (204, 164), (164, 170), (156, 204), (116, 236),
+                (212, 220), (172, 252), (100, 308), (60, 284), (316, 318), (526, 31), (143, 144), (357, 245),
+                (456, 58), (396, 116), (334, 153), (401, 166), (200, 136), (192, 112), (164, 104), (484, 195),
+                (302, 220), (247, 237), (423, 228), (111, 198), (428, 266), (331, 275), (333, 179), (280, 115),
+                (252, 160), (342, 119), (178, 194)]
 
 
 def san3_places(game_dir):
@@ -164,14 +255,47 @@ def san3_places(game_dir):
     return names, readings, pos, adjacent
 
 
+def _boxes(im, colour):
+    """Bounding box (x0, y0, x1, y1) and pixel count of each 4-connected area of one colour, by label."""
+    w = im.size[0]
+    lab, out = _areas(im, colour), {}
+    for i, a in enumerate(lab):
+        if a:
+            x, y = i % w, i // w
+            x0, y0, x1, y1, n = out.get(a, (x, y, x, y, 0))
+            out[a] = (min(x0, x), min(y0, y), max(x1, x), max(y1, y), n + 1)
+    return out
+
+
+def world_check_san3(game_dir, rows):
+    """Each 州 pos is inside its own black 8 x 8 square, each 據點 pos inside its own blue number box, and the map
+    has no other squares or boxes."""
+    im = san3.render_san3_world_map(game_dir)
+    squares = [b for b in _boxes(im, SAN3_SQUARE).values() if b[2] - b[0] == b[3] - b[1] == 7 and b[4] == 64]
+    boxes = [b for b in _boxes(im, SAN3_BOX).values() if b[3] - b[1] == 8 and 10 <= b[2] - b[0] <= 12]
+    bad, used = [], set()
+    for r in rows:
+        x, y = r["pos"]["x"], r["pos"]["y"]
+        hit = [b for b in (squares if r["level"] == "州" else boxes) if b[0] <= x <= b[2] and b[1] <= y <= b[3]]
+        if len(hit) != 1 or hit[0] in used:
+            bad.append(f"{r['id']}: pos not on a {r['level']} mark of its own")
+        used.update(hit)
+    if len(squares) + len(boxes) != len(rows):
+        bad.append(f"{len(squares)} squares and {len(boxes)} boxes on the map for {len(rows)} places")
+    return len(rows), bad
+
+
 def places_san3_pc98(game_dir, out_dir):
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    san3.render_san3_world_map(game_dir).save(os.path.join(out_dir, "world", "MAPDATA-spring.png"))
     _save(san3.render_san3_battle_maps(game_dir), out_dir, [f"{n:02d}.png" for n in range(1, 69)])
-    names, readings, pos, adjacent = san3_places(game_dir)
+    names, readings, _, adjacent = san3_places(game_dir)
     rows = []
     for v in range(68):
         row = {"id": v, "name": names[v], "reading": readings[v], "level": "州" if v < 46 else "據點",
                "adjacent": adjacent(v), "battlemaps": [{"file": f"{v + 1:02d}.png", "role": BATTLE}],
-               "pos": {"x": pos[v][0], "y": pos[v][1], "grid": "hex-offset", "w": 15, "h": 16}}
+               "pos": {"x": SAN3_MAP_POS[v][0], "y": SAN3_MAP_POS[v][1], "grid": "pixel", "w": SAN3_MAP_W,
+                       "h": SAN3_MAP_H}}
         if v >= 46:
             row["uncertain"] = ["level"]
             row["notes"] = ("「據點」是這邊的分類，遊戲裡的稱呼沒查到；46–67 號包括 5 個関、渡口、山與古戰場。"
@@ -179,7 +303,8 @@ def places_san3_pc98(game_dir, out_dir):
         rows.append(row)
     for row in rows:
         row["notes"] = (row.get("notes", "") + "相鄰是大地圖六角格上沿道路走得到的地點（遊戲每次實際走哪幾個方向沒查）。"
-                        "pos 是 15 × 16 的六角格，奇數欄錯半格。")
+                        "pos 是大地圖 world/MAPDATA-spring.png（640×400）上的像素：州是編號旁的黑色方塊"
+                        "（遊戲中塗成勢力色）中心，據點是藍色編號框的中心。")
     return rows
 
 
@@ -191,9 +316,45 @@ SAN4PK_PC98_CITIES, SAN4PK_PC98_FIELD = 0x4615D, 0x3FC28
 SAN4_GAIJI = {6: "鄴", 16: "下邳", 19: "譙"}
 
 
+SAN4_WORLD_W, SAN4_WORLD_H = sango.SAN4_WORLD_COLS * 16, sango.SAN4_WORLD_ROWS * 16
+
+
+def san4_world_pos(game_dir):
+    """{city: pixel} of the centre of the castle: the cell of layer 9 part 10 (middle of the 3 x 3 castle)."""
+    pos = {}
+    for y, row in enumerate(sango.san4_world_cells(game_dir)):
+        for x, cell in enumerate(row):
+            if cell[9] == 10 and cell[8] != 0xFF:
+                assert cell[8] not in pos
+                pos[cell[8]] = (x * 16 + 8, y * 16 + 8)
+    return pos
+
+
+def world_check_san4(game_dir, rows):
+    """Each pos is on a cell of its own city (layer 8) whose layer 2 is the middle tile of a castle (9 k + 4), the
+    city's whole 3 x 5 area is cells of that city with parts 0-14 in order, and the map has no other cities."""
+    cells = sango.san4_world_cells(game_dir)
+    bad = []
+    for r in rows:
+        x, y = r["pos"]["x"] // 16, r["pos"]["y"] // 16
+        if cells[y][x][8] != r["id"] or cells[y][x][2] == 0xFF or cells[y][x][2] % 9 != 4:
+            bad.append(f"{r['id']}: pos not on the middle of its castle")
+            continue
+        area = [cells[y - 3 + k // 3][x - 1 + k % 3] for k in range(15)]
+        if any(c[8] != r["id"] or c[9] != k for k, c in enumerate(area)):
+            bad.append(f"{r['id']}: 3 x 5 area around pos is not the city's")
+    found = {c[8] for row in cells for c in row if c[9] < 100 and c[8] != 0xFF}
+    if found != {r["id"] for r in rows}:
+        bad.append(f"cities on the map {sorted(found)} differ from the places")
+    return len(rows), bad
+
+
 def places_san4pk_pc98(game_dir, out_dir):
     base = os.path.join(game_dir, "..", "san4-pc98", "MAIN.EXE")  # the palette offsets are the base game's
     _save(sango.render_san4_battle_maps(game_dir, palette_exe=base), out_dir, [f"{n:02d}.png" for n in range(1, 89)])
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    sango.render_san4_world_map(game_dir, palette_exe=base).save(os.path.join(out_dir, "world", "MAINMAP.png"))
+    pos = san4_world_pos(game_dir)
     with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
         exe = f.read()
     recs = [exe[SAN4PK_PC98_CITIES + 29 * i:][:29] for i in range(43)]
@@ -214,8 +375,11 @@ def places_san4pk_pc98(game_dir, out_dir):
             maps.append(m)
         rows.append({"id": i, "name": SAN4_GAIJI.get(i) or _text(r[3:8]), "reading": _reading(r[8:15]),
                      "level": "都市", "adjacent": adj[i], "battlemaps": maps,
+                     "pos": {"x": pos[i][0], "y": pos[i][1], "grid": "pixel", "w": SAN4_WORLD_W, "h": SAN4_WORLD_H},
                      "notes": "讀的是 PC-98 PK 版；都市表、野戰表和本體 byte 相同。野戰圖依攻方從哪個鄰城來而定"
-                              "（from），攻城圖是都市自己的。戰場圖的色盤種類與季節是遊戲執行時決定的，這裡用種類 0、季節 0。"})
+                              "（from），攻城圖是都市自己的。戰場圖的色盤種類與季節是遊戲執行時決定的，這裡用種類 0、季節 0。"
+                              "pos 是大地圖 world/MAINMAP.png（1536×1280，96×80 格、一格 16 點）上的像素：城的 3×3 格圖示"
+                              "正中那格的中心（MAINMAP.S4 第 8 層是都市號）。"})
     return rows
 
 
@@ -443,11 +607,85 @@ PLACE_GAIJI = {0xE02D: "鄴", 0xE020: "邳", 0xE018: "譙", 0xE02A: "涪", 0xE02
 # reading +5 7, six neighbours +12 1-based FF-padded). HEXMAP.S5 / HEXGRP.S5 are the base game's (byte-identical);
 # the battle palette offsets are the base game's MAIN.EXE ones (the PK has the same bytes elsewhere).
 SAN5PK_PC98_CITIES = 0x41C20
+SAN5_WHITE, SAN5_BLACK = (238, 221, 204), (34, 34, 17)  # palette 15 and 8 of the default palette
 SAN5_GAIJI = {7: "鄴", 17: "下邳", 20: "譙", 47: "鄱陽"}  # 1-based city numbers
+
+
+SAN5PK_PC98_BOX = 24  # city record +24 u16 x, +26 u16 y: top left of the city's 32 x 32 box on MAINMAP.S5
+SAN5_CAPTURE, SAN5_CAPTURE_AT, SAN5_FLAG = "guest-os-000.png", (160, 64), (0, -13, 30, 27)  # map scroll; flag box
+
+
+def san5_world_boxes(game_dir):
+    with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
+        exe = f.read()
+    return {n: struct.unpack_from("<2H", exe, SAN5PK_PC98_CITIES + 32 * (n - 1) + SAN5PK_PC98_BOX) for n in range(1, 48)}
+
+
+def world_check_san5(game_dir, rows):
+    """Each pos is (16, 12) into its city's box; the boxes lie inside the map without overlapping; under each castle
+    is the city's outlined white name, centred on the box (within 5 px) and 24.5-32 px below its top; and in the capture guest-os-000 (map
+    scrolled to 160, 64) every visible owned city has the game's ownership flag drawn exactly at box + (0, -13)."""
+    boxes, bad = san5_world_boxes(game_dir), []
+    im = sango.render_san5_world_map(game_dir, os.path.join(game_dir, "..", "san5-pc98", "MAIN.EXE"))
+    w, h = im.size
+    px = im.load()
+    for r in rows:
+        x, y = boxes[r["id"]]
+        if (r["pos"]["x"], r["pos"]["y"]) != (x + 16, y + 12):
+            bad.append(f"{r['id']}: pos is not its box + (16, 12)")
+        if not (0 <= x and x + 32 <= w and 0 <= y and y + 32 <= h):
+            bad.append(f"{r['id']}: box outside the map")
+            continue
+        text = [(u, v) for v in range(y + 19, min(h - 1, y + 41)) for u in range(max(1, x - 8), min(w - 1, x + 40))
+                if px[u, v] == SAN5_WHITE and SAN5_BLACK in (px[u - 1, v], px[u + 1, v], px[u, v - 1], px[u, v + 1])]
+        if len(text) < 40 or abs(sum(u for u, _ in text) / len(text) - x - 16) > 5 or \
+                not 24.5 <= sum(v for _, v in text) / len(text) - y <= 32:
+            bad.append(f"{r['id']}: no name centred under the box")
+    for a in rows:
+        for b in rows:
+            (xa, ya), (xb, yb) = boxes[a["id"]], boxes[b["id"]]
+            if a["id"] < b["id"] and abs(xa - xb) < 32 and abs(ya - yb) < 32:
+                bad.append(f"{a['id']}, {b['id']}: boxes overlap")
+    checked = 2 * len(rows)
+    shot = os.path.join(game_dir, "..", "..", "captures", "screenshots", "san5pk-pc98", SAN5_CAPTURE)
+    if not os.path.exists(shot):
+        return checked, bad + [f"capture {SAN5_CAPTURE} missing"]
+    cap, (ox, oy) = Image.open(shot).convert("RGB"), SAN5_CAPTURE_AT
+    cp = cap.load()
+    votes = {}
+    for v in range(cap.size[1]):
+        for u in range(cap.size[0]):
+            votes.setdefault(px[u + ox, v + oy], {}).setdefault(cp[u, v], 0)
+            votes[px[u + ox, v + oy]][cp[u, v]] += 1
+    seen = {c: max(vs, key=vs.get) for c, vs in votes.items()}
+
+    flagged = 0
+    for r in rows:
+        x, y = boxes[r["id"]]
+        if not (ox + 6 <= x and x + 36 <= ox + 335 and oy + 18 <= y and y + 15 <= oy + 345):  # left of the window
+            continue
+        others = [(bx, by + SAN5_FLAG[1]) for n, (bx, by) in boxes.items() if n != r["id"]]
+        d = [(u - x, v - y) for v in range(y - 18, y + 15) for u in range(x - 6, x + 36)
+             if cp[u - ox, v - oy] != seen[px[u, v]] and
+             not any(bx <= u < bx + SAN5_FLAG[2] and by <= v < by + SAN5_FLAG[3] for bx, by in others)]
+        if len(d) < 20:
+            continue  # no owner, no flag
+        checked += 1
+        flagged += 1
+        if (min(u for u, _ in d), max(u for u, _ in d)) != (0, SAN5_FLAG[2] - 1) or \
+                not SAN5_FLAG[1] <= min(v for _, v in d) <= SAN5_FLAG[1] + 1:
+            bad.append(f"{r['id']}: the capture's flag is not at box + (0, -13)")
+    if flagged < 5:
+        bad.append(f"only {flagged} flags found in {SAN5_CAPTURE}")
+    return checked, bad
 
 
 def places_san5pk_pc98(game_dir, out_dir):
     import ls11
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    sango.render_san5_world_map(game_dir, os.path.join(game_dir, "..", "san5-pc98", "MAIN.EXE")).save(
+        os.path.join(out_dir, "world", "MAINMAP.png"))
+    boxes = san5_world_boxes(game_dir)
     pal = sango.san5_pc98_battle_palette(os.path.join(game_dir, "..", "san5-pc98", "MAIN.EXE"), 0)
     with open(os.path.join(game_dir, "HEXGRP.S5"), "rb") as f:
         tiles = sango.battle_tiles(ls11.ls11_decode_parts(f.read())[0])
@@ -463,9 +701,13 @@ def places_san5pk_pc98(game_dir, out_dir):
         rows.append({"id": n, "name": SAN5_GAIJI.get(n) or _text(r[:5]), "reading": _reading(r[5:12]),
                      "level": "都市", "adjacent": [b for b in r[12:18] if b != 0xFF],
                      "battlemaps": [{"file": f"{n:02d}.png", "role": "攻城"}], "uncertain": ["battlemaps"],
+                     "pos": {"x": boxes[n][0] + 16, "y": boxes[n][1] + 12, "grid": "pixel", "w": sango.SAN5_WORLD_W,
+                             "h": sango.SAN5_WORLD_H},
                      "notes": "讀的是 PC-98 PK 版；都市表、戰場圖檔和本體 byte 相同。戰場 47 張，第 n 張推定是第 n 個"
                               "都市、打仗用守方都市的圖（照地形看圖判斷，讀取程式沒追）。這一代野戰與攻城在同一張圖上，"
-                              "role 填攻城是這邊的分類。戰場色盤用第 0 組（遊戲用哪一組沒追）。"})
+                              "role 填攻城是這邊的分類。戰場色盤用第 0 組（遊戲用哪一組沒追）。"
+                              "pos 是大地圖 world/MAINMAP.png（800×592）上的像素：都市表 +24、+26 是遊戲的 32×32 都市框左上角，"
+                              "pos 取框內 (16, 12)，約是城的圖示中心（城和地名畫在地圖裡）。"})
     return rows
 
 
@@ -900,6 +1142,9 @@ DATASETS = {"san1-pc98": places_san1_pc98, "san2-pc98": places_san2_pc98, "san3-
             "san10pk-win": places_san10pk_win,
             "san11pk-win": places_san11pk_win, "san12pk-win": places_san12pk_win, "san13pk-win": places_san13pk_win,
             "san14pk-win": places_san14pk_win, "suikoden-dos": places_suikoden_dos}
+# dataset -> f(game_dir, rows) -> (checked, problems): every pos is on its place's cell of the world map
+WORLD_CHECKS = {"san2-pc98": world_check_san2, "san3-pc98": world_check_san3, "san4pk-pc98": world_check_san4,
+                "san5pk-pc98": world_check_san5}
 # 信長の野望: dataset -> module wiki_<game>.py with places(game_dir, out_dir)
 MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu2-dos": "wiki_nobu2_dos", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
            "nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
@@ -928,6 +1173,19 @@ def check(dataset, rows, out_dir):
                 checked += 1
                 if m["from"] not in r.get("adjacent", []):
                     bad.append(f"{r['id']}: from {m['from']} not adjacent")
+    # world/ maps: pos.w x pos.h must scale to every map by one whole factor, and each pos lies inside
+    world = os.path.join(out_dir, "world")
+    sizes = [Image.open(os.path.join(world, f)).size for f in sorted(os.listdir(world))] if os.path.isdir(world) else []
+    for r in rows:
+        p = r.get("pos")
+        if not sizes or not p:
+            continue
+        checked += 1
+        if "w" not in p or not all(w % p["w"] == 0 and h % p["h"] == 0 and w // p["w"] == h // p["h"]
+                                   for w, h in sizes):
+            bad.append(f"{r['id']}: pos w/h do not match the world map {sizes}")
+        elif not (0 <= p["x"] < p["w"] and 0 <= p["y"] < p["h"]):
+            bad.append(f"{r['id']}: pos {p['x']},{p['y']} outside {p['w']}x{p['h']}")
     by_id = {r["id"]: r for r in rows}
     for r in rows:
         for x in r.get("adjacent", []):
@@ -953,6 +1211,11 @@ def places_export(dataset, game_dir, out):
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     checked, bad = check(dataset, rows, map_dir)
+    world = getattr(importlib.import_module(MODULES[dataset]), "world_check", None) if dataset in MODULES else \
+        WORLD_CHECKS.get(dataset)
+    if world:
+        c, b = world(game_dir, rows)
+        checked, bad = checked + c, bad + b
     for b in bad:
         print(b)
     maps = sum(len(files) for _, _, files in os.walk(map_dir))

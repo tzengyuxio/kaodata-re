@@ -275,6 +275,61 @@ def render_san4_battle_maps(game_dir, kind=0, season=0, palette_exe=None) -> lis
     return images
 
 
+# world map (PC-98; see notes/san-maps.md §IV): MAINMAP.S4 is LS11 with 80 rows of 96 cells x 10 layers (layer L of
+# cell x at L * 96 + x); MAINCG.S4 holds 16x16 tiles of 128 bytes (4 planes of 32). Drawn by MAIN.EXE image 0x1E990:
+# layer 0 opaque at v * 128, layers 1-7 colour 0 transparent at SAN4_WORLD_BASES[L] + v * 128 (FF none), layer 3
+# v < 10 is a 1-plane mask (32 bytes) that clears to colour 0. Layer 2 holds the castles (3 x 3 cells, 9 k + 0..8),
+# layer 8 the city (0-42) and layer 9 the part of its 3 x 5 click area (0-14, castle at 6-14; 100-114 the name).
+SAN4_WORLD_COLS, SAN4_WORLD_ROWS = 96, 80
+SAN4_WORLD_BASES = [0, 0x3F00, 0x7D00, 0x9D80, 0xA9C0, 0xCB40, 0xDEC0, 0xE0C0]  # DGROUP 0x1CFC (PK)
+
+
+def san4_world_cells(game_dir) -> list[list[list[int]]]:
+    """[row][col] -> the 10 layer bytes of MAINMAP.S4."""
+    with open(os.path.join(game_dir, 'MAINMAP.S4'), 'rb') as f:
+        rows = ls11.ls11_decode_parts(f.read())
+    return [[[r[L * SAN4_WORLD_COLS + x] for L in range(10)] for x in range(SAN4_WORLD_COLS)] for r in rows]
+
+
+def render_san4_world_map(game_dir, palette_exe=None) -> Image.Image:
+    """The 1536x1280 world map without the ownership flags and names (MAIN.EXE default palette)."""
+    palette = san4_pc98_palette(palette_exe or os.path.join(game_dir, 'MAIN.EXE'))
+    with open(os.path.join(game_dir, 'MAINCG.S4'), 'rb') as f:
+        cg = ls11.ls11_decode_parts(f.read())[0]
+    w = SAN4_WORLD_COLS * 16
+    idx = bytearray(w * SAN4_WORLD_ROWS * 16)
+
+    def put(cx, cy, off, mode):
+        for y in range(16):
+            o = (cy * 16 + y) * w + cx * 16
+            for x in range(16):
+                bit = 7 - x % 8
+                if mode == 'mask':
+                    if cg[off + y * 2 + x // 8] >> bit & 1:
+                        idx[o + x] = 0
+                    continue
+                v = sum((cg[off + 32 * k + y * 2 + x // 8] >> bit & 1) << k for k in range(4))
+                if mode == 'opaque' or v:
+                    idx[o + x] = v
+
+    for cy, row in enumerate(san4_world_cells(game_dir)):
+        for cx, cell in enumerate(row):
+            put(cx, cy, cell[0] * 128, 'opaque')
+            for L in range(1, 8):
+                v = cell[L]
+                if v == 0xFF:
+                    continue
+                if L == 3 and v < 10:
+                    put(cx, cy, SAN4_WORLD_BASES[3] + v * 32, 'mask')
+                elif L == 3:
+                    put(cx, cy, SAN4_WORLD_BASES[3] + v * 128 - 0x3C0, 'masked')
+                else:
+                    put(cx, cy, SAN4_WORLD_BASES[L] + v * 128, 'masked')
+    im = Image.frombytes('P', (w, SAN4_WORLD_ROWS * 16), bytes(idx))
+    im.putpalette([c for rgb in palette for c in rgb])
+    return im.convert('RGB')
+
+
 @click.command(help='戰場地圖（PC-98）')
 @click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
 @click.option('--out', 'out_dir', required=True, help='輸出目錄')
@@ -457,6 +512,34 @@ san5.add_command(san5_person, 'person')
 SAN5_BATTLE_BASES = (0, 138, 323)
 SAN5_PC98_DEFAULT_PALETTE = 0x49E12  # MAIN.EXE file offset (DGROUP 0x8C2)
 SAN5_PC98_BATTLE_PALETTES = 0x372B0  # 6 x 8 colours, which one the game uses is not traced
+
+
+# world map (PC-98; see notes/san-maps.md §V): MAINMAP.S5 is plain 800x592, 4 bpp: 50 columns 16 px wide, each
+# column 4 planes of 592 rows x 2 bytes one after another; castles and city names are part of the picture.
+# MAP256.S5 is the same map in 256 colours (8 bpp 16x16 tiles column by column), not used here.
+SAN5_WORLD_W, SAN5_WORLD_H = 800, 592
+
+
+def render_san5_world_map(game_dir, palette_exe=None) -> Image.Image:
+    """MAINMAP.S5 in the MAIN.EXE default palette."""
+    with open(palette_exe or os.path.join(game_dir, 'MAIN.EXE'), 'rb') as f:
+        f.seek(SAN5_PC98_DEFAULT_PALETTE)
+        p = f.read(48)
+    with open(os.path.join(game_dir, 'MAINMAP.S5'), 'rb') as f:
+        d = f.read()
+    h, col = SAN5_WORLD_H, SAN5_WORLD_H * 8
+    idx = bytearray(SAN5_WORLD_W * h)
+    for c in range(SAN5_WORLD_W // 16):
+        for k in range(4):
+            plane = d[c * col + k * h * 2:][:h * 2]
+            for y in range(h):
+                o = y * SAN5_WORLD_W + c * 16
+                bits = plane[2 * y] << 8 | plane[2 * y + 1]
+                for x in range(16):
+                    idx[o + x] |= (bits >> (15 - x) & 1) << k
+    im = Image.frombytes('P', (SAN5_WORLD_W, h), bytes(idx))
+    im.putpalette([p[3 * i + j] * 17 for i in range(16) for j in (1, 2, 0)])
+    return im.convert('RGB')
 
 
 def san5_pc98_battle_palette(main_exe, palette=0) -> list[tuple]:

@@ -6,6 +6,8 @@ import re
 import struct
 import unicodedata
 
+from PIL import Image
+
 import ls11
 from kaodata_export import NOBU6PK_PC98_ALIASES, nobu6pk_pc98_face
 from koei_games import NOBU6_PC98_GAIJI, _nobu6_pc98_text
@@ -24,6 +26,12 @@ REGIONS = [("東北", 0), ("関東", 8), ("東海", 17), ("甲信", 24), ("北�
 PROVINCE_ID = 1000  # place id of 國 n (1-74) is 1000 + n; 城 n (1-214) keeps n
 MAP_W, MAP_H = 170, 42  # MAINMAP.NB6 part 1: 5 bytes a cell, +3 road tile (FF none), +4 castle cell (FF none)
 DIRS = [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+# MAINMAP.NB6 part 0: 465 tiles of 16 x 16, 128 bytes each (a row is two 8-pixel groups of 4 plane bytes, byte k =
+# bit k). A cell draws tile +0 (ground), then 255 + byte 1, 325 + byte 2 (mountains), 395 + byte 3 (road) and
+# 445 + byte 4 (castle) where those are not FF; colour 0 of the overlays is transparent. The 16-colour palette is
+# MAINPK.EXE 0x28CBE (B, R, G, 4 bit), 4 sets for the seasons; set 0 is the spring of the 1546 capture.
+TILE, OVERLAYS = 16, ((1, 255), (2, 325), (3, 395), (4, 445))
+MAP_PALETTE, WORLD_FILE = 0x28CBE, "MAINMAP-spring.png"
 BIO_LANG = "ja"
 
 
@@ -282,7 +290,61 @@ def _roads(game_dir, pos):
     return adj
 
 
+def _tile(gfx, t):
+    px = bytearray(TILE * TILE)
+    for r in range(TILE):
+        for h in range(2):
+            q = gfx[t * 128 + r * 8 + h * 4:][:4]
+            for x in range(8):
+                px[r * TILE + h * 8 + x] = sum(((q[k] >> (7 - x)) & 1) << k for k in range(4))
+    return bytes(px)
+
+
+def world_map(game_dir, season=0):
+    """The main map as the game draws it before the castle flags: 2720 x 672, 16 px a cell."""
+    gfx, m = _parts(game_dir, "MAINMAP.NB6")
+    with open(os.path.join(game_dir, "MAINPK.EXE"), "rb") as f:
+        b = f.read()[MAP_PALETTE + 48 * season:][:48]
+    tiles = {}
+
+    def tile(t):
+        if t not in tiles:
+            im = Image.frombytes("P", (TILE, TILE), _tile(gfx, t))
+            tiles[t] = (im, Image.frombytes("L", (TILE, TILE), bytes(255 if c else 0 for c in im.tobytes())))
+        return tiles[t]
+
+    img = Image.new("P", (MAP_W * TILE, MAP_H * TILE))
+    for y in range(MAP_H):
+        for x in range(MAP_W):
+            c = m[(y * MAP_W + x) * 5:][:5]
+            img.paste(tile(c[0])[0], (x * TILE, y * TILE))
+            for k, base in OVERLAYS:
+                if c[k] != 0xFF:
+                    im, mask = tile(base + c[k])
+                    img.paste(im, (x * TILE, y * TILE), mask)
+    img.putpalette([v * 17 for i in range(16) for v in (b[3 * i + 1], b[3 * i + 2], b[3 * i])])
+    return img
+
+
+def world_check(game_dir, rows):
+    """Every 城 pos is the top-left of its 2 x 2 castle cells on MAINMAP.NB6."""
+    m = _parts(game_dir, "MAINMAP.NB6")[1]
+    checked, bad = 0, []
+    for r in rows:
+        if "pos" not in r:
+            continue
+        x, y = r["pos"]["x"], r["pos"]["y"]
+        checked += 1
+        cells = [m[((y + dy) * MAP_W + x + dx) * 5 + 4] for dy in (0, 1) for dx in (0, 1)
+                 if 0 <= x + dx < MAP_W and 0 <= y + dy < MAP_H]
+        if len(cells) != 4 or 0xFF in cells:
+            bad.append(f"{r['id']}: pos {x},{y} is not a castle")
+    return checked, bad
+
+
 def places(game_dir, out_dir):
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    world_map(game_dir).save(os.path.join(out_dir, "world", WORLD_FILE))
     scenarios = _parts(game_dir, "SNDATA.N6P")
     sc = scenarios[0]
     years = [1454 + d[0xB7] for d in scenarios]
@@ -304,7 +366,7 @@ def places(game_dir, out_dir):
         if renamed:
             notes += "其他劇本的名稱：" + "、".join(f"{y} 年{n}" for y, n in renamed) + "。"
         row["notes"] = notes + ("相鄰是沿大地圖 MAINMAP.NB6 的道路圖層推算的（道路圖塊的出口由地圖本身統計），遊戲移動用的"
-                                "相鄰判斷沒找到程式。地方是照國的排列順序推的。pos 是大地圖 170×42 格的左上角，城佔 2×2 格。")
+                                "相鄰判斷沒找到程式。地方是照國的排列順序推的。pos 是大地圖 170×42 格的左上角，城佔 2×2 格；一格是 world/MAINMAP-spring.png 的 16×16 像素。")
         rows.append(row)
     for n in range(74):
         own = [k for k in range(214) if province_of[k] == n + 1]

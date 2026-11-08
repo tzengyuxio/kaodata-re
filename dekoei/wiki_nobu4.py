@@ -9,6 +9,7 @@ from PIL import Image
 import genpei
 import koei_games
 from kaodata_export import NOBU4_DOS_NAME_PICK, NOBU4_PC98_ALIASES
+from nobu4_extras import MAIN_PALETTE, _raw_image
 from wiki_nobu3 import PC98_DIGITAL
 
 # SNDATAn.CIM: +1 year - 1476; 48 國 from 0x4 (45 bytes: +4 name 4 bytes, +30 7 neighbours, low 6 bits the 國
@@ -35,6 +36,10 @@ NOBU4_TILES, NOBU4_PIECE_TABLE = 0x397C, 0x37990 + 0x41FC
 # battle screens: the digital 8 colours with white as #FFFFCF (captures/screenshots/nobu4-pc98, guest os_025-028)
 NOBU4_BATTLE_PALETTE = PC98_DIGITAL[:21] + [255, 255, 207]
 NOBU4_PIECES = {13: 0x3600, 50: 0x480, 100: 0x900, 200: 0x3780}
+# World map: MAPDATA.DAT is three blocks the startup (MAIN.EXE image 0x409D) reads one after another: 48000 +
+# 48000 bytes, the 640 x 400 main map in 3 interleaved planes (to_3bpp order, as the event stills), then 20982 bytes
+# of fill patterns. The 國 n colour fill (0x39BA) starts at x = DS:0x3718[n], y = DS:0x3778[n] (u16, 48 each).
+NOBU4_MAP_BYTES, NOBU4_FILL_X, NOBU4_FILL_Y, NOBU4_WORLD_FILE = 96000, 0x37990 + 0x3718, 0x37990 + 0x3778, "MAPDATA.png"
 NOBU4_LABELS = ["政治力", "戦闘力", "教養", "魅力", "野望"]
 NOBU4_NOTES = ("義理是 +20 的推定名稱（謙信 253、松永 0），寿命是 0–3 的等級（+23 bit 6–7），都沒讀程式。一門編號（+24 低 4 bit）"
                "只在同一劇本內有效、16 組重複使用，沒有輸出。身分只分得出大名、浪人，城主與軍師沒找到欄位。")
@@ -163,7 +168,47 @@ def _battle_map(hexdata, table, n, castle):
     return im
 
 
+def world_map(game_dir):
+    """The main map as stored, before the 國 are filled with the owners' colours (640 x 400, digital 8 colours)."""
+    return _raw_image(_read(game_dir, "MAPDATA.DAT")[:NOBU4_MAP_BYTES], 640, MAIN_PALETTE)
+
+
+def _fill_points(game_dir):
+    exe = _read(game_dir, "MAIN.EXE")
+    base = struct.unpack_from("<H", exe, 8)[0] * 16
+    return list(zip(struct.unpack_from("<48H", exe, base + NOBU4_FILL_X),
+                    struct.unpack_from("<48H", exe, base + NOBU4_FILL_Y)))
+
+
+def world_check(game_dir, rows):
+    """Every 國 pos is a pale land pixel of the map, and flooding the pale pixels from it reaches no other 國's pos."""
+    im = world_map(game_dir)
+    px, w, h = im.load(), im.width, im.height
+    land = px[rows[0]["pos"]["x"], rows[0]["pos"]["y"]]
+    region, checked, bad = {}, 0, []
+    for r in rows:
+        x, y = r["pos"]["x"], r["pos"]["y"]
+        checked += 1
+        if px[x, y] != land:
+            bad.append(f"{r['id']}: pos {x},{y} is not land")
+            continue
+        if (x, y) in region:
+            bad.append(f"{r['id']}: pos {x},{y} shares a 國 with {region[x, y]}")
+            continue
+        todo = [(x, y)]
+        while todo:
+            q = todo.pop()
+            if q in region or not (0 <= q[0] < w and 0 <= q[1] < h) or px[q] != land:
+                continue
+            region[q] = r["id"]
+            todo += [(q[0] + 1, q[1]), (q[0] - 1, q[1]), (q[0], q[1] + 1), (q[0], q[1] - 1)]
+    return checked, bad
+
+
 def places(game_dir, out_dir):
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    world_map(game_dir).save(os.path.join(out_dir, "world", NOBU4_WORLD_FILE))
+    fill = _fill_points(game_dir)
     p, d = _read(game_dir, "SNDATA1.CIM"), _read(os.path.join(game_dir, "..", "nobu4-dos"), "SNDATA1.CIM")
     hexdata = _read(game_dir, "HEXDATA.DAT")
     exe = _read(game_dir, "MAIN.EXE")
@@ -198,8 +243,10 @@ def places(game_dir, out_dir):
                 m["sharedWith"] = sorted(users[t] - {c + 1})
             maps.append(m)
         row.update({"level": "國", "adjacent": [a + 1 for a, _ in routes[c]], "battlemaps": maps,
+                    "pos": {"x": fill[c][0], "y": fill[c][1], "grid": "pixel", "w": 640, "h": 400},
                     "uncertain": ["battlemaps"],
-                    "notes": "國號照遊戲從 1 起算，3 個劇本相同。沒有讀音、地方與大地圖座標。"
+                    "notes": "國號照遊戲從 1 起算，3 個劇本相同。沒有讀音與地方。pos 是大地圖 world/MAPDATA.png（640×400）"
+                             "上的像素：遊戲替這一國塗勢力色時的填色起點（MAIN.EXE DS:0x3718、0x3778）。"
                              "戰場圖 HEXDATA.DAT：城圖每國一張（13×11 格）；野戰圖（14×10 格）看攻方從哪一國來，"
                              "守方相鄰表那一格的路線種類是 0 用守方自己那張，1、2、3 用共用的 50、51、52 號圖"
                              "（推定是平地、山地、海上；種類 3 在某個條件下改成不打野戰、直接攻城）。"

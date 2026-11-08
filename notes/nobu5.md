@@ -163,7 +163,7 @@
 | +15–16、+18–22、+24、+26、+28、+30、+32 | 數值，推定是石高、商業、兵、防御、民忠之類，沒對過畫面 | ❌ |
 | +17、+23、+25、+27、+29、+31、+33–37 | 都是 0 | |
 
-沒有讀音、大地圖座標和相鄰關係 ❌：173 筆裡沒有和地理位置相關的欄位（每個 byte 都和城的順序做過相關性測試，最高 0.23）。
+沒有讀音和相鄰關係 ❌：173 筆裡沒有和地理位置相關的欄位（每個 byte 都和城的順序做過相關性測試，最高 0.23）。城在大地圖上的格子在 `MAIN.EXE` 的另一張表，見下面「大地圖」。
 
 ### 大名（64 × 39 bytes，0x0122 起）
 
@@ -185,6 +185,21 @@
   - 戰場圖共 210 號：0–172 推定對到 173 城，0xAF（175）以後是依地形的共用圖。
   - 0xAF–0xC0 這 18 號另有一張名字表（DS:0x747C，4 bytes 一筆）。
 - 沒畫成 PNG，也沒確認格子的寬高。
+
+### 大地圖（PK 的 `MAIN.EXE`）
+
+位址是 `nobu5pk-pc98` 的 `MAIN.EXE` 映像位址（MZ 檔頭 0x7400，DGROUP 在映像 0x519A0）；本體的位址不同（上一節的 0x653E 等是本體）。
+
+- 地形格：`M_PARTS.NB5` 開頭 0x2058 bytes 讀進 [0xCADA]:0x1950，120 欄 × 23 列，每格 3 bytes，格 (欄, 列) 在 (欄 × 23＋列) × 3（0x6EA3 一帶 `mul 0x17`）✅ code。
+  - +0 地形圖塊號（0–238），+1 疊上的圖（城、港、寺…，0xFF 沒有），+2 的低 4 bit 是疊上的線形（國界、街道），0xE 是城格，0xFF 沒有；+2 的 bit 6、7 在某些顯示模式下讓圖塊號加 0x38，底圖不用。
+- 圖塊：`M_CHIKEI.NB5` 讀進 [0xDB42]:0（0x4803）✅ code。
+  - 0–0x599F：239 張 16×16 地形圖塊，每張 96 bytes；一列 6 bytes，先是左 8 點的平面 0、1、2，再是右 8 點。
+  - 0x59A0 起：疊上的圖，每張 128 bytes（96 bytes 圖，0x60 起 32 bytes 遮罩，先 AND 遮罩再 OR 圖，0x6FEA）。
+  - 0xAFA0 起：線形，每個 64 bytes（32 bytes 形狀、32 bytes 遮罩），地形圖塊號 < 0x5F 時畫色號 7，否則色號 2（0x7024）。
+- 位置：格 (欄, 列) 畫在 (欄 × 16, 列 × 16，奇數欄再往下 8)（0x6F16），整張 1920×376。
+- 城的格子：映像 0x43870＋0x114 起 173 × (欄, 列) 兩個 byte，第 k 筆是城 k（0x6F49 用它找城）✅ code。173 格都是城格（+2 低 4 bit 0xE），也剛好是地形格上全部的城格；每國的城都聚在一起（同國的城在欄或列上最遠相隔 14 格），城 0 日之岳在最西、城 172 松前在最東。
+- 色盤：色號 0–7 是季節表（`MAIN.EXE` 檔案 0x47596＋0x18 × 季節，B、R、G 各 4 bit，同「色盤」一節本體的 0x3A50:0x66）。第 0 組當成春：第 2 組偏紅褐（秋）、第 3 組偏灰白（冬），第 0、1 組哪個是春沒確認【推】。沒有 PC-98 截圖，色盤只讀程式的表 🟡 code。
+- Win 版 `Map.dll` 101–104（1920×376）同樣大小，但是重畫的圖，沒拿來比對。
 
 ## Win 版（`nobu5pk-win`）的對應
 
@@ -209,7 +224,7 @@
 ## 負面結論與未解（人物、地理）
 
 - 試過只用「+37 減 0x40」（從姓算起的最後 2 bytes）串城內的人：SN1 有 157 筆串到別的城。改成「姓的前 2 bytes 減 0x40」後 0 筆不符。以後碰到光榮這一代的串列，先試這個位置。
-- 試過在城記錄裡找大地圖座標：每個 byte 和 u16 都和城的順序（九州→東北）算過相關，最高只有 0.23，所以城記錄裡沒有座標。也試過在 `MAIN.EXE` 的資料段找 173 筆的座標表，只找到單調遞增的指標表，沒有像座標的。下一步應該從 `M_CHIKEI.NB5` 地形格裡的城格（地形 0x1A）反推城的位置。
+- 試過在城記錄裡找大地圖座標：每個 byte 和 u16 都和城的順序（九州→東北）算過相關，最高只有 0.23，所以城記錄裡沒有座標。也試過在 `MAIN.EXE` 的資料段找 173 筆的座標表，只找到單調遞增的指標表，沒有像座標的。後來在 PK 的 `MAIN.EXE` 映像 0x43984 找到城的格子表（見「大地圖」）：它是 (欄, 列) 兩個 byte 一筆，不是單調的指標，當初只找 u16 座標所以漏掉。
 - 試過在 Win 版的 EXE、`Map.dll` 找 173 筆城座標：掃了 u8 間距 2–12 的陣列與城號的相關，最高的都是單調的指標表或圖片資料，沒找到座標。Win 版沒有 `M_CHIKEI.NB5`；PC-98 的 `M_CHIKEI.NB5` 看起來是平面圖形資料（0x00、0xFF、0xAA、0x55 最多），不是地形格。
 - 未解：
   - 國的相鄰關係、城的各項數值、大名表其他欄位、劇本檔 0x0004–0x0121。
@@ -233,7 +248,8 @@ Windows 版的 `Nobunaga5WPK.exe` 有武將列伝。PC-98 本體沒有（只搜�
 
 `dekoei.py places-export nobu5pk-win --game-dir ../games/nobu5pk-win --out ../export/koei-wiki/places` 與 `dekoei.py persons-export nobu5pk-win --game-dir ../games/nobu5pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_nobu5.py`，koei-places/1 與 koei-persons/1）。
 
-- 地點 237 筆：城 0–172（`level`「城」，`province` 是國名，`name` 取劇本 1，其他劇本的名稱寫在 `notes`），國 173–236（國號＋173，`level`「國」）。沒有 `adjacent`、`pos`（遊戲資料裡沒有，見上面的負面結論）。
+- 地點 237 筆：城 0–172（`level`「城」，`province` 是國名，`name` 取劇本 1，其他劇本的名稱寫在 `notes`），國 173–236（國號＋173，`level`「國」）。沒有 `adjacent`（遊戲資料裡沒有，見上面的負面結論）。
+- `nobu5pk-pc98` 另有大地圖 `world/M_CHIKEI-spring.png`（1920×376，季節表第 0 組，見「大地圖」），城有 `pos`：城格中心的像素（`grid` `pixel`，w 1920、h 376）；國沒有 `pos`。`world_check` 驗證 173 城的 `pos` 都落在城格表給的那一格、那一格是城格：places-export 346 checked, 0 mismatched。Win 版（`nobu5pk-win`）沒有 `pos`。
 - 人物 998 筆，`id` 和 kaodata 的 `nobu5pk-win` 相同（同一頭像號一人，本體劇本優先）。公主（頭像 878–913）在 kaodata 不是人物，沒有匯出。
   - `born`、`stats`（政治 戦闘 智謀 采配 野望）、`hidden`（義理、寿命）、`relations.clan`（一門編號）取 id 所依的第一個劇本；生年在各劇本只有 2 人不同。
   - `scenarios`：劇本 1–5 依年份（1534、1551、1568、1582、1583）。`status` 是 大名（在大名表）、家臣、浪人（+7＝0xFF）、後登場（EXE 的後登場表）；`lord` 是大名本人的 id，`location` 是城號，`loyalty` 是 +13。後登場的劇本那一筆填 `debut`（後登場表 +0 ＋ 1453）；頂層的 `debut` 取第一次遇到的後登場劇本（照 kaodata 的劇本順序）。
@@ -277,7 +293,7 @@ Windows 版的 `Nobunaga5WPK.exe` 有武將列伝。PC-98 本體沒有（只搜�
 
 ### 產出
 
-`dekoei.py nobu5-extras --game-dir ../games/steam/628090 --pc98-dir ../games/nobu5-pc98 --out ../games/nobu5pk-win/extract`（`nobu5_extras.py`），共 3.3 MB：
+`dekoei.py nobu5-extras --game-dir ../games/nobu5pk-win --pc98-dir ../games/nobu5-pc98 --out ../games/nobu5pk-win/extract`（`nobu5_extras.py`），共 3.3 MB：
 
 | 檔案 | 內容 | 數量 |
 |---|---|---|
