@@ -214,7 +214,7 @@ def write_csv(path, header, rows):
 
 
 @click.command(help="三國志13 PK: event stills, items, events and a container inventory (notes/san13.md)")
-@click.option("--game-dir", required=True, help="the Steam install (games/steam/363150)")
+@click.option("--game-dir", required=True, help="the Steam files (games/san13pk-win)")
 @click.option("--out", required=True, help="output directory (games/san13pk-win/extract)")
 def san13_extras(game_dir, out):
     names = entry_names(game_dir)

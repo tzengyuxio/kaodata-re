@@ -133,11 +133,11 @@ kaodata 想從大圖裁出 4:5 頭像，所以用小圖反推它在 1024×1024 �
 
 ## 事件、插圖、道具（2026-11-07）
 
-`dekoei/san13_extras.py`（`san13-extras`）從 Steam 安裝目錄讀，輸出到 `games/san13pk-win/extract/`（約 130 MB，不進版控）：
+`dekoei/san13_extras.py`（`san13-extras`）讀 `games/san13pk-win/`（Steam 安裝目錄裡用到的檔，見 `notes/steam.md`「安裝目錄的刪除」），輸出到 `games/san13pk-win/extract/`（約 130 MB，不進版控）：
 
 ```sh
 cd dekoei
-../.venv/bin/python dekoei.py san13-extras --game-dir ../games/steam/363150 --out ../games/san13pk-win/extract
+../.venv/bin/python dekoei.py san13-extras --game-dir ../games/san13pk-win --out ../games/san13pk-win/extract
 ```
 
 ### 檔名表

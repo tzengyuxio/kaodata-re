@@ -15,7 +15,7 @@ from PIL import Image
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../dekoei"))
 import sango  # noqa: E402
 
-GAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../games/steam/363150/")
+GAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../games/san13pk-win/")
 BCN = {6: 1, 8: 3}  # GT1G format -> PIL "bcn" decoder number (DXT1, BC3)
 
 

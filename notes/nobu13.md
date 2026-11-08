@@ -201,7 +201,7 @@
 
 ## 事件、插圖、道具
 
-`dekoei.py nobu13-extras --game-dir ../games/steam/363110 --out ../games/nobu13pk-win/extract`（`nobu13_extras.py`，2026-11-07）讀 Steam 安裝目錄，寫出 extracted（不進版控）。
+`dekoei.py nobu13-extras --game-dir ../games/nobu13pk-win --out ../games/nobu13pk-win/extract`（`nobu13_extras.py`，2026-11-07）讀 `games/nobu13pk-win/`（Steam 安裝目錄裡用到的檔，見 `notes/steam.md`「安裝目錄的刪除」），寫出 extracted（不進版控）。
 
 | 輸出 | 內容 | 數量 | 可信度 |
 |---|---|---:|---|

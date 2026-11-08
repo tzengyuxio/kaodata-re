@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(HERE, "../../dekoei"))
 import koei_games  # noqa: E402
 
-STEAM = os.path.join(HERE, "../../games/steam")
+STEAM = os.path.join(HERE, "../../games")
 OUT = os.path.join(HERE, "samples/sizes")
 FACE = 0  # 織田信長: slot 339 / 338 / 338 of the persons, face 0 (nobu13 face code 0 -> entry 0)
 
@@ -51,9 +51,9 @@ def link_face(path: str, i: int) -> Image.Image:
 
 
 GAMES = {
-    "nobu11pk-win": ("信長の野望 天下創世 PK", "628140/grp/KAO_{}.N11", f11n_face, "8 bit 自帶色盤"),
-    "nobu12pk-win": ("信長の野望 革新 PK", "363090/Grp/KAO_{}.N12", f11n_face, "BGRA"),
-    "nobu13pk-win": ("信長の野望 天道 PK", "363110/grp/KAO_{}.N13", link_face, "BGRA"),
+    "nobu11pk-win": ("信長の野望 天下創世 PK", "nobu11pk-win/grp/KAO_{}.N11", f11n_face, "8 bit 自帶色盤"),
+    "nobu12pk-win": ("信長の野望 革新 PK", "nobu12pk-win/Grp/KAO_{}.N12", f11n_face, "BGRA"),
+    "nobu13pk-win": ("信長の野望 天道 PK", "nobu13pk-win/grp/KAO_{}.N13", link_face, "BGRA"),
 }
 
 

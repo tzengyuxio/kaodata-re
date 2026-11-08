@@ -1,7 +1,7 @@
 """三國志12 PK (Steam 628080): event stills, items (名品) and event text, extracted for archiving.
 
 See notes/san12.md「事件、插圖、道具」. Usage (from dekoei/):
-    dekoei.py san12-extras --game-dir ../games/steam/628080 --out ../games/san12pk-win/extract
+    dekoei.py san12-extras --game-dir ../games/san12pk-win --out ../games/san12pk-win/extract
 """
 import csv
 import json
@@ -205,7 +205,10 @@ def events(game_dir, out):
     # S12MSG05: 0 "Start of script voice message.", 1-520 voiced lines, 521 end, 522 "Begin of script message.",
     # 523-2973 other event lines, 2974 end, 2975 the unification message. The voiced lines follow the sorted
     # voice files EV<event>_<part>_<line>.g1l one to one (520 files).
-    voices = sorted(f[:-4] for f in os.listdir(os.path.join(game_dir, VOICE_DIR)) if f.startswith("EV"))
+    # The voice files are not kept (AV rule); without them, read their names from VOICE_DIR + ".list".
+    vdir = os.path.join(game_dir, VOICE_DIR)
+    names = os.listdir(vdir) if os.path.isdir(vdir) else open(vdir + ".list", encoding="ascii").read().split()
+    voices = sorted(f[:-4] for f in names if f.startswith("EV"))
     assert decode_message(script[521]).startswith("End of script voice") and len(voices) == 520
     with open(os.path.join(out, "voiced.jsonl"), "w", encoding="utf-8") as f:
         for k, v in enumerate(voices):

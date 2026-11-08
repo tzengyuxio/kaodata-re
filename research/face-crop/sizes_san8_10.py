@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(HERE, "../../dekoei"))
 import sango  # noqa: E402
 
-STEAM = os.path.join(HERE, "../../games/steam")
+STEAM = os.path.join(HERE, "../../games")
 OUT = os.path.join(HERE, "samples/sizes")
 NAME = "関羽"
 
@@ -41,7 +41,7 @@ def face_of(persons):
 
 
 def san8():
-    game = os.path.join(STEAM, "628040")
+    game = os.path.join(STEAM, "san8pk-win")
     face = face_of(sango.load_san8_persons(os.path.join(game, "D_Sce.s8")))
     with open(os.path.join(game, "g_maindy.s8"), "rb") as f:
         items = sango.koei_archive(f.read())
@@ -66,7 +66,7 @@ def san9_file(path, k):
 
 
 def san9():
-    game = os.path.join(STEAM, "628050")
+    game = os.path.join(STEAM, "san9pk-win")
     face = face_of(sango.load_san9_persons(game))
     assert face < 786  # PK faces would be in G_Fac?PK.s9
     normal, _ = sango.load_san9_palettes(os.path.join(game, "P_Face.s9"))
@@ -79,7 +79,7 @@ def san9():
 
 
 def san10():
-    game = os.path.join(STEAM, "628060")
+    game = os.path.join(STEAM, "san10pk-win")
     face = face_of(sango.load_san10_persons(os.path.join(game, "San10WPK.exe"),
                                             os.path.join(game, "Scenario/ScePK000.s10")))
     entry = sango.load_san10_face_table(os.path.join(game, "D_FacTbl.s10"))[face]

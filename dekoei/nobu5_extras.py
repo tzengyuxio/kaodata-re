@@ -38,9 +38,11 @@ EVENT_CG = [("Nobunaga5WPK.exe", 153, "painting_153", "640x480 一枚絵（用�
             ("gaiko.dll", 101, "gaiko_1", "外交・謁見"), ("gaiko.dll", 102, "gaiko_2", "外交・謁見"),
             ("gaiko.dll", 103, "gaiko_3", "外交・謁見"), ("gaiko.dll", 104, "gaiko_4", "外交・謁見")]
 MAPS = [(101, "world_1"), (102, "world_2"), (103, "world_3"), (104, "world_4"), (120, "kakkyozu")]
-MOVIES = [("op.avi", "オープニング"), ("ED1.AVI", "エンディング"), ("ED2.AVI", "エンディング"), ("ed3.avi", "エンディング"),
-          ("REKIS1.AVI", "歴史事件"), ("REKIS2.AVI", "歴史事件"), ("jisin.avi", "地震"), ("taifuu.avi", "台風"),
-          ("housa.avi", "豊作"), ("kyous.avi", "凶作"), ("katid.avi", "勝鬨"), ("Testavi.avi", "テスト")]
+# (file, purpose, bytes): the movies are not kept (AV rule); sizes from the Steam build in notes/steam.md
+MOVIES = [("op.avi", "オープニング", 13883284), ("ED1.AVI", "エンディング", 30661458), ("ED2.AVI", "エンディング", 29509264),
+          ("ed3.avi", "エンディング", 10217296), ("REKIS1.AVI", "歴史事件", 8137796), ("REKIS2.AVI", "歴史事件", 4755524),
+          ("jisin.avi", "地震", 689986), ("taifuu.avi", "台風", 689988), ("housa.avi", "豊作", 689988),
+          ("kyous.avi", "凶作", 689990), ("katid.avi", "勝鬨", 2234184), ("Testavi.avi", "テスト", 727832)]
 
 
 def _csv(path, header, rows):
@@ -127,8 +129,7 @@ def eventcg(steam, out):
         im.save(os.path.join(d, f"{name}.png"))
         rows.append([k, f"{name}.png", purpose, f"{src} BMP {rid}", f"{im.width}x{im.height}", "🟡"])
     _csv(os.path.join(d, "index.csv"), ["no", "file", "purpose", "source", "size", "evidence"], rows)
-    rows = [[f, p, os.path.getsize(os.path.join(steam, f)), "🟡 名前から推定"] for f, p in MOVIES
-            if os.path.exists(os.path.join(steam, f))]
+    rows = [[f, p, size, "🟡 名前から推定"] for f, p, size in MOVIES]
     _csv(os.path.join(d, "movies.csv"), ["file", "purpose", "bytes", "evidence"], rows)
     return len(EVENT_CG), len(rows)
 
@@ -187,7 +188,7 @@ def events(steam, out):
 
 
 @click.command("nobu5-extras")
-@click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (games/steam/628090)")
+@click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam files (games/nobu5pk-win)")
 @click.option("--pc98-dir", type=click.Path(exists=True), help="PC-98 files for cross-checks (games/nobu5-pc98)")
 @click.option("--out", required=True, type=click.Path(), help="output directory (games/nobu5pk-win/extract)")
 def nobu5_extras(game_dir, pc98_dir, out):

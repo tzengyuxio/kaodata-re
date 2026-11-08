@@ -92,11 +92,11 @@ kaodata 想要比 48×60 大的頭像，所以用 `KAO_F_M` 反推它在 `KAO_W_
 
 ## 事件、插圖、道具（2026-11-07）
 
-`san12_extras.py` 的 `san12-extras`，讀 Steam 安裝目錄，寫到 `games/san12pk-win/extract/`：
+`san12_extras.py` 的 `san12-extras`，讀 `games/san12pk-win/`（Steam 安裝目錄裡用到的檔，見 `notes/steam.md`「安裝目錄的刪除」），寫到 `games/san12pk-win/extract/`：
 
 ```sh
 cd dekoei
-../.venv/bin/python dekoei.py san12-extras --game-dir ../games/steam/628080 --out ../games/san12pk-win/extract
+../.venv/bin/python dekoei.py san12-extras --game-dir ../games/san12pk-win --out ../games/san12pk-win/extract
 ```
 
 | 輸出 | 內容 | 數量 | 可信度 |

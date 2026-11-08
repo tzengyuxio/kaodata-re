@@ -229,7 +229,7 @@ def events(game_dir, out):
 
 
 @click.command("nobu13-extras")
-@click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (games/steam/363110)")
+@click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam files (games/nobu13pk-win)")
 @click.option("--out", required=True, type=click.Path(), help="output directory (games/nobu13pk-win/extract)")
 def nobu13_extras(game_dir, out):
     """信長の野望・天道 PK: event pictures, 家宝, 家紋 and event scripts."""

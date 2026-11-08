@@ -42,4 +42,4 @@ uv run --no-project --python 3.11 --with-requirements ../../requirements.txt --w
 
 - `san12_boxes.py` 不加參數會跑全部 933 張並寫回 JSON；加頭像號只印結果。
 - `san13_boxes.py` 不加參數跑 30 張抽樣並寫回 JSON；加圖號只印結果。
-- 遊戲檔取自 `games/steam/628080/`（三國志12）、`games/steam/363150/`（三國志13）。
+- 遊戲檔取自 `games/<資料集>/`（`san12pk-win`、`san13pk-win`、`san14pk-win` 等；Steam 安裝目錄裡用到的檔，見 `notes/steam.md`「安裝目錄的刪除」）。

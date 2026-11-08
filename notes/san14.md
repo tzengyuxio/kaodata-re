@@ -116,7 +116,7 @@
 
 ## 事件、插圖、道具（2026-11-07）
 
-`dekoei.py san14-extras --game-dir ../games/steam/872410 --out ../games/san14pk-win/extract`（`dekoei/san14_extras.py`；`--no-pictures` 只寫表格，約 10 秒；含圖約 2.5 分鐘）。
+`dekoei.py san14-extras --game-dir ../games/san14pk-win --out ../games/san14pk-win/extract`（`dekoei/san14_extras.py`；`--no-pictures` 只寫表格，約 10 秒；含圖約 2.5 分鐘）。
 
 ### 輸出
 

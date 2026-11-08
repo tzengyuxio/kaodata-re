@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(HERE, "../../dekoei"))
 import sango  # noqa: E402
 
-GAME = os.path.join(HERE, "../../games/steam/872410/")
+GAME = os.path.join(HERE, "../../games/san14pk-win/")
 OUT = os.path.join(HERE, "data/san14_boxes.json")
 S, T = 0.554, 0.065
 _sprites = {}

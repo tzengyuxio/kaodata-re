@@ -209,7 +209,7 @@ def _magic(rdb, loc) -> str:
 
 
 @click.command(help="三國志14 PK: event pictures, items (寶物), event texts and an RDB inventory.")
-@click.option("--game-dir", required=True, help="the Steam install (games/steam/872410)")
+@click.option("--game-dir", required=True, help="the Steam files (games/san14pk-win)")
 @click.option("--out", required=True, help="output folder (games/san14pk-win/extract)")
 @click.option("--no-pictures", is_flag=True, help="skip the PNGs (tables only)")
 def san14_extras(game_dir, out, no_pictures):

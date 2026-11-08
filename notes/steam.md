@@ -24,6 +24,16 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 - 只要某一個 depot 時，可以在 SteamCMD 主控台用 `download_depot <appid> <depotid> [manifestid]`，或在 Steam 客戶端開 `steam://open/console`。
 - appid 和 depot id 可以在商店網址（`store.steampowered.com/app/<appid>/`）或 SteamDB 查到。
 
+## 安裝目錄的刪除（2026-11-08）
+
+使用者 2026-11-08 決定先刪三國志 6 以後、信長 7 以後的安裝目錄（17 款：628030–628080、363150、872410、628100–628140、363090、363110、628890、1336980，約 123 GB，移到垃圾桶）；大航海時代IV、太閤立志傳V、三国志ツクール、信長 1–5、三國志III 的安裝目錄保留（約 12 GB）。刪之前只留工具會讀的檔：
+
+- 留哪些：每款跑一次所有讀 Steam 版的指令（各款 `*-extras`、`research/face-crop/` 的 `sizes_*.py`），用 Python audit hook 記下打開過的檔；`san12_boxes.py`、`san14_boxes.py` 照程式碼列入。另留說明書 PDF（三國志13 只留日、繁中）。共 1916 個檔、26.8 GB。
+- 放哪裡：照安裝目錄的相對路徑硬連結到 `games/<資料集>/`（例：`games/steam/628070/media/msg/` → `games/san11pk-win/media/msg/`）；早期作品只留說明書，信長1、全國版放 `games/archives/win/manuals/`。每款的檔名與 sha1 在 `games/<資料集>/STEAM_SHA1SUMS.txt`，重新下載後用它核對是不是同一版。
+- 驗證：21 款的 `*-extras` 改用 `--game-dir ../games/<資料集>` 重跑，輸出和原本逐檔相同 ✅ emu。
+- 影音不留，所以三國志12 的語音檔名改存在 `games/san12pk-win/SND/voice/Strategy.list`，信長5 的影片大小寫進 `nobu5_extras.MOVIES`。
+- 要重新研究沒留的檔（影音、3D、沒解的封裝）時，照上面的指令重新下載，下表的 depot、manifest 就是當時的版本。
+
 ## 下載紀錄
 
 每下載一款就在這裡記一筆：遊戲、appid、depot、build id／日期，以及放到哪個 `games/<dataset-id>/`。

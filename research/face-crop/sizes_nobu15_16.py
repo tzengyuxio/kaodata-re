@@ -20,12 +20,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(HERE, "../../dekoei"))
 import ls11  # noqa: E402
 
-GAMES = os.path.join(HERE, "../../games/steam")
+GAMES = os.path.join(HERE, "../../games")
 OUT = os.path.join(HERE, "samples/sizes")
 
 # id -> (title, base file, PK file, PK entry offset, [(entry, label, note)] largest first)
 SETS = {
-    "nobu15pk-win": ("信長の野望 大志 PK", "628890/RES_PK/res_face.bin", "628890/RES_PK/res_face.bin", 22, [
+    "nobu15pk-win": ("信長の野望 大志 PK", "nobu15pk-win/RES_PK/res_face.bin", "nobu15pk-win/RES_PK/res_face.bin", 22, [
         (1, "tokudai", "特大 717×1020，res_face.bin 第 1 項，特定事件用"),
         (0, "dai", "大 360×360，第 0 項，情報畫面、會話、戰法"),
         (2, "chu", "中 306×180，第 2 項，主畫面"),
@@ -33,7 +33,7 @@ SETS = {
         (6, "eye", "EYE 342×45，第 6 項，決戰的部隊列表"),
         (4, "gokusho", "極小 72×72，第 4 項，圖示"),
     ]),
-    "nobu16pk-win": ("信長の野望 新生 PK", "1336980/RES/res_face.bin", "1336980/RES_PK/res_pk.bin", 386, [
+    "nobu16pk-win": ("信長の野望 新生 PK", "nobu16pk-win/RES/res_face.bin", "nobu16pk-win/RES_PK/res_pk.bin", 386, [
         (2, "tokudai0", "特大 717×1020 第 0 組，res_face.bin 第 2 項，事件"),
         (3, "tokudai1", "特大 717×1020 第 1 組，第 3 項"),
         (0, "dai0", "大 512×512 第 0 組，第 0 項，情報畫面、演出"),

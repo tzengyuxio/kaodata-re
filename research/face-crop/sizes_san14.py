@@ -21,7 +21,7 @@ import zlib
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-GAME = os.path.join(HERE, "../../games/steam/872410/0002/")
+GAME = os.path.join(HERE, "../../games/san14pk-win/0002/")
 OUT = os.path.join(HERE, "samples/sizes/san14pk-win")
 TEXTURE, SPRITES = 0xAFBEC60C, 0xF20DE437
 BCN = {0x5B: 3}  # GT1G format -> PIL "bcn" decoder number (BC3)

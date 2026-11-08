@@ -20,7 +20,7 @@ import san13_faces
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "samples/sizes")
 SAN11 = os.path.join(HERE, "../../games/san11pk-win/San11Face00.fce")
-SAN12 = os.path.join(HERE, "../../games/steam/628080/")  # KAO_W_S and KAO_F_S are not linked into games/san12pk-win
+SAN12 = os.path.join(HERE, "../../games/san12pk-win/")
 SAN11_FACE = 2  # 関羽's face code (Scen*.s11 +0x35)
 SAN12_FACE = 2  # 関羽's face number (Scenario bit 482)
 SAN13_PICTURE = 137  # 関羽's first picture

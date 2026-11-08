@@ -190,11 +190,11 @@ N12F：+4 u32 字串表位移、+8 u32 項數 n，0x14 起 n 個 u32 是 token �
 
 ## 事件、插圖、道具
 
-`dekoei/nobu12_extras.py`（`nobu12-extras`）讀 Steam 安裝目錄，2026-11-07：
+`dekoei/nobu12_extras.py`（`nobu12-extras`）讀 `games/nobu12pk-win/`（Steam 安裝目錄裡用到的檔，見 `notes/steam.md`「安裝目錄的刪除」），2026-11-07：
 
 ```sh
 cd dekoei
-../.venv/bin/python dekoei.py nobu12-extras --game-dir ../games/steam/363090 --out ../games/nobu12pk-win/extract
+../.venv/bin/python dekoei.py nobu12-extras --game-dir ../games/nobu12pk-win --out ../games/nobu12pk-win/extract
 ```
 
 ### 產出（`games/nobu12pk-win/extract/`，共約 45 MB）
