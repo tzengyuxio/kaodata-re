@@ -93,3 +93,79 @@
 - 一張臉一個角色（7822 人，id＝頭像號）。同一人在不同代是不同角色，沒有合併。
 - 大航海時代 DLC 的半形片假名名字轉成全形；讀音轉成平假名。
 - 全彩，寫出成逐張無損 WebP（`WEBP_DATASETS`）。
+
+## 事件、插圖、道具（2026-11-08）
+
+`dekoei.py santsukuru-extras --game-dir ../games/santsukuru-win --out ../games/santsukuru-win/extract`（`santsukuru_extras.py`，約 12 秒，46 MB、約 1160 個檔）。影音（`_HBW`／`_DBW`、`RES/B00000.bin` 的 `_L1G`）照規定不留。
+
+### 圖
+
+- **`TLSK1100` 圖集**（LINKDATA 140–146，加上 DLC 413590 的 `RES/D01128J.bin`）✅ code：
+  - u32 張數在 +8。
+  - 0x40 起每張 8 bytes（u32 名字長度、u32 位置），接著是所有名字（以 NUL 隔開）。
+  - 每張圖：+4 u16 寬、高，+0x1C u32 大小，+0x20 u32 每列 bytes，像素從 +0x48 起，是 B G R A。
+  - 每張圖都有名字，所以照名字字首分資料夾：
+
+| 資料夾 | 內容 | 張數 |
+|---|---|---|
+| `eventcg/still/` | 戰略畫面的事件圖 `strategy_stil_00–02`、戰鬥勝敗 `btl_result_stil_*`、葬儀（LINKDATA 138，464×288 BMP） | 6 |
+| `eventcg/ending/` | 結局演出 `event_ending_*`（鳥、光、陽光）、`end_win_bg`、流星 `event_ryuusei` | 32 |
+| `eventcg/effects/` | 戰鬥與戰略的特效（火、雨、突擊、一騎討ち、雲） | 15 |
+| `eventcg/screens/` | 開頭的五張 logo、標題、初期設定、戰略與戰鬥的背景，加上 LINKDATA 148 的 KOEI logo | 29 |
+| `map/atlas/` | 戰略地圖 `stg_map`（624×704）、41 州的 `stg_map_area_mask_NN`／`stg_map_area_id_NN`、旗與季節記號 | 102 |
+| `ui/<項號>/`、`ui/dlc413590/` | 介面零件 | 338＋252 |
+| `manual/` | 遊戲內說明書（LINKDATA 149，11 頁 1280×720 BMP） | 11 |
+
+  - 事件圖只有這麼少：這套工具的事件演出靠頭像和文字，沒有每個事件一張的插圖。🟡
+
+### 戰利品（道具）
+
+- **圖** ✅ code：LINKDATA 137 是 367 張 120×120 BMP 接在一起，最後 367 bytes 是每張的類別號。
+  - 編輯器的類別清單（MESSAGES 第 2217–2221 行）是 車馬 武具 書物 宝物 茶器，對到類別 0–4 【推】（看圖：0 是馬、1 是武器、2 是書、3 是寶物、4 是茶器）。
+  - 類別 5 有 8 張，清單裡沒有名字 ❌。
+  - 輸出：`items/pictures/NNN.png`、`items/pictures.csv`。
+- **範例劇本的道具**：LINKDATA 151 從 0x1303E 起，100 格、每格 38 bytes，用了 16 格。
+  - 格式：u8 種類、u8 數值、u16 圖號、u8 使用中、13 bytes 名字、20 bytes 讀音（半形片假名）。
+  - 圖號 ✅ cross：玉璽→印、青龍偃月刀→大刀、赤兎馬→第 0 張馬。
+  - 種類號 🟡：0 書物、1 武器、2 宝物、3 馬、4 玉璽、5 醫書。是照名字推的，和圖的類別號是兩套不同的編號。
+  - 數值 🟡：推定是加成量，玉璽 100、孫子の兵法書 10。
+  - 持有者 ❌：最後一個 byte 都是 0，人物記錄裡也沒看到道具號。
+  - `RES/D01000J`、`D01001J`、`D01003J` 的道具和第 151 項逐 byte 相同。`D01005J`（三國志13 劇本，2.8 MB）是另一種格式，沒讀。
+  - 輸出：`items/items.csv`。
+
+### 地圖與 41 州
+
+- `map/provinces.png`：把 41 州的 `stg_map_area_mask_NN`（alpha）照位置塗在 `stg_map` 上，並標上州號和州名。✅ cross：襄平在東北、交趾在西南、南海在南。
+- `map/provinces.csv` 有州名、遮罩框、劇本裡的座標與相鄰州。
+  - 州名、座標、相鄰來自 `places_export.santsukuru_provinces`。
+  - 遮罩框來自 LINKDATA 139 的 `HMMP`，格式如下：
+    - 0x10 起是 82 個位置，每州兩個。
+    - 每筆是 u16 x、y、w、h，加上 1 bit 遮罩，每列以 32 bit 對齊。
+    - 位置相對於 +8。
+- `HMMP` 自己的 1 bit 遮罩畫出來和州界對不上，所以塗色只用圖集的遮罩。另外，`HMMP` 的 w 有時比圖集的寬，可能是向上取整。🟡
+
+### 文字
+
+- `text/messages.csv`：LINKDATA 135，3110 行 CRLF 分隔的 Shift-JIS。內容是遊戲訊息（三國志II 系的密書、婚姻、貂蟬等事件文、軍師進言）、選單、編輯器文字。✅ code。控制碼 `^01~17~` 這類照原樣保留。
+- `tables/bgm_titles.csv`：LINKDATA 134 的 `XL` 表，66 首曲名，各附出典（三國志Ⅱ 21 首、三國志12 45 首）。✅ code。曲子本身不留。
+
+### 讀了哪些檔
+
+| 檔 | 大小 | 用途 |
+|---|---:|---|
+| `LINKDATA.IDX`、`LINKDATA0.BIN` | 2 MB＋474 MB | 圖集、BMP、文字、範例劇本。其中 400 MB 左右是頭像包（匯出已在用） |
+| `RES/D01128J.bin` | 12 MB | DLC 的 UI 圖集 |
+
+`games/santsukuru-win/` 已經有 `LINKDATA.IDX`、`LINKDATA0.BIN` 和頭像 DLC 檔（硬連結）。只缺 `RES/D01128J.bin`，補上它就能用 `--game-dir ../games/santsukuru-win` 重跑。
+
+## 下一輪候選
+
+- 戰利品的持有者：先在範例劇本的州記錄或第 0x6314–0x125FD 段找道具號（三國志II 系的道具藏在州裡）；做法是比對第 151 項和使用者自己存的劇本。
+- LINKDATA 136（46107 bytes，值 0–6）：推定是戰場或大地圖的地形格；做法是找出寬度，畫成圖和 `btl_map_hex_chip` 對照。
+- `D01005J`（三國志13 劇本「黄巾の乱」，2.8 MB）：前置是先找出它的格式和 82988 bytes 範例劇本有什麼不同。
+- `_N1G`（LINKDATA 132，2.4 MB）、`LHSK7110`（133）、`LCSK` 畫面配置（279–451）都沒看；`_N1G` 推定是字型。
+
+## 負面結論
+
+- 用 `HMMP` 的 1 bit 遮罩塗 41 州：畫出來會溢出州界，寬度也有幾州對不上 → 改用圖集的 `stg_map_area_mask_NN` → 除非要做點擊判定，否則不值得再解。
+- 在 EXE（`Launch.exe`）和第 135 項找戰利品名表：找不到，名字只在範例劇本裡，因為戰利品是由使用者在編輯器裡命名的。

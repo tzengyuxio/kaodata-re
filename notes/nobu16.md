@@ -112,7 +112,50 @@
 
 沒有解。城 id 看起來和大志共用（人物的所在城 108、31 分別是大志的那古野、岡崎），可以先從大志的城表對照【推】。
 
-## 負面結論與未解（2026-11-06）
+## 事件、插圖、道具（2026-11-08）
+
+`dekoei/nobu16_extras.py`，在 `dekoei/` 下跑（約 3.5 分鐘，產出約 920 MB）：
+
+```sh
+../.venv/bin/python nobu16_extras.py --game-dir ../games/nobu16pk-win --out ../games/nobu16pk-win/extract
+```
+
+封裝：`RES*/res_*.bin` 是 `LINK`，+8 是 0x20 的是圖片 LINK（項目表從 0x20 起、+0x10 是每格 12 bytes 的框），否則項目表從 0x10 起；位置都相對於該 LINK。每格是 `01 01` 的 LZ4 包裝（`00 01` 是同樣的檔頭但沒壓縮，家宝圖第 120 格就是），解開是 GT1G0600，格式 0x59 BC1、0x5B BC3、0x01 RGBA。訊息檔的 XL 表同三國志13（+6 欄數、+8 列數、+10 列長、+12 表頭長），字串 UTF-16LE；`ESC C A`／`B`／`C`…`ESC C Z` 是人名、家名、地名的上色，輸出寫成 `{A}…{Z}`。
+
+| 輸出 | 來源 | 內容 | 可信度 |
+|---|---|---|---|
+| `eventcg/event/` 145 張 | `RES/res_still.bin` 第 0 項，1920×1080 BC1 | 事件插圖（有沒有包含 PK 新增事件的圖沒查） | ✅ code（圖）；哪個事件用哪張 ❌ |
+| `eventcg/small/` 100、`wide/` 12、`other/` 2 | 同檔第 1、2、18 項（720×400、2250×1266、1920×1080） | 小插圖、寬版背景（評定、本丸）、其他 | 🟡 用途看圖推的 |
+| `eventcg/pk/` 3、`exp/` 2 | `RES_JP_PK/res_lang_pk.bin` 第 22 項、`RES/res_exp.bin` 第 30 項 | PK 的領民、市集插圖；標題 logo（日／繁中） | 🟡 |
+| `eventcg/index.csv` | | 每張的來源、項、格、尺寸 | |
+| `items/kahou.csv`＋`items/kahou/` 123 張 512×512 | 名稱：`MSG_PK/<語言>/msgdata.bin` 第 14119–14240 列；說明：`msgire.bin`（122 列，同 `MSG/<語言>/strdata.bin` 第 3 表）；圖：`res_still.bin` 第 3 項 | 家宝 122 件，日文、繁中名稱與說明 | 名稱、說明 ✅ cross（日、繁中逐列對上）；圖 🟡：看圖對過全部 122 件，第 0–104、121 件格號同家宝號，慶長日本図（105）是第 120 格，106–120 件是前一格；第 122 格是空白圖 |
+| `kamon/flat/`、`kamon/gold/` 各 257 張 1024×1024，`kamon/index.csv` | `RES/res_grp.bin` 第 0（白色）、4（金色）項；PK 換掉的第 137 個在 `RES_PK/res_pk.bin` 第 405、409 項 | 家紋 226 個，另 31 格是「欠」的空位圖（index.csv 標 placeholder） | 圖 ✅ code；家紋↔勢力 ❌ |
+| `events/titles.csv` | `msgev.bin` 第 13201 起 799 列是事件名（「タイトルダミー_nnnn」是沒用到的），+799 列是片假名讀音；事件記錄 `RES/res_event.bin`（472 項）、`RES_PK/res_eventpk.bin`（545 項）+0 u32 事件號、+4 u32 事件名號 | 事件名 555 個（日文、讀音、繁中），其中 465 個有事件記錄，列出事件號 | ✅ code（事件記錄的 +4 指到名字）；事件號跟名字不是一對一（4276 對到很多筆記錄） |
+| `events/msgev.csv` | `MSG_PK/JP`、`TC/msgev.bin`（17916 列） | 事件全文：0–3200 是說話者名，3202–11009 是事件對白與旁白，13201 起事件名，16397 起是事件發生條件的說明樣板（「イベント「%s」が発生済み」等） | 文字 ✅；哪幾列屬於哪個事件 ❌ |
+| `rekidai/<項>_<代>/` 17320 張 96×120，`rekidai/index.csv` | `res_still.bin` 第 4–17 項 | 歷代作品的武將頭像（「歴代顔グラフィック」），一項一代 | 圖 ✅ code；代數 🟡 cross：張數第 4 項 53＝信長2 人數、第 11 項 1799＝信長9 頭像數，畫風依序從 8 色到 3D；頭像↔武將 ❌ |
+| `banners/base/` 105、`banners/pk/` 33 | `RES_JP/res_lang.bin` 第 4 項、`RES_JP_PK/res_lang_pk.bin` 第 21 項，956×228 | 演出用的大字（獨眼竜、武田の赤備…） | 🟡 用途沒對畫面 |
+
+沒輸出的：
+- `res_lang.bin` 的其他項：教學截圖、logo、畫面標題字。
+- `res_else`、`res_nature`、`res_stage`、`res_pk_stage*`、`STAGE/`：3D 模型、地形、場景貼圖。
+- `MOVIE*`、`SNDRES*`：影音，照規定不留。
+- `msggame.bin`：18 項「u32 個數＋位移」的訊息腳本，引用字串號（`01 4A` + u32），沒解。
+- `FLOW*/REKISHI_0n.bsf`（`N160` 檔頭）：歷史事件的流程，沒解。
+
+讀到的檔（之後只留必要檔時參考，共約 1.7 GB）：`RES/res_still.bin`、`res_grp.bin`、`res_exp.bin`、`res_event.bin`；`RES_PK/res_eventpk.bin`、`res_pk.bin`（只用第 405、409 項）；`RES_JP/res_lang.bin`、`RES_JP_PK/res_lang_pk.bin`；`MSG_PK/JP`、`TC` 的 `msgdata.bin`、`msgev.bin`、`msgire.bin`。頭像另外讀 `RES/res_face.bin`（1.4 GB）。
+
+## 下一輪候選
+
+- 事件↔插圖、事件↔對白列：前置是解開事件記錄（每筆 17456 bytes，含 `_<事件號>_<序號>` 的 cut 名）或 `FLOW*/REKISHI_0n.bsf`；做法：找記錄裡範圍在 0–144 的欄位，對 `eventcg/event/` 的格號。
+- 事件發生條件：`msgev.bin` 16397 起是條件樣板，實際條件推定在 `REKISHI_0n.bsf`；做法：先解 bsf 的指令格式，對樣板號。
+- 家宝的種類、等級、效果與持有者：`fixdataPK.n16` 解開後的格式和大志不同（不是 key／筆數），沒找到 122 筆的表；做法：在劇本 `sceda*` 找含家宝號 0–121 的欄位，或從 `KahouInfo.bin` 這類 PARAM 檔反查。
+- 家紋↔勢力：家的記錄（劇本裡人物之後）推定有家紋號；做法：用織田（家 44）等已知家紋對 `kamon/` 的號。
+- 歷代頭像↔武將：推定在 PARAM 或劇本的編輯用表；做法：用信長2（53 人）對 kaodata `nobu2-pc88` 的順序。
+- 人物的戦法、特性、主義等欄位；城、國、相鄰（見上面「人物欄位」「地理」）。
+
+## 負面結論
 
 - 人物只確定了生卒年、所在城、四項能力；戦法、特性、主義等欄位沒對。
-- 城、國、相鄰都沒找。`fixdataPK.n16` 推定和大志的 fixdata 是同樣的 key／筆數段落格式，沒驗證。
+- 城、國、相鄰都沒找。`fixdataPK.n16` 不是大志 fixdata 的 key／筆數格式（解開後開頭就不是連號 key）；要先找到它的段落表才值得再找。
+- 事件名的號碼不是事件號換算來的（3100 號那一段、4276 號都對不上「タイトルダミー」的編號規律）；要用事件記錄 +4 的名字號。
+- 家宝名稱在 `fixdataPK.n16` 裡找不到名字號（14119 起）的 u16；家宝表若在那裡，用的是 0 起的家宝號。

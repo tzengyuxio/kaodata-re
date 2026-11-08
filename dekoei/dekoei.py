@@ -30,7 +30,22 @@ from san4_extras import san4_extras
 from san12_extras import san12_extras
 from san13_extras import san13_extras
 from san14_extras import san14_extras
+from koukai4_extras import koukai4_extras
+from taikoh5_extras import taikoh5_extras
+from nobu7_extras import nobu7_extras
+from nobu8_extras import nobu8_extras
+from nobu9_extras import nobu9_extras
+from nobu10_extras import nobu10_extras
+from nobu11_extras import nobu11_extras
 from nobu13_extras import nobu13_extras
+from nobu15_extras import nobu15_extras
+from nobu16_extras import nobu16_extras
+from santsukuru_extras import santsukuru_extras
+from san7_extras import san7_extras
+from san8_extras import san8_extras
+from san9_extras import san9_extras
+from san10_extras import san10_extras
+from san11_extras import san11_extras
 from san1 import san1
 from san2 import san2
 from san3 import san3
@@ -903,7 +918,22 @@ dekoei.add_command(nobu4_extras, "nobu4-extras")  # 信長4 事件、插圖、�
 dekoei.add_command(nobu6_extras, "nobu6-extras")  # 信長6 事件、插圖、家宝、官位
 dekoei.add_command(nobu5_extras, "nobu5-extras")  # 信長5 事件、插圖、家宝
 dekoei.add_command(nobu12_extras, "nobu12-extras")  # 信長12 事件、插圖、家宝
+dekoei.add_command(koukai4_extras, "koukai4-extras")  # 大航海4 圖、道具、船、交易品、港口、劇本台詞
+dekoei.add_command(taikoh5_extras, "taikoh5-extras")  # 太閤5 事件、插圖、道具、交易品、札、地圖
+dekoei.add_command(nobu7_extras, "nobu7-extras")  # 信長7 事件、插圖、家宝、家紋、訊息、大地圖
+dekoei.add_command(nobu8_extras, "nobu8-extras")  # 信長8 事件、插圖、家宝、官位、年表、訊息、地圖
+dekoei.add_command(nobu9_extras, "nobu9-extras")  # 信長9 事件、插圖、家宝、家紋、事件名、訊息
+dekoei.add_command(nobu10_extras, "nobu10-extras")  # 信長10 事件、插圖、家宝、家紋、官位、訊息、大地圖
+dekoei.add_command(nobu11_extras, "nobu11-extras")  # 信長11 事件、插圖、家宝、家紋、官位、役職、訊息
 dekoei.add_command(nobu13_extras, "nobu13-extras")  # 信長13 事件、插圖、家宝
+dekoei.add_command(nobu15_extras, "nobu15-extras")  # 信長15 事件、插圖、家宝
+dekoei.add_command(nobu16_extras, "nobu16-extras")  # 信長16 事件、插圖、家宝、歷代頭像
+dekoei.add_command(santsukuru_extras, "santsukuru-extras")  # 三国志ツクール 事件圖、戰利品、41 州地圖、訊息
+dekoei.add_command(san7_extras, "san7-extras")  # 三國志VII 事件、插圖、寶物、兵裝、訊息、列傳
+dekoei.add_command(san8_extras, "san8-extras")  # 三國志VIII 事件、插圖、寶物、列傳、訊息
+dekoei.add_command(san9_extras, "san9-extras")  # 三國志IX 事件、插圖、寶物、兵法、訊息、列傳
+dekoei.add_command(san10_extras, "san10-extras")  # 三國志X 事件、插圖、寶物、訊息
+dekoei.add_command(san11_extras, "san11-extras")  # 三國志11 事件、插圖、寶物、規則表、訊息
 # dekoei.add_command(genghis)  # 成吉思汗
 # dekoei.add_command(genchoh)  # 元朝秘史
 

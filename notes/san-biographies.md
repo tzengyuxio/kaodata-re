@@ -38,6 +38,9 @@
 | 三國志X | Steam 日文 | `msg/S10M13PK.s10`（LS11），人物記錄 +20 是列傳號。🟡 沒輸出 |
 | 三國志12 | Steam 日文 | `PK/Msg/S12MSG03.s12`，1089 則，順序同人物號。🟡 沒輸出 |
 | 三國志13、14 | 日文 | 和繁中同一處（三國志13 的第 2 項；三國志14 的 `0001_JP`），沒輸出 |
-| 三國志VII–IX、11 | Steam 日文 | 沒找過 |
+| 三國志VII | Steam 日文 | `M_BFile.s7` part 1–11，520 人，第 k 筆是武將 k（`san7-extras` 的 `text/biographies.csv`）。✅ cross，還沒接 `biography.py` |
+| 三國志VIII | Steam 日文 | `m_msg.s8` 51–54 項，654 則，編號＝頭像號（`san8-extras` 的 `text/biographies.csv`）。✅ cross，還沒接 `biography.py` |
+| 三國志IX | Steam 日文 | `M_Rtdn.s9` 679 則（`san9-extras` 的 `text/biographies.csv`）；照頭像號對人，0–500 抽查都對，600 以後錯開（第 647 則是楊肇，頭像 647 是楊済）。🟡 沒匯出 |
+| 三國志11 | Steam 日文 | `media/msg/S11MSG02.s11`，821 人 2195 段（簡介／演義／史實），`san11-extras` 的 `text/biographies.csv`。✅ cross，還沒接 `biography.py` |
 | 三國志IV、V | PC-98 日文 | 遊戲有列伝畫面，沒找過檔案 |
 | 三國志I–III | — | 筆記裡沒有列傳 |
