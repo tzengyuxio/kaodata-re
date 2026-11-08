@@ -1,6 +1,6 @@
 # 信長の野望・全国版（NOBU2, PC-88）頭像相關格式
 
-`dekoei.py export nobu2-pc88` 用到的格式。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Zenkoku-ban/Nobunaga no Yabou - Zenkoku-ban [FD].7z` 主檔的 Disk A、B，原樣放在 `games/nobu2-pc88/DISK_A.D88`、`DISK_B.D88`。
+`dekoei.py export nobu2-pc88` 用到的格式。來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Zenkoku-ban/Nobunaga no Yabou - Zenkoku-ban [FD].7z` 主檔的 Disk A、B，原樣放在 `games/nobu2-pc88/DISK_A.D88`、`DISK_B.D88`。
 
 ## 版本
 
@@ -101,7 +101,7 @@
 
 `dekoei.py export nobu2-x68` 用 `build_nobu2_x68`。
 
-- 來源：Internet Archive `nobunaga_no_yabou_zenkokuhan_1_x68k`（`games/archives/x68000/ia-softwarelibrary/`），A、B 兩片 DIM，各有主檔、`[a]`、`[a2]`。A 片的 `KAO.DAT`、`DATA50.DAT` 三份相同，`[a2]` 的 `ODAMAIN.Z` 不同；用主檔。`games/nobu2-x68/` 放 A 片的 `KAO.DAT`、`DATA50.DAT`、`ODAMAIN.Z`（色盤）。檔案日期 1988-07～09-29，沒有版本字串。
+- 來源：Internet Archive `nobunaga_no_yabou_zenkokuhan_1_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`），A、B 兩片 DIM，各有主檔、`[a]`、`[a2]`。A 片的 `KAO.DAT`、`DATA50.DAT` 三份相同，`[a2]` 的 `ODAMAIN.Z` 不同；用主檔。`games/nobu2-x68/` 放 A 片的 `KAO.DAT`、`DATA50.DAT`、`ODAMAIN.Z`（色盤）。檔案日期 1988-07～09-29，沒有版本字串。
 - `ODAMAIN.Z` 沒有壓縮，執行位址＝檔案＋0x4FFDE。
 - `KAO.DAT`（0x606F0 整檔讀進來）：全部重畫成 64×80 全高，每 8 點 B、R、G 3 bytes（`pc88.brg_pixels(..., double=False)`）。
   - 大名 53 張（0x6103C），女性 20 張從 0x18D80 起（0x61132，group「姫」）。

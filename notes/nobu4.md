@@ -60,7 +60,7 @@
 
 ## PC-98 版（`nobu4-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 信長の野望・風雲録.zip`（A、B 兩片），每片解在 `games/archives/pc98/disks/nobu4-pc98/`，合併放在 `games/nobu4-pc98/`。`VERSION`：For PC-9801 Series，Mar.07,1991 Ver 1.0 Rel 1.0 TYPE-A。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6E00 bytes）。
+來源是 `~/game-library/_original/pc98/[PC98] 信長の野望・風雲録.zip`（A、B 兩片），每片解在 `games/archives/pc98/disks/nobu4-pc98/`，合併放在 `games/nobu4-pc98/`。`VERSION`：For PC-9801 Series，Mar.07,1991 Ver 1.0 Rel 1.0 TYPE-A。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6E00 bytes）。
 
 - `KAODATA.DAT`、`MONDATA.DAT`、`GAIJI.DAT` 和 DOS 中文版逐 byte 相同，頭像碼、組合臉的排法也相同。但 PC-98 把每 8 點的 byte 0／1／2 寫到 B／R／G 平面（byte k＝bit k），所以用 `genpei.decode_planar`，不是 `to_3bpp_indexes`。
 - 色盤：類比色盤由 0x1099 設定，淡入讀 DS:0x39DA（檔案 0x4216A）的 B、R、G 表。基本表是標準 8 色，主要的淡入（0x4646，11 處呼叫）和初始化（0x469E）把色號 1、3、7 的藍改成 0xC：`#000000 #0000cc #ff0000 #ff00cc #00ff00 #00ffff #ffff00 #ffffcc`。（0x467C 另一組把 1、3 設成 0xF，只有 2 處呼叫，不收。）
@@ -71,7 +71,7 @@
 
 ## X68000 版（`nobu4-x68`）
 
-`dekoei.py export nobu4-x68` 用 `build_nobu4_dos(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_bushou_fuuun_x68k`（`games/archives/x68000/ia-softwarelibrary/`，3 片 DIM），Disk A 的 `MAIN.Z`、`VERSION`、`SNDATA*.CIM` 與 Disk C 的 `KAODATA.DAT`、`MONDATA.DAT`、`GAIJI.DAT` 放在 `games/nobu4-x68/`。Disk A 有三份傾印（無標記、`[a]`、`[a2]`），資料檔相同，`MAIN.Z` 只差 2 bytes，用無標記那份。`VERSION` 寫 `For X68000 Series july.12,1991 Ver 1.1`。
+`dekoei.py export nobu4-x68` 用 `build_nobu4_dos(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_bushou_fuuun_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`，3 片 DIM），Disk A 的 `MAIN.Z`、`VERSION`、`SNDATA*.CIM` 與 Disk C 的 `KAODATA.DAT`、`MONDATA.DAT`、`GAIJI.DAT` 放在 `games/nobu4-x68/`。Disk A 有三份傾印（無標記、`[a]`、`[a2]`），資料檔相同，`MAIN.Z` 只差 2 bytes，用無標記那份。`VERSION` 寫 `For X68000 Series july.12,1991 Ver 1.1`。
 
 - `KAODATA.DAT`、`MONDATA.DAT` 和 PC-98 版逐 byte 相同，像素順序也同 PC-98（byte k＝plane k）。
 - 人物：欄位同 PC-98，但有 68000 的補位。`SNDATA1–3.CIM` 從 0x17C8 起每筆 40 bytes，頭像碼是 +24 的大端序 u16；`SNDATA1T–3T.CIM` 每筆 30 bytes，頭像碼是 +26 的大端序 u16。三個劇本的姓名與頭像碼都和 PC-98 版相同。劇本 2 的人物表結尾和 PC-88 一樣是 0x01 開頭的記錄。
@@ -79,7 +79,7 @@
 
 ## PC-88 版（`nobu4-pc88`）
 
-來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Bushou Fuuunroku/`：Disk A 取 `[FD].7z` 主檔，Disk C 取 `[FD] [Set 1].7z` 的（FD 主檔 Disk C 在 0x5400 有一個壞磁區，是第 7 張頭像的底部；Set 1 和 C Alt 1 的才對）。用到的檔案解在 `games/nobu4-pc88/`。
+來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Bushou Fuuunroku/`：Disk A 取 `[FD].7z` 主檔，Disk C 取 `[FD] [Set 1].7z` 的（FD 主檔 Disk C 在 0x5400 有一個壞磁區，是第 7 張頭像的底部；Set 1 和 C Alt 1 的才對）。用到的檔案解在 `games/nobu4-pc88/`。
 
 - 版本：`風雲録.VER`「For PC-8801SR TYPE-B, Ver 1.0 Rel 1.0 03/12/1990」，Disk A 的檔案日期 1990-12-03，`KAODATA.DAT` 1990-11-19。ja.wikipedia：88SR 版 1990-12-12，比 PC-98 版（1991-03-15）早，是首發。
 - 磁碟：80 軌，每軌 9 × 512 bytes。Disk A 是 YDOS 3.0（FAT 在 0x200、目錄 0xA00、資料 0x1800 起、1 KB 一叢），Disk C 是 FAT12 360 KB。Disk B 只用在 demo。

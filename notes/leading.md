@@ -4,8 +4,8 @@
 
 ## 來源與版本
 
-- PC-98：Neo Kobe 2017-11-17 的 `games/archives/pc98/neo-kobe-2017-11-17/Koei/Leading Company/Leading Company [FD].zip`（2 片 HDM，FAT12，可用 X68 的 2HD 版面解開；另有 `[Set 1]`、`[Set 2] [b]`）。`LC.VER` 寫 Version 1.00 Release 1，`LC.EXE` 有「Copyright (C) 1992 KOEI」，檔案日期 1992-03-09，`JUDGE.BIN` 檔頭是 1992/2/5。`games/leading-pc98/` 放 Disk B 的 11 個頭像 GDT 和 Disk A 的 `LC.EXE`。
-- X68000：Internet Archive `games/archives/x68000/ia-softwarelibrary/leading_company_1992_koei_disk_x68k`（2 片 XDF）。`LC.Z` 1992-07-19，GDT 1992-06。`games/leading-x68/` 放 Disk B 的 11 個 GDT 和 Disk A 的 `LC.Z`（沒有壓縮，執行位址＝檔案位置＋0x514DE）。
+- PC-98：Neo Kobe 2017-11-17 的 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Leading Company/Leading Company [FD].zip`（2 片 HDM，FAT12，可用 X68 的 2HD 版面解開；另有 `[Set 1]`、`[Set 2] [b]`）。`LC.VER` 寫 Version 1.00 Release 1，`LC.EXE` 有「Copyright (C) 1992 KOEI」，檔案日期 1992-03-09，`JUDGE.BIN` 檔頭是 1992/2/5。`games/leading-pc98/` 放 Disk B 的 11 個頭像 GDT 和 Disk A 的 `LC.EXE`。
+- X68000：Internet Archive `~/game-library/_original/x68/ia-softwarelibrary/leading_company_1992_koei_disk_x68k`（2 片 XDF）。`LC.Z` 1992-07-19，GDT 1992-06。`games/leading-x68/` 放 Disk B 的 11 個 GDT 和 Disk A 的 `LC.Z`（沒有壓縮，執行位址＝檔案位置＋0x514DE）。
 
 ## GDT（`koei_games.gdt_images`）
 

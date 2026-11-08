@@ -46,7 +46,7 @@
 
 ## 初代（nobu1）
 
-本 repo 沒有資料集，也沒有解碼程式；原版只有發行包（`games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou/`、`games/archives/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou/`，PC-98 是 CP/M-86 的 D88）。只有大名，沒有家臣。
+本 repo 沒有資料集，也沒有解碼程式；原版只有發行包（`~/game-library/_original/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou/`、`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou/`，PC-98 是 CP/M-86 的 D88）。只有大名，沒有家臣。
 
 | 類別 | 項目 | 狀態 | 位置／說明 | 證據 |
 |---|---|---|---|---|

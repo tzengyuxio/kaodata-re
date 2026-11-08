@@ -1,6 +1,6 @@
 # トップマネジメントII（TOPMAN2, PC-98）頭像相關格式
 
-`dekoei.py export topman2-pc98` 用 `build_topman2_pc98`。來源是 Internet Archive neo-kobe 的 `Top Management II`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`，2 片 HDM），Disk B 的 4 個頭像 GDT 與 Disk A 的 `TOP2.EXE`、`VERSION` 放在 `games/topman2-pc98/`。`VERSION` 寫「トップマネジメントⅡ For PC-9801 Series Mar.22,1993 Ver. 1.1 Rel 1.0」，Copyright 1992。
+`dekoei.py export topman2-pc98` 用 `build_topman2_pc98`。來源是 Internet Archive neo-kobe 的 `Top Management II`（`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/`，2 片 HDM），Disk B 的 4 個頭像 GDT 與 Disk A 的 `TOP2.EXE`、`VERSION` 放在 `games/topman2-pc98/`。`VERSION` 寫「トップマネジメントⅡ For PC-9801 Series Mar.22,1993 Ver. 1.1 Rel 1.0」，Copyright 1992。
 
 ## 頭像：GDT 檔
 

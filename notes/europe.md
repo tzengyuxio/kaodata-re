@@ -38,7 +38,7 @@
 
 `dekoei.py export europe-pc88` 用到的差異（`build_europe_dos(pc88=True)`）。
 
-- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Europe Sensen/` 主組 `[FD]`（Disk A–C）。[Set 1]、[Alt 1] 只有 Disk A 的程式檔不同，頭像和人物檔相同。三片都是 YDOS 3.0，每軌 9 × 512 bytes。
+- 來源：Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Europe Sensen/` 主組 `[FD]`（Disk A–C）。[Set 1]、[Alt 1] 只有 Disk A 的程式檔不同，頭像和人物檔相同。三片都是 YDOS 3.0，每軌 9 × 512 bytes。
 - 版本：Disk A 的 `KOEI.C` 寫「Copyright KOEI 1991.12.5」「Ver. 1.00 rel. 1」，檔案日期多是 1991-12-06。
 - `games/europe-pc88/` 放 Disk A 的 `FACE.PIC`、`KOEI.C`（參考用），Disk B 的 `SCEDATA.CIM`、`MAIN.COM`，Disk C 的 `FACE2.PIC`。
 - 頭像：`FACE.PIC` 102 張、`FACE2.PIC` 2 張（匯出成 102、103），都是 64×40、每 8 點 B、R、G 3 bytes（`MAIN.COM` 0x1320 依序寫 port 0x5C–0x5E），960 bytes。匯出用 `pc88.brg_pixels`，逐列加倍。
@@ -54,7 +54,7 @@
 
 `dekoei.py export europe-x68` 用 `build_europe_dos(x68=True)`。
 
-- 來源：Internet Archive `europe_sensen_1992_koei_disk_1_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片 DIM）。`games/europe-x68/` 放 A 片的 `FACE.DAT`、`SCEDATA`、`MAIN.Z`。
+- 來源：Internet Archive `europe_sensen_1992_koei_disk_1_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`，A、B、C 3 片 DIM）。`games/europe-x68/` 放 A 片的 `FACE.DAT`、`SCEDATA`、`MAIN.Z`。
 - `MAIN.Z` 沒有壓縮，執行位址＝檔案位址＋0x514DE。
 - `FACE.DAT`：前 120 張（230400 bytes）和 DOS 中文版逐 byte 相同，後面 52480 bytes 全是 0。分類照 PC-88：106–117「替補指揮官」，118「事件人物」村娘、119「事件人物」修道女（`MAIN.Z` 有這兩個字串）。
 - 色盤：0x55DCC 把 0x9A536（檔案 0x49058）的 8 個長字（X68000 GRB）設到文字色盤 0–7：`#000000 #184A9C #DE3939 #DE7BBD #4A9C4A #7BBDBD #FFCE6B #FFFFFF`，和 DOS 的 VGA 值接近但不同。
@@ -64,7 +64,7 @@
 
 ## PC-98 版（`europe-pc98`）
 
-`dekoei.py export europe-pc98` 用 `build_europe_dos(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Europe Sensen [FD]`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`，3 片），Disk A 的 `FACE.DAT`、`SCEDATA`、`MAIN.EXE` 放在 `games/europe-pc98/`，檔案日期 1992-03-18。
+`dekoei.py export europe-pc98` 用 `build_europe_dos(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Europe Sensen [FD]`（`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/`，3 片），Disk A 的 `FACE.DAT`、`SCEDATA`、`MAIN.EXE` 放在 `games/europe-pc98/`，檔案日期 1992-03-18。
 
 - `FACE.DAT` 和 DOS 版逐 byte 相同（120 張）。
 - 色盤：`MAIN.EXE` 檔案 0x4CBAC 的 8 個 word 是色號 0–7 的類比色（4 bit，由高到低 G、R、B），換成 8 bit 是 v × 17。數值和 DOS 版那張表相同，X68000 版只是量化成 5 bit。

@@ -1,6 +1,6 @@
 # 信長の野望・天翔記（NOBU6, PC-98 日文版）頭像相關格式
 
-`dekoei.py export nobu6-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 信長の野望・天翔記.zip`（6 片 FDI，一般 FAT 磁片，直接放遊戲檔，沒有安裝包），每片解到 `games/archives/pc98/disks/nobu6-pc98/1`–`6`，合併到 `games/nobu6-pc98/`。TEN.TXT 寫「Nobunaga's Ambition TENSYOKI (KOEI/1994/SIM)」，MAIN.EXE 檔案日期 1994-12-08。
+`dekoei.py export nobu6-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 信長の野望・天翔記.zip`（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；6 片逐 sector 和 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Tenshouki/Nobunaga no Yabou - Tenshouki [FD].zip` 的其中 6 片相同；那個 neo FD 也移了，本體改由 DOSBox-X 安裝成 `~/game-library/_original/pc98/installed/nobu6-pc98.zip`，77 個檔和 `games/nobu6-pc98/` 相同）（6 片 FDI，一般 FAT 磁片，直接放遊戲檔，沒有安裝包），每片解到 `games/archives/pc98/disks/nobu6-pc98/1`–`6`，合併到 `games/nobu6-pc98/`。TEN.TXT 寫「Nobunaga's Ambition TENSYOKI (KOEI/1994/SIM)」，MAIN.EXE 檔案日期 1994-12-08。
 
 以下 MAIN.EXE 位址：「image」是去掉 header 後的位址（檔案位址 − 0x6400）；DGROUP 在檔案 0x4C4C0。
 
@@ -71,7 +71,7 @@
 
 ## with パワーアップキット（`nobu6pk-pc98`）
 
-`dekoei.py export nobu6pk-pc98` 用 `build_nobu6_pc98(pk=True)`。來源是 neo-kobe PC-98 合集的 `Nobunaga no Yabou - Tenshouki (with Powerup Kit) [HD].zip`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Tenshouki/`），HDI 的檔案樹解在 `games/archives/pc98/disks/nobu6pk-pc98/hdi/`，用到的檔案放 `games/nobu6pk-pc98/`。
+`dekoei.py export nobu6pk-pc98` 用 `build_nobu6_pc98(pk=True)`。來源是 neo-kobe PC-98 合集的 `Nobunaga no Yabou - Tenshouki (with Powerup Kit) [HD].zip`（`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Tenshouki/`），HDI 的檔案樹解在 `games/archives/pc98/disks/nobu6pk-pc98/hdi/`，用到的檔案放 `games/nobu6pk-pc98/`。
 
 發售時間：PK 磁片（`(Powerup Kit) [FD].zip` 的 4 片 HDM）FAT 檔案日期最晚是 `MAINPK.EXE` 1995-09-02，各片的 `PDISK-n.N6P` 是 1995-09-01，磁片上沒有版本字串。所以是 1995 年 9 月或之後出貨（zip 裡的 1996-12-24 是 TorrentZip 固定日期，不算）。`dataset.json` 的 `game` 是 `NOBU6PK`（同其他 PK 資料集）。
 

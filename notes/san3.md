@@ -72,7 +72,7 @@
 
 ## PC-98 日文版（`san3-pc98`）
 
-`dekoei.py export san3-pc98` 用到的差異。來源是 `games/archives/pc98/【PC98】三國志３.rar` 的 FDI 磁碟映像，解出放在 `games/san3-pc98/`。
+`dekoei.py export san3-pc98` 用到的差異。來源是 `games/archives/pc98/【PC98】三國志３.rar` 的 FDI 磁碟映像（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；遊戲檔的 SHA-1 都在 neo-kobe 的 `Sangokushi III/` 裡：`[FD].zip` 有 `SNDATA1B.CIM` 以外的全部，`SNDATA1B.CIM` 在另一套），解出放在 `games/san3-pc98/`。
 
 - `KAODATA.DAT`、`MONTAGE.DAT` 和 DOS 中文版逐 byte 相同，頭像、組合臉照上文處理。
 - `MAIN.EXE` 沒有壓縮，映像＝檔案 0x8C00 起，DGROUP 段值 0x4B20。程式結構和 DOS 一對一，下表是對應的位址（PC-98 欄是映像位址）：
@@ -133,7 +133,7 @@
 
 ## X68000 版（`san3-x68`）
 
-`dekoei.py export san3-x68` 用 `build_san3(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `sangokushi_iii_1992_koei_disk_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片 DIM，A 片另有一份 `[a]`，檔案相同）。A 片的 `KAODATA.DAT`、`MONTAGE.DAT`、`MAIN.Z`、`CONFIG.SYS` 與 C 片的 `SNDATA1–6.CIM` 放在 `games/san3-x68/`。`CONFIG.SYS` 寫 `三國志Ⅲ For X68000 Series MAY.29,1992 Ver 1.1`。
+`dekoei.py export san3-x68` 用 `build_san3(pc98=True, x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `sangokushi_iii_1992_koei_disk_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`，A、B、C 3 片 DIM，A 片另有一份 `[a]`，檔案相同）。A 片的 `KAODATA.DAT`、`MONTAGE.DAT`、`MAIN.Z`、`CONFIG.SYS` 與 C 片的 `SNDATA1–6.CIM` 放在 `games/san3-x68/`。`CONFIG.SYS` 寫 `三國志Ⅲ For X68000 Series MAY.29,1992 Ver 1.1`。
 
 - `KAODATA.DAT`、`MONTAGE.DAT` 和 PC-98 版逐 byte 相同。
 - `MAIN.Z` 是 CZ10 壓縮，由 `SYS/IPL101.R` 解開。格式同覇王伝的 CZ11（見 `notes/nobu5.md`），差別是 CZ10 以 32 bit 為單位讀位元，而且複製長度直接是碼值，不加 3。解開的映像從基底 0x514FA 起算。匯出不需要它，只用來查色盤（解碼見 `ls11.cz10_decode`，太閤立志伝 X68000 版用到）。

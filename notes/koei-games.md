@@ -206,7 +206,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 水滸伝・天命の誓い（SUIKODEN, PC-98 日文版）
 
-`dekoei.py export suikoden-pc98` 用到的格式。來源原本是 `games/archives/pc98/SUIKODEN_PC98_水滸伝2.FDI`（只有第 2 片）；後來的 `[PC98] 水滸伝～天命の誓い～.ZIP` 有兩片，第 2 片的檔案和它逐 byte 相同，是同一版（`REL.VER`：REL.1A，1989），第 1 片的 `MAIN.EXE` 等也補進 `games/suikoden-pc98/`，每片原樣在 `games/archives/pc98/disks/suikoden-pc98/`。
+`dekoei.py export suikoden-pc98` 用到的格式。來源原本是 `games/archives/pc98/SUIKODEN_PC98_水滸伝2.FDI`（只有第 2 片）；後來的 `[PC98] 水滸伝～天命の誓い～.ZIP` 有兩片（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；兩片逐 sector 和 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Suikoden - Tenmei no Chikai/Suikoden - Tenmei no Chikai [FD] [Set 1].zip` 的其中兩片相同；`SUIKODEN_PC98_水滸伝2.FDI` 也移過去了），第 2 片的檔案和它逐 byte 相同，是同一版（`REL.VER`：REL.1A，1989），第 1 片的 `MAIN.EXE` 等也補進 `games/suikoden-pc98/`，每片原樣在 `games/archives/pc98/disks/suikoden-pc98/`。
 
 - `KAO98.DAT`：260 張，64×80 全高、3bpp、每列 24 bytes，順序同 `utils.to_3bpp_indexes`，無壓縮、無組合臉。
 - 色盤：8 色數位色盤（每分量 0 或 FF）。第 1 片的 `MAIN.EXE`（MZ 檔頭 0x3000 bytes，DGROUP 段 0x299A）證實：數位色盤設定 0x8E4 用 DS:0xA30E 的標準 `37 15 26 04`；類比色盤 0xEEE 只用在把色 1–7 淡成藍色（0xF）的特效，沒有色表。
@@ -349,7 +349,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ### PC-88 版（`suikoden-pc88`）
 
-來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Suikoden/`：Disk A、B 取 `[FD].7z` 主檔，Disk C 取同包 `alts/Suikoden (Disk C) [Alt 1].d88`（FD 主檔的 Disk C 在頭像 190 有 1 byte 和其他各組不同，Set 1 則在頭像 257 尾端被寫進 14 bytes ASCII）。用到的檔案解在 `games/suikoden-pc88/`，`build_suikoden_pc98(pc88=True)`。
+來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Suikoden/`：Disk A、B 取 `[FD].7z` 主檔，Disk C 取同包 `alts/Suikoden (Disk C) [Alt 1].d88`（FD 主檔的 Disk C 在頭像 190 有 1 byte 和其他各組不同，Set 1 則在頭像 257 尾端被寫進 14 bytes ASCII）。用到的檔案解在 `games/suikoden-pc88/`，`build_suikoden_pc98(pc88=True)`。
 
 - 版本：`REL.DIR`「SUIKODEN TENMEI NO CHIKAI REL.1C Copyright (C) 1988 by KOEI」，Disk A／C 檔案日期 1988-12-13，`KAODATA.DAT` 1988-12-01。ja.wikipedia：PC-8801（SR）1989 年 3 月，是首發。
 - 磁碟：80 軌 × 9 × 512 bytes，YDOS 3.0 目錄（0xA00）。Disk A 程式、Disk B 開場與結局、Disk C 資料。
@@ -382,7 +382,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 維新の嵐（ISHIN, PC-98 日文版）
 
-`dekoei.py export ishin-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 維新の嵐.zip`（A、B 兩片 FDI），解到 `games/archives/pc98/disks/ishin-pc98/A`、`B`，合併到 `games/ishin-pc98/`。A 片和之前的 `games/archives/pc98/ISHIN_維新の嵐A.fdi`（沒有檔頭的原始映像）內容相同。ISIN.EXE 的 load image 從檔案 0x3800 起，DGROUP（段 0x3FE4）在 image 0x371C0；下文是 image 位址。
+`dekoei.py export ishin-pc98` 用到的格式。來源是 `~/game-library/_original/pc98/[PC98] 維新の嵐.zip`（A、B 兩片 FDI），解到 `games/archives/pc98/disks/ishin-pc98/A`、`B`，合併到 `games/ishin-pc98/`。A 片和之前的 `games/archives/pc98/ISHIN_維新の嵐A.fdi`（沒有檔頭的原始映像）內容相同。ISIN.EXE 的 load image 從檔案 0x3800 起，DGROUP（段 0x3FE4）在 image 0x371C0；下文是 image 位址。
 
 - `KAODAT.DAT`：105 張 48×40、3bpp，每 8 px 3 bytes，byte k＝bit k（0xA4B 依序寫 A800／B000／B800），720 bytes，無壓縮。
   - 匯出時逐列加倍成 48×80（200 線模式，看圖比例判斷，沒有找到設定模式的程式）。
@@ -447,7 +447,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 `dekoei.py export ishin-pc88` 用到的差異（`build_ishin_pc98(pc88=True)`）。PC-88 版 1989 年 4 月（ja.wikipedia，在 PC-98 之後）。
 
-- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Ishin no Arashi/`，用「[FD]」的 Disk A–C。「[FD] [Set 1]」只有 A 片的 `EXT.DAT`、`MAIN.OVL` 不同。
+- 來源：Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Ishin no Arashi/`，用「[FD]」的 Disk A–C。「[FD] [Set 1]」只有 A 片的 `EXT.DAT`、`MAIN.OVL` 不同。
 - 磁碟：每軌 9 × 512 bytes，Disk A 是 YDOS 3.0，B、C 是 FAT12。檔案日期都是 1989-04-10，沒有版本字串。
 - `games/ishin-pc88/` 放 Disk A 的 `KAODAT.DAT`、`MONDAT.DAT`、`YKAO.DAT`、`MAIN.COM`、`YCSUB.OVL`（參考用），Disk C 的 `SHINARIO.OVL`。
 - `KAODAT.DAT`：98 張，格式同 PC-98（48×40，byte k＝bit k），檔尾沒有圓角遮罩，`MAIN.COM` 0x37C9 讀進來直接畫，所以不套遮罩。
@@ -463,7 +463,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 `dekoei.py export ishin-x68` 用 `build_ishin_x68`。
 
-- 來源：Internet Archive `ishin_no_arashi_1990_koei_disk_x68k`（`games/archives/x68000/ia-softwarelibrary/`，A、B、C 3 片）。`games/ishin-x68/` 放 A 片的 `ISINMAIN.Z`，C 片的 `KAODAT.DAT`、`MONDAT.DAT`、`SDATA1.DAT`、`SDATA2.DAT`、`YKAO.DAT`。
+- 來源：Internet Archive `ishin_no_arashi_1990_koei_disk_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`，A、B、C 3 片）。`games/ishin-x68/` 放 A 片的 `ISINMAIN.Z`，C 片的 `KAODAT.DAT`、`MONDAT.DAT`、`SDATA1.DAT`、`SDATA2.DAT`、`YKAO.DAT`。
 - `ISINMAIN.Z` 沒有壓縮，執行位址＝檔案位址＋0x514DE，下文是執行位址。
 - 人物是 PC-88 版的：姓在檔案 0x4548（和 PC-88 `MAIN.COM` 0x47AB 逐 byte 相同），名在 `SDATA1/2.DAT` 0x1DBE，臉記錄 5 bytes 在 0x2B18（兩個劇本相同）（`koei_games.load_ishin_x68_persons`）。id 和名字同 `ishin-pc88`，劇本 2 的繼任者也一樣匯出成 201、202。
 - `KAODAT.DAT`：96 張重畫的 48×80 全高頭像（1440 bytes，byte k＝plane k），順序同 PC-88 的 0–93；94 是芹沢鴨（PC-88 用組合臉），95 是一般人物（0x7F9B6：id ≥ 0xD0）。PC-88 的 95–97（池内蔵太、新宮馬之助、近藤長次郎）在 X68000 改用組合臉。
@@ -490,7 +490,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## ロイヤルブラッド（ROYAL, PC-98 日文版）
 
-`dekoei.py export royal-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] [光栄] ロイヤルブラッド(FDI).zip`（A、B 片和使用者片），每片解到 `games/archives/pc98/disks/royal-pc98/A`、`B`、`user`，A、B 合併到 `games/royal-pc98/`。使用者片的 KAODATA.DAT／SENFIEDA.DAT 和 B 片相同。
+`dekoei.py export royal-pc98` 用到的格式。來源是 `~/game-library/_original/pc98/[PC98] [光栄] ロイヤルブラッド(FDI).zip`（A、B 片和使用者片），每片解到 `games/archives/pc98/disks/royal-pc98/A`、`B`、`user`，A、B 合併到 `games/royal-pc98/`。使用者片的 KAODATA.DAT／SENFIEDA.DAT 和 B 片相同。
 
 - `MAIN.EXE` 的 header 是 0x3200 bytes；DS 在檔案 0x27270（0x5B0 用 `index × 13 + 0xE52` 找名字）。下文程式位址是去掉 header 後的 image 位址。
 - `KAODATA.DAT`：91 張 64×80，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1920 bytes，無壓縮（OPEN.EXE image 0x12D9 以 idx × 0x780 讀，0x29B0 依序寫 A800／B000／B800；MAIN.EXE 是 0x8D06）。順序和 `royal-fc` 的 91 張逐張相同：0–63 君主、64–67 相談役、68–90 部隊／魔獸／召喚。
@@ -525,7 +525,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 提督の決断（TK, PC-98 日文版）
 
-`dekoei.py export tk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/archives/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。
+`dekoei.py export tk-pc98` 用到的格式。來源是 `~/game-library/_original/pc98/[PC98] 提督の決断.zip`（兩片 FDI），解到 `games/archives/pc98/disks/tk-pc98/1`、`2`，合併到 `games/tk-pc98/`。
 
 - `RENMAIN.EXE` 的 header 是 0x4600 bytes，DGROUP 是段 0x3852（檔案 0x3CB20）。下文程式位址是去掉 header 後的 image 位址。
 - `RENPIC.DAT`：42 張 40×48，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），720 bytes，無壓縮。
@@ -542,7 +542,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 `dekoei.py export tk-pc88` 用到的差異（`build_tk_pc98(pc88=True)`）。
 
-- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Teitoku no Ketsudan/`，用 `[FD]` 的 Disk A–D 主組。
+- 來源：Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Teitoku no Ketsudan/`，用 `[FD]` 的 Disk A–D 主組。
   - Alt 1 的 Disk A/B 只有 `SETTEI.CIM`、`RENMAIN.OVL` 不同（程式修正，沒看）。
 - 磁碟：每軌 9 × 512 bytes。Disk A 是 YDOS 3.0，B、C 是 FAT12。
 - `games/tk-pc88/` 放 Disk B 的 `KAO.DAT`、Disk A 的 `YSHELL.COM`，以及參考用的 `KOEI.C`、`HYOUSHI.CIM`。
@@ -557,7 +557,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 `dekoei.py export tk-x68` 用到的差異（`build_tk_pc98(x68=True)`）。
 
-- 來源：Internet Archive `teitoku_no_ketsudan_1990_koei_x68k`（`games/archives/x68000/ia-softwarelibrary/`）。Disk A 的 `RENMAIN.Z`、Disk C 的 `RENPIC.DAT` 放在 `games/tk-x68/`。
+- 來源：Internet Archive `teitoku_no_ketsudan_1990_koei_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`）。Disk A 的 `RENMAIN.Z`、Disk C 的 `RENPIC.DAT` 放在 `games/tk-x68/`。
 - `RENMAIN.Z` 沒有壓縮，映像起點是 0x54FDE（由 `jsr` 目標推得），下文是執行位址。
 - 頭像：`RENPIC.DAT` 是 42 張 56×72、每 8 px 3 bytes，1512 bytes，後面接 288 bytes（同 PC-98 的小圖示）。人物、順序和 PC-98 相同（40、41 是陸軍参謀），但是另外重畫的大圖。
   - 0x645A0：(記錄 − 0xB41B6) / 20 × 0x5E8 讀一張，0x86A84 以 7 bytes × 72 列寫到文字 VRAM 平面 0–2（E00000／E20000／E40000），byte k＝plane k，平面 3 寫 0。
@@ -566,7 +566,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 提督の決断II（TK2, PC-98 日文版）
 
-`dekoei.py export tk2-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/archives/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
+`dekoei.py export tk2-pc98` 用到的格式。來源是 `~/game-library/_original/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/archives/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
 
 - `MAIN.EXE` 的 header 是 0xD600 bytes，DGROUP 是段 0x5E15。下文程式位址是去掉 header 後的 image 位址。
 - `KAO.TK2`：103 張 48×64，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1152 bytes，無壓縮。0x2A9D2（另一份在 0x3577C）以 `n × 0x480` 讀第 n 張；KAIGI.EXE（0x1C620）、END.EXE（0x3286）也讀這個檔。
@@ -589,7 +589,7 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 
 ## 提督の決断III（TK3, PC-98 日文版）
 
-`dekoei.py export tk3-pc98`／`tk3pk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断３.zip`（7 片 FDI）與 `[PC98] 提督の決断３　パワーアップキット.zip`，磁片上只有 DPACK 安裝包，用 `dekoei/dpack.py` 解開（見 [dpack.md](dpack.md)）：本體解到 `games/tk3-pc98/`，`games/tk3pk-pc98/` 是本體再疊上 PK 的檔。
+`dekoei.py export tk3-pc98`／`tk3pk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断３.zip`（7 片 FDI；2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除，本體改由 DOSBox-X 安裝成 `~/game-library/_original/pc98/installed/tk3-pc98.zip`，81 個檔和 dpack 結果相同，`MAIN.EXE` 差 3 bytes 的安裝修補）與 `[PC98] 提督の決断３　パワーアップキット.zip`（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；`games/tk3pk-pc98/` 全部 88 個檔和 neo-kobe 的 `Teitoku no Ketsudan III (with Powerup Kit) [HD].zip` 裡的 HDI 相同，留 HDI），磁片上只有 DPACK 安裝包，用 `dekoei/dpack.py` 解開（見 [dpack.md](dpack.md)）：本體解到 `games/tk3-pc98/`，`games/tk3pk-pc98/` 是本體再疊上 PK 的檔。
 
 - `MAIN.EXE` 是 MS C 7 加 MOVE overlay：root 的 header 是 0x8000 bytes，load image 到 0x62563，之後是 114 個 overlay（各自是 MZ，從 0x62600 起 512 對齊）。DGROUP 是段 0x542B。下文程式位址是 root 去掉 header 後的 image 位址。
 - `KAODATA.TK3`：LS11，197 段，每段一張 64×80、4 bpp，2560 bytes。每 8 px 4 bytes 交錯：byte (y × 8 + x / 8) × 4 + q 是 plane q（色號的 bit q），MSB 是最左邊（`kaodata_export.tk3_pc98_face`）。root 0x30D0C 讀（ov107 0x2C4 以 0x2453:0xC7DC 呼叫），本體的頭像號 ≥ 0xC5 會取 197 的餘數。

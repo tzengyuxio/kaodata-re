@@ -171,7 +171,7 @@ PC-98 的位置（DOS 的 +16 以後各加 6）：
 
 ## PC-98 版（`nobu3-pc98`）
 
-`dekoei.py export nobu3-pc98` 用到的差異（`build_nobu3_pc98`）。來源是 `games/archives/pc98/[PC98] 信長の野望・戦国群雄伝.zip`（A、B 兩片 FDI），解到 `games/archives/pc98/disks/nobu3-pc98/A`、`B`，合併到 `games/nobu3-pc98/`。MAIN.EXE 和劇本是 1989-05-08，頭像檔 1989-02-16。B 片的 `群雄伝.DIR` 是填滿 KOEI 版權字串的檔，不是目錄。
+`dekoei.py export nobu3-pc98` 用到的差異（`build_nobu3_pc98`）。來源是 `~/game-library/_original/pc98/[PC98] 信長の野望・戦国群雄伝.zip`（A、B 兩片 FDI），解到 `games/archives/pc98/disks/nobu3-pc98/A`、`B`，合併到 `games/nobu3-pc98/`。MAIN.EXE 和劇本是 1989-05-08，頭像檔 1989-02-16。B 片的 `群雄伝.DIR` 是填滿 KOEI 版權字串的檔，不是目錄。
 
 - `MAIN.EXE` 的 header 是 0x3C00 bytes，DGROUP 在檔案 0x23EF0。下文是去掉 header 後的位址。
 - 頭像：`ORGKAO1–3.DAT` 接起來是 177 張 64×80 全高（400 線）頭像，每 8 px 3 bytes，byte k＝plane k（`genpei.decode_planar`），1920 bytes，順序和 DOS 版相同。0x1DE8 起的畫圖程式把 byte 0／1／2 寫到 A800／B000／B800。
@@ -183,7 +183,7 @@ PC-98 的位置（DOS 的 +16 以後各加 6）：
 
 ## X68000 版（`nobu3-x68`）
 
-`dekoei.py export nobu3-x68` 用 `build_nobu3_pc98(x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_sengoku_guny_x68k`（`games/archives/x68000/ia-softwarelibrary/`，3 片 DIM），Disk A（`ORGKAO1–3.DAT`、`MONKAO.DAT`、`MAIN.Z`、`VERSION`）與 Disk C（`SNDATA1/2.CIM`）的檔案放在 `games/nobu3-x68/`。`MAIN.Z` 的版本字串是 `Rel.1A ***Feb.15, 1989***`。
+`dekoei.py export nobu3-x68` 用 `build_nobu3_pc98(x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_sengoku_guny_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`，3 片 DIM），Disk A（`ORGKAO1–3.DAT`、`MONKAO.DAT`、`MAIN.Z`、`VERSION`）與 Disk C（`SNDATA1/2.CIM`）的檔案放在 `games/nobu3-x68/`。`MAIN.Z` 的版本字串是 `Rel.1A ***Feb.15, 1989***`。
 
 - 頭像與組合臉檔和 PC-98 版逐 byte 相同。
 - 色盤：`MAIN.Z`（未壓縮，檔頭 0x1C bytes）檔案 0x412D2 起的 GRB 文字色盤（每色 4 bytes）`0000 003E 07C0 07FE F800 F83E FFC0 FFFE`，各分量是 0 或最大，和 PC-98 的數位 8 色同序。
@@ -191,7 +191,7 @@ PC-98 的位置（DOS 的 +16 以後各加 6）：
 
 ## PC-88 原版（`nobu3-pc88`）
 
-`dekoei.py export nobu3-pc88` 用到的差異（`build_nobu3_pc88`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Sengoku Gunyuuden/Nobunaga no Yabou - Sengoku Gunyuuden [FD].7z`。檔案放在 `games/nobu3-pc88/`：Disk C（FAT12）的 `KAODATA.DAT`，Disk A（YDOS 3.0）的 `SNDATA1/2.CIM`、`VERSION`，以及參考用的 `MAIN.COM`。
+`dekoei.py export nobu3-pc88` 用到的差異（`build_nobu3_pc88`）。來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Nobunaga no Yabou - Sengoku Gunyuuden/Nobunaga no Yabou - Sengoku Gunyuuden [FD].7z`。檔案放在 `games/nobu3-pc88/`：Disk C（FAT12）的 `KAODATA.DAT`，Disk A（YDOS 3.0）的 `SNDATA1/2.CIM`、`VERSION`，以及參考用的 `MAIN.COM`。
 
 - `VERSION`：`NOBUNAGA NO YABOU -- SENGOKU GUNYUUDEN -- Rel.1C Dec.07, 1988`。這是系列的首發平台。
 - `KAODATA.DAT` 和 DOS 版**逐 byte 相同**：177 張 64×40 半高頭像，加上 4 組組合臉零件。DOS 版直接沿用了 PC-88 的 200 線圖。匯出照 DOS 用 `san2_pixels`（每列重複一次）。

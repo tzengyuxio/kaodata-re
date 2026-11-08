@@ -4,9 +4,9 @@
 
 ## 來源與版本
 
-- PC-98：Neo Kobe 2017-11-17 的 `games/archives/pc98/neo-kobe-2017-11-17/Koei/Inindou - Datou Nobunaga/Inindou - Datou Nobunaga [FD].zip`（HDM，FAT12，可用 X68 的 2HD 版面解開）。`VER` 是 `1991.9.2 rel1`，`MAIN.EXE` 1991-09-05。`games/inindou-pc98/` 放 Disk B 的 `KAOGRP.DAT`、Disk A 的 `SDATA.CIM`、`MAIN.EXE`（Disk A 的 `*.FFF` 是存檔用的副本，不用）。
-- X68000：Internet Archive `games/archives/x68000/ia-softwarelibrary/inindou_datou_nobunaga_199x_ko_x68k`（3 片 XDF）。`VER` 是 `1991.12.3 rel1`，`IMAIN.Z` 1991-12-09。`games/inindou-x68/` 放 Disk B 的 `KAOGRP.DAT`、Disk A 的 `SDATA.DAT`、`IMAIN.Z`。`IMAIN.Z` 沒有壓縮，執行位址＝檔案位置＋0x514DE。
-- PC-88：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Inindou - Datou Nobunaga/Inindou - Datou Nobunaga [FD].7z`（D88，4 片＋使用者片）。磁片是 KOEI 的 YDOS（每軌 9 個 512 bytes 磁區，0 軌 0 面另有拷貝保護用的 256 bytes 磁區，去掉後用 `ydos.py` 的版面解開），每片解開的檔案在 `games/archives/pc88/disks/inindou-pc88/`。`games/inindou-pc88/` 放 Disk B 的 `KAOGRP.DAT`、Disk A 的 `SDATA.CIM`、`MAIN.OVL`（1991-07-08）。`[Set 1]` 沒有比對。`inindou-flux` 是同一版的磁通 dump，沒有用。
+- PC-98：Neo Kobe 2017-11-17 的 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Inindou - Datou Nobunaga/Inindou - Datou Nobunaga [FD].zip`（HDM，FAT12，可用 X68 的 2HD 版面解開）。`VER` 是 `1991.9.2 rel1`，`MAIN.EXE` 1991-09-05。`games/inindou-pc98/` 放 Disk B 的 `KAOGRP.DAT`、Disk A 的 `SDATA.CIM`、`MAIN.EXE`（Disk A 的 `*.FFF` 是存檔用的副本，不用）。
+- X68000：Internet Archive `~/game-library/_original/x68/ia-softwarelibrary/inindou_datou_nobunaga_199x_ko_x68k`（3 片 XDF）。`VER` 是 `1991.12.3 rel1`，`IMAIN.Z` 1991-12-09。`games/inindou-x68/` 放 Disk B 的 `KAOGRP.DAT`、Disk A 的 `SDATA.DAT`、`IMAIN.Z`。`IMAIN.Z` 沒有壓縮，執行位址＝檔案位置＋0x514DE。
+- PC-88：Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Inindou - Datou Nobunaga/Inindou - Datou Nobunaga [FD].7z`（D88，4 片＋使用者片）。磁片是 KOEI 的 YDOS（每軌 9 個 512 bytes 磁區，0 軌 0 面另有拷貝保護用的 256 bytes 磁區，去掉後用 `ydos.py` 的版面解開），每片解開的檔案在 `games/archives/pc88/disks/inindou-pc88/`。`games/inindou-pc88/` 放 Disk B 的 `KAOGRP.DAT`、Disk A 的 `SDATA.CIM`、`MAIN.OVL`（1991-07-08）。`[Set 1]` 沒有比對。`inindou-flux` 是同一版的磁通 dump，沒有用。
 
 ## 頭像：KAOGRP.DAT
 

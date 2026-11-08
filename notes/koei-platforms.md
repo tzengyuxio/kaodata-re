@@ -63,7 +63,7 @@
 | PC-98 | Life is Music | 未掃 | 推測沒有頭像 |
 | DOS 英文版 | Romance of the Three Kingdoms II | 未掃 | 沒有和 `san2-dos` 比對過 |
 
-年份是該平台的發售年，不確定的加「?」，依年份排序。「原檔」是 `games/archives/` 底下的路徑，縮寫：`nk98/`＝`pc98/neo-kobe-2017-11-17/Koei/`、`nk88/`＝`pc88/neo-kobe-2016-02-25/`、`ia68/`＝`x68000/ia-softwarelibrary/`。
+年份是該平台的發售年，不確定的加「?」，依年份排序。「原檔」是 `~/game-library/_original/` 底下的路徑（2026-11-09 從 `games/archives/` 搬過去；DOS、Windows 還在 `games/archives/`），縮寫：`nk98/`＝`pc98/neo-kobe-2017-11-17/Koei/`、`nk88/`＝`pc88/neo-kobe-2016-02-25/`、`ia68/`＝`x68/ia-softwarelibrary/`。neo-kobe 兩個合集的來源是 Internet Archive：PC-98 `https://archive.org/download/NeoKobe-NecPc-98012017-11-17/Koei.zip`（item `NeoKobe-NecPc-98012017-11-17`），PC-88 `https://archive.org/download/Neo_Kobe_NEC_PC-8801_2016-02-25/`（item `Neo_Kobe_NEC_PC-8801_2016-02-25`，逐款下載）。
 
 ## PC-88
 
@@ -108,7 +108,7 @@
 | 1984 | ペナントレース | 沒有檔案 |  | 棒球模擬，列在flick-fun 的 PC-98 遊戲總表 | — |
 | 1985 | 蒼き狼と白き牝鹿 | 沒有檔案 |  | PC-88 版沒有頭像 | — |
 | 1985 | コリドール | 沒有檔案 |  | 冒險遊戲，列在flick-fun 的 PC-98 遊戲總表 | — |
-| 1986 | 三國志 | 已匯出 | `san1-pc98` |  | `pc98/【PC98】三國志.rar`、`nk98/Sangokushi/` |
+| 1986 | 三國志 | 已匯出 | `san1-pc98` |  | `pc98/【PC98】三國志.rar`（已刪除（2026-11-09））、`nk98/Sangokushi/` |
 | 1987 | 信長の野望・全国版 | 標為版本 | → `nobu2-pc88` | 頭像與人名和 PC-88 版相同 | `nk98/Nobunaga no Yabou - Zenkoku-ban/` |
 | 1987 | 蒼き狼と白き牝鹿・ジンギスカン | 已匯出 | `genghis-pc98` | 首發版 | `nk98/Aoki Ookami to Shiroki Mejika - Genghis Khan/` |
 | 1987 | 麻雀大会 | 已匯出 | `mahjong-pc98` | 15 位對手各 7 種表情，48×48 | `nk98/Mahjong Taikai/` |
@@ -116,25 +116,25 @@
 | 1989 | 信長の野望・戦国群雄伝 | 已匯出 | `nobu3-pc98` |  | `pc98/[PC98] 信長の野望・戦国群雄伝.zip` |
 | 1989 | 提督の決断 | 已匯出 | `tk-pc98` |  | `pc98/[PC98] 提督の決断.zip` |
 | 1989 | トップマネジメント 産能大編 | 未解 |  | 臉可能在 `.ANM`，格式沒解開（BACKLOG） | `nk98/Top Management Sannoudai Hen/` |
-| 1990 | 三國志II | 已匯出 | `san2-pc98` | 重畫成 400 線 | `pc98/【PC98】三國志２.rar` |
+| 1990 | 三國志II | 已匯出 | `san2-pc98` | 重畫成 400 線 | `pc98/【PC98】三國志２.rar`（已刪除（2026-11-09）） |
 | 1990 | ランペルール | 標為版本 | → `lempe-x68` | 映像在頭像 92 以後損壞，前 92 張相同 | `nk98/L'Empereur/` |
-| 1990 | 大航海時代 | 已匯出 | `koukai-pc98` |  | `pc98/[PC98] 大航海時代.zip` |
-| 1991 | 水滸伝・天命の誓い | 已匯出 | `suikoden-pc98` |  | `pc98/[PC98] 水滸伝～天命の誓い～.ZIP` |
+| 1990 | 大航海時代 | 已匯出 | `koukai-pc98` |  | `pc98/[PC98] 大航海時代.zip`（已刪除（2026-11-09）） |
+| 1991 | 水滸伝・天命の誓い | 已匯出 | `suikoden-pc98` |  | `pc98/[PC98] 水滸伝～天命の誓い～.ZIP`（已刪除（2026-11-09）） |
 | 1991 | 信長の野望・武将風雲録 | 已匯出 | `nobu4-pc98` |  | `pc98/[PC98] 信長の野望・風雲録.zip` |
 | 1991 | ロイヤルブラッド | 已匯出 | `royal-pc98` |  | `pc98/[PC98] [光栄] ロイヤルブラッド(FDI).zip` |
 | 1991 | 伊忍道 打倒信長 | 已匯出 | `inindou-pc98` | 只有 7 位可以成家的女性 | `nk98/Inindou - Datou Nobunaga/` |
 | 1992 | ヨーロッパ戦線 | 已匯出 | `europe-pc98` |  | `nk98/Europe Sensen/` |
-| 1992 | 三國志III | 已匯出 | `san3-pc98` |  | `pc98/【PC98】三國志３.rar` |
+| 1992 | 三國志III | 已匯出 | `san3-pc98` |  | `nk98/Sangokushi III/`（JP rar 已刪除（2026-11-09）） |
 | 1992 | 蒼き狼と白き牝鹿・元朝秘史 | 已匯出 | `genchou-pc98` |  | `nk98/Aoki Ookami to Shiroki Mejika - Genchou Hishi/` |
-| 1992 | 太閤立志伝 | 已匯出 | `taikoh-pc98` |  | `pc98/[PC98] 太閤立志伝.zip` |
+| 1992 | 太閤立志伝 | 已匯出 | `taikoh-pc98` |  | `nk98/Taikou Risshiden/Taikou Risshiden [FD].zip`（JP zip 已刪除（2026-11-09）） |
 | 1992 | エアーマネージメント | 已匯出 | `air-pc98` | 只有頭像，沒有人名 | `nk98/Air Management - Oozora ni Kakeru/` |
 | 1992 | リーディングカンパニー | 已匯出 | `leading-pc98` | 只有頭像，沒有人名 | `nk98/Leading Company/` |
 | 1992 | トップマネジメントII | 已匯出 | `topman2-pc98` | 只有頭像 | `nk98/Top Management II/` |
-| 1992 | 信長の野望・覇王伝 | 已匯出 | `nobu5-pc98` |  | `pc98/[PC98] 信長の野望・覇王伝o.zip` |
+| 1992 | 信長の野望・覇王伝 | 已匯出 | `nobu5-pc98` |  | `pc98/[PC98] 信長の野望・覇王伝o.zip`（已刪除（2026-11-09）） |
 | 1993 | 大航海時代II | 已匯出 | `koukai2-pc98` |  | `pc98/[PC98] 大航海時代２.zip` |
 | 1993 | 項劉記 | 已匯出 | `kouryuuki-pc98` |  | `nk98/Kouryuuki/` |
 | 1993 | エアーマネージメントII | 已匯出 | `air2-pc98` | 頭像同 DOS 版，只差色盤換算 | `nk98/Air Management 2 - Koukuuou o Mezase/` |
-| 1993 | 独立戦争 | 已匯出 | `liberty-pc98` |  | `pc98/[PC98] 独立戦争.zip` |
+| 1993 | 独立戦争 | 已匯出 | `liberty-pc98` |  | `pc98/[PC98] 独立戦争.zip`（已刪除（2026-11-09）） |
 | 1993 | 提督の決断II | 已匯出 | `tk2-pc98`（只在 data-local） | kaodata 收 PK 版 | `pc98/[PC98] 提督の決断２.zip` |
 | 1993 | ウイニングポスト | 待匯出 | `winning-pc98` | 和 DOS 版只差色盤換算（PC-98 是 v×17），使用者決定另收。由 winning-post-zh 匯出，檔案在 `games/winning-pc98/` | `nk98/Winning Post/` |
 | 1993 | 神々の大地 古事記外伝 | 不用掃 |  | 使用者決定（2026-10-17） | `nk98/Kamigami no Daichi - Kojiki Gaiden/` |
@@ -145,24 +145,24 @@
 | 1993? | Life is Music | 未掃 |  | 推測沒有頭像 | `nk98/Life is Music/` |
 | 1993 | 信長の野望・覇王伝 パワーアップキット | 不另收 | → `nobu5pk-win` | 追加的 138 張頭像和 Steam 版逐點相同，色盤也相同 | `nk98/Nobunaga no Yabou - Haouden/` |
 | 1994 | 提督の決断II パワーアップキット | 已匯出 | `tk2pk-pc98` |  | `pc98/[PC98] 提督の決断２　ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ.zip` |
-| 1994 | 三國志IV | 不另收 |  | 本體完全包含在 PK 裡，kaodata 收 PK 版 | `pc98/【PC98】三國志４.rar` |
+| 1994 | 三國志IV | 不另收 |  | 本體完全包含在 PK 裡，kaodata 收 PK 版 | `nk98/Sangokushi IV/Sangokushi IV [FD] [Set 1].zip`（JP rar 已刪除（2026-11-09）） |
 | 1994 | 三國志IV パワーアップキット | 已匯出 | `san4pk-pc98` |  | `pc98/【PC98】三國志４　パワーアップキット.rar` |
-| 1994 | 源平合戦 | 已匯出 | `genpei-pc98` | DOS 版標為版本 | `pc98/[PC98] 源平合戦.zip` |
-| 1994 | 信長の野望・天翔記 | 已匯出 | `nobu6-pc98` |  | `pc98/[PC98] 信長の野望・天翔記.zip` |
+| 1994 | 源平合戦 | 已匯出 | `genpei-pc98` | DOS 版標為版本 | `pc98/[PC98] 源平合戦.zip`（已刪除（2026-11-09）） |
+| 1994 | 信長の野望・天翔記 | 已匯出 | `nobu6-pc98` |  | `pc98/[PC98] 信長の野望・天翔記.zip`（已刪除（2026-11-09）） |
 | 1994–1995 | Emit Vol.1／Vol.3 | 不用掃 |  | 使用者決定（2026-10-17）。手上沒有 Vol.2 | `nk98/Emit Vol. 1 - Toki no Maigo/`、`nk98/Emit Vol. 3 - Watashi ni Sayonara o/` |
 | 1994? | 麻雀大会II | 沒有檔案 |  | 維基沒有寫 PC-98 版的發售日，只寫 1994 年移植 SFC | — |
 | 1994 | ウイニングポスト パワーアップキット | 不另收 | → `winning-pc98` | 頭像圖和本體相同，只有 `ORG/HUMAN.CIM` 換了 7 位調教師／騎手（kaodata `docs/versions.md`）；使用者決定只收本體 | `nk98/Winning Post/` |
 | 1995 | 三國志 復刻版 | 標為版本 | → `san1-pc98` |  | `nk98/Sangokushi Fukkokuban/` |
 | 1995 | ウイニングポスト2 Plus | 不另收 | → `winning2pk-pc98` | 本體的 FD 是 PAC 壓縮包，沒有另外解；kaodata 收 PK 版 | `nk98/Winning Post 2 Plus/` |
-| 1995 | 三國志英傑伝 | 已匯出 | `eiketsu-pc98` | Win3.1 版標為版本 | `pc98/[PC98] 三国志・英傑伝.zip` |
-| 1995 | 太閤立志伝II | 已匯出 | `taikoh2-pc98` |  | `pc98/[PC98] 太閤立志伝２.zip` |
-| 1995 | 三國志V | 已匯出 | `san5-pc98`（只在 data-local） | kaodata 收 PK 版 | `pc98/【PC98】三國志５.rar` |
-| 1995 | プロジェネター | 已匯出 | `progen-pc98` |  | `pc98/[PC98] [光栄] プロジェネター（FDI).zip` |
+| 1995 | 三國志英傑伝 | 已匯出 | `eiketsu-pc98` | Win3.1 版標為版本 | `pc98/[PC98] 三国志・英傑伝.zip`（已刪除（2026-11-09）） |
+| 1995 | 太閤立志伝II | 已匯出 | `taikoh2-pc98` |  | `nk98/Taikou Risshiden II/`（HD） |
+| 1995 | 三國志V | 已匯出 | `san5-pc98`（只在 data-local） | kaodata 收 PK 版 | `nk98/Sangokushi V/Sangokushi V (FD version) [HD].zip`（FD 版的 rar 與 neo `[FD]` 都已刪除（2026-11-09）；HD 只差 `MAIN.EXE` 0x70BDF 起 3 bytes 的安裝修補） |
+| 1995 | プロジェネター | 已匯出 | `progen-pc98` |  | `pc98/[PC98] [光栄] プロジェネター（FDI).zip`（已刪除（2026-11-09）） |
 | 1995 | 信長の野望・天翔記 パワーアップキット | 已匯出 | `nobu6pk-pc98` | 追加頭像 137 張、組合臉類型 13 種、人物 300 人 | `nk98/Nobunaga no Yabou - Tenshouki/` |
 | 1995 | 復刻版 信長の野望・全国版 | 沒有檔案 |  | 列在flick-fun 的 PC-98 遊戲總表 | — |
-| 1996 | 三國志V パワーアップキット | 已匯出 | `san5pk-pc98` |  | `pc98/【PC98】三國志５　パワーアップキット.rar` |
-| 1996 | 提督の決断III | 已匯出 | `tk3-pc98`（只在 data-local） | kaodata 收 PK 版 | `pc98/[PC98] 提督の決断３.zip` |
-| 1996 | 提督の決断III パワーアップキット | 已匯出 | `tk3pk-pc98` |  | `pc98/[PC98] 提督の決断３　パワーアップキット.zip` |
+| 1996 | 三國志V パワーアップキット | 已匯出 | `san5pk-pc98` |  | `nk98/Sangokushi V/Sangokushi V (with Powerup Kit) [HD].zip`（JP rar 已刪除（2026-11-09）） |
+| 1996 | 提督の決断III | 已匯出 | `tk3-pc98`（只在 data-local） | kaodata 收 PK 版 | `pc98/installed/tk3-pc98.zip`（安裝結果） |
+| 1996 | 提督の決断III パワーアップキット | 已匯出 | `tk3pk-pc98` |  | `pc98/[PC98] 提督の決断３　パワーアップキット.zip`（已刪除（2026-11-09）） |
 | 1996 | ウイニングポスト2 Plus パワーアップキット | 已匯出 | `winning2pk-pc98` | 取自裝好 PK 的 HDI；PK 沒有改頭像檔 | `nk98/Winning Post 2 Plus/` |
 
 ## X68000

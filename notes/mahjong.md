@@ -1,6 +1,6 @@
 # 麻雀大会（PC-98）頭像格式
 
-已匯出成 `mahjong-pc98`（2026-10-17）。來源是 Neo Kobe 合集的 `Mahjong Taikai [FD].zip`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/Mahjong Taikai/`）。
+已匯出成 `mahjong-pc98`（2026-10-17）。來源是 Neo Kobe 合集的 `Mahjong Taikai [FD].zip`（`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Mahjong Taikai/`）。
 
 ## 磁片
 

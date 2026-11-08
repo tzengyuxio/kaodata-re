@@ -54,7 +54,7 @@
 - [x] 提督の決断II パワーアップキット（`[PC98] 提督の決断２　ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ.zip`）— PACK.LZW（LW11）解開，本體＋PACK.LZW 放 `games/tk2pk-pc98/`，做 `tk2pk-pc98` 匯出（2026-10-15）
 - [x] 提督の決断III パワーアップキット（`[PC98] 提督の決断３　パワーアップキット.zip`）— DPACK1–3.T3P 解開疊在本體上放 `games/tk3pk-pc98/`，做 `tk3pk-pc98` 匯出（2026-10-15）
 
-## 待分析遊戲（Internet Archive neo-kobe 的 PC-98 版，`games/archives/pc98/neo-kobe-2017-11-17/Koei/`）
+## 待分析遊戲（Internet Archive neo-kobe 的 PC-98 版，`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/`）
 
 和已收的其他平台版比對：一模一樣就只加版本標記，不同才做 `<game>-pc98`。
 

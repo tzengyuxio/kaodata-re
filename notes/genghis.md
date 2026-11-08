@@ -45,7 +45,7 @@
 
 ## PC-88 版（`genghis-pc88`）
 
-`dekoei.py export genghis-pc88` 用到的差異（`build_genghis_dos(pc88=True)`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Aoki Ookami to Shiroki Mejika - Genghis Khan/Aoki Ookami to Shiroki Mejika - Genghis Khan [FD].7z`。附帶的說明檔寫的是「with サウンドウェア」版，V2 模式，1988-01。`[Set 1]` 的資料檔相同。
+`dekoei.py export genghis-pc88` 用到的差異（`build_genghis_dos(pc88=True)`）。來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Aoki Ookami to Shiroki Mejika - Genghis Khan/Aoki Ookami to Shiroki Mejika - Genghis Khan [FD].7z`。附帶的說明檔寫的是「with サウンドウェア」版，V2 模式，1988-01。`[Set 1]` 的資料檔相同。
 
 - 磁碟：D88 每軌 9 × 512 bytes。Disk A 是 YDOS 3.0，B、C 是 FAT12。`games/genghis-pc88/` 放的是 B 片的 `KAO.DAT`、`MONTER.DAT`、`MDATA.CIM`，C 片的 `SDATA.CIM`，以及參考用的 A 片 `MAIN.COM`。B、C 兩片的 `KAO.DAT`、`MONTER.DAT` 相同。
 - 版本：B、C 片只有 `Copyright (C) 1987 by KOEI`，沒有版號字串。
@@ -61,7 +61,7 @@
 
 ## PC-98 版（`genghis-pc98`）
 
-`dekoei.py export genghis-pc98` 用到的差異（`build_genghis_dos(pc98=True)`）。這是 1987-12 的首發版，kaodata 以它為主、PC-88 改成標籤（2026-10-16）。來源是 Neo Kobe 2017-11-17 的 `games/archives/pc98/neo-kobe-2017-11-17/Koei/Aoki Ookami to Shiroki Mejika - Genghis Khan/`（`[FD]` 三片 HDM，`[Set 1]` 兩片的資料檔相同）。`games/genghis-pc98/` 放 B 片的 `KAO.DAT`、`MONTER.DAT`、`MDATA.CIM`、`SDATA.CIM`，以及參考用的 A 片 `MAIN.EXE`（1988-03-31）。
+`dekoei.py export genghis-pc98` 用到的差異（`build_genghis_dos(pc98=True)`）。這是 1987-12 的首發版，kaodata 以它為主、PC-88 改成標籤（2026-10-16）。來源是 Neo Kobe 2017-11-17 的 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Aoki Ookami to Shiroki Mejika - Genghis Khan/`（`[FD]` 三片 HDM，`[Set 1]` 兩片的資料檔相同）。`games/genghis-pc98/` 放 B 片的 `KAO.DAT`、`MONTER.DAT`、`MDATA.CIM`、`SDATA.CIM`，以及參考用的 A 片 `MAIN.EXE`（1988-03-31）。
 
 - `KAO.DAT`、`MONTER.DAT` 和 PC-88、DOS 版逐 byte 相同。
 - 色盤是數位 8 色：`MAIN.EXE` 0x583F 起把 4 bytes 的數位色盤寫到 port 0xA8–0xAE，預設表（0x23E8A 的 37 15 26 04）是標準排列，所以用 `SAN2_JP_PALETTE`（palette id `pc98`）。
@@ -76,7 +76,7 @@
 
 ## X68000 版（`genghis-x68`）
 
-`dekoei.py export genghis-x68` 用到的格式（`build_genghis_x68`）。來源是 Internet Archive 的 `games/archives/x68000/ia-softwarelibrary/aoki_ookami_to_shiroki_meshika_x68k/`（3 片 XDF，標題寫 1989），`games/genghis-x68/` 放 Disk 1 的 `JINMAIN.Z`、`KAO.PAK`，Disk 2 的 `MON.PIC`、`MDATA.DAT`，Disk 3 的 `SDATA.DAT`。檔案日期 1989-01-20～1989-03-07。
+`dekoei.py export genghis-x68` 用到的格式（`build_genghis_x68`）。來源是 Internet Archive 的 `~/game-library/_original/x68/ia-softwarelibrary/aoki_ookami_to_shiroki_meshika_x68k/`（3 片 XDF，標題寫 1989），`games/genghis-x68/` 放 Disk 1 的 `JINMAIN.Z`、`KAO.PAK`，Disk 2 的 `MON.PIC`、`MDATA.DAT`，Disk 3 的 `SDATA.DAT`。檔案日期 1989-01-20～1989-03-07。
 
 - `JINMAIN.Z` 沒有壓縮，執行位址＝檔案位置＋0x514DE。下文是執行位址。
 - 頭像 `KAO.PAK`：重畫的 83 張 48×80、每像素 1 byte（256 色）。偏移表在 0x5F640（84 個 long，最後一個是檔案大小）。第 0 列原樣，之後 `FE n` 是從上一列抄 n 個像素，`FE 01` 是字面的 FE（0x9452A，`genghis_x68_face`）。頭像號和 PC-88 相同（0–20 君主、21–82 女性），全部有人用。

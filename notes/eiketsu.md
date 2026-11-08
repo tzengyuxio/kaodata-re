@@ -81,7 +81,7 @@
 
 ## PC-98 版（`eiketsu-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 三国志・英傑伝.zip` 解出的 `eiketsu-pc98-src/SANEI_1–4.FDI`，每片解在 `games/archives/pc98/disks/eiketsu-pc98/`，合併放在 `games/eiketsu-pc98/`。`MAIN.EXE` 1995-01-25。
+來源是 `games/archives/pc98/[PC98] 三国志・英傑伝.zip` 解出的 `eiketsu-pc98-src/SANEI_1–4.FDI`（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；zip 與解出的 FDI 都移了；4 片逐 sector 和 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Sangokushi Eiketsuden/Sangokushi Eiketsuden [FD].zip` 的其中 4 片相同；那個 neo FD 也移了，同資料夾的 `Sangokushi Eiketsuden [HD].zip` 只差 `MAIN.EXE` 0x116BE 起 3 bytes 的安裝修補，留 HDI），每片解在 `games/archives/pc98/disks/eiketsu-pc98/`，合併放在 `games/eiketsu-pc98/`。`MAIN.EXE` 1995-01-25。
 
 - `FACEDAT.R3` 和 DOS 中文版逐 byte 相同。PC-98 的 `TFDED.COM`（1959 bytes）把 plane 0–3 寫到 0xA800、0xB000、0xB800、0xE000（表在 0x6B6），也就是 B、R、G、E，色號和 DOS 相同。
 - 色盤：`MAIN.EXE` 檔案 0x359AC 是 DOS DGROUP 0xB0A 的同一張 B、R、G 表，PC-98 類比色換算 v × 17：`#000000 #2244aa #ee6600 #cc77aa #00bb77 #88ccff #ffcc55 #ffffff`。

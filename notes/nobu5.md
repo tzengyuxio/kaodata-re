@@ -1,6 +1,6 @@
 # 信長の野望・覇王伝（NOBU5, PC-98 日文版）頭像相關格式
 
-`dekoei.py export nobu5-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 信長の野望・覇王伝o.zip`（HAO_1–4.FDI：1 システム、2 データ、3 シナリオ、4 エンディング），每片磁碟解在 `games/archives/pc98/disks/nobu5-pc98/<n>/`，合併放在 `games/nobu5-pc98/`。
+`dekoei.py export nobu5-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 信長の野望・覇王伝o.zip`（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；`games/nobu5-pc98/` 的遊戲檔全部和 neo-kobe 的 `Nobunaga no Yabou - Haouden [HD].zip` 裡的 HDI 相同，留 HDI）（HAO_1–4.FDI：1 システム、2 データ、3 シナリオ、4 エンディング），每片磁碟解在 `games/archives/pc98/disks/nobu5-pc98/<n>/`，合併放在 `games/nobu5-pc98/`。
 
 ## 版本
 
@@ -50,7 +50,7 @@
 
 ## X68000 版（`nobu5-x68`）
 
-`dekoei.py export nobu5-x68` 用 `build_nobu5_pc98(x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_hanouden_199_x68k`（`games/archives/x68000/ia-softwarelibrary/`，System、Data、Scenario、Ending 4 片 DIM，各有一份 `[a]` 傾印，檔案相同）。System 片的 `MAIN.Z`、`VERSION`，Data 片的 `KAO.NB5`，Scenario 片的 `SN1–3.NB5`、`S1T–S3T.NB5` 放在 `games/nobu5-x68/`。`VERSION` 寫 `Mar.18,1993 Ver. 1.0 Rel 1.0`（System 片，其他片是 Mar.15,1993）。
+`dekoei.py export nobu5-x68` 用 `build_nobu5_pc98(x68=True)`。來源是 Internet Archive `softwarelibrary-x68k` 的 `nobunaga_no_yabou_hanouden_199_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`，System、Data、Scenario、Ending 4 片 DIM，各有一份 `[a]` 傾印，檔案相同）。System 片的 `MAIN.Z`、`VERSION`，Data 片的 `KAO.NB5`，Scenario 片的 `SN1–3.NB5`、`S1T–S3T.NB5` 放在 `games/nobu5-x68/`。`VERSION` 寫 `Mar.18,1993 Ver. 1.0 Rel 1.0`（System 片，其他片是 Mar.15,1993）。
 
 - `KAO.NB5` 和 PC-98 版逐 byte 相同。
 - `MAIN.Z` 是 CZ11 壓縮：`CONFIG.SYS` 的 `shell = \sys\ipl113.r a:open.cz a:main.z a:end.cz` 由 `SYS/IPL113.R` 解開後執行。X 檔頭 0x1C bytes 之後是 `CZ11`、u32 text 大小、u32 data 大小，+0x24 起 256 bytes 字典，+0x126 起是 LS11 的編碼（同一套前綴碼與「碼 ≥ 256 是距離、下一碼＋3 是長度」），用 `ls11.cz11_decode` 解。解開的映像從 X 檔頭的基底 0x47FFA 起算。
@@ -75,7 +75,7 @@
 
 2026-11-07 起 5 代的主資料集（koei-wiki 的人物、地點、列伝與 kaodata）改用這一版，`nobu5pk-win` 保留。
 
-- 來源：`games/archives/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Haouden/Nobunaga no Yabou - Haouden (Powerup Kit) [HD].zip` 裡的 HDI。FAT12 分割區（每磁區 1024 bytes）的全部檔案取出在 `games/archives/pc98/disks/nobu5pk-pc98/hdi/`，其中 `HAOU/` 複製到 `games/nobu5pk-pc98/`。`MAIN.EXE` 日期 1993-09-03。
+- 來源：`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Nobunaga no Yabou - Haouden/Nobunaga no Yabou - Haouden (Powerup Kit) [HD].zip` 裡的 HDI。FAT12 分割區（每磁區 1024 bytes）的全部檔案取出在 `games/archives/pc98/disks/nobu5pk-pc98/hdi/`，其中 `HAOU/` 複製到 `games/nobu5pk-pc98/`。`MAIN.EXE` 日期 1993-09-03。
 - 和本體的差別：多了 `KAO2.NB5`（128 張）、`KAO3.NB5`（10 張）、`BFILE.NB5`（列伝）與劇本 `SN0`／`SN4`、`S0T`／`S4T`；`KAO.NB5` 和本體 byte 相同；`MAIN.EXE`、`SN1–3`、`S1T–S3T` 不同。`NKAO.NB5` 只有開場程式 `SOPEN.EXE` 用到，格式和頭像不同，不是臉。
 - 頭像：PK 的 `MAIN.EXE` 有三個索引表，`KAO.NB5` 在 0x46858（930 個 u16，929 張）、`KAO2.NB5` 在 0x46756（129 個，頭像 929–1056）、`KAO3.NB5` 在 0x46740（11 個，1057–1066），單位 20 bytes，解法同本體（`nobu_pc98_face`）。色盤在 0x4754E（本體 0x4131E）。1067 張和 `nobu5pk-win` 逐點相同 ✅ checksum。
 - 劇本：配置同本體（見下一節），唯一的不同是年份改從 1453 起算（同 Win 版）：檔頭的年、人物 +14 生年、`S*T` 的 +0 登場年與 +18 生年。`SN1` 和本體比，除了這些只有頭像 432 的姓改成「楽巌寺」（本體「楽厳寺」，同 Win）；`S1T` 只差 +0、+18 ✅ code（逐 byte 比對）。5 個劇本依序是 1534、1551、1568、1582、1583 年，各 322、413、459、413、412 人，大名 51、48、43、27、30 家，後登場 418、284、133、59、53 筆。

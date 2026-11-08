@@ -66,7 +66,7 @@
 
 ## PC-98 版（`genpei-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 源平合戦.zip`（5 片 FDI），每片解在 `games/archives/pc98/disks/genpei-pc98/`，合併放在 `games/genpei-pc98/`。`VERSION`：「源平合戦」For PC-9801RA~ Series，9.21,1994 Ver. 1.3 Rel 1.0。
+來源是 `games/archives/pc98/[PC98] 源平合戦.zip`（5 片 FDI）（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；遊戲檔全部和 neo-kobe 的 `Genpei Kassen [HD].zip` 裡的 HDI 相同，留 HDI），每片解在 `games/archives/pc98/disks/genpei-pc98/`，合併放在 `games/genpei-pc98/`。`VERSION`：「源平合戦」For PC-9801RA~ Series，9.21,1994 Ver. 1.3 Rel 1.0。
 
 - `MAINPAL.PLD`、`MONTAGE.GP`、`HAIKEI.GP`、`KAODATA.GP` 和 DOS 版逐 byte 相同，匯出的 `pixels.bin`、`portraits.bin` 也和 `genpei-dos` 相同。
 - `MAIN.EXE` 沒有壓縮（MZ 檔頭 0x5490 bytes），組合表（3 筆 × 0x26 bytes，格式同上）在檔案 0x5DAF4，內容和 DOS 的相同。

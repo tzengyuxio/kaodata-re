@@ -49,7 +49,7 @@
 
 ## PC-98 版（`taikoh2-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 太閤立志伝２.zip` 與 `[PC98] 太閤立志伝2(hdi+fdi)(anex動確).zip`，兩份都是裝好的硬碟映像（HDI，`TAIKOU2/`）加開機片（FDI），`TAIKOU2/` 的 70 個檔逐 byte 相同（只有 MS-DOS 系統檔不同）。原樣放在 `games/archives/pc98/disks/taikoh2-pc98/{hdi,fdi}/`，遊戲檔在 `games/taikoh2-pc98/`。`DISK-1.VER`：For PC-9801 Series，Feb.22,1995 Ver. 1.0 Rel 1。
+來源是 `games/archives/pc98/[PC98] 太閤立志伝２.zip` 與 `[PC98] 太閤立志伝2(hdi+fdi)(anex動確).zip`，兩份都是裝好的硬碟映像（HDI，`TAIKOU2/`）加開機片（FDI）（2026-11-08 兩個 zip 都移到 `games/archives/to-delete/`，2026-11-09 已刪除；遊戲檔和 neo-kobe 的 `Taikou Risshiden II [HD].zip` 的 HDI 一致，留那份），`TAIKOU2/` 的 70 個檔逐 byte 相同（只有 MS-DOS 系統檔不同）。原樣放在 `games/archives/pc98/disks/taikoh2-pc98/{hdi,fdi}/`，遊戲檔在 `games/taikoh2-pc98/`。`DISK-1.VER`：For PC-9801 Series，Feb.22,1995 Ver. 1.0 Rel 1。
 
 - `FACE.LZW`、`EXTFACE.PK8` 和 Win 中文版逐 byte 相同，頭像碼、換臉（16→695、364→743、1→744）、名人與女性的頭像對照也相同。
 - 色盤：`MAIN.EXE`（MZ 檔頭 0x5800 bytes）檔案 0x6D400 起是一連串 16 色表（B、R、G 各 4 bit），每組前 8 色都相同，也和 Win 版第 4 組相同。PC-98 類比色盤以 v × 17 換算：`#000000 #004499 #cc4400 #dd8833 #228800 #44aabb #ffbb66 #eeffdd`。

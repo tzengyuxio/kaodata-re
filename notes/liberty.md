@@ -34,7 +34,7 @@
 
 ## PC-98 版（`liberty-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 独立戦争.zip`（`dsensoua/b/c.D88` 三片，D88 格式，轉成一般磁碟映像後讀 FAT），每片解在 `games/archives/pc98/disks/liberty-pc98/`（`A/`、`B/`、`C/`），合併放在 `games/liberty-pc98/`。`LIBERTY.VER`：「独立戦争・Liberty or Death PC-9801」Sep.02.'93，`MAIN.EXE` 1993-09-07（MZ 檔頭 0x4600 bytes）。
+來源是 `games/archives/pc98/[PC98] 独立戦争.zip`（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；遊戲檔全部和 neo-kobe 的 `Dokuritsu Sensou - Liberty or Death [HD].zip` 裡的 HDI 相同，留 HDI）（`dsensoua/b/c.D88` 三片，D88 格式，轉成一般磁碟映像後讀 FAT），每片解在 `games/archives/pc98/disks/liberty-pc98/`（`A/`、`B/`、`C/`），合併放在 `games/liberty-pc98/`。`LIBERTY.VER`：「独立戦争・Liberty or Death PC-9801」Sep.02.'93，`MAIN.EXE` 1993-09-07（MZ 檔頭 0x4600 bytes）。
 
 - `FACE.IDX`、`SCENARIO.DAT`、`SAVEDATA.DAT` 和 DOS 中文版逐 byte 相同，頭像就是同一批圖。
 - 色盤：`MAIN.EXE` 檔案 0x3945A 有和 DOS 相同的 4 組 × 16 色 4 bit 表（B、R、G），PC-98 類比色盤直接用 4 bit，換算 v × 17：`#000000 #114499 #bb5511 #aa7777 #447700 #88aabb #eebb99 #ffeedd`。

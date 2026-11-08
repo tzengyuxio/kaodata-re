@@ -4,8 +4,8 @@
 
 ## 來源與版本
 
-- PC-98：Neo Kobe 2017-11-17 的 `games/archives/pc98/neo-kobe-2017-11-17/Koei/Air Management - Oozora ni Kakeru/Air Management - Oozora ni Kakeru [FD].zip`（HDM，FAT12，可用 X68 的 2HD 版面解開），檔案日期 1992-07-15。`games/air-pc98/` 放 Disk B 的 `FACE_*.GDT`、`LADIES.GDT` 和 Disk A 的 `AM98.EXE`。
-- X68000：Internet Archive `games/archives/x68000/ia-softwarelibrary/air_management_19xx_koei_disk_x68k`（2 片 XDF），檔案日期 1992-11-12，`AM.Z` 沒有版號字串。`games/air-x68/` 放 Disk B 的 `FACE_*.GDT` 和 Disk A 的 `AM.Z`（沒有壓縮，執行位址＝檔案位置＋0x514DE）。
+- PC-98：Neo Kobe 2017-11-17 的 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Air Management - Oozora ni Kakeru/Air Management - Oozora ni Kakeru [FD].zip`（HDM，FAT12，可用 X68 的 2HD 版面解開），檔案日期 1992-07-15。`games/air-pc98/` 放 Disk B 的 `FACE_*.GDT`、`LADIES.GDT` 和 Disk A 的 `AM98.EXE`。
+- X68000：Internet Archive `~/game-library/_original/x68/ia-softwarelibrary/air_management_19xx_koei_disk_x68k`（2 片 XDF），檔案日期 1992-11-12，`AM.Z` 沒有版號字串。`games/air-x68/` 放 Disk B 的 `FACE_*.GDT` 和 Disk A 的 `AM.Z`（沒有壓縮，執行位址＝檔案位置＋0x514DE）。
 
 ## 頭像
 

@@ -43,7 +43,7 @@
 
 ## PC-98 版（`koukai-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 大航海時代.zip`（SYSTEM、海 兩片 FDI），每片解在 `games/archives/pc98/disks/koukai-pc98/`（`SYSTEM/`、`UMI/`），合併放在 `games/koukai-pc98/`（兩片的 `OPEN.EXE` 不同，用 SYSTEM 片的，匯出用不到）。檔案日期 1990-07-20。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6A00 bytes），DGROUP 段值 0x39F1；下文是映像（檔案 − 0x6A00）位址。
+來源是 `games/archives/pc98/[PC98] 大航海時代.zip`（SYSTEM、海 兩片 FDI）（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；兩片逐 sector 和 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Daikoukai Jidai/Daikoukai Jidai [FD] [Set 1].zip` 的其中兩片相同），每片解在 `games/archives/pc98/disks/koukai-pc98/`（`SYSTEM/`、`UMI/`），合併放在 `games/koukai-pc98/`（兩片的 `OPEN.EXE` 不同，用 SYSTEM 片的，匯出用不到）。檔案日期 1990-07-20。`MAIN.EXE` 沒有壓縮（MZ 檔頭 0x6A00 bytes），DGROUP 段值 0x39F1；下文是映像（檔案 − 0x6A00）位址。
 
 - `KAO.PUT` 160512 bytes，是 DOS 版的兩倍：排法相同，但全高 64×80（每列 24 bytes，byte 0／1／2 畫到 B／R／G 平面，即 `san2_jp_pixels`）。DOS 版的 64×40 頭像和 PC-98 的不同（人物、順序相同，但姿勢、表情不同，不是縮小）：那是 PC-88 原版的 200 線圖，DOS 直接沿用，PC-98 才是重畫的（見下方 PC-88 一節）。
   - 組合臉 0x7292：每國 0x5D00 bytes（表 DS:0x2B32），零件位置、大小、畫到的列都是 DOS 的兩倍（上 0x3F0、下 0x4080／0x390、眼 0x1F80／0x180、鼻 0x2B80／0x180、口 0x3180／0x1E0），組成 1920 bytes 的全高臉。五官 OR 疊上，檢查過全部組合，和上下及彼此都不重疊。
@@ -65,7 +65,7 @@
 
 `dekoei.py export koukai-pc88` 用到的差異（`build_koukai_dos(pc88=True)`）。
 
-- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Daikoukai Jidai/`。用 `[FD] [Set 1]`（乾淨的 80 軌映像），`[FD]`、`[Set 2]` 的這幾個檔相同。
+- 來源：Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Daikoukai Jidai/`。用 `[FD] [Set 1]`（乾淨的 80 軌映像），`[FD]`、`[Set 2]` 的這幾個檔相同。
 - 磁碟：Main、Minato、Umi、Opening 四片加 User 片，都是 YDOS 3.0，每軌 9 × 512 bytes。
 - `games/koukai-pc88/` 放 Main 片的 `KAO.PUT`、`VER.DAT`，Umi 片的 `SHINARIO.CIM`、`MAIN.COM`（後兩者之外是參考用）。
 - 版本：沒有明文版號，`VER.DAT` 是編碼過的。檔案日期最晚是 1990-04-25（`MAIN.OVL`、`MAIN.COM`、`INIT.CIM`）。PC-8801 是首發平台。

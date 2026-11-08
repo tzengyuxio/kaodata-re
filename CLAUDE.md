@@ -13,8 +13,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `GLYPH_TABLE/`、`PERSONS_TABLE/`、`MISC_TABLE/`、`montage/`：已產出的成果圖／表，不是原始碼
 - `games/`：原版遊戲，被 `.gitignore` 排除，不要 commit
   - 根目錄只放解開後、給 `--game-dir` 用的 `games/<dataset-id>/`（如 `games/san2-dos/`）
-  - 原始壓縮檔、磁碟映像與用不到的附帶檔（說明文字、`<dataset-id>-src/`）依平台放在 `games/archives/dos/`、`win/`、`pc98/`、`x68000/`；新加的原始檔也照這個分法
-  - PC-98／X68000 版是磁碟映像（`games/archives/pc98/` 的 FDI／HDI、`games/archives/x68000/Sangokushi II [FD]*/` 的 HDM），檔案已解到 `games/<game>-pc98/`、`games/san2-x68/`，每片磁碟的原樣在 `games/archives/pc98/disks/`
+  - DOS、Windows 的原始壓縮檔與用不到的附帶檔（說明文字、`<dataset-id>-src/`）放在 `games/archives/dos/`、`win/`
+  - PC-98、PC-88、X68000 的發行包（磁碟映像、neo-kobe 合集、安裝結果 `pc98/installed/`）放在 `~/game-library/_original/pc98/`、`pc88/`、`x68/`（各有 `SHA1SUMS.txt`，2026-11-09 從 `games/archives/` 搬過去）；新加的這三個平台的原始檔也放那裡。檔案已解到 `games/<game>-pc98/`、`games/san2-x68/` 等，每片磁碟解開的原樣在 `games/archives/pc98/disks/`、`pc88/disks/`；PC-98 的 FD／HD 取捨見 `docs/backlog/pc98-disk-images.md`
 - 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理；例外是 PC-98 安裝包 DPACK 的解壓 `dekoei/dpack.py`（`python dpack.py OUTDIR DPACK1 DPACK2 ...`，見 `notes/dpack.md`），用來從提督の決断III、三国志V 的磁片取得遊戲檔
 
 ## RE 共通語言
@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 層／概念 | 本 repo |
 |---|---|
-| original | 發行包 `games/archives/<platform>/`；取出的檔案 `games/<id>/`（Steam 版用硬連結） |
+| original | 發行包：PC-98／PC-88／X68000 在 `~/game-library/_original/<platform>/`，DOS／Windows 在 `games/archives/<platform>/`；取出的檔案 `games/<id>/`（Steam 版用硬連結） |
 | references | `MISC_TABLE/`（能力值 CSV 等）；網址列在 `notes/san-persons.md`「參考來源」 |
 | captures | 沒有固定位置 |
 | extracted | `games/celt-win/extract/` 等，沒有統一位置 |

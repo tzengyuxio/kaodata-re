@@ -52,7 +52,7 @@
 
 ## PC-98 版（`taikoh-pc98`）
 
-來源是 `games/archives/pc98/[PC98] 太閤立志伝.zip`（A、B、C 三片 FDI），每片解在 `games/archives/pc98/disks/taikoh-pc98/`，合併放在 `games/taikoh-pc98/`。`MAIN.EXE` 1992-02-20（MZ 檔頭 0x6C00 bytes），DGROUP 段值 0x4EF9（檔案 0x55B90）；`VER` 是 LZH 壓縮的 VER.TXT。
+來源是 `games/archives/pc98/[PC98] 太閤立志伝.zip`（A、B、C 三片 FDI）（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；30 個遊戲檔的 SHA-1 都在 neo-kobe 的 `Taikou Risshiden/Taikou Risshiden [FD].zip` 裡，留那份），每片解在 `games/archives/pc98/disks/taikoh-pc98/`，合併放在 `games/taikoh-pc98/`。`MAIN.EXE` 1992-02-20（MZ 檔頭 0x6C00 bytes），DGROUP 段值 0x4EF9（檔案 0x55B90）；`VER` 是 LZH 壓縮的 VER.TXT。
 
 - `KAO.PUT`、`HIME.PUT`、`MONTA.PUT` 和 DOS 中文版逐 byte 相同，頭像碼、組合臉排法也相同。但 PC-98 依序把 byte 0／1／2 寫到 B／R／G 平面（0xA800、0xB000、0xB800），所以用 `genpei.decode_planar`（byte k＝bit k），不是 `to_3bpp_indexes`。
 - 色盤：類比模式（DGROUP [0xCCCE] ≠ 0）由 0x61D8 淡入 DGROUP 0x7E96 的 8 色，就是 DOS 版 DGROUP 0x8468 的同一張表（B、R、G 各 4 bit；0x6041 組成 `R << 4 | G << 8 | B`，0x14AC 寫 port 0xAE／0xAC／0xAA），換算 v × 17：`#000000 #2266aa #ff5500 #ff66bb #44cc44 #00ccff #ffdd00 #ffffff`。
@@ -61,7 +61,7 @@
 
 ## X68000 版（`taikoh-x68`）
 
-- 來源：Internet Archive `taikou_risshiden_1992_koei_dis_x68k`（`games/archives/x68000/ia-softwarelibrary/`）。Disk A 的 MAIN.Z、VER68，Disk B 的 TBS.DAT，Disk C 的 KAO.PUT、MONTA.PUT、HIME.PUT 放在 `games/taikoh-x68/`。
+- 來源：Internet Archive `taikou_risshiden_1992_koei_dis_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`）。Disk A 的 MAIN.Z、VER68，Disk B 的 TBS.DAT，Disk C 的 KAO.PUT、MONTA.PUT、HIME.PUT 放在 `games/taikoh-x68/`。
 - MONTA.PUT、HIME.PUT、TBS.DAT 和 PC-98 版逐 byte 相同。KAO.PUT 的前 228 張也相同，後面多一格 1920 bytes 的花紋圖（不是臉），匯出時不收。
 - MAIN.Z 是 CZ10 壓縮（`ls11.cz10_decode`），解開的映像從 0x3FFFA 起算（由 `jsr` 目標推得）。
 - 人物：開局 241 人在映像 0x5FE7E，每筆 0x4A bytes，頭像碼是 +14 的大端序 u16；女性在 0x5FA32，每筆 14 bytes，頭像在 +8（大端序）。TBS.DAT 是 PC-98 的檔案，頭像碼照樣用小端序。姓名與頭像碼和 PC-98 版完全相同（`koei_games.load_taikoh_x68_persons`／`load_taikoh_x68_women`）。

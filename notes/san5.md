@@ -96,7 +96,7 @@
 
 ## PC-98 日文版 PK（`san5pk-pc98`）
 
-`dekoei.py export san5pk-pc98` 用到的差異。來源是 `games/archives/pc98/【PC98】三國志５　パワーアップキット.rar` 的 HDI 硬碟映像（已安裝 PK），解出放在 `games/san5pk-pc98/`。
+`dekoei.py export san5pk-pc98` 用到的差異。來源是 `games/archives/pc98/【PC98】三國志５　パワーアップキット.rar` 的 HDI 硬碟映像（已安裝 PK）（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；87 個遊戲檔的 SHA-1 都在 neo-kobe 的 `Sangokushi V/Sangokushi V (with Powerup Kit) [HD].zip` 裡，留那份），解出放在 `games/san5pk-pc98/`。
 
 - `KAODATA.S5`、`KAODATAP.S5`、`KAOEX.S5` 和 DOS 中文版逐 byte 相同。`KAODATAP.S5` 是遊戲讀人物頭像用的工作副本（0x884E3 開檔，0x68704 讀取），原廠內容和 KAODATA 相同，匯出照舊用 KAODATA。
 - `MAIN.EXE`：MZ 檔頭 0x5400，DGROUP 在檔案 0x51250（段值 0x4BE5）。

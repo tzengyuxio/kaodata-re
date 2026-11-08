@@ -4,7 +4,7 @@
 
 ## 來源
 
-neo-kobe PC-98 合集的 `Winning Post 2 Plus/`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/Winning Post 2 Plus/`）：
+neo-kobe PC-98 合集的 `Winning Post 2 Plus/`（`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Winning Post 2 Plus/`）：
 
 - `Winning Post 2 Plus [FD].zip`：本體 7 片，每片是一個 `DISK_n.PAC`（KOEI Install Program Ver 2.1 的壓縮包，`INSTALL.SYS` 腳本用 `unpack disk_n.pac` 解開）。
 - `Winning Post 2 Plus (Powerup Kit) [FD].zip`：PK 3 片（1996-08-23 發售）（`PKDISK_n.PAC`，`PKDISK_1.VER` 是「Winning Post 2 Plus ﾊﾟﾜｰｱｯﾌﾟｷｯﾄ Version1.00」）。

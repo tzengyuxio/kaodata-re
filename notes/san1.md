@@ -1,6 +1,6 @@
 # 三國志（SAN1, PC-98 日文版）頭像相關格式
 
-`dekoei.py export san1-pc98` 用到的格式。來源是 `games/archives/pc98/【PC98】三國志.rar` 的 FDI（Ver.2.4, 87/4/20），解出放在 `games/san1-pc98/`。
+`dekoei.py export san1-pc98` 用到的格式。來源是 `games/archives/pc98/【PC98】三國志.rar` 的 FDI（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；兩片逐 sector 和 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Sangokushi/Sangokushi (v2.4) [FD].zip` 的其中兩片相同）（Ver.2.4, 87/4/20），解出放在 `games/san1-pc98/`。
 
 ## 頭像：PICDATA.DAT
 
@@ -142,7 +142,7 @@ PC-9801 版 1986-04-30（ja.wikipedia〈三國志 (ゲーム)〉，和 FM-16β �
 
 ## PC-88 V1 版（`san1-pc88`）
 
-`dekoei.py export san1-pc88` 用到的格式。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Sangokushi/Sangokushi [FD].7z`，取其中 V1 模式的 Disk A、B（`Sangokushi (Disk A|B) {V1 mode}.d88`），原樣放在 `games/san1-pc88/DISK_A.D88`、`DISK_B.D88`。
+`dekoei.py export san1-pc88` 用到的格式。來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Sangokushi/Sangokushi [FD].7z`，取其中 V1 模式的 Disk A、B（`Sangokushi (Disk A|B) {V1 mode}.d88`），原樣放在 `games/san1-pc88/DISK_A.D88`、`DISK_B.D88`。
 
 ### 版本
 
@@ -223,7 +223,7 @@ PC-9801 版 1986-04-30（ja.wikipedia〈三國志 (ゲーム)〉，和 FM-16β �
 
 `dekoei.py export san1-x68` 用 `build_san1_x68`。
 
-- 來源：Internet Archive `sangokushi_1988_koei_disk_1_of_x68k`（`games/archives/x68000/ia-softwarelibrary/`），A、B 兩片 DIM，各有主檔、`[a]`、`[a2]` 三份。
+- 來源：Internet Archive `sangokushi_1988_koei_disk_1_of_x68k`（`~/game-library/_original/x68/ia-softwarelibrary/`），A、B 兩片 DIM，各有主檔、`[a]`、`[a2]` 三份。
   - A 片三份只有 `SANMAIN.Z` 差十幾個 byte，`KAODATA` 相同。
   - B 片 `[a]`、`[a2]` 的 `SAVEDATA` 有玩家存檔；主檔的 10 個槽都是「KOEI.GAME 1988-12-05」的原廠初始資料，所以用主檔。
   - `games/san1-x68/` 放 A 片的 `KAODATA` 與參考用的 `SANMAIN.Z`，B 片的 `SAVEDATA`、`SANGOKU.PAL`。

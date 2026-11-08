@@ -1,6 +1,6 @@
 # 大航海時代II（KOUKAI2, PC-98）頭像相關格式
 
-`dekoei.py export koukai2-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 大航海時代２.zip`（起動、A、B、C 四片 FDI），每片解在 `games/archives/pc98/disks/koukai2-pc98/`，遊戲檔（A–C）合併放在 `games/koukai2-pc98/`。`KOUKAI2.VER`：Mar.10.'93。`REL` 是 LHA 包（STAFF.TXT），和頭像無關。
+`dekoei.py export koukai2-pc98` 用到的格式。來源是 `~/game-library/_original/pc98/[PC98] 大航海時代２.zip`（起動、A、B、C 四片 FDI），每片解在 `games/archives/pc98/disks/koukai2-pc98/`，遊戲檔（A–C）合併放在 `games/koukai2-pc98/`。`KOUKAI2.VER`：Mar.10.'93。`REL` 是 LHA 包（STAFF.TXT），和頭像無關。
 
 - `MAIN.EXE` 沒有壓縮（MZ 檔頭 0x5000 bytes），下文的程式位址是映像（檔案 − 0x5000）位址。
 - `DATA2.LZW`、`SNRDAT.LZW`、`SNRMES.LZW`、`EVENT.LZW` 是 LW11（`ls11.lw11_decode_files`），`DATA1.LZW`、`KAO.LZW` 是 LS11。

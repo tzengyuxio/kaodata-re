@@ -44,8 +44,8 @@
 ## PC-98／X68000 日文版（`san2-pc98`、`san2-x68`）
 
 `dekoei.py export san2-pc98`／`san2-x68` 用到的格式（`kaodata_export.build_san2_jp`）。來源：
-- PC-98：`games/archives/pc98/【PC98】三國志２.rar` 的 FDI，解出放在 `games/san2-pc98/`。
-- X68000：`games/archives/x68000/Sangokushi II [FD]/` 的 HDM（沒有檔頭的 2HD，Human68k），解出放在 `games/san2-x68/`。
+- PC-98：`games/archives/pc98/【PC98】三國志２.rar` 的 FDI（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；兩片逐 sector 和 `~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/Sangokushi II/Sangokushi II [FD].zip` 的其中兩片相同），解出放在 `games/san2-pc98/`。
+- X68000：`~/game-library/_original/x68/Sangokushi II [FD]/` 的 HDM（沒有檔頭的 2HD，Human68k），解出放在 `games/san2-x68/`。
   - 另一組 `[Set 1]` 的資料檔完全相同，只有 `MAIN.Z`（0x36E44）和 `OPEN.Z`（0x4716）各差 28 bytes：原版在那裡呼叫 IOCS 做磁片檢查，Set 1 改成寫死檢查結果，是破解版。匯出用原版。
 - 位址：PC-98 `MAIN.EXE` 是檔案 offset（MZ 檔頭 0x5C00，DGROUP 從檔案 0x35F00 起）；X68000 `MAIN.Z` 沒有壓縮，檔頭 0x1C bytes，執行位址＝檔案 offset＋0x4FFDE。
 
@@ -113,7 +113,7 @@ ja.wikipedia〈三國志II〉：PC-9801 版 1990-03-23（1989-12 是 PC-8801 原
 
 ## PC-88 原版（`san2-pc88`）
 
-`dekoei.py export san2-pc88` 用到的格式（`kaodata_export.build_san2_pc88`）。來源是 Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Sangokushi II/Sangokushi II [FD].7z`（Disk A、B、C、D、U），解出的檔案放在 `games/san2-pc88/`：Disk C 的 `KAODATA.DAT`，Disk B 的 `SNDATA1–6.CIM`，Disk A 的 `TAIKI.DAT`，以及參考用的 `MAIN.COM`。
+`dekoei.py export san2-pc88` 用到的格式（`kaodata_export.build_san2_pc88`）。來源是 Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Sangokushi II/Sangokushi II [FD].7z`（Disk A、B、C、D、U），解出的檔案放在 `games/san2-pc88/`：Disk C 的 `KAODATA.DAT`，Disk B 的 `SNDATA1–6.CIM`，Disk A 的 `TAIKI.DAT`，以及參考用的 `MAIN.COM`。
 
 ### 版本與磁碟
 

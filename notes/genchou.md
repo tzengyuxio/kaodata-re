@@ -4,7 +4,7 @@
 
 ## 版本與磁碟
 
-- 來源：Neo Kobe 2016-02-25 的 `games/archives/pc88/neo-kobe-2016-02-25/Aoki Ookami to Shiroki Mejika - Genchou Hishi/` 唯一一組 `[FD]`（Disk A–D 與 Save disk；Alt 1／2 只有 Save disk 不同）。
+- 來源：Neo Kobe 2016-02-25 的 `~/game-library/_original/pc88/neo-kobe-2016-02-25/Aoki Ookami to Shiroki Mejika - Genchou Hishi/` 唯一一組 `[FD]`（Disk A–D 與 Save disk；Alt 1／2 只有 Save disk 不同）。
 - 四片都是 YDOS 3.0，每軌 9 × 512 bytes。
 - Disk A 的 `VERSION` 寫「ＰＣ－８８０１ＳＲ版 … ver 1.2 1992.07.17」，檔案日期 1992-04～07-17。
 - `games/genchou-pc88/` 放 Disk C 的 `KAODATA.DAT`、`GENDATA1–4.DAT`、`USDATA1–4.DAT`，Disk D 的 `QKAODATA.DAT`，以及參考用的 Disk A `MAIN.COM`、`VERSION`。
@@ -54,7 +54,7 @@
 
 `dekoei.py export genchou-x68` 用 `build_genchou_pc88(x68=True)`。
 
-- 來源：Internet Archive `aoki-ookami-to-shiroki-meshika-genchou-hishi-1993-koei-disk-1-of-3`（`games/archives/x68000/ia-softwarelibrary/`，3 片），發行 1993-02-26（ja.wikipedia）。沒有版本字串；`MAIN.Z` 與劇本檔的日期是 1993-02-10，`MAIN.Z` 有「X68000 CONVERSION STAFF … T.FUJINUMA 1992,1993」。`games/genchou-x68/` 放 Disk 1 的 `KAODATA.DAT`、參考用的 `MAIN.Z`，以及 Disk 3 的 `GENDATA1–4.DAT`、`USDATA1–4.DAT`。
+- 來源：Internet Archive `aoki-ookami-to-shiroki-meshika-genchou-hishi-1993-koei-disk-1-of-3`（`~/game-library/_original/x68/ia-softwarelibrary/`，3 片），發行 1993-02-26（ja.wikipedia）。沒有版本字串；`MAIN.Z` 與劇本檔的日期是 1993-02-10，`MAIN.Z` 有「X68000 CONVERSION STAFF … T.FUJINUMA 1992,1993」。`games/genchou-x68/` 放 Disk 1 的 `KAODATA.DAT`、參考用的 `MAIN.Z`，以及 Disk 3 的 `GENDATA1–4.DAT`、`USDATA1–4.DAT`。
 - `MAIN.Z` 是 CZ10（`ls11.cz10_decode`，映像位址＝檔案＋0x514FA）。
 - `KAODATA.DAT` 一個檔放男女兩組，排法同 PC-88 但全高（列數、表頭 y 都是整列，各部件高度加倍）：
   - 男 64 張 × 3654 bytes（6 bytes 表頭、1920 bytes 64×80、眼 4 幀 × 2 × 9 bytes × 16 列、口 3 幀 × 12 bytes × 16 列），接 16 型 × 14598 bytes 的組合臉；女 40 張、8 型。
@@ -69,7 +69,7 @@
 
 ## PC-98 版（`genchou-pc98`）
 
-`dekoei.py export genchou-pc98` 用 `build_genchou_pc88(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Genchou Hishi [FD]`（`games/archives/pc98/neo-kobe-2017-11-17/Koei/`），Disk A 的 `KAODATA.DAT`、`MAIN.EXE`、`VERSION` 與 Disk C 的 `GENDATA1–4.DAT`、`USDATA1–4.DAT` 放在 `games/genchou-pc98/`。`VERSION` 寫「ＰＣ９８０１ＶＭ『元朝秘史』Type B Ver 1.0 Rel 1」，檔案日期 1992-09-16。
+`dekoei.py export genchou-pc98` 用 `build_genchou_pc88(pc98=True)`。來源是 Internet Archive neo-kobe 的 `Genchou Hishi [FD]`（`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/`），Disk A 的 `KAODATA.DAT`、`MAIN.EXE`、`VERSION` 與 Disk C 的 `GENDATA1–4.DAT`、`USDATA1–4.DAT` 放在 `games/genchou-pc98/`。`VERSION` 寫「ＰＣ９８０１ＶＭ『元朝秘史』Type B Ver 1.0 Rel 1」，檔案日期 1992-09-16。
 
 - `KAODATA.DAT` 和 X68000 版逐 byte 相同（全高、男性 64 張），所以頭像與組合臉和 `genchou-x68` 相同。
 - 色盤：`MAIN.EXE` 檔案 0x3E93A 起是色號 0–7 的類比色，每色 3 bytes（B、R、G，4 bit），換成 8 bit 是 v × 17。設計和 X68000 版相同，只是量化不同（例：`#004488`，X68000 是 `#004a8c`）。
