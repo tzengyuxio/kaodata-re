@@ -27,6 +27,7 @@
 - 國沒有名字，只有 1–58 的號碼，州名 15 個。國表（國號、所屬州、相鄰國）取自 FC 版 `famicom-re:sangokushi/docs/BATTLE_MAP.md` §4（ROM 檔案 0x3B211，58 × 14 bytes，相鄰關係雙向一致）。
 - PC-98 的國記錄在 `SAVEDATA`：每槽 22904 bytes，國 n 的相鄰國清單在 404 ＋ 22904 × 槽 ＋ 48 ×（n − 1），9 bytes、0 結尾。4 個槽 58 國都和 FC 的相鄰表相同（✅ cross）。所屬州在 PC-98 的檔裡沒找到，沿用 FC（國依州的順序編號，4 國冀州、10 國徐州和 PC-98 畫面相同）。
 - 戰場是「被攻打的國」那一張：國 n 用 `NN.png`（`san1 battlemap` 的檔名就是國號）。FC 版在模擬器驗證過 5 國（famicom-re 同文件），✅ cross。
+- **大地圖** `PACKDATA.DAT` block 0（磁碟 A 加密的磁區上，解法見 `notes/san1.md`「磁碟 A 的加密」）：320×200，輸出逐列加倍成 320×400（`san1.world_map`），國號畫在圖上，每國一塊白色區域。`pos` 取區塊裡離國界最遠的點（`places_export.SAN1_MAP_POS`）；區塊對國號是讀圖上的數字字形，5 國的數字碰到國界線、改用相鄰決定，結果 140 組相鄰在圖上全部相接（✅ cross），另外只有 17、21 在一點相接。PC-88 V1 版的同一張圖資料 byte 相同（✅ cross）。
 
 
 | 國 | 州 | 相鄰國 |
@@ -962,7 +963,7 @@ EXE 的 `.text` 沒有解開，以下是資料交叉比對的結果。
 - 每次匯出都會檢查：引用的地點號存在、戰場圖檔案存在、`from` 和該地點相鄰、相鄰關係雙向一致，印出「N checked, M mismatched」。
 - I–III 只有一種戰鬥，`role` 填「戰場」（規格的列舉沒有，已告知 koei-wiki）。
 - 各代的取法：
-  - I（`san1-pc98`）：相鄰取 PC-98 `SAVEDATA` 第 0 槽，所屬州照 FC（`uncertain: province`）；戰場圖同 `san1 battlemap`，圖塊從 `captures/screenshots/san1-pc98/battle-04.png`、`battle-10.png` 切。
+  - I（`san1-pc98`）：相鄰取 PC-98 `SAVEDATA` 第 0 槽，所屬州照 FC（`uncertain: province`）；戰場圖同 `san1 battlemap`，圖塊從 `captures/screenshots/san1-pc98/battle-04.png`、`battle-10.png` 切。大地圖 `world/PACKDATA-000.png`（320×400），`pos` 是圖上的像素（`pixel`，w 320、h 400）；`world_check_san1` 檢查每國的點在自己的白色區塊上、58 塊都有國、區塊相接和 `adjacent` 相同（17–21 的點接觸除外）。places-export 793 checked, 0 mismatched；58 組兩兩對調 `pos` 都會被抓到。PC-88 V1 版沒有地點匯出，大地圖用 `dekoei.py san1 worldmap --game-dir ../games/san1-pc88 --out ../export/koei-wiki/places/san1-pc88/world/PACKDATA-000.png` 另外輸出（和 PC-98 的 PNG byte 相同），國號與 `pos` 照 `san1-pc98`。
   - II（`san2-pc98`）：`name` 是 null，`nameBorrowed` 取三国志ツクール的州名；大地圖 `world/MAPDATA.png`（296×400，原樣，州是白色、有州號），`pos` 是圖上的像素（`pixel`，w 296、h 400），每州一點。匯出時檢查每個 `pos` 落在不同的白州上、州與州在圖上的相鄰和 `adjacent` 相同（`world_check_san2`）。舊版的 `pos` 是 `SAN2_PROVINCE_HEX` 的六角軸座標，已換掉。
   - III（`san3-pc98`）：46 州＋22 據點，`level` 據點標 uncertain；大地圖 `world/MAPDATA-spring.png`（640×400，春季色盤，整個畫面原樣，有遊戲的地點號），`pos` 是圖上的像素（`pixel`，w 640、h 400），州是黑色方塊中心、據點是藍色編號框中心。匯出時檢查每個州落在不同的方塊、每個據點落在不同的藍框、圖上沒有多出來的方塊或藍框（`world_check_san3`）。舊版的 `pos` 是 15 × 16 的六角格（相鄰表仍由它算出）。
   - IV（`san4pk-pc98`）：讀 PK 的 `MAIN.EXE`（都市表 0x4615D、野戰表 0x3FC28，和本體 byte 相同）；戰場圖用 PK 的 `HEXMAP.S4`／`HKMAP.S4`（`HKMAP.S4` 第 38 段和本體不同），色盤用本體 `MAIN.EXE` 的位置（PK 的同一組 bytes 在別處，byte 相同），種類 0、季節 0。每個鄰城一筆野戰圖（`from`）。大地圖 `world/MAINMAP.png`（1536×1280，第 0–7 層，預設色盤，沒有勢力旗與地名），`pos` 是圖上的像素（`pixel`，w 1536、h 1280），取城 3 × 3 圖示正中那格的中心（第 9 層 = 10 的格）。匯出時檢查每個 `pos` 在自己都市的城圖示正中（第 2 層 9k ＋ 4）、周圍 3 × 5 格都是該都市且依序 0–14、圖上沒有多出來的都市（`world_check_san4`）。
@@ -983,11 +984,11 @@ EXE 的 `.text` 沒有解開，以下是資料交叉比對的結果。
 
 - III 大地圖的夏、秋、冬三張 — 前置：無；做法：`render_san3_world_map(game_dir, season)` 輸出 `MAPDATA-summer.png` 等（冬已有截圖，夏、秋只有 code）。
 - II `MAPDATA.DAT` 後 11928 bytes 的其他圖 — 前置：無；做法：照前段的 3 plane 交錯格式試寬度。
-- I 的 58 國國號圖 — 前置：解開 PC-98 `PACKDATA.DAT` block 0 的第二層編碼，或找到 PC-88 版 `PACKDATA`（Disk A 的 CP/M 檔，沒有編碼）裡的同一張；做法：PC-88 版 block 0 用 PC-98 的 RLE（640 寬）解得出開場題字，但平面排法不對、圖的順序也不同，先找出 PC-88 各張圖的起點與平面格式，再找國號圖；拿 PC-88 的圖交付要先問使用者。
+- I 的國在大地圖上的座標表（換掉從圖上取的 `pos`）— 前置：`SANGOKU.OVL` 已能解密；做法：找畫國號或閃爍國的程式，看它從哪裡拿座標。
 - IV、V 的季節色盤 — 前置：找到程式依月份改色號 1–7 的地方；做法：從 image 0x1E05E 的呼叫者往上追，或在模擬器換季時比對色盤暫存器。
 
 ## 負面結論
 
 - III 找地點在大地圖上的座標表：在 `MAIN.EXE` 搜 46 個方塊的 x、y（以 word 存、位移 ±80、間隔 2–16 bytes；以 byte 存 x／8；VRAM 位移 y × 80 ＋ x／8），也在 `SNDATA1.CIM` 依州記錄 0x4A bytes 間隔找，都沒有 → 位置改從圖上的號碼讀。要重試得先找到遊戲畫勢力色方塊的函式，看它從哪裡拿座標。
-- I 的國號圖從 PC-98 檔案解：`PACKDATA.DAT` block 0（320×200）每 1024 bytes 只有前 256 bytes 是 XOR (i + 0x15)，其餘 768 bytes 不是固定 key 的 XOR（見 `notes/san1.md`）；`SANMAIN.EXE`／`SANGOKU.OVL` 也有編碼，讀不到解碼程式 → 這次沒有交付 I 的大地圖，`pos` 也沒有。要重試得先解開 PC-98 程式的編碼，或改用 PC-88 版的圖（見下一輪候選）。
+- I 的國號圖當成檔案自己的編碼解（每 1024 bytes 前 256 bytes XOR (i + 0x15)，其餘找固定 key）：解不開，因為那是磁碟加密，key 裡夾著假磁軌；後來從磁碟 A 的 `COMMAND.COM` 讀出解法（`notes/san1.md`「磁碟 A 的加密」）。
 - IV、V 冬季色盤當成資料表找：在兩代的 `MAIN.EXE` 搜截圖推得的 1–7 號色（各種 R、G、B 順序的 4 bit 三元組；IV 另搜了打包成 12 bit 的 word），都找不到 → 推定是程式算出來的。要重試得先找到改色的程式。

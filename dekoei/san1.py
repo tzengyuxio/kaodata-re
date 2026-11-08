@@ -262,11 +262,71 @@ PC98_DIGITAL = [(0, 0, 0), (0, 0, 255), (255, 0, 0), (255, 0, 255), (0, 255, 0),
                 (255, 255, 255)]
 PACK_BLOCK = 512
 PACK_ESC = 0x96
-# PACKDATA.DAT pictures that start with an obfuscated header (first 256 bytes XOR (i + 0x15)); the rest of their
-# encoding is not solved, so they are listed but not decoded: 0 and 70 are the two 320x200 maps
-PACK_OBFUSCATED = {0: (320, 200), 40: (128, 87), 60: (192, 80), 70: (320, 200)}
+# Disk A copy protection (notes/san1.md「磁碟 A 的加密」): the sectors on head 0 of cylinders 5-14 are stored
+# XORed with a 1024-byte key per cylinder. The disk's own COMMAND.COM (a cracked loader, "I.yoda (Y.S.A)") hooks
+# int 1Bh at 0x103: reads of those sectors are XORed with the buffer at 0x285, which it rebuilds per cylinder by
+# reading hidden sectors through the stand-in handler it copies from 0x285 to 0090:0000 (a fake raw track). The
+# files are contiguous on the disk; their disk offsets come from disk A's FAT.
+PC98_DISK_A_FILES = {"SANMAIN.EXE": 0x12000, "SANGOKU.OVL": 0x20800, "PACKDATA.DAT": 0x30800}
+PC98_FAKE_HANDLER = 0x185  # COMMAND.COM file offset of the code copied to 0090:0000 (memory 0x285)
+
+
+def pc98_disk_a_key(com, cyl):
+    """The XOR key of head 0, cylinder cyl (5-14), as the COMMAND.COM hook builds it: cylinders 10-14 read
+    sector 9 (the stand-in fills it with 0, 1, ... 255) and add 0x15, then fill 0x18B bytes with E5; cylinders
+    5-9 read sector F5 (0x215 bytes kept) and F7 (0x76 bytes) of a raw track the stand-in makes up. The rest of
+    the 1024 bytes is the buffer's initial contents."""
+    h = PC98_FAKE_HANDLER
+    w = lambda v, n: bytes([v & 0xFF, v >> 8]) * n
+    if cyl >= 10:
+        head = bytes((i + 0x15) & 0xFF for i in range(256)) + b"\xE5" * 0x18B
+    else:
+        f5 = com[h + 0xF8:h + 0x108] if cyl & 1 else b"\xC5" + com[h + 0xE9:h + 0xF7] + b"\xC5"
+        f5 += w(0xC5C5, 0x7C) + w(0, 1) + w(0x4E4E, 0x28) + w(0, 6) + b"\xC2\xC2\xC2\xFC" + w(0x4E4E, 0x30)[:-1]
+        f5 += w(0, 6) + b"\xA1\xA1\xA1\xFE" + bytes([cyl, 0, 0xF6, 4]) + com[h + 0x107 + 2 * cyl:h + 0x109 + 2 * cyl]
+        f5 += w(0x4E4E, 0xB) + w(0, 6) + b"\xA1\xA1\xA1\xFB" + w(0xC6C6, 8) + w(0, 1)
+        f7 = w(0xC7C7, 8) + w(0, 1) + w(0x4E4E, 0x28) + w(0, 6) + b"\xA1\xA1\xA1\xFE" + bytes([cyl, 0, 1, 3])
+        head = f5[:0x215] + f7
+    return head + com[h + len(head):h + 0x400]
+
+
+def read_pc98_file(game_dir, name):
+    """A disk A file as the game reads it (the protected sectors decrypted)."""
+    import os
+    with open(os.path.join(game_dir, name), "rb") as f:
+        data = bytearray(f.read())
+    if name in PC98_DISK_A_FILES:
+        with open(os.path.join(game_dir, "COMMAND.COM"), "rb") as f:
+            com = f.read()
+        keys = {}
+        for o in range(0, len(data), 1024):
+            disk = PC98_DISK_A_FILES[name] + o
+            cyl, head = disk // 0x4000, disk // 0x2000 % 2
+            if head == 0 and 5 <= cyl <= 14:
+                key = keys.setdefault(cyl, pc98_disk_a_key(com, cyl))
+                data[o:o + 1024] = bytes(a ^ b for a, b in zip(data[o:o + 1024], key))
+    return bytes(data)
+
+
+# PC-88 V1 PACKDATA: the directory lists its 2 KB blocks from the end of the disk area backwards, but the game
+# reads it track by track (4 KB) from the last track down, each track in sector order; read that way, the 58 國
+# map at 0x10000 and the 州 map at 0x2000 are byte-identical to PC-98 blocks 0 and 70 (also the title, opening
+# and ending pictures). Disk offsets of the linear image (pc88.d88_image).
+PC88_PACKDATA_TRACKS = range(0x4F000, 0x3B000, -0x1000)
+PC88_WORLD_MAP = 0x10000
+
+
+def pc88_packdata(disk_a):
+    return b"".join(disk_a[t:t + 0x1000] for t in PC88_PACKDATA_TRACKS)
+
+
 # block -> (name, what it shows, DOS PACKDATA block, evidence); DOS blocks follow the same order and sizes
 PACK_PICTURES = {
+    0: ("world-map", "58 國的大地圖（國號畫在圖上）", 0, "✅ cross（PC-88 版同一段資料 byte 相同；DOS 0 構圖相同）"),
+    28: ("locusts", "穀穗上的蝗蟲", "", "🟡"),
+    40: ("hand", "手與器物的特寫", "", "🟡"),
+    60: ("ruins", "倒塌的城郭與倒地的人", 48, "🟡"),
+    70: ("provinces", "15 州的地圖（州名畫在圖上）", 55, "✅ cross（PC-88 版同一段資料 byte 相同；DOS 55 構圖相同）"),
     46: ("riverside-fort", "河邊的城寨與騎馬武將", 25, "🟡"),
     54: ("halberds", "持戟的兵士與武將", 34, "🟡"),
     94: ("sword-dance", "持劍起舞的女子", 72, "🟡"),
@@ -366,6 +426,44 @@ def pack_pictures(data):
     return out
 
 
+def world_map(game_dir):
+    """The 58 國 map (PC-98 PACKDATA block 0, or the same data in PC-88 V1 PACKDATA), 320 x 400 line-doubled,
+    digital 8 colours."""
+    import os
+    from PIL import Image
+    pc88_disk = os.path.join(game_dir, "DISK_A.D88")
+    if os.path.exists(pc88_disk):
+        import pc88
+        with open(pc88_disk, "rb") as f:
+            src = pc88_packdata(pc88.d88_image(f.read()))[PC88_WORLD_MAP:]
+        w, h = 320, 200
+    else:
+        pack = read_pc98_file(game_dir, "PACKDATA.DAT")
+        w, h = struct.unpack_from("<HH", pack, 0)
+        src = pack[4:]
+    raw, _ = unpack_pack_picture(src, w // 8, h)
+    from utils import to_3bpp_indexes
+    im = Image.new("P", (w, h))
+    im.putpalette([v for c in PC98_DIGITAL for v in c])
+    im.putdata(to_3bpp_indexes(raw))
+    return im.resize((w, h * 2), Image.NEAREST)
+
+
+@click.command(help="58 國的大地圖（PC-98 或 PC-88 V1）")
+@click.option("--game-dir", required=True, help="games/san1-pc98 或 games/san1-pc88")
+@click.option("--out", "out_file", required=True, help="輸出 PNG")
+def san1_worldmap(game_dir, out_file):
+    """
+    dekoei.py san1 worldmap --game-dir ../games/san1-pc88 --out ../export/koei-wiki/places/san1-pc88/world/PACKDATA-000.png
+    """
+    import os
+    os.makedirs(os.path.dirname(out_file) or ".", exist_ok=True)
+    world_map(game_dir).save(out_file)
+
+
+san1.add_command(san1_worldmap, "worldmap")
+
+
 def pic_script(data, block):
     """Commands of the PICDATA.DAT animation script at block (512 bytes)."""
     s, i, cmds = data[block * PACK_BLOCK:(block + 1) * PACK_BLOCK], 0, []
@@ -401,8 +499,7 @@ def san1_eventcg(game_dir, out_dir):
     """
     import csv
     import os
-    with open(os.path.join(game_dir, "PACKDATA.DAT"), "rb") as f:
-        pack = f.read()
+    pack = read_pc98_file(game_dir, "PACKDATA.DAT")
     with open(os.path.join(game_dir, "PICDATA.DAT"), "rb") as f:
         pic = f.read()
     os.makedirs(out_dir, exist_ok=True)
@@ -412,10 +509,7 @@ def san1_eventcg(game_dir, out_dir):
         file = f"{block:03d}-{name}.png"
         pc98_planar_image(raw, w // 8, h).save(os.path.join(out_dir, file))
         rows.append([f"P{block:03d}", file, desc, f"PACKDATA.DAT 0x{block * PACK_BLOCK:X}（block {block}）", f"{w}x{h * 2}",
-                     f"DOS PACKDATA block {dos}", ev])
-    for block, (w, h) in sorted(PACK_OBFUSCATED.items()):
-        rows.append([f"P{block:03d}", "", "沒有解出（標頭 XOR 編碼，其餘的編碼沒解）",
-                     f"PACKDATA.DAT 0x{block * PACK_BLOCK:X}（block {block}）", f"{w}x{h * 2}", "", "❌"])
+                     f"DOS PACKDATA block {dos}" if dos != "" else "", ev])
     for block, (name, desc, dos, ev) in sorted(PIC_ANIMATIONS.items()):
         sub = f"anim-{block:03d}-{name}"
         os.makedirs(os.path.join(out_dir, sub), exist_ok=True)
