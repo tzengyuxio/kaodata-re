@@ -9,7 +9,7 @@ import struct
 import unicodedata
 
 import click
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 import koei_games
 import san1
@@ -1270,3 +1270,66 @@ def places_export(dataset, game_dir, out):
         print(b)
     maps = sum(len(files) for _, _, files in os.walk(map_dir))
     print(f"{dataset}: {len(rows)} places, {maps} maps; {checked} checked, {len(bad)} mismatched")
+
+
+LABEL_FONT = os.path.expanduser("~/Library/Fonts/Sarasa-SuperTTC.ttc")
+LABEL_FACE = ("Sarasa Gothic J", "SemiBold")
+LABEL_NUDGES = (0, -12, 12, -24, 24, -36, 36, -48, 48)
+
+
+def label_world_map(src, rows, icon_half, gap=2, size=20):
+    """Draw an "id name" label for each place with a pos on the world map src (koei-wiki convention): white
+    rounded box, black border and text. Each label goes below the icon (centred), else right of it (vertically
+    centred), else above it, trying LABEL_NUDGES along the side; a spot is refused if it leaves the map or overlaps
+    an icon box (pos ± icon_half) or an earlier label. Labels are placed top to bottom, then left to right."""
+    face = next((i for i in range(1000) if ImageFont.truetype(LABEL_FONT, size, index=i).getname() == LABEL_FACE),
+                None)
+    font = ImageFont.truetype(LABEL_FONT, size, index=face)
+    im = Image.open(src).convert("RGB")
+    d = ImageDraw.Draw(im)
+    rows = sorted((r for r in rows if r.get("pos")), key=lambda r: (r["pos"]["y"], r["pos"]["x"]))
+    icons = [(r["pos"]["x"] - icon_half, r["pos"]["y"] - icon_half,
+              r["pos"]["x"] + icon_half, r["pos"]["y"] + icon_half) for r in rows]
+
+    def free(b, taken):
+        return b[0] >= 0 and b[1] >= 0 and b[2] <= im.width and b[3] <= im.height and \
+            not any(b[0] < q[2] and q[0] < b[2] and b[1] < q[3] and q[1] < b[3] for q in taken)
+
+    placed = []
+    for r in rows:
+        text = f"{r['id']} {r['name']}"
+        left, top, right, bottom = d.textbbox((0, 0), text, font=font)
+        w, h = right - left + 10, bottom - top + 4
+        x, y = r["pos"]["x"], r["pos"]["y"]
+        spots = [(x - w // 2 + n, y + icon_half + gap) for n in LABEL_NUDGES] + \
+            [(x + icon_half + gap, y - h // 2 + n) for n in LABEL_NUDGES] + \
+            [(x - w // 2 + n, y - icon_half - gap - h) for n in LABEL_NUDGES]
+        box = next(((x0, y0, x0 + w, y0 + h) for x0, y0 in spots if free((x0, y0, x0 + w, y0 + h), placed + icons)),
+                   None)
+        if box is None:
+            raise click.ClickException(f"no free spot for label {text}")
+        placed.append(box)
+        d.rounded_rectangle(box, radius=4, fill="white", outline="black")
+        d.text((box[0] + 5 - left, box[1] + 2 - top), text, font=font, fill="black")
+    return im
+
+
+# dataset -> (world map file, half the size of a city icon around pos)
+LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24)}
+
+
+@click.command()
+@click.argument("dataset", type=click.Choice(list(LABELLED_MAPS)))
+@click.option("--places", "places", required=True, help="places-export 的輸出目錄（讀 <dataset>.jsonl 與 world/ 的大地圖）")
+def places_label(dataset, places):
+    """在 places-export 的大地圖上標「編號 名稱」，寫 <dataset>/world/<圖名>-labelled.png（給 koei-wiki）
+
+    dekoei.py places-label san4pk-pc98 --places ../export/koei-wiki/places
+    """
+    name, icon_half = LABELLED_MAPS[dataset]
+    with open(os.path.join(places, f"{dataset}.jsonl"), encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f]
+    world = os.path.join(places, dataset, "world")
+    out = os.path.join(world, name.replace(".png", "-labelled.png"))
+    label_world_map(os.path.join(world, name), rows, icon_half).save(out)
+    print(f"{dataset}: {sum(1 for r in rows if r.get('pos'))} labels -> {out}")
