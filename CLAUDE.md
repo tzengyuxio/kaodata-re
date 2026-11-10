@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `GLYPH_TABLE/`、`PERSONS_TABLE/`、`MISC_TABLE/`、`montage/`：已產出的成果圖／表，不是原始碼
 - `games/`：原版遊戲，被 `.gitignore` 排除，不要 commit
   - 根目錄只放解開後、給 `--game-dir` 用的 `games/<dataset-id>/`（如 `games/san2-dos/`）
+  - 源平合戦 DOS/V 版沒有發行包，安裝後的 `GENPEI/` 本身就是原始檔，放在 `~/game-library/_original/dos/genpei/`（記錄在 `_original/dos/genpei.txt`、`SHA1SUMS.txt`），`games/genpei-dos/` 是它的硬連結（唯讀）。2026-11-10 起源平合戦的格式研究以本 repo 為主，genpei-zh 只做中文化
   - DOS、Windows 的原始壓縮檔與用不到的附帶檔（說明文字、`<dataset-id>-src/`）放在 `games/archives/dos/`、`win/`
   - PC-98、PC-88、X68000 的發行包（磁碟映像、neo-kobe 合集、安裝結果 `pc98/installed/`）放在 `~/game-library/_original/pc98/`、`pc88/`、`x68/`（各有 `SHA1SUMS.txt`，2026-11-09 從 `games/archives/` 搬過去）；新加的這三個平台的原始檔也放那裡。檔案已解到 `games/<game>-pc98/`、`games/san2-x68/` 等，每片磁碟解開的原樣在 `games/archives/pc98/disks/`、`pc88/disks/`；PC-98 的 FD／HD 取捨見 `docs/backlog/pc98-disk-images.md`
 - 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理；例外是 PC-98 安裝包 DPACK 的解壓 `dekoei/dpack.py`（`python dpack.py OUTDIR DPACK1 DPACK2 ...`，見 `notes/dpack.md`），用來從提督の決断III、三国志V 的磁片取得遊戲檔
@@ -46,7 +47,6 @@ cd dekoei
 ../.venv/bin/python dekoei.py --help
 ../.venv/bin/python dekoei.py <game> face -f <FILE> ...        # 例：san11 face -f San11Face00.fce --prefix SAN11_WIN_F
 ../.venv/bin/python dekoei.py export <id> --game-dir ../games/<id> --out ~/works/kaodata/data-local/<id>   # 匯出一個 dataset
-../.venv/bin/python dekoei.py export genpei-dos --game-dir <GENPEI 原版目錄> --out <kaodata>/data-local/genpei-dos   # 唯一的例外：遊戲目錄不在 games/
 ../.venv/bin/python dekoei.py celt art --game-dir ../games/celt-win --out ../games/celt-win/extract      # 魔眼邪神的全部美術素材
 ../.venv/bin/python dekoei.py celt music --game-dir ../games/celt-win --out ../games/celt-win/extract/music
 ```
@@ -89,4 +89,4 @@ Python 端沒有 linter／formatter 設定。
     - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
     - 不填：同一字的不同字形（関／關、羣／群、彝／彞、万／萬、胄／冑、瞱／曄、毘／毗）、《三國演義》本身的寫法（喬瑁、范疆）、史書就有兩種寫法的（干吉／于吉、朱儁／朱雋、梁綱／梁剛）。
   - `source.revision` 會呼叫 `git rev-parse HEAD`，所以必須在 git 工作目錄下執行。
-- **源平合戰**：`genpei.py` 的色盤一律用 `load_mainpal`（Mainpal.pld），像素一律用 `decode_planar`／`read_rle3`；`genpei cg` 的 NPK 解碼（`utils.unpack_npk`）是舊程式，沒有和截圖逐 pixel 比對過。
+- **源平合戰**：`genpei.py` 的色盤一律用 `load_mainpal`（Mainpal.pld），像素一律用 `decode_planar`／`read_rle3`。`genpei_extras.py`（`dekoei.py genpei-extras --game-dir ../games/genpei-dos --out ../games/genpei-dos/extract`）輸出 4 個劇本的武將、勢力、國、地方、官位、家寶表，戰略地圖（四季大地圖、156 個節點），NPK016 的圖，Message.gp 訊息與 EXE 字串，格式見 `notes/genpei.md`（2026-11-10 從 genpei-zh 移植）。`genpei cg` 的 NPK 解碼和 `genpei_extras.npk_unpack`、genpei-zh 的 `dump_gfx.py` 相同（220 張，cross），仍沒和截圖比對；它對 Maincmd2 的特殊處理（3bpp 64 寬毛筆字）是錯的，見 `notes/genpei.md`。

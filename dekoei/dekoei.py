@@ -22,6 +22,7 @@ from wiki_stats import stats_export
 from persons_export import persons_export
 from events_export import events_export
 from places_export import places_export, places_label
+from genpei_extras import genpei_extras
 from nobu4_extras import nobu4_extras
 from nobu5_extras import nobu5_extras
 from nobu6_extras import nobu6_extras
@@ -920,6 +921,7 @@ dekoei.add_command(nobu6_extras, "nobu6-extras")  # 信長6 事件、插圖、�
 dekoei.add_command(nobu5_extras, "nobu5-extras")  # 信長5 事件、插圖、家宝
 dekoei.add_command(nobu12_extras, "nobu12-extras")  # 信長12 事件、插圖、家宝
 dekoei.add_command(koukai4_extras, "koukai4-extras")  # 大航海4 圖、道具、船、交易品、港口、劇本台詞
+dekoei.add_command(genpei_extras, "genpei-extras")  # 源平合戦 劇本表、戰略地圖、圖、訊息與字串
 dekoei.add_command(taikoh5_extras, "taikoh5-extras")  # 太閤5 事件、插圖、道具、交易品、札、地圖
 dekoei.add_command(nobu7_extras, "nobu7-extras")  # 信長7 事件、插圖、家宝、家紋、訊息、大地圖
 dekoei.add_command(nobu8_extras, "nobu8-extras")  # 信長8 事件、插圖、家宝、官位、年表、訊息、地圖

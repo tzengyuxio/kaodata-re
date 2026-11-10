@@ -2,7 +2,7 @@
 
 `dekoei/kaodata_export.py` 的 `DATASETS` 對照與各 builder 的要點（讀哪些檔、用哪些解碼函式、平台差異）。格式細節在各遊戲的 `notes/<game>.md`；共通規則（renderer、`pk`、`nameHistorical`）在 CLAUDE.md。
 
-匯出指令一律是 `dekoei.py export <id> --game-dir ../games/<id> --out ~/works/kaodata/data-local/<id>`（在 `dekoei/` 下執行），例外是 `genpei-dos` 的遊戲目錄不在 `games/`。
+匯出指令一律是 `dekoei.py export <id> --game-dir ../games/<id> --out ~/works/kaodata/data-local/<id>`（在 `dekoei/` 下執行）。
 
 ## 對照與要點
 
