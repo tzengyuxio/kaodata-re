@@ -29,6 +29,7 @@
 
 | `nobu15pk-win` | 121 | 0 | 日文、繁中 | `kahou.csv`（`nobu15-extras`）；各劇本開局的持有欄全是 0xFFFF，家宝表的相關人物只寫在 `notes` | grade |
 | `nobu14pk-win` | 160 | 52（240） | 繁中 | `wiki_nobu14.items` 直接讀劇本檔（不讀 CSV；`--extract` 不用）：持有人欄有值是人物槽，否則是持有的家（`other` 寫家名）；10 個劇本 | grade |
+| `nobu16pk-win` | 122 | 0 | 日文、繁中 | `wiki_nobu16.items` 讀訊息檔（`MSG_PK/<語言>/msgdata` 第 14119 列起的名稱、`msgire` 的說明；`--extract` 不用）；種類、等級、持有者都沒找到 | — |
 
 三國志VII、IX、X、11 的繁中名稱與說明在 2026-11-11 補上（第 2 批同一天），件數與持有者不變。
 

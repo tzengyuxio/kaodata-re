@@ -461,6 +461,12 @@ def items_nobu14pk_win(extract, game_dir):
     return wiki_nobu14.items(game_dir)
 
 
+# 信長の野望・新生 PK: names and descriptions from the message files (wiki_nobu16.items); no holders
+def items_nobu16pk_win(extract, game_dir):
+    import wiki_nobu16
+    return wiki_nobu16.items(game_dir)
+
+
 # 信長の野望・大志 PK: kahou.csv of nobu15-extras (Japanese and 繁中 names and texts); the scenarios hold no holders
 def items_nobu15pk_win(extract):
     out = []
@@ -484,8 +490,9 @@ DATASETS = {"san4pk-pc98": items_san4pk_pc98, "san7pk-win": items_san7pk_win, "s
             "nobu6pk-pc98": items_nobu6pk_pc98, "nobu7pk-win": items_nobu7pk_win, "nobu8pk-win": items_nobu8pk_win,
             "nobu9pk-win": items_nobu9pk_win, "nobu10pk-win": items_nobu10pk_win,
             "nobu11pk-win": items_nobu11pk_win, "nobu12pk-win": items_nobu12pk_win,
-            "nobu14pk-win": items_nobu14pk_win, "nobu15pk-win": items_nobu15pk_win}
-NEEDS_GAME = {"nobu6pk-pc98", "nobu14pk-win", "nobu11pk-win", "san8pk-win", "san12pk-win", "san13pk-win", "san14pk-win"}
+            "nobu14pk-win": items_nobu14pk_win, "nobu15pk-win": items_nobu15pk_win,
+            "nobu16pk-win": items_nobu16pk_win}
+NEEDS_GAME = {"nobu6pk-pc98", "nobu14pk-win", "nobu16pk-win", "nobu11pk-win", "san8pk-win", "san12pk-win", "san13pk-win", "san14pk-win"}
 # 三國志VII-12: nameZh / descriptionZh from the Steam 繁中版 (games/steam/<appid>-tchinese/depot, next to the game
 # directory), read by <module>.zh_items(depot) -> {item id: (name, description)}; 11 has no item descriptions
 ZH = {"san7pk-win": ("san7_extras", 628030), "san8pk-win": ("san8_extras", 628040),
