@@ -1983,6 +1983,118 @@ def suikoden_battlemap(game_dir, dos_dir, out_dir):
 
 suikoden.add_command(suikoden_battlemap, 'battlemap')
 
+# MAP98.DAT (PC-98, 19903 bytes), read whole into the [0xAC7A] segment (MAIN.EXE 0x5230), holds three pictures:
+#   0x000 packed 80 x 110, drawn at (8, 16) by 0x1FAB4 (a frame); 0x3E3 packed 288 x 96, drawn at (0, 304) by 0x2F40;
+#   0x937 the world map, raw: 0x16B70 / 0x31D0 call 0x6E5 (x byte 0x24, line 0x10, 0x2B bytes x 0x88 rows, each row
+#   B, R, G bytes interleaved per 8 pixels, every row drawn twice), so 344 x 272 at (288, 16) on the 640 x 400 screen.
+# Packed pictures (0x0F1C): u16 width, u16 height, then per row commands on 4-pixel nibbles (a row is 160 nibbles):
+#   0nnngggg c: n + 1 nibbles of B = c & 0xF, R = c >> 4, G = gggg;
+#   10ddnnnn: copy (b & 0xF) + 1 nibbles from d + 1 nibbles back; 11ddnnnn: the same from d + 1 rows above.
+SUIKODEN_MAP98_PARTS = {"frame": 0x0, "panel": 0x3E3}
+SUIKODEN_WORLD = 0x937, 0x2B, 0x88
+SUIKODEN_WORLD_X, SUIKODEN_WORLD_Y = 288, 16  # screen position of the world map (pixels, 400-line rows)
+SUIKODEN_DIGITAL = [0, 0, 0, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255]
+
+
+def unpack_suikoden_picture(data: bytes, off: int) -> Image.Image:
+    """A MAP98.DAT packed picture (MAIN.EXE 0x0F1C), as an indexed image with the digital 8 colours."""
+    w, h = struct.unpack_from("<HH", data, off)
+    p, nw, line = off + 4, (w + 3) >> 2, 160
+    planes = [bytearray(line * (h + 4)) for _ in range(3)]  # B, R, G nibbles; 4 blank rows above for row copies
+    for y in range(h):
+        di, left = (y + 4) * line, nw
+        while left > 0:
+            b = data[p]
+            p += 1
+            if b & 0x80:
+                n = (b & 0xF) + 1
+                back = ((b & 0x30) + 0x10) * 10 if b & 0x40 else ((b & 0x30) >> 4) + 1
+                for k in range(n):
+                    for q in planes:
+                        q[di + k] = q[di + k - back]
+            else:
+                n, c = ((b >> 4) & 7) + 1, data[p]
+                p += 1
+                for k in range(n):
+                    for q, v in zip(planes, (c & 0xF, c >> 4, b & 0xF)):
+                        q[di + k] = v
+            di += n
+            left -= n
+    px = bytearray(nw * 4 * h)
+    for y in range(h):
+        for x in range(nw * 4):
+            i, s = (y + 4) * line + x // 4, 3 - x % 4
+            px[y * nw * 4 + x] = sum(((planes[c][i] >> s) & 1) << c for c in range(3))
+    im = Image.frombytes("P", (nw * 4, h), bytes(px)).crop((0, 0, w, h))
+    im.putpalette(SUIKODEN_DIGITAL)
+    return im
+
+
+def render_suikoden_world_map(game_dir: str) -> Image.Image:
+    """The PC-98 world map, 344 x 272 as on screen (each stored row shown twice)."""
+    with open(os.path.join(game_dir, "MAP98.DAT"), "rb") as f:
+        data = f.read()
+    off, wb, h = SUIKODEN_WORLD
+    px = bytearray()
+    for y in range(h):
+        row = data[off + 3 * wb * y:][:3 * wb]
+        for g in range(wb):
+            b, r, gr = row[3 * g:3 * g + 3]
+            px += bytes((b >> s & 1) | (r >> s & 1) << 1 | (gr >> s & 1) << 2 for s in range(7, -1, -1))
+    im = Image.frombytes("P", (8 * wb, h), bytes(px)).resize((8 * wb, 2 * h), Image.NEAREST)
+    im.putpalette(SUIKODEN_DIGITAL)
+    return im
+
+
+def suikoden_world_points(game_dir: str) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    """Per 州 (PC-98 州 table): the paint seed (+8, +10; 0x16B92 fills the 州 from (x + 0x120, 2y) with the owner's
+    colour) and the 16 x 16 marker's top left (+6 byte column, +7; 0x2450 draws it at (8 * c, 2 * r)), both as
+    pixels on render_suikoden_world_map."""
+    with open(os.path.join(game_dir, "SUIDATA1.CIM"), "rb") as f:
+        data = f.read()
+    out = []
+    for k in range(49):
+        r = data[SUIKODEN_PC98_PROVINCES + 21 * k:][:21]
+        x, y = struct.unpack_from("<HH", r, 8)
+        out.append(((x, 2 * y - SUIKODEN_WORLD_Y), (8 * r[6] - SUIKODEN_WORLD_X, 2 * r[7] - SUIKODEN_WORLD_Y)))
+    return out
+
+
+@click.command(help='大地圖（PC-98 MAP98.DAT）')
+@click.option('--game-dir', 'game_dir', required=True, help='PC-98 遊戲目錄（MAP98.DAT、SUIDATA1.CIM）')
+@click.option('--dos-dir', 'dos_dir', help='DOS 中文版目錄，用來在 world_provinces.png 標中文州名')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+def suikoden_worldmap(game_dir, dos_dir, out_dir):
+    """world.png（344×272，同畫面）、world_provinces.png（放大 3 倍，標「州號 州名」）、world_provinces.csv
+    （塗色起點與標記位置），以及 MAP98.DAT 另外兩張圖 frame.png、panel.png。
+
+    dekoei.py suikoden worldmap --game-dir ../games/suikoden-pc98 --dos-dir ../games/suikoden-dos --out ../games/suikoden-pc98/extract/map
+    """
+    from places_export import label_world_map
+    os.makedirs(out_dir, exist_ok=True)
+    world = render_suikoden_world_map(game_dir)
+    world.save(os.path.join(out_dir, 'world.png'))
+    with open(os.path.join(game_dir, "MAP98.DAT"), "rb") as f:
+        data = f.read()
+    for name, off in SUIKODEN_MAP98_PARTS.items():
+        unpack_suikoden_picture(data, off).save(os.path.join(out_dir, f'{name}.png'))
+    names = [n for n, _, _ in load_suikoden_provinces(dos_dir, dos=True)] if dos_dir else \
+        [n for n, _, _ in load_suikoden_provinces(game_dir)]
+    points = suikoden_world_points(game_dir)
+    big = os.path.join(out_dir, 'world_x3.png')
+    world.resize((3 * world.width, 3 * world.height), Image.NEAREST).save(big)
+    rows = [{"id": k + 1, "name": names[k], "pos": {"x": 3 * s[0], "y": 3 * s[1]}} for k, (s, _) in enumerate(points)]
+    label_world_map(big, rows, icon_half=3, size=16).save(os.path.join(out_dir, 'world_provinces.png'))
+    os.remove(big)
+    with open(os.path.join(out_dir, 'world_provinces.csv'), 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['id', 'name', 'seed_x', 'seed_y', 'marker_x', 'marker_y'])
+        for k, ((sx, sy), (mx, my)) in enumerate(points):
+            w.writerow([k + 1, names[k], sx, sy, mx, my])
+
+
+suikoden.add_command(suikoden_worldmap, 'worldmap')
+
 
 def koei_tw_name(raw: bytes) -> str:
     """KOEI Taiwan internal code name, cut at the first zero word."""

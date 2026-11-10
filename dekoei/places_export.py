@@ -1150,34 +1150,41 @@ def places_san9pk_win(game_dir, out_dir):
 # 水滸傳・天命之誓 DOS 中文版 (main dataset) with the PC-98 version beside it (../suikoden-pc98): 49 州 from the
 # SUIDATA1.CIM 州 tables (koei_games.load_suikoden_provinces; FC, PC-98 and DOS have the same neighbours). The
 # battle map is the attacked 州's, one per season; the DOS EGA tiles are not decoded, so the PNGs are the PC-98
-# HEXMAP.DAT drawn with the PC-98 tiles (the DOS terrain and 州歸屬 layers decode to the same cells).
+# HEXMAP.DAT drawn with the PC-98 tiles (the DOS terrain and 州歸屬 layers decode to the same cells). The world map
+# is the PC-98 MAP98.DAT one (the DOS MAPIBM.DAT is not decoded); pos is the PC-98 paint seed of the 州 on it.
+# cities counts the 州's 城 cells (tile 8) on its battle map, the same in both versions; the 州 table's 城數 byte
+# agrees except 延安 in the Japanese/FC table (5), and what that byte does in the game is not settled.
 SUIKODEN_SEASONS = "春夏秋冬"
 
 
 def places_suikoden_dos(game_dir, out_dir):
     pc98 = os.path.join(game_dir, "..", "suikoden-pc98")
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    world = koei_games.render_suikoden_world_map(pc98)
+    world.save(os.path.join(out_dir, "world", "MAP98.png"))
+    seeds = [s for s, _ in koei_games.suikoden_world_points(pc98)]
     for season, label in enumerate(SUIKODEN_SEASONS):
         _save(koei_games.render_suikoden_battle_maps(pc98, season), os.path.join(out_dir, label),
               [f"{n:02d}.png" for n in range(1, 50)])
     zh = koei_games.load_suikoden_provinces(game_dir, dos=True)
     ja = koei_games.load_suikoden_provinces(pc98)
-    with open(os.path.join(game_dir, "SUIDATA1.CIM"), "rb") as f:
-        data = f.read()
+    with open(os.path.join(pc98, "HEXMAP.DAT"), "rb") as f:
+        hexmap = f.read()
     rows = []
-    for k, ((name, cities, nb), (name_ja, cities_ja, _)) in enumerate(zip(zh, ja)):
-        x, y = struct.unpack_from("<HH", data, koei_games.SUIKODEN_DOS_PROVINCES + 27 * k + 14)
+    for k, ((name, _, nb), (name_ja, _, _)) in enumerate(zip(zh, ja)):
+        terrain, owner = hexmap[168 * k:168 * (k + 1)], hexmap[0x2028 + 168 * k:0x2028 + 168 * (k + 1)]
+        cities = sum(1 for t, o in zip(terrain, owner) if t == 8 and o == k)
+        x, y = seeds[k]
         row = {"id": k + 1, "name": name}
         if name_ja != name.removesuffix("州"):
             row["nameJa"] = name_ja
         row.update({"level": "州", "cities": cities, "adjacent": [n + 1 for n in nb],
                     "battlemaps": [{"file": f"{s}/{k + 1:02d}.png", "role": BATTLE, "season": s}
                                    for s in SUIKODEN_SEASONS],
-                    "pos": {"x": x, "y": y, "grid": "pixel"}, "uncertain": ["pos"],
+                    "pos": {"x": x, "y": y, "grid": "pixel", "w": world.width, "h": world.height},
                     "notes": "日文版（PC-98）的州表不寫「州」字。戰場圖是 PC-98 版的圖塊（中文版的 EGA 圖塊沒解，"
-                             "兩版的地形與州歸屬相同）。pos 是州表 +14、+16（日文版 +8、+10）的值，看起來是大地圖上的位置，"
-                             "沒有追程式，單位未確認。"})
-        if cities != cities_ja:
-            row["notes"] += f"城數：中文版 {cities}，日文版與 FC {cities_ja}；中文版的數字和戰場圖上的城格數一致。"
+                             "兩版的地形與州歸屬相同）。大地圖 world/MAP98.png（344×272）是 PC-98 版的；pos 是日文版州表 "
+                             "+8、+10，遊戲從這一點把州塗成勢力的顏色，所以一定在州界內。"})
         rows.append(row)
     return rows
 
