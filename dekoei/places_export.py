@@ -1323,7 +1323,7 @@ def label_world_map(src, rows, icon_half, gap=2, size=20):
 
 
 # dataset -> (world map file, half the size of a city icon around pos)
-LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24)}
+LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24), "kouryuuki-dos": ("world-spring.png", 24)}
 
 
 @click.command()

@@ -136,6 +136,7 @@
 - 39 筆，`name` 用中文版，`nameJa`、`reading` 取 PC-98 版（讀音轉全形）。`level` 是城或關，依地點碼分，遊戲資料沒有種類欄位，所以 `uncertain` 標 `level`。
 - `adjacent` 是上面推出來的相鄰【推】，`uncertain` 標 `adjacent`。
 - 大地圖 `world/world-{spring,summer,autumn,winter}.png`（2640 × 1408），`pos` 是地點格中心的像素（✅ code）。沒有戰場圖。
+- 標籤版 `world/world-spring-labelled.png`：`dekoei.py places-label kouryuuki-dos --places ../export/koei-wiki/places`，放法同三國志IV（`notes/san-maps.md`），和 `kouryuuki-extras` 的 `world_places.png` 逐 pixel 相同。
 
 **沒解開**：
 - 地點表 +14–16（三版相同，值 0–24／0–10／0–8）❌。+15 大致隨 x、+16 大致隨 y 增加，像是粗略的座標【推】。
