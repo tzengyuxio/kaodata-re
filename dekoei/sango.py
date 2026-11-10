@@ -1176,13 +1176,17 @@ def san13_entry(game_dir, i, base=SAN13_PK) -> bytes:
 
 
 def san13_unzip(b: bytes) -> bytes:
-    if b[:4] != b"zp1\0":
+    """zp1\0, and zp1\2 (10 kao_l items) whose last chunk is stored as it is (no u32 size, no zlib header)"""
+    if b[:4] not in (b"zp1\0", b"zp1\2"):
         return b
     size, _, n = struct.unpack_from("<3I", b, 4)
     out, o = bytearray(), (16 + 4 * n + 0x7FF) // 0x800 * 0x800
     for s in struct.unpack_from(f"<{n}I", b, 16):
         o = (o + 0x7F) // 0x80 * 0x80
-        out += zlib.decompress(b[o + 4:o + 4 + struct.unpack_from("<I", b, o)[0]])
+        if b[:4] == b"zp1\2" and b[o + 4] != 0x78:
+            out += b[o:o + s]
+        else:
+            out += zlib.decompress(b[o + 4:o + 4 + struct.unpack_from("<I", b, o)[0]])
         o += s
     assert len(out) == size
     return bytes(out)
@@ -1209,11 +1213,11 @@ def san13_strings(b: bytes, encoding: str, gaiji: dict[bytes, str] = {}) -> list
 
 
 SAN13_ART = 8  # 633 x 900 art in three BC3 layers whose RGB are the same whole picture (they differ only in alpha)
-SAN13_LARGE = 13  # 1024 x 1024 (a few items are zp1\x02, not decoded)
+SAN13_LARGE = 13  # 1024 x 1024 (10 items are zp1\x02, see san13_unzip)
 
 
-def san13_texture(t: bytes, w: int, h: int):
-    """The RGB of the first texture of a GT1G0600 BC3 blob, cropped to w x h."""
+def san13_texture(t: bytes, w: int, h: int, alpha: bool = False):
+    """The RGB (RGBA with alpha) of the first texture of a GT1G0600 BC3 blob, cropped to w x h."""
     from PIL import Image
     # the table at +0xC gives each texture's 8-byte header (+1 format, +2 log2 height << 4 | log2 width, +7 bit 4:
     # an extra header follows, its size the next u32)
@@ -1223,7 +1227,8 @@ def san13_texture(t: bytes, w: int, h: int):
     tw, th = 1 << (dim & 15), 1 << (dim >> 4)
     start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
     assert fmt == 8
-    return Image.frombytes("RGBA", (tw, th), t[start:start + tw * th], "bcn", 3).crop((0, 0, w, h)).convert("RGB")
+    im = Image.frombytes("RGBA", (tw, th), t[start:start + tw * th], "bcn", 3).crop((0, 0, w, h))
+    return im if alpha else im.convert("RGB")
 
 
 def san13_arts(game_dir):
@@ -1232,11 +1237,9 @@ def san13_arts(game_dir):
         yield san13_texture(san13_unzip(t), 633, 900)
 
 
-def san13_large(game_dir, i: int):
-    """The 1024 x 1024 RGB of item i of the large entry."""
-    t = san13_unzip(san13_items(san13_entry(game_dir, SAN13_LARGE))[i])
-    assert t[:4] != b"zp1\x02"
-    return san13_texture(t, 1024, 1024)
+def san13_large(game_dir, i: int, alpha: bool = False):
+    """The 1024 x 1024 RGB (RGBA with alpha) of item i of the large entry."""
+    return san13_texture(san13_unzip(san13_items(san13_entry(game_dir, SAN13_LARGE))[i]), 1024, 1024, alpha)
 
 
 def san13_face_item(picture: int) -> int:

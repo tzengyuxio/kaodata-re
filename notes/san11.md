@@ -87,6 +87,7 @@ cd dekoei
 - 0x2347D 起 50 筆、每筆 57 bytes：+0 名稱 13、+13 讀音 38、+51 價值（赤兎馬 30、玉璽 50）、+52 種類（＝圖號）、u16 +53 持有者（人物號，0xFFFF 沒有）、u16 +55 所在地（都市 0–41、関港 42–86；511 是由人持有，767 是空槽）。
 - 種類 0–4 名馬、5–8 剣、9–11 長柄、12–16 暗器、17–21 弓、22–32 書物、33 玉璽、34 銅雀。`San11WPK.exe` 的字串表有「名馬 長柄 弓 書物 玉璽 銅雀」，剣和暗器是從名稱推的 🟡。
 - 寶物的能力加成沒有找到欄位（`value` 是否就是加成量沒驗證）。
+- 繁中版（Steam depot 628072，`san11_extras.zh_items`）：`SCEN000.s11` 0x23E10 起同樣 50 筆 × 57 bytes，名稱 cp950，讀音欄是空的；43 件和日文一一對得上 ✅ cross，7 個空槽寫「道具」。繁中版也沒有寶物說明：depot 只有 `S11MSG00–03`，「赤兔馬」只出現在列傳與用語辭典（`S11MSG02` 838「人中呂布、馬中赤兔」），所以寶物匯出只填 `nameZh`。
 
 ### 規則表：`media/scenario/Scenario.s11`
 
@@ -109,6 +110,56 @@ cd dekoei
 ### 讀了哪些檔
 
 `media/san11pkres.bin`（630 MB）、`media/san11res1.bin`（119 MB）、`media/scenario/Scenario.s11`、`Scen000–013.s11`、`media/msg/S11MSG00–03.s11`，共約 752 MB。其中 `games/san11pk-win/` 已經有 `san11pkres.bin`、`Scenario.s11` 和 14 個劇本（硬連結）；只缺 `san11res1.bin` 和 `media/msg/`。
+
+## koei-wiki 匯出：人物（2026-11-11）
+
+`dekoei/wiki_san11.py` 的 `persons(game_dir)` 產生 koei-persons/1 的列（要在 `persons_export.DATASETS` 加上 `"san11pk-win": "wiki_san11"` 才能用 `dekoei.py persons-export`；目前的檔是直接呼叫 `persons()` 寫的），寫到 `export/koei-wiki/persons/san11pk-win.jsonl`。`python wiki_san11.py --game-dir ../games/san11pk-win` 另外寫 `extract/tables/scenarios.csv`（劇本號、檔名、標題（日、繁中）、年月、各勢力的君主，UTF-8-BOM）。
+
+- **人**：kaodata 的 718 人（記錄 0–849 去掉空號與身分角色，`SAN11PK_WIN_EMPTY`／`_ROLES`），id 是記錄號，和 `wiki_stats`、列傳相同。盜賊、文官、異民族頭目這類身分角色不出；關係欄指到它們、或指到 2000 以後（不在遊戲裡的人，如曹操之父 2028）的都不填。
+- **名字**：`name`、`courtesy`（字）是 Steam 繁中版（depot 628072）`SCEN000.s11` 從 17760 起的同樣記錄（cp950＋三國志IX 的外字）；和日文不同時寫 `nameJa`。`reading` 是日文讀音轉平假名。
+- **劇本**：14 個 `Scen000–013.s11`，劇本號照 `SAN11PK_WIN_SCENARIOS`（Scen000＝1）。標頭 u16 +0x5B 年、+0x5D 月、+0x5F 標題；繁中檔同位置。✅ code（標題和年份都對得上：184 黄巾の乱、200 官渡の戦い、251 英雄集結）
+- **人物記錄欄位**（152 bytes；欄名取自 EXE 的編輯器標籤，繁中 `San11WPK.exe` 0x3ECA60：性別 登場年 出生年 血緣 父親 母親 世代 配偶 義兄 相性…）
+
+| 位移 | 欄位 | 匯出到 | 可信度 |
+|---|---|---|---|
+| +0x37 | 性別 | `more.性別` | ✅（同 san-attributes） |
+| +0x38、+0x3A、+0x3C | 登場年、生年、没年（u16） | `debut`、`born`、`died` | 生年 ✅；没年 cross（劉備 223、關羽 219）；登場年 🟡 cross（諸葛亮 208） |
+| +0x3E | 死因 0／1 | `hidden.死因`（自然死／不自然死，EXE 的詞） | 🟡（關羽、孫策、呂布、張飛 1；曹操、諸葛亮、曹丕 0） |
+| +0x3F | u16 血縁：一族族長的 id（曹丕→曹操、孫権→孫堅、自己是族長的是自己） | `relations.clan` | ✅ cross |
+| +0x41、+0x43 | u16 父親、母親 | `relations.father`、`mother`，反推 `children` | 🟡（曹丕：曹操、卞氏） |
+| +0x45 | 世代 | `hidden.世代` | 🟡 |
+| +0x46 | u16 配偶者 | `relations.spouse` | ✅ |
+| +0x48 | u16 義兄：結義兄弟中最年長的人（劉關張都指劉備） | 同一義兄的人互為 `relations.sworn` | ✅ |
+| +0x4A | 相性 | `hidden.相性` | ✅ |
+| +0x4B、+0x55 | 親愛武将、嫌悪武将（各 5 × u16） | `game.親愛武将`、`game.嫌悪武将` | ✅ |
+| +0x5F | 軍団（軍団表的列號） | 推 `scenarios[].lord` | ✅ code（見下） |
+| +0x60 | u16 所在：places 匯出的地點號（都市 0–41、関港 42–86） | `scenarios[].location` | ✅ cross（劉備 200 年在小沛 9、曹操在許昌 13） |
+| +0x64 | 身分（見下表） | `scenarios[].status` | 🟡 |
+| +0x68 | 忠誠（君主、義兄弟是 FF） | `scenarios[].loyalty` | 🟡 |
+| +0x6B | 適性 6 × u8，0–3＝C–S，存放順序槍 戟 弩 騎 兵器 水軍 | `aptitude` | ✅ capture |
+| +0x71 | 統率 武力 知力 政治 魅力 | `stats` | ✅ |
+| +0x7C | 特技：`Scenario.s11` 特技表（0x5210，93 bytes）的列號 | `skills.特技` | ✅ cross（呂布 飛将、劉備 遁走、關羽 神将、諸葛亮 神算） |
+| +0x7E、+0x7F、+0x80、+0x81、+0x84、+0x85 | 義理、野望、起用、性格（0 小心、1 冷静、2 剛胆、3 猪突）、漢室、戦略傾向 | `hidden` | 🟡（照 san-attributes 的推定） |
+
+- **身分**（+0x64）：
+
+| 值 | 匯出 | 根據 |
+|---:|---|---|
+| 0 | 君主 | 每個勢力一人，全部是自己軍団列的軍団長 |
+| 1 | 都督 | 第 2 個以後的軍団長（曹仁、袁譚、張昭…），全部是自己軍団列的軍団長；異民族頭目也是 1，但不是人物 |
+| 3 | 一般 | |
+| 4 | 在野 | 有所在、沒有軍団（184 年的袁胤、区星、厳白虎、公孫度、張魯） |
+| 6 | 未登場 | 登場年在劇本年之後，劇本另寫 `debut` |
+| 7 | 未発見（`uncertain` 加 `scenarios.status`） | 登場年已到、沒有軍団（184 年的王朗、賈詡，190 年的郭嘉、伊籍）；名稱照遊戲的「未発見」推定 |
+| 8 | 死亡 | |
+| FF | 不列 | 該劇本沒有這個人（霊帝、華佗等特殊人物在部分劇本） |
+
+  2、5（太守？捕虜？）沒有劇本用到。
+- **軍団表**：劇本檔 0x257F9 起 47 列 × 8 bytes：+0 勢力、+1 勢力內的軍団號（1 是君主自己的）、+2 u16 軍団長。42–46 列是羌、山越、烏丸、南蛮、賊，不是勢力。14 個劇本的 313 個君主與都督，全部是自己 +0x5F 那一列的軍団長 ✅ code。`lord` 是同一勢力的君主（身分 0 的人）。
+- **數量**：718 人；劇本項的狀態是未登場 3629、一般 2760、死亡 1377、未発見 1361、君主 205、在野 83、都督 38；君主、都督、一般全部有 `lord`。
+- **檢查**：`persons_export.check` 8472 項 0 問題；koei-wiki `scripts/verify_persons.py san11pk-win` 32251 項 0 不符（地點對 `places/san11pk-win.jsonl`）。
+- 每人的 `uncertain`：`debut`、`hidden`、`relations.father`、`relations.mother`、`relations.children`、`scenarios.loyalty`，有未発見的另加 `scenarios.status`。
+- 沒出：成長型（+0x76，順序是推的）、口調／音声（+0x82、+0x83 對不上）、功績（+0x69，意義沒確認）、官職與爵位（欄位沒找到）、捕虜的所屬。
 
 ## 下一輪候選
 

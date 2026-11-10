@@ -75,3 +75,4 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 三國志11 with 威力加強版 繁中版 | 628070 | 628072（manifest 3611590611992064954） | 2026-11-10 | `games/steam/628070-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
 | 三國志12 with 威力加強版 繁中版 | 628080 | 628082（manifest 1876821799476983415） | 2026-11-10 | `games/steam/628080-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
 | 信長之野望・創造 with 威力加強版（繁中） | 292990 | 292991（manifest 4969244404066898063）、PK 344120（manifest 1832745740303720361）、292992（manifest 140456814765181818） | build 1366312，2026-11-11 | Steam 只有繁中版；三個 depot 合併到 `games/steam/292990-tchinese/depot/`（910 檔，重疊的 2 個 dll byte 相同）；PK 是 DLC 344120，不是另一個 app |
+| 三國志14 with パワーアップキット（PK depot 重新下載） | 872410 | 1427650（manifest 6260143535053874155，5.0 GB） | 2026-11-11 | 11-08 刪安裝目錄時只留了劇本 1，人物匯出要全部劇本，重新下載 PK depot：`games/steam/872410-pk/depot/`；`0010_JP`、`0010_TC` 的 27 個 `scedaex*.s14` 硬連結到 `games/san14pk-win/`，本機原有的 `scedaex01.s14` 和下載的 byte 相同 |
