@@ -243,3 +243,23 @@ python dekoei.py export genpei-pc98 --game-dir ../games/genpei-pc98 --out <kaoda
 | `lempe-x68`  | ランペルール                   | X68000     |  255 |  260 |        | [notes/lempe.md](notes/lempe.md)   |
 
 原版遊戲檔放在 `games/<DATASET>/`（不進版控），`--game-dir` 指向該目錄即可。
+
+### 匯出人物、寶物、地點等資料（koei-wiki 用）
+
+以下指令都在 `dekoei/` 下執行，輸出一行一筆的 JSONL（id 和 kaodata 資料集相同），格式規格在 koei-wiki repo 的 `docs/`：
+
+```sh
+cd dekoei
+python dekoei.py persons-export san14pk-win --game-dir ../games/san14pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+python dekoei.py items-export san14pk-win --extract ../games/san14pk-win/extract --game-dir ../games/san14pk-win --out ../export/koei-wiki/items
+```
+
+| 指令 | 內容 | 目前支援 | 說明 |
+|---|---|---|---|
+| `persons-export` | 人物的全部欄位與各劇本的所屬、所在、身分 | 信長之野望 2–13、三國志VIII–14 | 各遊戲筆記的「koei-wiki 匯出」 |
+| `items-export` | 寶物的名稱、說明（含繁中版）與各劇本的持有者 | 三國志IV、VII–14，信長之野望 6–12 | [notes/koei-items.md](notes/koei-items.md) |
+| `places-export` | 地點、相鄰關係與戰場圖 | 三國志各代、水滸傳、項劉記、蒼き狼と白き牝鹿系列 | [notes/san-maps.md](notes/san-maps.md) |
+| `biography` | 武將列傳 | 三國志（繁中版）、信長之野望 5–8 | [notes/san-biographies.md](notes/san-biographies.md) |
+| `stats-export` | 三國志的主能力 | 三國志 I–14 | [notes/san-attributes.md](notes/san-attributes.md) |
+
+三國志VIII–14 另有 `big_faces.py`（`python big_faces.py san13pk-win --game-dir ../games/san13pk-win`），把每張頭像的完整原圖（涵蓋範圍最大的一張，13、14 另有 1024×1024 的最大尺寸）無損輸出成 PNG。
