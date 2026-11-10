@@ -143,3 +143,7 @@
 - [ ] 英傑傳系列 — 20 個 🟡 — 見 `notes/eiketsu-attributes.md`（2026-10-22）
 - [ ] 大航海時代系列 — 11 個 🟡 — 見 `notes/koukai-attributes.md`（2026-10-22）
 - [ ] 蒼き狼と白き牝鹿系列 — 11 個 🟡 — 見 `notes/genghis-attributes.md`（2026-10-22）
+
+## 截圖
+
+- [ ] 重拍 PC-98 標題畫面失敗的 9 款 — taikoh2、inindou、topman2、royal、nobu6、celt-dos、nobu5、nobu5pk、koukai；topman2 片頭後全黑（DOSBox-X 報 `INT 18h AX=1B01`、`Segment limit violation`），nobu5、nobu5pk、koukai 在 11-09 失敗後沒重試；各款的情況記在 `captures/screenshots/README.md`（不進版控）（2026-11-11）
