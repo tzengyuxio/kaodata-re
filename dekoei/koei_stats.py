@@ -225,7 +225,7 @@ def load_eiketsu_dos_stats(bakdata, pc98=False) -> list[tuple]:
     return rows
 
 
-# 三國志孔明傳 (Win) BAKDATA.E2: after the 513 17-byte records (sango.KOUMEI_PERSONS) come 512 x 26 bytes at 0x3AF0,
+# 三國志孔明傳 (Win) BAKDATA.E2: after the 512 17-byte records (sango.KOUMEI_PERSONS) come 512 x 26 bytes at 0x3AF0,
 # one per record: +1 武力, +2 統御力, +3 智力 (order from the values), +4 u16 耐久力?, +6 策略值?, +8 兵種, +9 等級,
 # +11..+25 items (BAKDATA 0x900 + 16 * id). EKD2.EXE reads the table (0x3400 bytes at 0x3AF0) but the use is not traced.
 KOUMEI_WIN_STATS = ["武力", "智力", "統御力", "耐久力", "策略值", "兵種", "等級", "道具"]
