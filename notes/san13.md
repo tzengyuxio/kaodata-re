@@ -231,6 +231,20 @@ cd dekoei
   - 第 8 組幾乎全是「ダミー」；第 6、9 組是空的。
 - 沒有解的：`tenkai*.bin`、`event_sf.bin`、`scenario_tenkai_*`、`scenario_sf_*`、`eiketsu_*`（英傑伝模式）的格式，`subtitle_jp.bin`（1400 列，日文版全空），`San13_kako_kao_still.bin`（6107 張 64×128，用途不明）。
 
+### 大地圖（`worldmap/`，2026-11-11）
+
+`san13_extras.worldmap`（`san13-extras` 會一起跑；單獨跑：`../.venv/bin/python -c "from san13_extras import Container, worldmap; worldmap(Container('../games/san13pk-win', 'pk/DATA0.S13', 'pk/DATA1.S13'), '../games/san13pk-win/extract', '../export/koei-wiki/places/san13pk-win.jsonl')"`）。大地圖是 3D，沒有現成的整張圖；2D 的是地面貼圖：
+
+| 檔案 | 來源（PK） | 內容 | 可信度 |
+|---|---|---|---|
+| `ground_{spring,summer,autumn,winter}.png` | 第 487、491、495、499 項 `ground_<季>.g1t.zp` 第 1 張 | 4096×4096 DXT1，整個中國（含塞外、朝鮮、海）的地面顏色；春、夏兩張 byte 相同，季節差在第 0 張的拼塊 atlas | ✅ code |
+| `regions.png`、`regions.csv` | 第 486 項 `ground_main.g1t.zp` 第 2 張 | 4096×4096 RGBA8 的地點號圖：號＝(R−2)/5×50＋(G−2)/5，500 是區外，495 是一小塊（555 點）沒有地點；其餘 266 個號正好是 koei-wiki 地點匯出的全部 id（本體第 352 項只有 259 個，缺 PK 的官渡等 7 個） | ✅ cross：地點的 `pos`（`node.stgn` 世界座標）線性換到圖上，261／266 落在自己的區塊（望海、函谷關、葭萌關、柴桑沖、鄳 5 個落在旁邊） |
+| `title_map.png` | 第 1267 項 `parts_10_shoki.g1t.zp` 第 0 張 | 標題、選劇本畫面的手繪地圖（有道路、河），從 2048×2048 atlas 的 (0, 0)–(1920, 1080) 切出 | 🟡 code：切的範圍是看圖定的 |
+
+- 第 0 張（`ground_main` 4096 BC3）是法線圖，`ground_<季>_far.g1t`（2048 BC3）是遠景用的淡色貼圖，沒輸出。
+- 地點號圖和地面顏色圖的範圍不同（顏色圖涵蓋得比較大），對位沒算。
+- `inventory.csv` 的 `extracted` 欄要重跑整個 `san13-extras` 才會寫上 `worldmap`，這次只單獨跑了 `worldmap`。
+
 ### 封存前還缺的
 
 - 事件表的欄位（哪個事件、條件、用哪張圖、哪段腳本），以及腳本變數的展開。這些只要保留原始檔就能之後再解，不影響封存成品。

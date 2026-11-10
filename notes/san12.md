@@ -122,7 +122,8 @@ kaodata 想要比 48×60 大的頭像，所以用 `KAO_F_M` 反推它在 `KAO_W_
 
 ```sh
 cd dekoei
-../.venv/bin/python dekoei.py san12-extras --game-dir ../games/san12pk-win --out ../games/san12pk-win/extract
+../.venv/bin/python dekoei.py san12-extras --game-dir ../games/san12pk-win --out ../games/san12pk-win/extract \
+    --maps-depot ../games/steam/628080-tchinese/depot   # 地圖（見「地圖」），不加就不出
 ```
 
 | 輸出 | 內容 | 數量 | 可信度 |
@@ -135,6 +136,11 @@ cd dekoei
 | `events/voiced.jsonl` | 有語音的劇情事件台詞，一行一句，`event` 是 `EV02_00` 這類事件號 | 520 句、16 段 | ✅ cross |
 | `events/script.jsonl` | 其他事件訊息（沒有語音的），一行一則 | 2453 | 🟡 沒分段 |
 | `events/history.csv` | 歷史年表的事件名（`S12MSG01` 98–135，有些是樣板） | 38 | 🟡 沒對到 CG |
+| `battlemap/<地形>.png` | 戰場圖 3072×2688（`bf01–27` 與地方變體 46 張含 `bf14_cg_fixed`，VS `cf01–05`） | 51 | ✅（見「地圖」） |
+| `battlemap/minimap/`、`midmap/` | 戰場小地圖 256×256（50）、PK 的中地圖 512×512（45） | 95 | ✅ |
+| `citymap/ha00–19.png` | 都市畫面 1920×1440 | 20 | 圖 ✅，用途【推】 |
+| `worldmap/minimap.png` | 戰略地圖的小地圖底圖 512×512（`Data/UI/20_shoki/20_map_minimap_base.G1T`） | 1 | ✅ |
+| `maps.csv` | 上面每張圖的來源檔與尺寸 | 167 | |
 
 ### 事件 CG：`Data/EventStill/`、`PK/Data/EventStill/`
 
@@ -162,6 +168,15 @@ cd dekoei
 - 00 是各種口吻的語尾，01 是介面訊息，02 是戰略事件與交涉台詞，03 是列傳，04 是名品說明與用語說明，05 是事件腳本。
 - `S12MSG05`：第 0 則「Start of script voice message.」，1–520 有語音，521 結束，522「Begin of script message.」，523–2973 沒有語音，2974 結束。1–520 依序對到 `SND/voice/Strategy/EV*.g1l` 排序後的 520 個檔，事件邊界和內容吻合（桃園、連環計、官渡、三顧、赤壁等，✅ cross）。說話者不在訊息檔裡。
 
+### 地圖（2026-11-11）
+
+`san12_extras.maps` 讀繁中版 depot（`games/steam/628080-tchinese/depot`；地圖沒有文字，日文版的安裝目錄已刪，用繁中版代替），寫 `battlemap/`、`citymap/`、`worldmap/`，共 770 MB。
+
+- `BmpMapColor_s_<名>.bin`：沒有標頭的 RGB565（little-endian，PIL 的 `BGR;16`）。戰場 16515072 bytes ＝ 3072×2688，都市 5529600 bytes ＝ 1920×1440。寬度用相鄰列的差值挑出（3072 的差值 3.0，其他寬度 6.5 以上；1920 是 1.5，其他 3.9 以上），畫出來是完整的畫 ✅ code（結構）。是斜俯視的手繪地圖，3D 戰場的地面貼圖就是它。
+- `MiniMap_*.g1t`（256×256）、PK `MidMap_*.g1t`（512×512）用 `gt1g` 解。
+- 戰略地圖是 3D 的，沒有一張畫好的大地圖；2D 的只有小地圖底圖 `20_map_minimap_base.G1T`（512×512，各州的灰色塊與關卡記號）。`resfiles_00.bin` 裡 2048×1024、2048×2048 的大貼圖看過，是背景、雲與畫面裝飾，不是地圖。
+- 沒輸出：`BmpMapZ_s_*`（8257536 bytes，寬度試不出來，推定是高度）、`BmpMapXY_s_*`、`Bmp2WorldTbl_*`、`CellDepth_*`、`GridsRenderd*`（3D 網格與對照表）。
+
 ### 負面結論
 
 - `reki` 等事件 CG 和年表事件名（`S12MSG01` 98–135）的對應沒有找到，要讀事件腳本才知道，腳本的位置沒找。
@@ -171,5 +186,5 @@ cd dekoei
 ### 封存前還缺的
 
 - `resfiles_*.bin` 是 `Data/` 的打包副本（`resfiles_01` 的三項和 `KAO_W_L`、`KAO_W_S`、`ITEM_STL` byte 相同），不必另外解。
-- 還沒解的大項：`Data/BtlMap`（1.8 GB，戰場）、`Data/CityMap`（274 MB）、`Data/UI`（534 MB）、`movie`＋`PK/Movie`（1.2 GB，wmv，可以原樣保留）、`SND`（452 MB，BGM 與語音）。
-- 地點、戰場圖（koei-wiki places）沒有匯出；城市地圖、BGM 也沒有轉出。
+- 還沒解的大項：`Data/UI`（534 MB）、`movie`＋`PK/Movie`（1.2 GB，wmv，可以原樣保留）、`SND`（452 MB，BGM 與語音）。`Data/BtlMap`、`Data/CityMap` 的畫已轉出（見「地圖」），3D 網格與高度沒有。
+- koei-wiki places 的戰場圖沒有接上（地點匯出只有 40 都市、沒有圖）；BGM 沒有轉出。

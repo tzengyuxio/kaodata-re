@@ -8,6 +8,8 @@ Outputs (notes/san13.md「事件、插圖、道具」):
   events/titles.csv         event names from the message table (string 20503-)
   events/event_data.jsonl   the 999 event tables of pk/data/event/event_data.bin (35 i16 columns per row, raw)
   events/msggame.jsonl      the compiled message scripts of pk/data/msggame.bin, text with control bytes as {xx}
+  worldmap/                 the 2D textures of the strategic map: four seasons' ground colour, the place-id map, the
+                            title screen's illustrated map; worldmap/index.csv, worldmap/regions.csv
 
 File names come from the executables' (u32 string pointer, u32 1) tables: San13_jp.exe for the base container,
 San13PK_jp.exe for pk/ entries < 1524 and San13PK_kr.exe for the rest (the per-language data), San13PK_sc.exe entry
@@ -46,6 +48,11 @@ ITEM_NAME, ITEM_READING, ITEM_DESC, ITEM_COUNT = 17073, 17473, 17873, 234
 ITEM_CATEGORY = 20678  # category c of column 0 is string 20678 + c (名馬, 剣, 刀 … 特殊)
 PERSON_NAME = 6535, 1450  # surname 6535 + p, given name 6535 + 1450 + p
 EVENT_TITLES = 20503, 20600  # 桃園の誓い, 美女連環の計・前編 … 漢帝崩御 (20568), with empty slots
+# world map textures (pk/ entry, texture k of its GT1G0600): the 3D map's ground is drawn from these
+# texture 1: 4096 x 4096 DXT1 colour (spring and summer are the same bytes; the seasons differ in the tile atlas)
+GROUND = {"spring": 487, "summer": 491, "autumn": 495, "winter": 499}
+GROUND_MAIN = 486  # texture 2: 4096 x 4096 RGBA8 place-id map, id = (R - 2) / 5 * 50 + (G - 2) / 5; 500 = outside
+TITLE = 1267  # parts_10_shoki, texture 0: a 2048 x 2048 BC3 atlas with the title screen's map at (0, 0, 1920, 1080)
 XL_TYPES = {0: "I", 1: "i", 2: "h", 3: "B", 4: "i", 5: "H", 6: "b", 7: "f"}
 
 
@@ -222,6 +229,49 @@ def write_csv(path, header, rows):
         w.writerows(rows)
 
 
+def g1t_texture(t, k):
+    """Texture k (its top mip) of a GT1G0600 as RGBA: format 1 RGBA8, 6 DXT1, 8 BC3."""
+    from PIL import Image
+    table = struct.unpack_from("<I", t, 0x0C)[0]
+    o = table + struct.unpack_from("<I", t, table + 4 * k)[0]
+    fmt, dim = t[o + 1], t[o + 2]
+    w, h = 1 << (dim & 15), 1 << (dim >> 4)
+    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
+    if fmt == 1:
+        return Image.frombytes("RGBA", (w, h), t[start:start + w * h * 4])
+    n, bpp = {6: (1, 8), 8: (3, 16)}[fmt]
+    return Image.frombytes("RGBA", (w, h), t[start:start + w * h * bpp // 16], "bcn", n)
+
+
+def worldmap(pk, out, places=None):
+    """The strategic map textures to out/worldmap/; places (koei-wiki places jsonl) names the regions."""
+    os.makedirs(os.path.join(out, "worldmap"), exist_ok=True)
+    index = []
+    for season, i in GROUND.items():
+        g1t_texture(pk[i], 1).convert("RGB").save(os.path.join(out, "worldmap", f"ground_{season}.png"))
+        index.append([f"ground_{season}.png", "4096x4096", "pk", i, 1, "✅ code: DXT1 texture of the 3D map ground"])
+    im = g1t_texture(pk[GROUND_MAIN], 2).convert("RGB")
+    im.save(os.path.join(out, "worldmap", "regions.png"))
+    index.append(["regions.png", "4096x4096", "pk", GROUND_MAIN, 2,
+                  "✅ cross: ids = koei-wiki place ids, 261 of 266 pos inside their own region"])
+    g1t_texture(pk[TITLE], 0).crop((0, 0, 1920, 1080)).convert("RGB").save(
+        os.path.join(out, "worldmap", "title_map.png"))
+    index.append(["title_map.png", "1920x1080", "pk", TITLE, 0, "🟡 code: crop from the atlas by eye"])
+    write_csv(os.path.join(out, "worldmap", "index.csv"),
+              ["file", "size", "container", "entry", "texture", "evidence"], index)
+    names = {}
+    if places and os.path.exists(places):
+        with open(places, encoding="utf-8") as f:
+            names = {p["id"]: p for p in map(json.loads, f)}
+    rows = []
+    for n, (r, g, _) in sorted(im.getcolors(1 << 16), key=lambda c: ((c[1][0] - 2) // 5 * 50 + (c[1][1] - 2) // 5)):
+        rid = (r - 2) // 5 * 50 + (g - 2) // 5
+        p = names.get(rid, {})
+        rows.append([rid, r, g, n, p.get("name", ""), p.get("level", "")])
+    write_csv(os.path.join(out, "worldmap", "regions.csv"), ["id", "r", "g", "pixels", "name", "level"], rows)
+    return len(index), len(rows)
+
+
 @click.command(help="三國志13 PK: event stills, items, events and a container inventory (notes/san13.md)")
 @click.option("--game-dir", required=True, help="the Steam files (games/san13pk-win)")
 @click.option("--out", required=True, help="output directory (games/san13pk-win/extract)")
@@ -290,6 +340,11 @@ def san13_extras(game_dir, out):
                 n_script += 1
     extracted[("pk", MSGGAME)] = "events/msggame.jsonl"
 
+    n_maps, n_regions = worldmap(pk, out, os.path.join(os.path.dirname(__file__), "..", "export", "koei-wiki",
+                                                     "places", "san13pk-win.jsonl"))
+    for i in [*GROUND.values(), GROUND_MAIN, TITLE]:
+        extracted[("pk", i)] = "worldmap"
+
     # inventory
     inv = []
     for tag, _, _ in CONTAINERS:
@@ -301,4 +356,4 @@ def san13_extras(game_dir, out):
     write_csv(os.path.join(out, "inventory.csv"),
               ["container", "entry", "name", "size", "stored", "compressed", "magic", "kind", "extracted"], inv)
     click.echo(f"{len(index)} stills, {len(table)} items, {len(pictures)} item pictures, {len(titles)} event titles, "
-               f"{n_script} message scripts, {len(inv)} inventory rows")
+               f"{n_script} message scripts, {n_maps} world maps ({n_regions} regions), {len(inv)} inventory rows")

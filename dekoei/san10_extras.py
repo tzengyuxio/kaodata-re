@@ -299,6 +299,41 @@ def bio_names(game_dir) -> dict[int, str]:
     return {k: name for k, name, _ in zh_persons(game_dir)}
 
 
+# The strategic map, read from the Steam 繁中版 depot (WORLDMAP_DEPOT, relative to the game folder; the Japanese
+# install was deleted before this). San10Map.s10 is a SAN10GRP archive of 120 tiles of 480 x 256 whose data is
+# 2 x w x h bytes of RGB555 (no palette); row-major, 10 across and 12 down, they make the 4800 x 3072 map (seams
+# checked by edge differences: every tile's best right / lower neighbour is i + 1 / i + 10). GrpMdMap.s10 0 is the
+# 1024 x 768 overview screen, 1-3 its 1000 x 590 overlays (regions on a #00FF00 key, roads, borders).
+# GrpBtlBg.s10 holds the 7 2400 x 1640 surroundings of the 3D battles (battlemap/backgrounds/).
+WORLDMAP_DEPOT = os.path.join("..", "steam", "628060-tchinese", "depot")
+WORLDMAP_TILE, WORLDMAP_ACROSS = (480, 256), 10
+OVERVIEW = ["overview", "overview_regions", "overview_roads", "overview_borders"]
+
+
+def worldmap(depot: str, out: str) -> int:
+    with open(os.path.join(depot, "San10Map.s10"), "rb") as f:
+        data = f.read()
+    dic = data[20:276]
+    n = struct.unpack_from("<H", data, 12)[0]
+    tw, th = WORLDMAP_TILE
+    im = Image.new("RGB", (tw * WORLDMAP_ACROSS, th * (n // WORLDMAP_ACROSS)))
+    for i in range(n):
+        w, h, size, packed, start, _ = struct.unpack_from("<6I", data, 276 + 24 * i)
+        assert (w, h, size) == (tw, th, 2 * tw * th)
+        raw = data[start:start + packed]
+        if packed != size:
+            raw = ls11.recover(ls11.get_codes(raw), dic)[:size]
+        im.paste(Image.frombytes("RGB", (w, h), raw, "raw", "BGR;15"),
+                 ((i % WORLDMAP_ACROSS) * tw, (i // WORLDMAP_ACROSS) * th))
+    _save(im, os.path.join(out, "worldmap", "San10Map.png"))
+    for name, e in zip(OVERVIEW, sango.load_san10_grp(os.path.join(depot, "Grp", "GrpMdMap.s10"))):
+        _save(grp_png(e), os.path.join(out, "worldmap", f"{name}.png"))
+    bgs = sango.load_san10_grp(os.path.join(depot, "Grp", "GrpBtlBg.s10"))
+    for i, e in enumerate(bgs):
+        _save(grp_png(e), os.path.join(out, "battlemap", "backgrounds", f"{i}.png"))
+    return 1 + len(OVERVIEW) + len(bgs)
+
+
 @click.command()
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam files (games/san10pk-win)")
 @click.option("--out", required=True, type=click.Path(), help="games/san10pk-win/extract")
@@ -307,6 +342,9 @@ def san10_extras(game_dir, out):
     print(f"{items(game_dir, out)} items")
     print(f"{events(game_dir, out)} messages")
     print(event_pictures(game_dir, out))
+    depot = os.path.join(game_dir, WORLDMAP_DEPOT)
+    if os.path.exists(os.path.join(depot, "San10Map.s10")):
+        print(f"{worldmap(depot, out)} maps")
 
 
 if __name__ == "__main__":

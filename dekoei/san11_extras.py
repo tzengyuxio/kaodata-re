@@ -9,7 +9,7 @@ import struct
 import unicodedata
 
 import click
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from ls11 import ls11_decode
 from sango import SAN11_GAIJI, SAN11_PERSONS, load_san11_persons
@@ -51,6 +51,19 @@ TABLES = [
 ]
 # places for the item locations: 42 cities from 0x5A (25 bytes), 45 関／港 from 0x474 (26 bytes)
 PLACE_GAIJI = {0xE02D: "鄴", 0xE020: "邳", 0xE00B: "兗", 0xE02A: "涪", 0xE030: "鄱"}
+# the strategic map (all in PK_RES; notes/san11.md「大地圖」): (file stem, item, frame)
+WORLD_PICTURES = [("minimap-448", 4854, 0),                 # water transparent
+                  ("minimap-208", 4855, 0),
+                  ("minimap-628", 4857, 0),                 # three layers of one 628x628 minimap
+                  ("minimap-628-territories", 4857, 1),     # one flat colour per territory
+                  ("minimap-628-borders", 4857, 2)]
+WORLD_COLOURS = range(4787, 4791)  # GCOL0001: 1025x1025 B G R, column-major; 4 seasons in item order 🟡
+WORLD_HEX = 4791                   # SHEX0008: 200x200 cells of 11 bytes, column-major; +0 terrain, +1 territory
+# terrain colours for the SHEX rendering (Scenario.s11 terrain table order), picked by hand
+TERRAIN_RGB = [(150, 190, 100), (190, 160, 110), (225, 210, 150), (110, 150, 120), (150, 90, 160),
+               (40, 110, 50), (110, 170, 230), (60, 120, 210), (30, 70, 160), (170, 150, 120),
+               (230, 200, 90), (200, 120, 60), (120, 200, 230), (160, 210, 230), (200, 200, 170),
+               (90, 80, 70), (220, 40, 40), (240, 140, 0), (40, 200, 220), (210, 170, 120)]
 MSG = "media/msg/S11MSG0{}.s11"
 # gaiji of the S11MSG texts not in SAN11_GAIJI, read off the rubies next to them (🟡); E052 is not known
 MSG_GAIJI = {**PLACE_GAIJI, 0xE01F: "郿", 0xE022: "淄", 0xE057: "滎", 0xE059: "蒺", 0xE05A: "氐", 0xE05E: "涿",
@@ -360,12 +373,57 @@ def bio_names(game_dir) -> dict[int, str]:
     return out
 
 
+def worldmap(game_dir, out):
+    """The minimaps, the four 1025x1025 colour maps and a hex rendering of SHEX0008 (terrain, black territory
+    borders): flat-topped hexes, x is the column, odd columns half a row lower (picked by the shortest borders)."""
+    path = os.path.join(game_dir, PK_RES)
+    ents = link_entries(path)
+    d = os.path.join(out, "worldmap")
+    os.makedirs(d, exist_ok=True)
+    rows = []
+    for stem, i, k in WORLD_PICTURES:
+        im = wftx_frames(link_item(path, ents, i))[k]
+        im.save(os.path.join(d, f"{stem}.png"))
+        rows.append([f"{stem}.png", os.path.basename(PK_RES), i, k, im.width, im.height])
+    for n, i in enumerate(WORLD_COLOURS):
+        b = link_item(path, ents, i)
+        assert b[:8] == b"GCOL0001" and len(b) == 8 + 3 * 1025 * 1025
+        im = Image.frombytes("RGB", (1025, 1025), b[8:], "raw", "BGR").transpose(Image.Transpose.TRANSPOSE)
+        im.save(os.path.join(d, f"colour-{n}.png"))
+        rows.append([f"colour-{n}.png", os.path.basename(PK_RES), i, 0, 1025, 1025])
+    b = link_item(path, ents, WORLD_HEX)
+    assert b[:8] == b"SHEX0008"
+    cell = lambda x, y, k: b[8 + 11 * (200 * x + y) + k]
+    centre = lambda x, y: (12 * x + 8, 12 * y + 6 + 6 * (x % 2))
+    im = Image.new("RGB", (12 * 200 + 4, 12 * 200 + 6), (255, 255, 255))
+    draw = ImageDraw.Draw(im)
+    corners = [(-8, 0), (-4, -6), (4, -6), (8, 0), (4, 6), (-4, 6)]  # edge j joins corner j and j + 1
+    sides = [(-1, -1), (0, -1), (1, -1), (1, 0), (0, 1), (-1, 0)]       # neighbour column, row (odd shifts +1)
+    for x in range(200):
+        for y in range(200):
+            cx, cy = centre(x, y)
+            draw.polygon([(cx + a, cy + c) for a, c in corners], fill=TERRAIN_RGB[cell(x, y, 0)])
+    for x in range(200):
+        for y in range(200):
+            cx, cy = centre(x, y)
+            for j, (dx, dy) in enumerate(sides):
+                nx, ny = x + dx, y + dy + (x % 2 if dx else 0)
+                if 0 <= nx < 200 and 0 <= ny < 200 and cell(nx, ny, 1) != cell(x, y, 1):
+                    (a, c), (e, f) = corners[j], corners[(j + 1) % 6]
+                    draw.line([(cx + a, cy + c), (cx + e, cy + f)], fill=(0, 0, 0), width=2)
+    im.save(os.path.join(d, "terrain.png"))
+    rows.append(["terrain.png", os.path.basename(PK_RES), WORLD_HEX, 0, im.width, im.height])
+    write_csv(os.path.join(d, "index.csv"), ["file", "source", "item", "frame", "w", "h"], rows)
+    return len(rows)
+
+
 @click.command("san11-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628070)")
 @click.option("--out", required=True, type=click.Path())
 def san11_extras(game_dir, out):
     """三國志11 PK: event stills, items, rule tables (特技, 技巧, 施設 ...) and the S11MSG texts."""
     print(f"{pictures(game_dir, out)} pictures")
+    print(f"{worldmap(game_dir, out)} world map pictures")
     n, h = items(game_dir, out)
     print(f"{n} items, {h} holder rows, {len(KINDS)} item pictures")
     print("tables:", tables(game_dir, out))

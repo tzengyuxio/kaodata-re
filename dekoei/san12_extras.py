@@ -34,6 +34,14 @@ ITEM_GAIJI = {0xE059: "蒺"}  # 蒺藜棒 (reading ｼﾂﾚｲﾎﾞｳ)
 ITEM_PICTURES = [("Data/ITEM_STL.S12", 0), ("resfiles_additem20_pk.bin", 0x18)]
 SP_PICTURES = ("resfiles_spitem0_pk.bin", 0x18)
 MSG = "PK/Msg/S12MSG0{}.s12"
+# maps (notes/san12.md「地圖」), read from the 繁中版 depot (no text in them): BmpMapColor_s_* are the painted
+# battle (bf; cf the versus maps) and city (ha) maps, RGB565 little-endian, no header; MiniMap_* GT1G 256x256; the strategy map is
+# 3D, its only 2D picture is the 512x512 minimap base
+# (VS: the versus maps cf01-03; PK MidMap_*: 512x512 middle-size minimaps)
+MAP_DIRS = [("Data/BtlMap", "battlemap", (3072, 2688)), ("Data/BtlMap/VS", "battlemap", (3072, 2688)),
+            ("PK/Data/BtlMap", "battlemap", (3072, 2688)), ("PK/Data/BtlMap/MidMap", "battlemap", None),
+            ("Data/CityMap", "citymap", (1920, 1440))]
+WORLD_MINIMAP = "Data/UI/20_shoki/20_map_minimap_base.G1T"
 VOICE_DIR = "SND/voice/Strategy"
 EVENT_TITLES = range(98, 136)  # S12MSG01: the history list (some entries are templates)
 
@@ -292,13 +300,47 @@ def bio_names(game_dir) -> dict[int, str]:
     return out
 
 
+def maps(depot, out):
+    """the painted battle and city maps, the battle minimaps and the strategy minimap -> out/{battlemap,citymap,
+    worldmap}; returns the number of pictures"""
+    rows = []
+    for folder, kind, size in MAP_DIRS:
+        for name in sorted(os.listdir(os.path.join(depot, folder))):
+            path = os.path.join(depot, folder, name)
+            if name.startswith("BmpMapColor_s_"):
+                with open(path, "rb") as f:
+                    d = f.read()
+                assert len(d) == 2 * size[0] * size[1], name
+                im = Image.frombytes("RGB", size, d, "raw", "BGR;16")
+                file = f"{kind}/{name[14:-4].lower()}.png"
+            elif name.startswith(("MiniMap_", "MidMap_")):
+                with open(path, "rb") as f:
+                    im = gt1g(f.read())
+                stem = name[:-4].lower().split("_", 1)
+                file = f"{kind}/{stem[0]}/{stem[1]}.png"
+            else:
+                continue
+            os.makedirs(os.path.dirname(os.path.join(out, file)), exist_ok=True)
+            im.save(os.path.join(out, file))
+            rows.append([file, f"{folder}/{name}", im.width, im.height])
+    os.makedirs(os.path.join(out, "worldmap"), exist_ok=True)
+    with open(os.path.join(depot, WORLD_MINIMAP), "rb") as f:
+        gt1g(f.read()).save(os.path.join(out, "worldmap", "minimap.png"))
+    rows.append(["worldmap/minimap.png", WORLD_MINIMAP, 512, 512])
+    write_csv(os.path.join(out, "maps.csv"), ["file", "source", "w", "h"], rows)
+    return len(rows)
+
+
 @click.command("san12-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628080)")
 @click.option("--out", required=True, type=click.Path())
-def san12_extras(game_dir, out):
-    """三國志12 PK: event stills, items and event text."""
+@click.option("--maps-depot", type=click.Path(exists=True), help="繁中版 depot (628082) for the maps")
+def san12_extras(game_dir, out, maps_depot):
+    """三國志12 PK: event stills, items, event text and (with --maps-depot) the battle, city and strategy maps."""
     stills = event_stills(game_dir, os.path.join(out, "eventcg"))
     n_items, pictures, sp = items(game_dir, os.path.join(out, "items"))
     voiced, script = events(game_dir, os.path.join(out, "events"))
     print(f"{stills} stills, {n_items} items, {pictures} item pictures + {sp} sp, {voiced} voiced lines, "
           f"{script} script lines")
+    if maps_depot:
+        print(f"{maps(maps_depot, out)} map pictures")

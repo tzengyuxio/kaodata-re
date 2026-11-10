@@ -70,6 +70,7 @@ cd dekoei
 | `eventcg/pk_titles/` | PK 32 個關卡的標題字（`G_LocMPK.s9` 的奇數張，1024×240），順序同 `events/pk_stages.csv` | 32 | ✅ cross（圖上的字和關卡名一致） |
 | `eventcg/title/` | 標題畫面（本體、PK） | 2 | ✅ |
 | `eventcg/index.csv` | 每張的來源、色盤號、色盤可信度 | | |
+| `worldmap/` | 全國圖（`G_MMap.s9`，讀 Steam 繁中版 depot 628050，日文版安裝目錄已刪；`san9_extras.worldmap`）：等角視角 800×400 的地形 `iso_terrain`（164）、地域 `iso_regions`（162）、州界 `iso_borders`（163）；平面 576×512 的石刻風 `flat_stone`（168）、地域 `flat_regions`（166）、州界 `flat_borders`（167）；848×552 帶右側欄的兩張 `flat_frame_a`、`_b`（169、170）。2026-11-11 加 | 8 | 圖 ✅ code（同上的圖檔格式）；色盤 🟡（`pick_palette`；只有 2–4 色的州界用第 0 組）；地域、州界圖的顏色是遊戲執行時換的，這裡的顏色沒有意義 |
 | `items/items.csv` | 寶物 100 件：名稱、讀音、種類、價值、加成、兵法、說明、圖 | 100 | 名稱、讀音、說明 ✅ code；種類號 ✅ code、種類名 🟡；價值、加成、兵法 🟡 |
 | `items/pictures/NNNs.png`、`NNNl.png` | 寶物圖 120×120、240×240（`G_Still.s9` 第 72＋k、172＋k 張） | 200 | ✅ cross（赤兎馬、青龍偃月刀、玉璽等和名稱對得上） |
 | `items/holders.csv` | 20 個劇本的持有者、狀態、所在地 | 2000 | 🟡 |
@@ -142,6 +143,7 @@ cd dekoei
 
 ## 下一輪候選
 
+- 全尺寸的等角大地圖 — `D_Land00.s9`：u32 筆數 96489、u32 0，接著每筆 13 bytes：u16 圖塊號、u16 0、u8 x、u8 y（200 × 200 格）、u8 1–7、u8 1–9、其餘 4 bytes 未解，最後一 byte 都是 FF。圖塊在 `G_LLand.s9`（771 張，格式是「沒有色盤」的那種：u32 圖區大小＋同樣的 16 bytes 標頭）、`G_LBUILD.s9`（284）、`G_MESH.s9`（96 張 64×44）、`G_LNMASK.s9`（640），色盤是四季的 `P_Land_{S,N,A,W}.s9`（各 13 組）。圖塊號 288–2130，依 +6（1–7）分段，每段差 272；號碼怎麼對到哪個檔、哪一張還沒解。本機只有繁中版 depot 有這些檔（日文版安裝目錄已刪，depot 刪掉後要重新下載）。
 - 列伝號在 EXE 裡怎麼算 — 目前的規則是內容比對得出的（✅ cross）；要 code 證據時，在解殼後的 `San9WPK.exe` 找讀 `M_Rtdn.s9` 的地方。
 - 事件靜止圖對事件 — 前置：找到事件表（EXE 有 SteamStub，解法同三國志VIII）；做法：在 `M_MsgPK.s9` 的事件文字附近找圖號。
 - 寶物加成與兵法欄 — 做法：用說明書 `San9WPK.pdf` 的寶物說明和遊戲畫面核對 +10、+12、+14。

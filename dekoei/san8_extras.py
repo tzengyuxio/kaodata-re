@@ -25,6 +25,11 @@ STILL_PALETTES = [(0, 36, range(160, 320)), (37, 72, range(260, 280)), (73, 78, 
 SPRITE_PALETTES = range(260, 272)  # g_event 151-1845: 140x140 and 180x180 character sprites of the event scenes
 ITEM_PALETTES = range(330, 333)    # g_maindy 2201-2280: the 80 item pictures, 120x120
 ITEM_PICTURES = 2201
+# g_maindy 1817-1826: the overview map of China with the 50 city boxes, from almost top-down (392x352) to the
+# most tilted (736x340), the frames of a tilt animation (【推】 where it is shown); all take palette 7
+# (pick_palette, 🟡). No larger map of the whole country was found in g_maindy, g_main, g_Init, g_strcmd, g_pscmd
+# or G_W00Tmp (their largest entries looked at, not every one).
+WORLDMAP = range(1817, 1827)
 # D_Sce.s8: 255 item records of 21 bytes from 0xEFD (record 255 is a "ダミ" filler): +0 id, +1 name 13,
 # +14 type, +15 kind (= picture and description number), +16 value, +17 ability bonus, +18 特技 (0xFF none),
 # +19 0 = lies in the city at +20 (0xFF: nowhere), 1 = held by a person (who is not in this file; +20 is 0xFF)
@@ -142,6 +147,18 @@ def screens(game_dir: str, out: str) -> int:
             Image.open(path).convert("RGB").save(os.path.join(dst, os.path.splitext(f)[0] + ".png"))
             n += 1
     return n
+
+
+def worldmap(game_dir: str, out: str, palettes: dict) -> int:
+    """The overview maps of China (WORLDMAP) to worldmap/overview_NN.png."""
+    dst = os.path.join(out, "worldmap")
+    os.makedirs(dst, exist_ok=True)
+    entries = koei_archive(open(os.path.join(game_dir, "g_maindy.s8"), "rb").read())
+    for n, i in enumerate(WORLDMAP):
+        e = entries[i]
+        w = guess_width(e)
+        to_png(e, w, palettes[pick_palette(e, w, palettes, palettes)], os.path.join(dst, f"overview_{n:02d}.png"))
+    return len(WORLDMAP)
 
 
 def cities(sce: bytes) -> list[str]:
@@ -291,8 +308,9 @@ def san8_extras(game_dir, out):
     n_bios, n_lines, n_events = texts(game_dir, out, msg)
     n_still, n_sprite = event_pictures(game_dir, out, palettes)
     n_screens = screens(game_dir, out)
+    n_maps = worldmap(game_dir, out, palettes)
     print(f"{n_items} items + 80 pictures, {n_bios} biographies, {n_lines} message lines, {n_events} event scripts, "
-          f"{n_still} event pictures, {n_sprite} sprites, {n_screens} screens")
+          f"{n_still} event pictures, {n_sprite} sprites, {n_screens} screens, {n_maps} overview maps")
 
 
 if __name__ == "__main__":

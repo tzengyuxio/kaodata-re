@@ -21,6 +21,14 @@ from sango import SAN9_GAIJI, SAN9_PERSONS, SAN9_SCENARIOS, load_san9_persons, s
 # u32 width, u32 height) and 8-bit pixels, top-down. Colour 0 (pure green) is the transparent key.
 # When there are as many palettes as pictures, picture k uses palette k (G_Still, G_StilPK); otherwise the file
 # does not say which palette a picture uses, so it is guessed (pick_palette, 🟡).
+# G_MMap.s9 (16 palettes, 221 pictures): the whole-country maps of the strategic screen, (picture, name). The full
+# isometric map is drawn from D_Land00.s9 (96489 records of 13 bytes: u16 sprite, u16 0, u8 x, u8 y on a 200 x 200
+# grid, …) with the G_LLand / G_LBUILD / G_MESH / G_LNMASK sprites and the P_Land_{S,N,A,W} season palettes; that
+# render is not done. The Japanese install was deleted before this, so the maps are read from the Steam 繁中版
+# depot (WORLDMAP_DEPOT, relative to the game folder); the region and border masks have arbitrary colours.
+WORLDMAP = [(164, "iso_terrain"), (162, "iso_regions"), (163, "iso_borders"),
+            (168, "flat_stone"), (166, "flat_regions"), (167, "flat_borders"), (169, "flat_frame_a"), (170, "flat_frame_b")]
+WORLDMAP_DEPOT = os.path.join("..", "steam", "628050-tchinese", "depot")
 # (folder, file, pictures); picked from contact sheets of every file
 PICTURES = [
     ("still", "G_Still.s9", range(0, 72)),        # 45 small (160x128) and 27 large (512x384) event stills
@@ -337,6 +345,17 @@ def bio_names(game_dir) -> dict[int, str]:
     return dict(enumerate(zh_names(game_dir)))
 
 
+def worldmap(depot, out):
+    """The whole-country maps of G_MMap.s9 (WORLDMAP) to worldmap/<name>.png; palettes guessed (🟡)."""
+    pals, pics = load_pictures(os.path.join(depot, "G_MMap.s9"))
+    os.makedirs(os.path.join(out, "worldmap"), exist_ok=True)
+    for k, name in WORLDMAP:
+        w, h, px = pics[k]
+        p = 0 if len(set(px)) <= 4 else pick_palette(w, h, px, pals)  # the border masks: lines on palette 0
+        to_image(w, h, px, pals[p]).save(os.path.join(out, "worldmap", f"{name}.png"))
+    return len(WORLDMAP)
+
+
 @click.command("san9-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628050)")
 @click.option("--out", required=True, type=click.Path())
@@ -349,6 +368,9 @@ def san9_extras(game_dir, out):
     print(f"{n} items ({2 * n} pictures), {h} holder rows, {len(FACILITIES)} facility pictures")
     print(f"{tables(game_dir, out, msg)} 兵法")
     print("texts:", texts(game_dir, out, msg, persons))
+    depot = os.path.join(game_dir, WORLDMAP_DEPOT)
+    if os.path.exists(os.path.join(depot, "G_MMap.s9")):
+        print(f"{worldmap(depot, out)} maps")
 
 
 if __name__ == "__main__":

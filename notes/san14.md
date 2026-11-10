@@ -192,6 +192,20 @@
   - 日文的外字用人物表兩種語言的名字對出（瓚、郃、蒯……）；人物表沒有的 4 個從上下文判讀：E020 邳（下邳）、E02D 鄴（審配守城）、E00B 兗（兗州）、E02A 涪（涪水関）🟡。繁中只有一處把公孫瓚寫成日文的碼（第 1023 列），照日文換回。
 - 事件腳本在 `0004/Event001.s14`、`EventPK001.s14`（PK）、`CCEvent*.s14`；`SAN14PK.exe` 有 `stl_event_`、`stl_event_bg_` 等字首字串，所以插圖號在腳本裡，沒有解。
 
+### 大地圖（`worldmap/`，2026-11-11）
+
+`san14_extras.worldmap`（`san14-extras` 含圖時一起跑；單獨跑：`../.venv/bin/python -c "import san14_extras as s; s.worldmap('../games/san14pk-win', '../games/san14pk-win/extract')"`，約 15 秒）。大地圖是 3D 的六角格，沒有畫好的整張 2D 圖；找到的 2D 貼圖：
+
+| 檔案 | 來源 | 內容 | 可信度 |
+|---|---|---|---|
+| `ground_color.png` | `FieldEditor4.rdb` bin14 0x3720000 的 `GT1G4600` 第 2 張 | 4096×4096 BC3，整張大地圖的地面底色（六角格、道路、城的圓點看得出來） | 🟡 code：用途是看圖推的 |
+| `hex_terrain.png` | `RRPreview.rdb` 0x7F0000 的 `GT1G0500` | 8192×8192 RGBA8，地圖編輯器的六角格地形預覽（黃色是大河、灰是山、綠是林、紅褐色、藍色線是道路或河），顏色對哪種地形沒解 | 🟡 code |
+| `map_cover.png` | `ScreenLayout.rdb` sprite `map_cover` | 4000×3000，大地圖外圍的手繪底圖（中間挖空給 3D 地圖） | ✅ code |
+
+- 位置是 PK 下載（depot 1427650，`notes/steam.md`）的 `.rdb.bin` 位移；KTID 沒進 `san14_entries` 的回傳值，換版本要重找。
+- 沒輸出的：`RRPreview.rdb` 另外兩張 8192×8192 灰階六角格圖和一張 4096×4096 灰階圖（推定是高度或屬性，🟡），`FieldEditor4.rdb` 的法線、遮罩與 1024 的地表材質，`ScreenLayout.rdb` 的 `09_bese_location_map`（是星圖，不是地圖）。
+- `MaterialEditor.rdb` 的貼圖都在 1024 以下（材質），沒有整張地圖。
+
 ### 負面結論
 
 - 事件腳本（`0004/*.s14`）沒解：事件的觸發條件、用哪張插圖、事件號和表序號的對應都還沒有。

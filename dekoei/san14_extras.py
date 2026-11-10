@@ -9,6 +9,8 @@ to <out>/{eventcg,items,events}/ and <out>/inventory.csv. Formats are in notes/s
   Records 132-200 are placeholders (アイテム). Kind names are string 2051 + kind, effect names 2077 + effect and
   descriptions 1886 + item of table 0 of 0001_<lang>/msgdata.bin.
 - Events: table 3 of msgdata.bin; event e is strings 4e + 1 (title), 4e + 2 (summary), 4e + 3 (result).
+- World map (worldmap/): the 3D map has no painted 2D picture; what is 2D is the ground's base colour (FieldEditor4.rdb),
+  the editor's 8192 x 8192 hex terrain preview (RRPreview.rdb) and the painted backdrop around the map (map_cover).
 """
 import csv
 import json
@@ -208,6 +210,40 @@ def _magic(rdb, loc) -> str:
     return head[:8].decode("latin-1").replace("\0", ".")
 
 
+# world map textures: (rdb, (bin, offset, stored size) of the entry, texture index, file name); the locations are those
+# of the Steam PK build in notes/steam.md (depot 1427650)
+WORLDMAP = [("0002/FieldEditor4.rdb", (14, 57802752, 30968596), 2, "ground_color.png"),  # BC3 4096, GT1G4600
+            ("0002/RRPreview.rdb", (-1, 8323072, 64039516), 0, "hex_terrain.png")]  # RGBA8 8192, GT1G0500
+
+
+def worldmap(game_dir, out, sp=None) -> list[tuple]:
+    """The 2D world map textures to out/worldmap/ and worldmap/index.csv."""
+    os.makedirs(os.path.join(out, "worldmap"), exist_ok=True)
+    index = []
+    for rdb, loc, k, file in WORLDMAP:
+        path = os.path.join(game_dir, rdb)
+        fsize = next(e[1] for e in sango.san14_entries(path) if e[2] == loc)
+        t = sango.san14_read(path, fsize, loc)
+        header = struct.unpack_from("<I", t, 0x0C)[0]
+        o = header + struct.unpack_from("<I", t, header + 4 * k)[0]
+        fmt, dim = t[o + 1], t[o + 2]
+        w, h = 1 << (dim & 15), 1 << (dim >> 4)
+        start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
+        if fmt == 1:
+            im = Image.frombytes("RGBA", (w, h), t[start:start + w * h * 4])
+        else:
+            assert fmt == 0x5B, fmt
+            im = Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3)
+        im.convert("RGB").save(os.path.join(out, "worldmap", file))
+        index.append((file, f"{w}x{h}", f"{os.path.basename(rdb)} {loc} texture {k}"))
+    sp = sp or sprites(game_dir)
+    im = Textures(game_dir).cut(sp["map_cover"])
+    im.save(os.path.join(out, "worldmap", "map_cover.png"))
+    index.append(("map_cover.png", f"{im.width}x{im.height}", "ScreenLayout.rdb sprite map_cover"))
+    _csv(os.path.join(out, "worldmap", "index.csv"), ["file", "size", "source"], index)
+    return index
+
+
 @click.command(help="三國志14 PK: event pictures, items (寶物), event texts and an RDB inventory.")
 @click.option("--game-dir", required=True, help="the Steam files (games/san14pk-win)")
 @click.option("--out", required=True, help="output folder (games/san14pk-win/extract)")
@@ -256,3 +292,4 @@ def san14_extras(game_dir, out, no_pictures):
     _csv(os.path.join(out, "items", "pictures", "index.csv"), ["file", "sprite", "kind", "size", "source", "note"],
          [r for r in index if r[0].startswith("items")])
     click.echo(f"{len(index)} pictures")
+    click.echo(f"{len(worldmap(game_dir, out, sp))} world maps")
