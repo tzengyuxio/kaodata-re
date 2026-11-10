@@ -21,7 +21,8 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 - `+force_install_dir` 要放在 `+login` 前面，路徑要寫絕對路徑。
 - 登入時會問密碼，接著問 Steam Guard 碼。成功一次之後，SteamCMD 會記住登入，下次只需要帳號名稱。
 - 在 Claude Code 裡要自己輸入，例如 `! steamcmd …`（fish 也能用上面的寫法）。
-- 只要某一個 depot 時，可以在 SteamCMD 主控台用 `download_depot <appid> <depotid> [manifestid]`，或在 Steam 客戶端開 `steam://open/console`。
+- 只要某一個 depot 時，可以在 SteamCMD 主控台用 `download_depot <appid> <depotid> [manifestid]`，或在 Steam 客戶端開 `steam://open/console`。`download_depot` 不管 `+force_install_dir`，一律下載到 SteamCMD 自己的 `steamapps/content/app_<appid>/depot_<depot>/`（Homebrew 版在 `/opt/homebrew/Caskroom/steamcmd/<版本>/MacOS/` 底下），下載完再搬；下載中不要搬，會把檔案拆成兩半（2026-11-10 三國志11 因此重下）。
+- 三國志VII–12 的繁中版是同一個 app 的另一個 depot（`tchinese`，2026-11-10 用 `app_info_print` 查到），用 `download_depot` 取。
 - appid 和 depot id 可以在商店網址（`store.steampowered.com/app/<appid>/`）或 SteamDB 查到。
 
 ## 安裝目錄的刪除（2026-11-08）
@@ -67,3 +68,9 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 | 信長の野望・蒼天録 with パワーアップキット | 628130 | 628131（manifest 7451064036601565840） | build 2476690 | 日文版，`games/steam/628130/`；匯出用的檔案在 `games/nobu10pk-win/` |
 | 信長の野望・天下創世 with パワーアップキット | 628140 | 628141（manifest 6058273930614473722） | build 2431466 | 日文版，`games/steam/628140/`；匯出用的檔案在 `games/nobu11pk-win/` |
 | 信長の野望・天翔記 with パワーアップキット HD Version | 370730 | — | — | 沒有安裝任何 depot（帳號應該沒有這款），`games/steam/370730/` 只有 manifest |
+| 三國志VII with 威力加強版 繁中版 | 628030 | 628032（manifest 4248938368459573586） | 2026-11-10 | `games/steam/628030-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
+| 三國志VIII with 威力加強版 繁中版 | 628040 | 628042（manifest 4089676707756992132） | 2026-11-10 | `games/steam/628040-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
+| 三國志IX with 威力加強版 繁中版 | 628050 | 628052（manifest 4620203723096695661） | 2026-11-10 | `games/steam/628050-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
+| 三國志X with 威力加強版 繁中版 | 628060 | 628062（manifest 2296353219613693479） | 2026-11-10 | `games/steam/628060-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
+| 三國志11 with 威力加強版 繁中版 | 628070 | 628072（manifest 3611590611992064954） | 2026-11-10 | `games/steam/628070-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |
+| 三國志12 with 威力加強版 繁中版 | 628080 | 628082（manifest 1876821799476983415） | 2026-11-10 | `games/steam/628080-tchinese/depot/`；列傳用（`notes/san-biographies.md`） |

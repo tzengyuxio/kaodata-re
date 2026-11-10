@@ -12,7 +12,7 @@ import click
 from PIL import Image
 
 from ls11 import ls11_decode
-from sango import SAN11_GAIJI, load_san11_persons
+from sango import SAN11_GAIJI, SAN11_PERSONS, load_san11_persons
 
 # media/san11pkres.bin, media/san11res1.bin: "LINK", u32 count at +4, (u32 offset, u32 size) pairs from +0x10.
 # A WFTX0010 texture: u32 total size at +8, u32 frame count at +12, then per frame u16 w, u16 h, u8 bpp, 3 flag
@@ -287,6 +287,58 @@ def texts(game_dir, out):
             rows.append([k, persons.get(k, ""), kind, "\n".join(part)])
     write_csv(os.path.join(out, "text", "biographies.csv"), ["id", "name", "kind", "text"], rows)
     return {n: len(m) for n, m in msgs.items()}, len(rows)
+
+
+# biography.py reads the Steam 繁中版 (depot 628072): S11MSG02 has the 列傳 in the Japanese order (BIO_INDEX),
+# cp950 with the gaiji of 三國志IX (san9_extras.ZH_GAIJI) and 02 96 'NNx' colour codes; the 演義 part starts with
+# the icon FA60 and the 史實 part with FA49 (the Japanese F0AF, F0AE). The scenario's person records are the Japanese
+# ones (152 bytes, surname +0, given name +5) but start at 17760 (SCEN000.s11).
+BIO_LANG = "zh-Hant"
+ZH_ICONS = {b"\xfa\x60": "演義", b"\xfa\x49": "史實"}
+ZH_PERSONS = 17760
+# S11MSG02 entry of a person's 列傳, by content (🟡 cross: the names, offices and stories of the Japanese texts): the
+# same number up to 669 and for 700-713 (霊帝 … 南斗); 699 is a second 献帝, 714-721 and 724 are the tribe and 盗賊
+# roles, 722, 723 are 張譲 729 and 蹇碩 730, 725-756 the 古武將 800-831 in order, 757 on the glossary
+BIO_INDEX = {**{k: k for k in [*range(670), *range(700, 714)]}, 729: 722, 730: 723,
+             **{800 + k: 725 + k for k in range(32)}}
+# the Japanese 記述なし; 並供記載 (once) is a typo of 並無記載
+ZH_NO_RECORD = {"沒有記載", "並無記載", "沒有記述", "並供記載"}
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    import re
+    from biography import sections
+    from san9_extras import zh_text
+    msgs = messages(game_dir, 2)
+    out = {}
+    for k, m in BIO_INDEX.items():
+        lines = re.sub(rb"\x02\x96[0-9]+x", b"", msgs[m]).rstrip(b"\x05").split(b"\n")
+        intro, parts = zh_text(lines[0]).strip(), []
+        for line in lines[1:]:
+            if line[:2] in ZH_ICONS:
+                parts.append((ZH_ICONS[line[:2]], zh_text(line[2:]).strip()))
+            elif parts:
+                parts[-1] = (parts[-1][0], parts[-1][1] + zh_text(line).strip())
+            else:
+                intro += zh_text(line).strip()
+        parts = [(kind, t) for kind, t in parts if t.rstrip("。") not in ZH_NO_RECORD]
+        if sections(intro, parts):
+            out[k] = sections(intro, parts)
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    from san9_extras import zh_text
+    _, size, count = SAN11_PERSONS
+    with open(os.path.join(game_dir, "media/scenario/SCEN000.s11"), "rb") as f:
+        data = f.read()
+    out = {}
+    for k in range(count):
+        r = data[ZH_PERSONS + k * size:ZH_PERSONS + (k + 1) * size]
+        name = zh_text(r[0:5].split(b"\0")[0]) + zh_text(r[5:10].split(b"\0")[0])
+        if name:
+            out[k] = name
+    return out
 
 
 @click.command("san11-extras")

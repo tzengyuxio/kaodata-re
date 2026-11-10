@@ -237,6 +237,50 @@ def events(game_dir: str, out: str) -> int:
     return n
 
 
+# biography.py reads the Steam 繁中版 (depot 628062): msg/S10M13PK.s10 has the same 807 entries as the Japanese
+# release, the 列傳 being the ones a person record's +20 points at (0-730), cp950 ended by 05 05 05 with the gaiji of
+# 三國志IX (san9_extras.ZH_GAIJI; 朱儁's 儁 is FA45). The names are in San10WPK.exe like the Japanese ones
+# (sango.load_san10_persons), the three u32 VA tables at 0x919120 (surname), 0x919B48 (given name), 0x91A570 (style).
+BIO_LANG = "zh-Hant"
+ZH_NAME_TABLES = (0x919120, 0x919B48)
+
+
+def zh_persons(game_dir) -> list[tuple[int, str, int]]:
+    """(id, name, 列傳 number) of the 650 officers of the 繁中版."""
+    from san9_extras import zh_text
+    with open(os.path.join(game_dir, "San10WPK.exe"), "rb") as f:
+        exe = f.read()
+    with open(os.path.join(game_dir, "Scenario", "Sce000.s10"), "rb") as f:
+        sce = f.read()
+
+    def name(table, k):
+        o = struct.unpack_from("<I", exe, table - 0x400000 + 4 * k)[0] - 0x400000
+        return zh_text(exe[o:exe.index(b"\0", o)])
+
+    start, size, count = sango.SAN10_PERSONS
+    out = []
+    for k in range(count):
+        r = sce[start + k * size:start + (k + 1) * size]
+        assert struct.unpack_from("<H", r, 14)[0] == k
+        out.append((k, "".join(name(t, k) for t in ZH_NAME_TABLES), struct.unpack_from("<H", r, 20)[0]))
+    return out
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    from san9_extras import zh_text
+    msg = read_msg(os.path.join(game_dir, "msg", "S10M13PK.s10"))
+    out = {}
+    for k, _, bio in zh_persons(game_dir):
+        t = zh_text(msg[bio].rstrip(b"\x05")).replace("\n", "").strip()
+        if t:
+            out[k] = [("單段", t)]
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    return {k: name for k, name, _ in zh_persons(game_dir)}
+
+
 @click.command()
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam files (games/san10pk-win)")
 @click.option("--out", required=True, type=click.Path(), help="games/san10pk-win/extract")

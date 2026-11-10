@@ -13,7 +13,7 @@ import struct
 import click
 from PIL import Image
 
-from sango import SAN8_GAIJI, koei_archive, load_san8_persons
+from sango import SAN8_GAIJI, SAN8_PERSON_SIZE, SAN8_PERSONS, koei_archive, load_san8_persons
 
 # The KOEI archives (sango.koei_archive) hold raw 8 bit pixels with no size or palette. Widths are found by row
 # correlation (guess_width); palettes are 256 x (R, G, B, flag) entries of p_main.s8, picked per picture by the
@@ -212,6 +212,50 @@ def texts(game_dir: str, out: str, msg: list) -> tuple[int, int, int]:
         for i, _, _ in events:
             f.write(f"== {i}\n" + "\n".join(t for _, t in sjis_runs(msg_items(msg[i])[0])) + "\n")
     return len(rows), len(lines), len(events)
+
+
+# biography.py reads the Steam 繁中版 (depot 628042): the same files and layout as the Japanese release, texts and
+# names in cp950, no gaiji. A biography is lines ended by NUL, every line after the first starting with "@R"; the
+# entry ends in "$\"" (an empty one is only that: 588, the face 関定 and 劉泌 share). The kaodata ids are the D_Sce.s8 person ids without the event roles and
+# 単福 (kaodata_export.SAN8PK_WIN_ROLES, _ALIASES), listed here by id since the 繁中版 names differ.
+BIO_LANG = "zh-Hant"
+ZH_ROLE_IDS = {575, 577, 579, 580, 581, 582, 585, 586, 587, 588, 591, 592, 595, 596, 597}
+
+
+def zh_persons(game_dir) -> list[tuple[int, str, int]]:
+    """(id, name, face) of the 繁中版 D_Sce.s8 records, roles left out."""
+    with open(os.path.join(game_dir, "D_Sce.s8"), "rb") as f:
+        data = f.read()
+
+    def text(b):
+        return b.split(b"\0")[0].decode("cp950").strip()
+
+    out = []
+    for k in range(658):
+        r = data[SAN8_PERSONS + k * SAN8_PERSON_SIZE:SAN8_PERSONS + (k + 1) * SAN8_PERSON_SIZE]
+        assert int.from_bytes(r[:2], "little") == k
+        if k not in ZH_ROLE_IDS:
+            out.append((k, text(r[2:7]) + text(r[0x12:0x17]), int.from_bytes(r[0x27:0x29], "little")))
+    return out
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    msg = koei_archive(open(os.path.join(game_dir, "m_msg.s8"), "rb").read())
+    texts = [b for k in MSG_BIOGRAPHIES for b in msg_items(msg[k])]
+    first = {}
+    for k, _, face in zh_persons(game_dir):
+        first.setdefault(face, k)
+    out = {}
+    for face, b in enumerate(texts):
+        lines = [s.removeprefix(b"@R").removesuffix(b'$"') for s in b.split(b"\0")]
+        t = "".join(s.decode("cp950") for s in lines if not s.startswith(b"$")).strip()
+        if t and face in first:
+            out[first[face]] = [("單段", t)]
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    return {k: name for k, name, _ in zh_persons(game_dir)}
 
 
 @click.command("san8-extras")

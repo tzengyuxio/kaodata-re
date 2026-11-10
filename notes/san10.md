@@ -37,7 +37,7 @@
 
 - 劇本檔 `Scenario/Sce00?.s10`、`ScePK0??.s10`（71095 bytes）是未壓縮的二進位資料。武將是 650 筆 × 66 bytes，從 23001 開始：
   - +14 u16 是武將序號（依讀音排序，0 阿会喃 … 649 盧植）。
-  - +20 u16 是列傳編號（`msg/S10M13PK.s10` 的第幾項，和三國志VII–IX 的編號一致：張飛 1、関羽 2）。
+  - +20 u16 是列傳編號（`msg/S10M13PK.s10` 的第幾項，和三國志VII–IX 的編號一致：張飛 1、関羽 2）。koei-wiki 匯出讀 Steam 繁中版（depot 628062）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki/<dataset>.jsonl`，總表在 `notes/san-biographies.md`）：`S10M13PK.s10` 同樣 807 則，cp950＋三國志IX 的外字；繁中版的姓、名、字表在 `San10WPK.exe` 0x919120、0x919B48、0x91A570（和日文版一樣 650 個 u32 VA）。650 人 ✅ cross。
   - +22 u16 是頭像碼，只有士徽、士匡、士祗三人和列傳編號不同（702／703／705 互換）。
 - 姓名不在劇本或訊息檔裡，而是寫死在 EXE：`.data` 有四張 650 個 u32 VA（image base 0x400000）的指標表，各指到 `.rdata` 的 Shift-JIS 字串（`sango.load_san10_persons`）：
   - 0x8F0030 姓

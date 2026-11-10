@@ -1,5 +1,5 @@
 ---
-status: todo
+status: done
 created: 2026-11-10
 ---
 # 三國志 VII–12 繁中列傳
@@ -7,7 +7,7 @@ created: 2026-11-10
 ## 現況
 
 - Steam 的三國志 VII–12 with 威力加強版各有一個 `tchinese` depot，是完整的繁中版遊戲（2026-11-10 用 `app_info_print` 查到；`baselanguages` 是 `tchinese,japanese`）。目前只下載過日文 depot（`notes/steam.md`）。
-- `notes/san-biographies.md` 與 `biography.py` 寫「三國志IX 沒有中文版」是錯的，`export/koei-wiki/san9pk-win.jsonl` 現在是日文。
+- 2026-11-10 已下載 6 個繁中 depot，VII–12 的列傳都改讀繁中版匯出（三國志IX 原本以為沒有中文版，已改正）。
 
 | 遊戲 | appid | 繁中 depot | manifest | 安裝大小 | 下載量 |
 |---|--:|--:|---|--:|--:|
@@ -20,15 +20,16 @@ created: 2026-11-10
 
 ## 下一步
 
-1. 使用者在自己的終端機跑 `steamcmd +login yuxioz +quit` 更新登入快取（2026-11-10 快取已過期，`Cached credentials not found`）。
-2. `steamcmd +@sSteamCmdForcePlatformType windows +login yuxioz +download_depot <appid> <depot> +quit`（沙箱外執行），記進 `notes/steam.md`。
-3. 找各代繁中列傳的檔案（日文版的位置見 `notes/san-biographies.md`「沒有匯出」），接上 `biography.py`，`lang` 用 `zh-Hant`。
-4. 三國志IX 改用繁中重新匯出，修正筆記、`biography.py` 註解與 CLAUDE.md 的「沒有繁中版的三國志IX」，通知 koei-wiki。
+1. ~~登入 Steam~~、~~下載 6 個繁中 depot~~（2026-11-10，`notes/steam.md`）。
+2. ~~接上 `biography.py`~~：VII–12 全部讀繁中版，三國志IX 由日文改成繁中（`notes/san-biographies.md`）。
+3. 通知 koei-wiki（未做，等使用者 commit）。
+4. 信長の野望 5–13 的中文列傳（koei-wiki 2026-11-10 來信要求）：Steam 的信長是否有 tchinese depot 還沒查。
 
 ## 負面結論
 
-目前沒有。
+- 三國志11 的 `S11MSG02`、三國志12 的 `S12MSG03` 都不是照人物號排的（11 在 670 以後錯開，12 依 id 範圍緊排）；人物記錄裡找不到列傳號欄位（12 試過找等於推定則號的 u16：沒有），對法是照內容判定的。
 
 ## 未收尾
 
-- 等使用者登入 Steam。
+- 未 commit。
+- 三國志11 日文版 `san11-extras` 的 `text/biographies.csv` 在 670 以後的 id 是錯的，沒改（`notes/san11.md`）。

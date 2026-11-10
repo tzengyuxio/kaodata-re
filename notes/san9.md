@@ -91,7 +91,7 @@ cd dekoei
   - 659–667 是空的，對到頭像 666–674（北斗、南斗與盗賊、文官等角色）；668–678 是倭、烏丸、羌、山越、南蛮的王與武將，同族武將共用一則。
   - ✅ cross：三國志VII、VIII 也有的 575 則（文字幾乎相同），用 3 字元組比相似度找出兩代裡最像的一則，573 則的人名和這條規則對到的人相同，另 2 則只差錯字（厳晙／厳畯、田豫／田与）。九代才有的 95 則逐則看內容，都和規則對到的人相符（例：564 孫述「孫鄰の子。武昌督」、568 張潁「合肥新城の守將」、586 馮紞「賈充、荀勗らとともに反対」）。
   - 舊的「照頭像號對人」在 563 以後全部錯開 7 則（原本以為 600 以後才錯）。
-  - koei-wiki 匯出：`dekoei.py biography san9pk-win --game-dir ../games/san9pk-win --out ../export/koei-wiki/san9pk-win.jsonl`（`san9_extras.bios`），670 則，`lang` 是 `ja`、`kind` 是單段，遊戲排版的換行拿掉；同族武將的那則給 kaodata 留下的第一人。id 與姓名和 kaodata 資料集全部相同。kaodata 的 679 人裡沒有列伝的 9 人：上面 7 人加北斗、南斗。
+  - koei-wiki 匯出（2026-11-10 改成繁中）：`dekoei.py biography san9pk-win --game-dir ../games/steam/628050-tchinese/depot --out ../export/koei-wiki/san9pk-win.jsonl`（`san9_extras.bios`）讀 Steam 繁中版（depot 628052）：`M_Rtdn.s9` 同樣 679 則、同樣排法，cp950；名字在繁中 `M_MsgPK.s9` part 0 從「阿會喃」起，和日文版同樣四欄（讀音欄是空的）。外字 FA40 伷、FA41 璝、FA42 甯、FA44 𩅦、FA45 儁（`ZH_GAIJI`，照同 id 的日文名與內容判定 🟡）。670 則，`lang` 是 `zh-Hant`、`kind` 是單段，遊戲排版的換行拿掉；同族武將的那則給 kaodata 留下的第一人。id 與姓名和 kaodata 資料集全部相同。kaodata 的 679 人裡沒有列伝的 9 人：上面 7 人加北斗、南斗。
 
 ## 下一輪候選
 

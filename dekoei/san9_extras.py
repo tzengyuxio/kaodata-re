@@ -14,7 +14,7 @@ import click
 from PIL import Image
 
 import ls11
-from sango import SAN9_GAIJI, SAN9_SCENARIOS, load_san9_persons
+from sango import SAN9_GAIJI, SAN9_PERSONS, SAN9_SCENARIOS, load_san9_persons, san9_faces
 
 # Picture files G_*.s9 ("palettes first"): u32 palette count, count x (BITMAPINFOHEADER 40 bytes + 256 x R G B X),
 # u32 size of the picture block, then pictures of a 16-byte header (u32 size incl. header, u32 stride (= width),
@@ -60,7 +60,7 @@ KINDS = ["名馬・乗物", "武器", "兵法書", "政治書", "史書", "経�
 # 584 texts that 三國志VII/VIII also have match the person of the same name there (the other 2 differ only in a
 # misspelt name, 厳晙/田与); the 95 IX-only texts fit their person by content.
 BIO_NO_TEXT = range(563, 570)
-BIO_LANG = "ja"
+BIO_LANG = "zh-Hant"
 
 
 def bio_face(k: int) -> int:
@@ -285,22 +285,47 @@ def texts(game_dir, out, msg, persons):
 
 
 
+# 繁中版 gaiji (S9gaiji.tte), read from the Japanese names of the same ids and the 列傳 context (🟡); FA43 unused
+ZH_GAIJI = {b"\xfa\x40": "伷", b"\xfa\x41": "璝", b"\xfa\x42": "甯", b"\xfa\x44": "𩅦", b"\xfa\x45": "儁"}
+
+
+def zh_text(b: bytes, gaiji: dict = ZH_GAIJI) -> str:
+    out, i = [], 0
+    while i < len(b):
+        n = 2 if b[i] >= 0x80 else 1
+        out.append(gaiji.get(b[i:i + n]) or b[i:i + n].decode("cp950"))
+        i += n
+    return "".join(out)
+
+
+def zh_names(game_dir) -> list[str]:
+    """The 700 names of the Steam 繁中版 (depot 628052): M_MsgPK.s9 part 0 from 阿會喃 on, surname, given name, style
+    name and an empty kana field separated by 05 05 05, as in the Japanese release; cp950 and ZH_GAIJI."""
+    with open(os.path.join(game_dir, "M_MsgPK.s9"), "rb") as f:
+        msg = ls11.ls11_decode_parts(f.read())[0]
+    parts = msg[msg.index("阿會".encode("cp950")):].split(b"\x05\x05\x05")
+    return [zh_text(parts[4 * k] + parts[4 * k + 1]) for k in range(SAN9_PERSONS)]
+
+
 def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
-    """列伝 for biography.py: {person id: [("單段", text)]}, the line breaks of the game's layout removed. A tribe's
-    officers share one face and one 列伝; it goes to the first of them, the one the kaodata dataset keeps."""
+    """列傳 of the Steam 繁中版 for biography.py: {person id: [("單段", text)]}, the line breaks of the game's layout
+    removed. M_Rtdn.s9 has the same 679 entries in the same order as the Japanese release (bio_face), cp950 ended by
+    05 05 05 (ZH_GAIJI). A tribe's officers share one face and one 列傳; it goes to the first of them, the one the
+    kaodata dataset keeps."""
     first = {}
-    for p in load_san9_persons(game_dir):
-        first.setdefault(p["face"], p["id"])
+    for k, face in enumerate(san9_faces(game_dir)):
+        first.setdefault(face, k)
     out = {}
     for k, b in enumerate(entries(os.path.join(game_dir, "M_Rtdn.s9"))):
-        t = text(b).strip().replace("\n", "")
+        t = zh_text(b.rstrip(b"\x05")).replace("\n", "").strip()
         if t and bio_face(k) in first:
             out[first[bio_face(k)]] = [("單段", t)]
     return out
 
 
 def bio_names(game_dir) -> dict[int, str]:
-    return {p["id"]: p["name"] for p in load_san9_persons(game_dir)}
+    return dict(enumerate(zh_names(game_dir)))
+
 
 @click.command("san9-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628050)")

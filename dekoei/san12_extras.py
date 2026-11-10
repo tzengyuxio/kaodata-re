@@ -223,6 +223,57 @@ def events(game_dir, out):
     return len(voices), len(script) - 523
 
 
+# biography.py reads the Steam 繁中版 (depot 628082). PK/Msg/S12MSG03.s12 has 938 列傳 (the Japanese release 1089),
+# not by person id but packed by id range (🟡 cross: the content fits the person in every range; 貂蝉 824 → 774,
+# 織田信長 900 → 789, 項籍 1157 → 861): BIO_RANGES. 549-749, 896-928 are empty and 936, 937 are not text; the
+# relatives 1410- have none. A 列傳 is cp950 with 02 96 'NNx' colour codes: the summary, then the 演義 part after
+# the icon FA60 and the 史實 part after FA49, as in 三國志11. The names are in the person records of
+# PK/Scenario/Scenario0.dat (sango.san12_person_part): surname +9, given name +4, cp950.
+BIO_LANG = "zh-Hant"
+BIO_RANGES = [(0, 750, 0), (800, 832, 50), (900, 965, 111), (1150, 1232, 296), (1300, 1307, 518)]  # ids, minus
+ZH_GAIJI = {b"\xfa\x70": "坂", b"\xfa\x7f": "琰"}  # besides san9_extras.ZH_GAIJI: 高坂昌信, 崔琰の父 (🟡)
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    import re
+    from biography import sections
+    from san9_extras import ZH_GAIJI as SAN9
+    from san9_extras import zh_text
+    from san11_extras import ZH_ICONS, ZH_NO_RECORD
+    gaiji = {**SAN9, **ZH_GAIJI}
+    msgs = messages(os.path.join(game_dir, "PK/Msg/S12MSG03.s12"))
+    out = {}
+    for lo, hi, minus in BIO_RANGES:
+        for k in range(lo, hi):
+            lines = re.sub(rb"\x02\x96[0-9]+x", b"", msgs[k - minus]).rstrip(b"\x05").split(b"\n")
+            intro, parts = zh_text(lines[0], gaiji).strip(), []
+            for line in lines[1:]:
+                if line[:2] in ZH_ICONS:
+                    parts.append((ZH_ICONS[line[:2]], zh_text(line[2:], gaiji).strip()))
+                elif parts:
+                    parts[-1] = (parts[-1][0], parts[-1][1] + zh_text(line, gaiji).strip())
+                else:
+                    intro += zh_text(line, gaiji).strip()
+            parts = [(kind, t) for kind, t in parts if t.rstrip("。") not in ZH_NO_RECORD]
+            if sections(intro, parts):
+                out[k] = sections(intro, parts)
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    from san9_extras import ZH_GAIJI as SAN9
+    from san9_extras import zh_text
+    from sango import SAN12_PERSONS, san12_person_part
+    part = san12_person_part(os.path.join(game_dir, "PK/Scenario/Scenario0.dat"), 292)
+    out = {}
+    for k in range(SAN12_PERSONS):
+        r = part[k * 292:(k + 1) * 292]
+        name = "".join(zh_text(f.split(b"\0")[0], {**SAN9, **ZH_GAIJI}) for f in (r[9:14], r[4:9]))
+        if name:
+            out[k] = name
+    return out
+
+
 @click.command("san12-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628080)")
 @click.option("--out", required=True, type=click.Path())

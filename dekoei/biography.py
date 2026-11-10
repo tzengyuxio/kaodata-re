@@ -257,12 +257,13 @@ def san14_names(game_dir) -> dict[int, str]:
 DATASETS = {"san4pk-dos": (san4_bios, lambda d: {i: v[0] for i, v in san4_persons(d).items()}),
             "san5pk-dos": (san5_bios, lambda d: {i: v[0] for i, v in san5_persons(d).items()}),
             "san6pk-win": (san6_bios, san6_names), "san13pk-win": (san13_bios, san13_names), "san14pk-win": (san14_bios, san14_names)}
-# 信長の野望 and 三國志IX: dataset -> module with bios(game_dir) -> {id: [(kind, text)]}, bio_names(game_dir) -> {id:
+# 信長の野望 and 三國志VII–12: dataset -> module with bios(game_dir) -> {id: [(kind, text)]}, bio_names(game_dir) -> {id:
 # name} and BIO_LANG (the text's language)
 MODULES = {"nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7", "nobu8pk-win": "wiki_nobu8",
            "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10", "nobu11pk-win": "wiki_nobu11",
            "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13",
-           "san9pk-win": "san9_extras"}  # 三國志IX has no Chinese release: the Japanese 列伝
+           "san7pk-win": "san7_extras", "san8pk-win": "san8_extras", "san9pk-win": "san9_extras", "san10pk-win": "san10_extras", "san11pk-win": "san11_extras",
+           "san12pk-win": "san12_extras"}  # 三國志VII–12: the Steam 繁中版 depots
 
 
 def records(dataset, game_dir):

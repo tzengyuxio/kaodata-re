@@ -654,8 +654,8 @@ SAN7_GAIJI = dict(zip(
     "瓚郃蒯傕邕詡龐繇邈騭闞玠邢歆闓譙琬郝伷褚肜磾綝笮祜蕤璜毌靚琰頎龔眭毗宓禕蹋勑"))
 
 
-def decode_san7_scenario(exe: bytes, data: bytes) -> bytes:
-    tables = [exe[SAN7_TABLES + 0x100 * k:SAN7_TABLES + 0x100 * (k + 1)] for k in range(4)]
+def decode_san7_scenario(exe: bytes, data: bytes, at: int = SAN7_TABLES) -> bytes:
+    tables = [exe[at + 0x100 * k:at + 0x100 * (k + 1)] for k in range(4)]
     zero = collections.Counter(data[0x4C:]).most_common(1)[0][0]
     table = next(t for t in tables if t[0] == zero)
     inv = bytearray(256)
@@ -822,12 +822,8 @@ def load_san9_palettes(palette) -> list[list[str]]:
             for o in (4 + k * (40 + 1024) + 40 for k in range(count))]
 
 
-def load_san9_persons(game_dir) -> list[dict]:
-    """The 700 people (kana order): id, name, kana, face number.
-
-    Faces come from the "prsn" chunk of the D_Sce???.S9 RIFF files (134-byte records, +4 u16 id, +14 u16 face; the
-    same in all 20 scenarios, records 700-799 are new-officer slots). Names are in part 0 of M_MsgPK.s9 (LS11), from
-    阿会喃 on: surname, given name, style name and kana (ESC k ... ESC H) separated by 05 05 05."""
+def san9_faces(game_dir) -> list[int]:
+    """Face number of the 700 people, from the "prsn" chunks (see load_san9_persons)."""
     faces = None
     for name in SAN9_SCENARIOS:
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -838,6 +834,16 @@ def load_san9_persons(game_dir) -> list[dict]:
         f = [struct.unpack_from("<H", prsn, k * 134 + 14)[0] for k in range(SAN9_PERSONS)]
         assert faces in (None, f)
         faces = f
+    return faces
+
+
+def load_san9_persons(game_dir) -> list[dict]:
+    """The 700 people (kana order): id, name, kana, face number.
+
+    Faces come from the "prsn" chunk of the D_Sce???.S9 RIFF files (134-byte records, +4 u16 id, +14 u16 face; the
+    same in all 20 scenarios, records 700-799 are new-officer slots). Names are in part 0 of M_MsgPK.s9 (LS11), from
+    阿会喃 on: surname, given name, style name and kana (ESC k ... ESC H) separated by 05 05 05."""
+    faces = san9_faces(game_dir)
     with open(os.path.join(game_dir, "M_MsgPK.s9"), "rb") as f:
         msg = ls11.ls11_decode_parts(f.read())[0]
     parts = msg[msg.index("阿会".encode("cp932")):].split(b"\x05\x05\x05")

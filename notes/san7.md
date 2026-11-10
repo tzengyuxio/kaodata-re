@@ -89,6 +89,8 @@ cd dekoei
 
 ### 訊息與列傳
 
+- koei-wiki 匯出讀 Steam 繁中版（depot 628032）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki/<dataset>.jsonl`，總表在 `notes/san-biographies.md`）：同名檔、同樣的排法，文字是 cp950、沒有外字，`M_BFile.s7` 第 k 筆是武將 k，520 人 ✅ cross（和日文版逐則對過內容）。名字從劇本取，繁中版的劇本加密表在 `San7WPK.exe` 0x4E43E0（和日文版 0x4E5500 byte 相同）；D_Sn001–007 寫 54 喬瑁、430 傅僉，PK 劇本寫橋瑁、傅儉，取前者（`san7_extras.bios`、`bio_names`）。
+
 - `M_Msg.s7`（53 part）、`M_BFile.s7`（13 part）都是 LS11。一個 part 是 u16 筆數＋筆數個 u16 offset（從 part 開頭算）。一筆可以有幾段文字，各以 05 05 05 結尾。✅ code
 - 半形假名平常是平假名，ESC K 起是片假名、ESC H 回平假名（同三國志IX）；0A 換行；01＋3 bytes、02＋2 bytes 是變數，其他 0x20 以下的 byte 是指令，都照原樣寫成 `{..}`。
 - 外字：姓名的 38 個用 `SAN7_GAIJI`；訊息另外有 15 個（彧、鄧、兗、畯、禕、琮、邳、琦、并、釭、涪、鄴、鄱、蒺、犍），用 `S7gaiji.tte` 畫出來、照上下文認的 🟡（`MSG_GAIJI`）。0xE0F1 以上的碼只出現在指令 byte 裡，不是字。
@@ -98,7 +100,7 @@ cd dekoei
   - 41 年表 347 則（「曹操誕生」「桓帝、外戚の梁冀一族を誅殺する」…，`events/chronicle.csv`）
   - 47 人物經歷的樣板（「{..}の暗殺に失敗し、逃亡する」）
   - 31 指令的手引き、33 指令說明、34 兵装的說明、42 新武將編輯、43、44、48–50 目標與建言
-- 列傳：`M_BFile.s7` part 1–11 共 521 筆，第 k 筆是武將 k 的列傳（0–519），最後一筆是「列伝はありません」✅ cross（0 楊奉、1 張飛、50 張松、500 左慈、519 王匡的內容都對得上）。輸出 `text/biographies.csv`（武將編號、姓名、全文），還沒接 `biography.py`。part 0 與 part 12 和 `M_Msg.s7` 的 part 0、52 byte 相同。
+- 列傳：`M_BFile.s7` part 1–11 共 521 筆，第 k 筆是武將 k 的列傳（0–519），最後一筆是「列伝はありません」✅ cross（0 楊奉、1 張飛、50 張松、500 左慈、519 王匡的內容都對得上）。輸出 `text/biographies.csv`（武將編號、姓名、全文），part 0 與 part 12 和 `M_Msg.s7` 的 part 0、52 byte 相同。
 
 ### 讀了安裝目錄的哪些檔
 
@@ -109,7 +111,6 @@ cd dekoei
 
 - 事件觸發：事件對白在 `M_Msg.s7`，觸發條件應該在 EXE（`.text` 有 SteamStub，要先照「版本與 EXE」解密）；做法：從 part 27、39 的引用找事件表。
 - 寶物的 +0x18、+0x24 與加成的對象：前置是解出人物記錄的特技 bit；做法：拿有特技的武將（諸葛亮、華佗）對 bit，再回頭對寶物。
-- 列傳接 `biography.py` 交給 koei-wiki：`text/biographies.csv` 已經依武將編號排好。
 - 事件靜止圖、名所圖對事件或名所說明：要從 EXE 找圖號表。
 
 ## 負面結論

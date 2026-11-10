@@ -103,6 +103,7 @@
 - 323 項。每項：u32 n，接著 n/4 − 1 個 u32 位移，位移從第 n byte 算起。文字是 Shift-JIS，夾著腳本碼（`$`＋u16…、行首 `@R`），每行以 NUL 結尾。腳本碼沒解，輸出只取 Shift-JIS 的連續片段（半形字元、數字以外的 ASCII 會漏）。
 - `text/m_msg.csv`：全部 323 項，一個片段一列（項、第幾則、位移、文字），79304 列。
 - `text/biographies.csv`：第 51–54 項是列傳 654 則，編號＝頭像號（楊奉 0、張飛 1、関羽 2、劉備 36、曹操 60）✅ cross，附用這張臉的人物 id 與姓名。`notes/san-biographies.md` 的三國志VIII 原本寫「沒找過」。
+- koei-wiki 匯出讀 Steam 繁中版（depot 628042）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki/<dataset>.jsonl`，總表在 `notes/san-biographies.md`）：`m_msg.s8`、`D_Sce.s8` 和日文版同樣排法，cp950、沒有外字；每則是以 NUL 結尾的行，第二行起以 `@R` 開頭，結尾 `$"`。一則給用這張臉的第一人，kaodata 去掉的事件角色與單福用 id 列在 `san8_extras.ZH_ROLE_IDS`（繁中名不同，不能照名字排除）。622 人 ✅ cross；kaodata 643 人裡 21 人遊戲裡就沒有列傳（頭像 588 是関定與劉泌共用，也是空的）。
 - `events/`：只有一則的項目是事件腳本，共 230 個（`index.csv` 列第一句，`scripts.txt` 是全文）。71–121 是各年的「情勢」（184–234 年）✅ code，其他是事件（朝廷的使者、同盟、計略…），哪個事件、觸發條件 ❌。
 
 ### 沒有做的

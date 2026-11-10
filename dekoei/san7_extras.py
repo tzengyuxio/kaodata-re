@@ -12,7 +12,8 @@ import click
 from PIL import Image
 
 import ls11
-from sango import SAN7_GAIJI, SAN7_SCENARIOS, decode_san7_scenario, load_san7_persons
+from sango import (SAN7_GAIJI, SAN7_PERSON_SIZE, SAN7_PERSONS, SAN7_SCENARIOS, decode_san7_scenario,
+                   load_san7_persons)
 
 # Picture files G_*.s7: the Kaodata.s7 container (u32 count, count x (offset, size, w, h) u32, offsets from the end
 # of the table), 8-bit pixels top-down, no compression. The palette is P_<same name>.s7 (Windows LOGPALETTE,
@@ -252,6 +253,36 @@ def write_texts(out, msg, bfile, persons):
     sights = [[e, text(b)] for e, b in enumerate(entries(msg[SIGHTS_PART]))]
     write_csv(os.path.join(out, "text", "sights.csv"), ["entry", "text"], sights)
     return len(rows), sum(1 for i in range(len(bios)) if i in persons), len(story), len(chron), len(sights)
+
+
+# biography.py reads the Steam 繁中版 (depot 628032): the same files as the Japanese release, texts in cp950 (Big5
+# with the ETEN extension, 裏 is F9D8), no gaiji. M_BFile.s7 parts 1-11 entries 0-519 are the 列傳 of officers 0-519
+# in the Japanese order (張飛 1, 關羽 2), each one text ended by 05 05 05, 0A the game's line breaks. The scenario
+# cipher tables are at San7WPK.exe 0x4E43E0 (byte same as the Japanese 0x4E5500), so names come from the scenarios
+# (D_Sn001-007 write 54 喬瑁, 430 傅僉; the PK scenarios 橋瑁, 傅儉).
+BIO_LANG = "zh-Hant"
+ZH_TABLES = 0x4E43E0
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    parts = load_parts(game_dir, "M_BFile.s7")
+    texts = [b for part in parts[1:12] for b in entries(part)][:520]
+    return {i: [("單段", b.rstrip(b"\x05").decode("cp950").replace("\n", "").strip())] for i, b in enumerate(texts)}
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
+        exe = f.read()
+    names = {}
+    for name in SAN7_SCENARIOS:
+        with open(os.path.join(game_dir, name), "rb") as f:
+            data = decode_san7_scenario(exe, f.read(), ZH_TABLES)
+        for o in range(SAN7_PERSONS, SAN7_PERSONS + 620 * SAN7_PERSON_SIZE, SAN7_PERSON_SIZE):
+            pid = int.from_bytes(data[o:o + 2], "little")
+            if pid != 0xFFFF:
+                n = (data[o + 0x2A:o + 0x30].split(b"\0")[0] + data[o + 0x30:o + 0x36].split(b"\0")[0]).decode("cp950")
+                names.setdefault(pid, n)  # the PK scenarios D_Sn10x write 54 橋瑁, 430 傅儉; keep D_Sn001's
+    return names
 
 
 @click.command("san7-extras")
