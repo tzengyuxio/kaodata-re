@@ -1,5 +1,5 @@
 """信長の野望・創造 with PK (nobu14pk-win, Steam 292990, Traditional Chinese): faces, event pictures, event scripts,
-家宝 and 戦法 titles, written under --out as faces/, eventcg/, events/ and items/ (notes/nobu14.md「事件、插圖、道具」).
+家宝, 戦法 titles and 家紋, written under --out as faces/, eventcg/, events/, items/ and kamon/ (notes/nobu14.md「事件、插圖、道具」).
 
 - RES_PK/res_grp.bin is a LINK archive like 大志 (nobu15_extras._outer/_read/_cells); the picture entries are LINKs of
   cells, each an 'LWC\\x1a'-packed (or plain) GT1G0600 texture. 創造 also uses BC1 (format 0x06) and BC2 (0x07).
@@ -24,7 +24,7 @@ from PIL import Image
 
 import ls11
 import wiki_nobu14 as W
-from nobu15_extras import _cells, _csv, _read
+from nobu15_extras import _cells, _csv, _read, placeholders
 
 RES = ("RES_PK", "res_grp.bin")
 FACES = [(31, "240"), (32, "large")]
@@ -35,6 +35,7 @@ PICTURE_SETS = [
     (27, "senpo_title"),  # 440x128 戦法 calligraphy
 ]
 KAHOU = 8  # 54 x 140x140 + 54 x 32x32
+KAMON, KAMON_CELL, KAMON_COLS = 9, 72, 28  # one 2048x1024 atlas, 72x72 cells in rows of 28
 FACE_BLOCKS = [(9500, 3896), (9000, 3878), (7400, 2281)]  # (first face number, its slot); below 2000 slot = number
 BC = {0x06: 1, 0x07: 2, 0x08: 3, 0x59: 1, 0x5B: 3}
 EVENT_SIZE, STEPS, STEP0, STEP = 47108, 0xB8, 0xBC, 0xB8
@@ -125,6 +126,38 @@ def faces(game_dir, out, jobs):
     _csv(os.path.join(out, "faces", "rekidai.csv"), ["file", "entry", "cell", "width", "height"], rekidai)
     unresolved = sorted(n for n in names if face_slot(n) is None)
     return len(rows), len(rekidai), unresolved
+
+
+def kamon(game_dir, out):
+    """家紋: cells of the res_grp 9 atlas (its LINK records only the first cell) -> out/kamon/NNNN.png + index.csv;
+    the number is the 血族 (person +22), named after the 家 its members lead (wiki_nobu14.house_names)"""
+    link = _read(os.path.join(game_dir, *RES), KAMON)
+    [(_, _, data)] = list(_cells(link))
+    if data[:4] == b"LWC\x1a":
+        data = ls11.lwc_decode(data)
+    atlas, folder = _texture(data), os.path.join(out, "kamon")
+    os.makedirs(folder, exist_ok=True)
+    cells = []
+    for k in range(KAMON_COLS * (atlas.height // KAMON_CELL)):
+        x, y = k % KAMON_COLS * KAMON_CELL, k // KAMON_COLS * KAMON_CELL
+        cell = atlas.crop((x, y, x + KAMON_CELL, y + KAMON_CELL))
+        if cell.getchannel("A").getbbox():
+            cell.save(os.path.join(folder, f"{k:04d}.png"))
+            cells.append(k)
+    empty = placeholders(folder, cells)
+    names, surnames = W.house_names(game_dir), W.house_surnames(game_dir)
+    rows = []
+    for k in cells:
+        if k in empty:
+            rows.append([k, f"{k:04d}.png", "", "", "placeholder"])
+        elif k in names:
+            rows.append([k, f"{k:04d}.png", names[k][0], "、".join(names[k][1:]), "勢力名"])
+        elif k in surnames:
+            rows.append([k, f"{k:04d}.png", surnames[k] + "家", "", "推定：該血族武將最常見的姓"])
+        else:
+            rows.append([k, f"{k:04d}.png", "", "", ""])
+    _csv(os.path.join(folder, "index.csv"), ["kamon", "file", "name", "other_names", "source"], rows)
+    return len(cells), sum(1 for r in rows if r[2]), len(empty)
 
 
 def event_titles(game_dir):
@@ -218,6 +251,7 @@ def nobu14_extras(game_dir, out, jobs):
     n, rk, unresolved = faces(game_dir, out, work)
     click.echo(f"faces: {n} slots, rekidai {rk}; face numbers without a slot: {len(unresolved)}")
     click.echo(f"items: {items(game_dir, out, work)}")
+    click.echo("kamon: %d (%d named, %d placeholders)" % kamon(game_dir, out))
     ev, titled = events(game_dir, out)
     click.echo(f"events: {ev} ({titled} with a title)")
     index = []

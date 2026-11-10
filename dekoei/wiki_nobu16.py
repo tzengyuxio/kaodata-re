@@ -34,6 +34,11 @@ CASTLES = [(0, 31), (33, 51), (53, 74), (76, 76), (86, 88), (91, 91), (93, 93), 
            (267, 267), (269, 273), (275, 283), (285, 285), (287, 287), (290, 293), (295, 295), (297, 297), (300, 302),
            (307, 309), (311, 313), (315, 315), (318, 320), (322, 322), (324, 324)]
 CLAN_REC = 21
+# skills (fixed part): +38 u8 戦法 (msgdata SENPO_NAMES + n, 0-95; 0xFF none), +60/+62/+64 u16 特性 (TRAIT_NAMES + n,
+# 0xFFFF empty), +52 u8 主義; checked with 柴田勝家 and 宮部継潤 (notes/nobu16.md「人物欄位」)
+SENPO_AT, SENPO_NAMES, SENPO_COUNT = 38, 15194, 96
+TRAITS_AT, TRAIT_NAMES = (60, 62, 64), 24416
+IDEOLOGY_AT, IDEOLOGY = 52, {1: "保守", 2: "中道", 3: "革新"}
 KOKUJIN = 15  # fixed +6 of a 国衆 member; +10 is then the 国衆 number (頭領 slot 2400 + number)
 STATUS = {7: "家臣", 3: "浪人", 6: "姫"}
 ITEM_NAMES, ITEM_COUNT = X.ITEM_NAMES, X.ITEM_COUNT
@@ -134,6 +139,7 @@ def persons(game_dir):
         r, end = persons_raw(data)
         recs.append((number, year, r, _clans(data, r, end)))
     main = recs[0][2]  # 信長元服 (1546): names, stats and relations
+    msg = X.strings(game_dir, "JP", "msgdata")
     people = [k for k in list(PERSON_SLOTS) + list(CULTURE)
               if main[k][0][0] != 0xFFFF and (k in PERSON_SLOTS or bios_tc[k].strip())]
     known = set(people)
@@ -148,6 +154,16 @@ def persons(game_dir):
         row["reading"] = name(ja, head, True)
         row["born"], row["died"] = _u16(t, 22), _u16(t, 26)
         row["stats"] = {"統率": t[46], "武勇": t[47], "知略": t[48], "政務": t[49]}
+        if t[IDEOLOGY_AT] in IDEOLOGY:
+            row["more"] = {"主義": IDEOLOGY[t[IDEOLOGY_AT]]}
+        skills = {}
+        if t[SENPO_AT] < SENPO_COUNT and msg[SENPO_NAMES + t[SENPO_AT]]:
+            skills["戦法"] = [msg[SENPO_NAMES + t[SENPO_AT]]]
+        traits = [msg[TRAIT_NAMES + _u16(t, o)] for o in TRAITS_AT if _u16(t, o) != 0xFFFF]
+        if traits:
+            skills["特性"] = traits
+        if skills:
+            row["skills"] = skills
         relations = {}
         father = fathers[k]
         if father in known:
@@ -186,8 +202,9 @@ def persons(game_dir):
                 continue
             row["scenarios"].append(sc)
         row["uncertain"] = ["relations.spouse", "relations.clan", "scenarios.status", "scenarios.debut"]
-        row["notes"] = ("名字與固定欄位取劇本 1（1546 信長元服），scenarios 是 PK 的 11 個劇本。欄位都是從資料推的，沒有讀程式："
-                        "生年 +22、登場年 +24、歿年 +26、能力 +46–49（統率、武勇、知略、政務）、所屬勢力 +0、家 +12（relations.clan）、"
+        row["notes"] = ("名字與固定欄位取劇本 1（1546 信長元服），scenarios 是 PK 的 11 個劇本。能力 +46–49（統率、武勇、知略、政務）、主義 +52、"
+                        "戦法 +38、特性 +60／+62／+64 對過柴田勝家、宮部継潤的武將情報截圖（全同）；其餘欄位是從資料推的，"
+                        "沒有讀程式：生年 +22、登場年 +24、歿年 +26、所屬勢力 +0、家 +12（relations.clan）、"
                         "所在城 +10；父、配偶是最後一個陣列前 6 bytes 的 +0、+4。status 依 +28：7 仕官（勢力的当主是自己時寫大名；"
                         "+6 是 15 的是国衆的成員）、3 浪人、6 姫、0／1 未登場（debut 用 +24），13 不列。"
                         "所在城只寫城名對得上大志同號城的那些（見 places 的 notes）。")

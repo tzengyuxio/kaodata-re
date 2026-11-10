@@ -292,6 +292,36 @@ def _house_names(data):
         i += 6
 
 
+def house_names(game_dir):
+    """{血族 (person +22, also the 家紋 number): [names]}: the 家 of every PK scenario keyed by their 当主's 血族, most
+    frequent first (the 家 ids at +0x5B change between scenarios, the 血族 do not)"""
+    count = {}
+    for s in SCENARIOS:
+        _, _, data = scenario(game_dir, s)
+        people = persons_raw(data)[0]
+        names = _house_names(data)
+        for hid, lord in houses(data, people).items():
+            c = count.setdefault(_u16(people[lord][2], 22), {})
+            c[names[hid]] = c.get(names[hid], 0) + 1
+    return {h: sorted(c, key=lambda n: (-c[n], len(n))) for h, c in count.items()}
+
+
+def house_surnames(game_dir):
+    """{血族: most common 姓 of its persons} in the main scenario"""
+    _, _, data = scenario(game_dir, MAIN)
+    p, count = _section(data, PERSONS), {}
+    for _ in range(PERSONS[1]):
+        sei = text(data[p:p + 11])
+        q = p + 90
+        for _ in range(4):
+            q += 4 + 2 * struct.unpack_from("<I", data, q)[0]
+        if sei and not sei.startswith("預備"):
+            c = count.setdefault(_u16(data, q + 22), {})
+            c[sei] = c.get(sei, 0) + 1
+        p = q + 96
+    return {h: max(c, key=c.get) for h, c in count.items()}
+
+
 def _retsuden(game_dir):
     """(name, text) of MSG_PK/bushou_retsuden01-40_0.n14: N14F, read as N12F (wiki_nobu12.msg_entries) but Big5 with
     the GAIJI codes: tokens split by ',\\n' show string nnn ('&,MSGnnn') or end a box ('(,'). Each string is its own

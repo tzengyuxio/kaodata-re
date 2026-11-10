@@ -6,7 +6,10 @@ the same SCENARIO_PK_JP/_TC, MSG_PK_JP and fixdata files. Layouts and evidence: 
   (u32 key, u32 count) sections, found here by those 8 bytes. Header: +0x1BD scenario name, +0x199E u16 start year.
 - Persons (key 0, 3952 variable records): 姓 11, 名 11, readings 19 + 19, 諱 11 + reading 19, four "u32 n + n u16"
   lists, then 101 fixed bytes (PK): +4 father, +6 adoptive father, +8 spouse, +11 勢力, +14 3 on the map, +18 castle,
-  +22 家 (clan), +32 born, +34 debut, +36 died, +39 status, +74 mother, +81-85 統率 武勇 知略 内政 外政.
+  +22 家 (clan), +32 born, +34 debut, +36 died, +39 status, +44 成長型 (fixdata key 16 row), +46-+70 skill bits,
+  +74 mother, +81-85 統率 武勇 知略 内政 外政, +97 野心.
+- Skills: fixdata key 15 (200 x 290 bytes: name 9, reading, +36 kind) numbers the bits of fixed +46-+70; kind 0-5 are
+  個性, 6 作戦, 7 戦法, 8 補佐効果 (PK), 255 unused.
 - 勢力 records (key 1, 147 variable records named "…家"): +36 u32 1, +40 u16 勢力 id, +42 u32 n + n u16, 8 bytes,
   u32 m + m u16, 8 bytes, then u16 当主 slot. Records after the named ones change layout, so each is found by its name.
 """
@@ -27,6 +30,9 @@ REGIONS = {"JP": (12, 12, 36), "TC": (12, 12, 17)}  # JP: name 7, reading 19, u3
 YEAR, TITLE = 0x199E, 0x1BD
 PROVINCE_ID, REGION_ID = 1000, 2000
 STATS = ["統率", "武勇", "知略", "内政", "外政"]
+GROWTH, GROWTH_AT, AMBITION_AT = (16, 109, 16), 44, 97  # 成長型 table (name 15); person +44 row, +97 野心
+SKILLS, SKILL_BITS = (15, 200, 290), 46  # fixdata key 15; bit k of fixed +46-+70 is skill k
+SKILL_KINDS = {0: "個性", 1: "個性", 2: "個性", 3: "個性", 4: "個性", 5: "個性", 6: "作戦", 7: "戦法", 8: "補佐効果"}
 # +39 (scenario 02 counts): 7 serving a 勢力, 3 浪人, 6 姫, 0 not born yet, 1 born but not yet out (with or
 # without a 勢力 at +11), 8 off the map (dead, or alive elsewhere like 武田信虎), 9 one case (上杉景虎)
 STATUS = {7: "家臣", 3: "浪人", 6: "姫"}
@@ -183,6 +189,20 @@ def places(game_dir, out_dir):
     return rows
 
 
+def skill_table(game_dir):
+    """[(name, kind or None)] of the 200 skills (Japanese)"""
+    return [(text(r[:9], "JP"), SKILL_KINDS.get(r[36])) for r in _records(fixdata(game_dir, "JP"), SKILLS)]
+
+
+def _skills(t, table):
+    out = {}
+    for k, (name, kind) in enumerate(table):
+        if t[SKILL_BITS + k // 8] >> (k % 8) & 1:
+            assert kind, (k, name)
+            out.setdefault(kind, []).append(name)
+    return out
+
+
 def _load(game_dir):
     scen, recs, lord = {}, {}, {}
     for s in SCENARIOS:
@@ -199,6 +219,8 @@ def persons(game_dir):
     people = [k for k, r in enumerate(main) if r[0] not in DUMMY]
     known = set(people)
     fathers = {k: _u16(main[k][3], 4) for k in people}
+    table = skill_table(game_dir)
+    growth = [text(r[:15], "JP") for r in _records(fixdata(game_dir, "JP"), GROWTH)]
     mothers = {k: _u16(main[k][3], 74) for k in people}
     rows = []
     for k in people:
@@ -210,6 +232,12 @@ def persons(game_dir):
         if reading:
             row["reading"] = reading
         row.update({"born": _u16(t, 32), "died": _u16(t, 36), "stats": dict(zip(STATS, t[81:86]))})
+        row["more"] = {"野心": t[AMBITION_AT]}
+        if growth[t[GROWTH_AT]]:
+            row["hidden"] = {"成長型": growth[t[GROWTH_AT]]}
+        skills = _skills(t, table)
+        if skills:
+            row["skills"] = {kind: skills[kind] for kind in ("個性", "戦法", "作戦", "補佐効果") if kind in skills}
         relations = {}
         for key, v in (("father", fathers[k]), ("mother", mothers[k])):
             if v in known:
@@ -250,7 +278,11 @@ def persons(game_dir):
         row["uncertain"] = ["relations.mother", "relations.spouse", "relations.clan", "scenarios.status",
                             "scenarios.debut"]
         row["notes"] = ("名字與固定欄位取劇本 02（1545）的日文版，name 用繁中版同一槽；scenarios 是 PK 的 12 個劇本。"
-                        "能力 +81–85 對過明智光秀、岡国高的武將情報截圖（五項全同），其餘欄位是從資料推的：生年 +32、"
+                        "能力 +81–85 對過明智光秀、岡国高的武將情報截圖（五項全同）；skills 是 +46–+70 的位元（位元號＝fixdata "
+                        "key 15 的序號），個性、戦法、作戦用本體劇本對過兩人的截圖，PK 改了部分人的戦法（明智光秀 逆撫で→麒麟児）；"
+                        "補佐効果是 PK 加的，分類照記錄 +36。野心 +97 對過兩人的截圖（光秀 10、岡国高 4），劇本 02 的值。"
+                        "成長型 +44 是 fixdata key 16 的列號（本多忠勝→本多忠勝型、毛利元就→毛利元就型）。"
+                        "志、気質還沒找到。其餘欄位是從資料推的：生年 +32、"
                         "登場年 +34、歿年 +36、父 +4、母 +74、配偶 +8（各劇本）、家 +22（relations.clan）、勢力 +11、"
                         "所在城 +18。status 依 +39：7 仕官（勢力的当主是自己時寫大名）、3 浪人、6 姫，0／1 是未登場"
                         "（debut 用 +34），8 是不在地圖上（多半已死），不列。"
@@ -258,6 +290,36 @@ def persons(game_dir):
                         + ("其他劇本的名字：" + "、".join(names) + "。" if names else ""))
         rows.append(row)
     return rows
+
+
+def house_names(game_dir, lang="JP"):
+    """{家 number (person +22, also the 家紋 number): [names]}: the 勢力 names of every PK scenario, keyed by their
+    当主's 家, most frequent first"""
+    count = {}
+    for s in SCENARIOS:
+        _, _, data = scenario(game_dir, s, lang)
+        people, end = persons_raw(data, lang)
+        for name, lord in lords(data, people, end, lang).values():
+            c = count.setdefault(_u16(people[lord][3], 22), {})
+            c[name] = c.get(name, 0) + 1
+    return {h: sorted(c, key=lambda n: (-c[n], len(n))) for h, c in count.items()}
+
+
+def house_surnames(game_dir, lang="JP"):
+    """{家 number: most common 姓 of the persons of that 家} from the main scenario (to name the 家 that never lead a 勢力)"""
+    _, _, data = scenario(game_dir, MAIN, lang)
+    p, count = _key(data, 0, PERSONS), {}
+    for _ in range(PERSONS):
+        sei = text(data[p:p + 11], lang)
+        q = p + 90
+        for _ in range(4):
+            q += 4 + 2 * struct.unpack_from("<I", data, q)[0]
+        h = _u16(data, q + 22)
+        if sei and sei != DUMMY[0][:3]:
+            c = count.setdefault(h, {})
+            c[sei] = c.get(sei, 0) + 1
+        p = q + FIXED
+    return {h: max(c, key=c.get) for h, c in count.items()}
 
 
 def _bios(game_dir):

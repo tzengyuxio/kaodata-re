@@ -109,6 +109,47 @@ def _dump(path, entry, folder, jobs):
     return rows
 
 
+def placeholders(folder, cells, size=32):
+    """the 「欠」 placeholders: the most common picture, pictures with its shape in another colour, and (大志, whose
+    common 欠 is opaque red) transparent white 欠 shaped like its white strokes"""
+    from collections import Counter
+    from PIL import ImageChops, ImageStat
+    pics = {k: Image.open(os.path.join(folder, f"{k:04d}.png")).convert("RGBA").resize((size, size)) for k in cells}
+    common = Counter(p.tobytes() for p in pics.values()).most_common(1)[0][0]
+    red = next(p for p in pics.values() if p.tobytes() == common)
+    white = red.getchannel("G")
+
+    def norm(a):  # alpha stretched to 0-255 (創造's grey 欠 is half transparent, its black 欠 opaque)
+        top = a.getextrema()[1] or 1
+        return a.point(lambda v: v * 255 // top)
+
+    def near(a, b):
+        return ImageStat.Stat(ImageChops.difference(norm(a), norm(b))).mean[0] < 12
+    return {k for k, p in pics.items() if p.tobytes() == common or near(p.getchannel("A"), white)
+            or near(p.getchannel("A"), red.getchannel("A"))}
+
+
+def kamon_index(game_dir, out):
+    """kamon/index.csv (after the PNGs are written): 家紋 number = 家 number (person +22); names are the 勢力 led by
+    someone of that 家, else the most common 姓 of the 家; 「欠」 placeholders are the pictures like the most common one"""
+    import wiki_nobu15
+    names, surnames = wiki_nobu15.house_names(game_dir), wiki_nobu15.house_surnames(game_dir)
+    cells = [k for k, _, _ in _cells(_read(os.path.join(game_dir, "RES_PK", KAMON[0]), KAMON[1]))]
+    empty = placeholders(os.path.join(out, "kamon"), cells)
+    rows = []
+    for k in cells:
+        if k in empty:
+            rows.append([k, f"{k:04d}.png", "", "", "placeholder"])
+        elif k in names:
+            rows.append([k, f"{k:04d}.png", names[k][0], "、".join(names[k][1:]), "勢力名"])
+        elif k in surnames:
+            rows.append([k, f"{k:04d}.png", surnames[k] + "家", "", "推定：該家武將最常見的姓"])
+        else:
+            rows.append([k, f"{k:04d}.png", "", "", ""])
+    _csv(os.path.join(out, "kamon", "index.csv"), ["kamon", "file", "name", "other_names", "source"], rows)
+    return sum(1 for r in rows if r[2]), sum(1 for r in rows if r[4] == "placeholder")
+
+
 def _csv(path, header, rows):
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
@@ -271,12 +312,13 @@ def nobu15_extras(game_dir, out, jobs):
     _csv(os.path.join(out, "eventcg", "index.csv"), ["file", "set", "cell", "width", "height", "source"], index)
     click.echo(f"eventcg: {len(index)}")
     kamon = _dump(os.path.join(game_dir, "RES_PK", KAMON[0]), KAMON[1], os.path.join(out, "kamon"), work)
-    click.echo(f"kamon: {len(kamon)}")
     with Pool(jobs) as pool:
         for n, _ in enumerate(pool.imap_unordered(_save_cell, work, chunksize=4), 1):
             if n % 200 == 0:
                 click.echo(f"  {n}/{len(work)} pictures")
     click.echo(f"pictures written: {len(work)}")
+    named, empty = kamon_index(game_dir, out)
+    click.echo(f"kamon: {len(kamon)} ({named} named, {empty} placeholders)")
 
 
 if __name__ == "__main__":
