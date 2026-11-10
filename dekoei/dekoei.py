@@ -23,6 +23,7 @@ from persons_export import persons_export
 from events_export import events_export
 from places_export import places_export, places_label
 from genpei_extras import genpei_extras
+from kouryuuki_extras import kouryuuki_extras
 from koukai_extras import koukai_extras
 from koukai2_extras import koukai2_extras
 from koukaigd_extras import koukaigd_extras
@@ -930,6 +931,7 @@ dekoei.add_command(koukaigd_extras, "koukaigd-extras")  # 大航海外傳 港口
 dekoei.add_command(koukai3_extras, "koukai3-extras")  # 大航海3 港口、交易品、道具、船、發現物、世界地圖
 dekoei.add_command(koukai4_extras, "koukai4-extras")  # 大航海4 圖、道具、船、交易品、港口、劇本台詞
 dekoei.add_command(genpei_extras, "genpei-extras")  # 源平合戦 劇本表、戰略地圖、圖、訊息與字串
+dekoei.add_command(kouryuuki_extras, "kouryuuki-extras")  # 項劉記 地點表、大地圖
 dekoei.add_command(taikoh5_extras, "taikoh5-extras")  # 太閤5 事件、插圖、道具、交易品、札、地圖
 dekoei.add_command(nobu7_extras, "nobu7-extras")  # 信長7 事件、插圖、家宝、家紋、訊息、大地圖
 dekoei.add_command(nobu8_extras, "nobu8-extras")  # 信長8 事件、插圖、家宝、官位、年表、訊息、地圖
