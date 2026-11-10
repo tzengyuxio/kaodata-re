@@ -16,6 +16,8 @@
 """
 import csv
 import os
+import shutil
+import unicodedata
 from collections import deque
 
 import click
@@ -85,7 +87,7 @@ def adjacency(cells, codes):
     return [sorted(a) for a in adj]
 
 
-def places(game_dir, pc98_dir, img, out):
+def place_table(game_dir, pc98_dir, img, out):
     grids = [grid(game_dir, n) for n in range(1, 5)]
     codes = [[(v >> 8) & 0xF for v in g] for g in grids]
     rows = []
@@ -100,6 +102,8 @@ def places(game_dir, pc98_dir, img, out):
         sc = [c[cell] for c in codes]
         out_rows.append((i, zh, name_ja, kana, "関" if sc[0] == 4 else "城", cell % W, cell // W, *sc,
                          raw.hex(" "), " ".join(rows[j][1] for j in a)))
+    if out is None:
+        return out_rows
     _csv(f"{out}/places.csv", ["id", "name_zh", "name_ja", "kana", "kind", "x", "y", "code_s1", "code_s2",
                                "code_s3", "code_s4", "raw_14_16", "adjacent_guess"], out_rows)
     return rows, grids[0]
@@ -152,6 +156,35 @@ def world_map(game_dir, cells_grid, img, out, rows):
     labelled.save(f"{out}/map/world_places.png")
 
 
+def places(game_dir, out_dir):
+    """koei-places/1 rows for places-export kouryuuki-dos: names from the DOS 中文版, nameJa and reading from the
+    PC-98 version beside it (../kouryuuki-pc98); pos is the centre of the place's cell on world/world-*.png."""
+    pc98_dir = os.path.join(game_dir, "..", "kouryuuki-pc98")
+    img = pklite.depklite(open(os.path.join(game_dir, "MAIN.EXE"), "rb").read())
+    table = place_table(game_dir, pc98_dir, img, None)
+    world_map(game_dir, grid(game_dir, 1), img, out_dir + "/tmp", [(r[0], r[1], r[6] * W + r[5], None) for r in table])
+    os.makedirs(f"{out_dir}/world", exist_ok=True)
+    for name in SEASONS:
+        os.replace(f"{out_dir}/tmp/map/world_{name}.png", f"{out_dir}/world/world-{name}.png")
+    shutil.rmtree(f"{out_dir}/tmp")
+    names = [r[1] for r in table]
+    rows = []
+    for i, zh, ja, kana, kind, x, y, s1, s2, s3, s4, raw, adj in table:
+        row = {"id": i, "name": zh}
+        if ja and ja != zh:
+            row["nameJa"] = ja
+        row.update({"reading": unicodedata.normalize("NFKC", kana), "level": kind.replace("関", "關"),
+                    "adjacent": [names.index(n) for n in adj.split()],
+                    "pos": {"x": x * 48 + 24, "y": y * 32 + 16, "grid": "pixel", "w": W * 48, "h": H * 32},
+                    "uncertain": ["adjacent", "level"],
+                    "notes": "遊戲裡部隊在 55×44 的格子上移動，沒有地點之間的相鄰表；adjacent 是 kaodata-re 從各地點沿"
+                             "可通行格同時擴展、範圍相接推出來的。城、關是依地點碼分（碼 4 是關），遊戲資料沒有種類欄位。大地圖 world/ 依月份換色盤，"
+                             "春夏秋冬各一張（1–3、4–6、7–9、10–12 月），pos 是地點格中心的像素。名稱用 DOS 中文版，"
+                             "日文名與讀音取 PC-98 版。"})
+        rows.append(row)
+    return rows
+
+
 @click.command("kouryuuki-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="game files (games/kouryuuki-dos)")
 @click.option("--pc98-dir", type=click.Path(), default=None,
@@ -163,7 +196,7 @@ def kouryuuki_extras(game_dir, pc98_dir, out):
         guess = os.path.join(os.path.dirname(os.path.abspath(game_dir)), "kouryuuki-pc98")
         pc98_dir = guess if os.path.exists(os.path.join(guess, "MAIN.EXE")) else None
     img = pklite.depklite(open(os.path.join(game_dir, "MAIN.EXE"), "rb").read())
-    rows, g1 = places(game_dir, pc98_dir, img, out)
+    rows, g1 = place_table(game_dir, pc98_dir, img, out)
     world_map(game_dir, g1, img, out, rows)
     click.echo(f"{len(rows)} places, world map {W * 48}x{H * 32} in 4 seasons -> {out}")
 
