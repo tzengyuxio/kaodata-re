@@ -27,6 +27,7 @@
 | `nobu11pk-win` | 430 | 145（664） | 日文 | 持有者連號：武將槽（`wiki_nobu11.OFFICERS`）是 id，勢力寫成「當主名勢力」（`other`）；劇本號是 DBSCEDA 的號碼 | kind（圖的種類） |
 | `nobu12pk-win` | 355 | 109（596） | 日文 | `owners` 的名字對人物匯出的名字，每個名字都只對到一人 | grade |
 
+| `nobu15pk-win` | 121 | 0 | 日文、繁中 | `kahou.csv`（`nobu15-extras`）；各劇本開局的持有欄全是 0xFFFF，家宝表的相關人物只寫在 `notes` | grade |
 | `nobu14pk-win` | 160 | 52（240） | 繁中 | `wiki_nobu14.items` 直接讀劇本檔（不讀 CSV；`--extract` 不用）：持有人欄有值是人物槽，否則是持有的家（`other` 寫家名）；10 個劇本 | grade |
 
 三國志VII、IX、X、11 的繁中名稱與說明在 2026-11-11 補上（第 2 批同一天），件數與持有者不變。

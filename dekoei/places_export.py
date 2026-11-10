@@ -1192,6 +1192,7 @@ def places_suikoden_dos(game_dir, out_dir):
 # (dataset, from, to) adjacencies that are one-way in the game data, explained in the rows' notes
 ONE_WAY = {("san14pk-win", *pair) for pair in SAN14_ONE_WAY}
 ONE_WAY |= {("nobu11pk-win", 1019, 1020), ("nobu11pk-win", 1020, 1029)}  # 加賀 lists 伊勢, not 能登 (wiki_nobu11)
+ONE_WAY |= {("nobu15pk-win", 2006, 2004)}  # 東海 lists 甲信; 甲信 lists 北陸 twice instead (wiki_nobu15)
 
 DATASETS = {"san1-pc98": places_san1_pc98, "san2-pc98": places_san2_pc98, "san3-pc98": places_san3_pc98,
             "san4pk-pc98": places_san4pk_pc98, "san5pk-pc98": places_san5pk_pc98, "san6pk-win": places_san6pk_win,
@@ -1206,7 +1207,7 @@ WORLD_CHECKS = {"san1-pc98": world_check_san1, "san2-pc98": world_check_san2, "s
 MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu2-dos": "wiki_nobu2_dos", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
            "nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
            "nobu8pk-win": "wiki_nobu8", "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10",
-           "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13", "nobu14pk-win": "wiki_nobu14",
+           "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13", "nobu14pk-win": "wiki_nobu14", "nobu15pk-win": "wiki_nobu15",
            "kouryuuki-dos": "kouryuuki_extras", "genghis-pc98": "genghis_extras", "genchou-pc98": "genchou_extras",
            "genghis4pk-win": "genghis4_extras"}
 
