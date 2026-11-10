@@ -52,6 +52,9 @@ from san8_extras import san8_extras
 from san9_extras import san9_extras
 from san10_extras import san10_extras
 from san11_extras import san11_extras
+from genghis_extras import genghis_extras
+from genchou_extras import genchou_extras
+from genghis4_extras import genghis4_extras
 from san1 import san1
 from san2 import san2
 from san3 import san3
@@ -947,6 +950,9 @@ dekoei.add_command(san8_extras, "san8-extras")  # 三國志VIII 事件、插圖�
 dekoei.add_command(san9_extras, "san9-extras")  # 三國志IX 事件、插圖、寶物、兵法、訊息、列傳
 dekoei.add_command(san10_extras, "san10-extras")  # 三國志X 事件、插圖、寶物、訊息
 dekoei.add_command(san11_extras, "san11-extras")  # 三國志11 事件、插圖、寶物、規則表、訊息
+dekoei.add_command(genghis_extras, "genghis-extras")  # ジンギスカン 國、相鄰、大地圖、人物、圖片
+dekoei.add_command(genchou_extras, "genchou-extras")  # 元朝秘史 國、勢力、人物欄位、大地圖
+dekoei.add_command(genghis4_extras, "genghis4-extras")  # 成吉思汗IV 劇本表、人物、列傳、地圖、寶物
 # dekoei.add_command(genghis)  # 成吉思汗
 # dekoei.add_command(genchoh)  # 元朝秘史
 
