@@ -35,6 +35,14 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 - 影音不留，所以三國志12 的語音檔名改存在 `games/san12pk-win/SND/voice/Strategy.list`，信長5 的影片大小寫進 `nobu5_extras.MOVIES`。
 - 要重新研究沒留的檔（影音、3D、沒解的封裝）時，照上面的指令重新下載，下表的 depot、manifest 就是當時的版本。
 
+## 三國志8–14 的封存（2026-11-11）
+
+三國志VIII–14 的成果入庫後（`~/game-library/koei/san{8..14}pk-win/`），使用者決定把本機剩下的遊戲檔上傳到 NAS 再刪：`games/san{8..14}pk-win/`（不含 `extract/`）、繁中版 depot `games/steam/628040–628080-tchinese/`、三國志14 PK depot `games/steam/872410-pk/`，共 13 個資料夾、約 37 GB。
+
+- 放哪裡：`/Volumes/Media/games/koei/Steam/<同名資料夾>/`，資料夾與遊戲的對照在那邊的 `README.md`。檔名與大小逐檔核對一致後才刪本機（移到垃圾桶）。
+- sha1：`~/game-library/_original/win/san<N>pk-win/` 的 `STEAM_SHA1SUMS.txt`（日文版工具讀的檔）、`tchinese-SHA1SUMS.txt`、`pk-SHA1SUMS.txt`，另有 `steam.txt` 記 appid、depot、manifest。
+- 要重跑時把資料夾複製回 `games/` 的同名位置；`--game-dir` 照舊。三國志IX 的全尺寸大地圖、X、12 的地圖讀繁中版 depot（`games/steam/<appid>-tchinese/depot`）。
+
 ## 下載紀錄
 
 每下載一款就在這裡記一筆：遊戲、appid、depot、build id／日期，以及放到哪個 `games/<dataset-id>/`。
