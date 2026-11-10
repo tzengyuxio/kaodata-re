@@ -167,6 +167,32 @@ def persons(game_dir, dos_dir, sc):
     return rows
 
 
+def places(game_dir, out_dir):
+    """koei-places/1 rows (places_export). 劇本 1 (蒙古篇) and 劇本 2-4 (世界篇) use two maps with different
+    countries: 世界篇 keeps the game's number (1-33, the same in 劇本 2-4), 蒙古篇 gets 100 + number. name is the
+    Chinese DOS spelling, nameJa the PC-98 one; pos is the centre of the number box on world/<map>-<season>.png."""
+    dos_dir = os.path.join(game_dir, os.pardir, "genchou-dos")
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    for which in ("mongolia", "world"):
+        for s, season in enumerate(SEASONS):
+            render_map(game_dir, which, s).save(os.path.join(out_dir, "world", f"{which}-{season}.png"))
+    world = [scenario(game_dir, dos_dir, sc)[0] for sc in (2, 3, 4)]
+    for other in world[1:]:  # the 世界篇 scenarios share names, adjacency and boxes
+        assert [(c["name"], c["adjacent"], c["x"], c["y"]) for c in other] == \
+            [(c["name"], c["adjacent"], c["x"], c["y"]) for c in world[0]]
+    rows = []
+    for base, stage, which, cs in ((100, "蒙古篇（劇本 1）", "mongolia", scenario(game_dir, dos_dir, 1)[0]),
+                                   (0, "世界篇（劇本 2–4）", "world", world[0])):
+        for c in cs:
+            row = {"id": base + c["label"], "name": c["nameZh"]}
+            if c["name"] != c["nameZh"]:
+                row["nameJa"] = c["name"]
+            row.update({"level": "國", "adjacent": [base + int(a) + 1 for a in c["adjacent"].split()],
+                        "pos": {"x": c["x"], "y": c["y"], "grid": "pixel", "w": 640, "h": 400},
+                        "notes": f"{stage}（`world/{which}-*.png`）；pos 是地圖上國號框的中心"})
+            rows.append(row)
+    return rows
+
 def _write_csv(path, rows):
     header = []
     for r in rows:

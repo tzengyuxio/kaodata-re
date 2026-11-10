@@ -18,6 +18,9 @@ CITIES = {1: 42, 2: 41, 3: 38, 4: 37}
 MEN = {1: 204, 2: 149, 3: 145, 4: 126}
 WOMEN = {1: 31, 2: 27, 3: 25, 4: 29}
 REGIONS, PRODUCTS, TREASURES, UNITS = 56, 31, 80, 24
+LARGE_SIZE = (16000, 3616)  # LARGEMAP.BMP
+LARGE_BLOCK = (320, 226)
+LARGE_CELL = (64, 16)  # one cell of the 250 x 226 map grid
 NONE_PERSON = 500  # person references are indexes into the scenario's men list; 500 = nobody
 NONE_CITY = 80     # the person has not appeared yet
 APTITUDES = ["步兵", "弓兵", "騎兵", "水軍"]  # MESSAGE.CK 6342 tests aptitude 0-3 = 步兵 箭術 騎兵 海戰
@@ -139,6 +142,53 @@ def biographies(msgs, scenarios, out):
     return len(rows)
 
 
+def large_map(game_dir):
+    """The 16000 x 3616 world map. LARGEMAP.BMP's header says 16000 x 3616, but its pixels are 800 blocks of
+    320 x 226, each stored bottom-up, in rows of 50 blocks from the top left (found by assembling it; the drawing
+    code in CLargeMapWnd was not traced). A city at grid cell (x, y) sits at (64x + 32, 16y + 8)."""
+    with open(os.path.join(game_dir, "LARGEMAP.BMP"), "rb") as f:
+        d = f.read()
+    off = struct.unpack_from("<I", d, 10)[0]
+    pal = [v for i in range(54, off, 4) for v in (d[i + 2], d[i + 1], d[i])]
+    blocks = Image.frombytes("P", (LARGE_BLOCK[0], LARGE_BLOCK[1] * 800), d[off:off + LARGE_SIZE[0] * LARGE_SIZE[1]])
+    im = Image.new("P", LARGE_SIZE)
+    bw, bh = LARGE_BLOCK
+    for k in range(800):
+        block = blocks.crop((0, k * bh, bw, (k + 1) * bh)).transpose(Image.FLIP_TOP_BOTTOM)
+        im.paste(block, (k % 50 * bw, k // 50 * bh))
+    im.putpalette(pal)
+    return im
+
+
+def city_pixel(c):
+    return c["x"] * LARGE_CELL[0] + LARGE_CELL[0] // 2, c["y"] * LARGE_CELL[1] + LARGE_CELL[1] // 2
+
+
+def places(game_dir, out_dir):
+    """koei-places/1 rows (places_export): the 61 cities of the four scenarios (the game's city id; name and (x, y)
+    are the same in every scenario they appear in) and the 56 地域 as 100 + id. The game has no city adjacency
+    table, so there is no adjacent; pos is the centre of the city's cell on world/largemap.png (16000 x 3616)."""
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    large_map(game_dir).save(os.path.join(out_dir, "world", "largemap.png"))
+    scenarios = {k: load_scenario(game_dir, k) for k in range(1, 5)}
+    cities = {}
+    for k, sc in scenarios.items():
+        for c in sc["cities"]:
+            prev = cities.setdefault(c["id"], (c["name"], c["x"], c["y"], []))
+            assert prev[:3] == (c["name"], c["x"], c["y"]), c
+            prev[3].append(k)
+    rows = []
+    for i, (name, x, y, ks) in sorted(cities.items()):
+        px, py = city_pixel({"x": x, "y": y})
+        rows.append({"id": i, "name": name, "level": "都市",
+                     "pos": {"x": px, "y": py, "grid": "pixel", "w": LARGE_SIZE[0], "h": LARGE_SIZE[1]},
+                     "notes": f"出現在劇本 {'、'.join(map(str, ks))}；pos 是都市所在格（250 × 226 格）的中心"})
+    rows += [{"id": 100 + r["id"], "name": r["name"], "level": "地域", "uncertain": ["level"],
+              "notes": "人物的出身地域（`SCEDAT` 的地域表）；遊戲裡這一層的稱呼沒找到"}
+             for r in scenarios[1]["regions"]]
+    return rows
+
+
 def tables(scenarios, out):
     s1 = scenarios[1]
     _write_csv(os.path.join(out, "scenarios.csv"), ["scenario", "year", "title", "intro"],
@@ -228,8 +278,9 @@ def pictures(game_dir, scenarios, out):
 
 
 def world_maps(game_dir, scenarios, out):
-    """The small world maps, and MIDMAP x2 with each scenario's cities: (x, y) of a city is a cell of the
-    250 x 226 map grid, drawn at (4 + 2x, 4 + y) on the 508 x 233 maps (🟡, matched by eye)."""
+    """The small world maps, the large map (large_map) and, per scenario, MIDMAP x3 and the large map / 4 with the
+    cities. (x, y) of a city is a cell of the 250 x 226 map grid: (4 + 2x, 4 + y) on the 508 x 233 maps and
+    (64x + 32, 16y + 8) on the large map (matched by eye)."""
     os.makedirs(os.path.join(out, "map"), exist_ok=True)
     for name in ["MIDMAP.BMP", "BLANKMAP.BMP", "AREAMAP.BMP", "MASKMAP.BMP", "SMALLMAP.BMP"]:
         Image.open(os.path.join(game_dir, name)).save(os.path.join(out, "map", name.split(".")[0].lower() + ".png"))
@@ -247,6 +298,18 @@ def world_maps(game_dir, scenarios, out):
             dr.text((x + 6, y - 7), f"{i} {c['name']}", font=font, fill=(255, 255, 255), stroke_width=2,
                     stroke_fill=(0, 0, 0))
         im.save(os.path.join(out, "map", f"cities_s{k}.png"))
+    large = large_map(game_dir)
+    large.save(os.path.join(out, "map", "largemap.png"))
+    small = large.convert("RGB").resize((LARGE_SIZE[0] // 4, LARGE_SIZE[1] // 4), Image.LANCZOS)
+    for k, sc in scenarios.items():
+        im = small.copy()
+        dr = ImageDraw.Draw(im)
+        for i, c in enumerate(sc["cities"]):
+            x, y = (v // 4 for v in city_pixel(c))
+            dr.ellipse((x - 5, y - 5, x + 5, y + 5), fill=(255, 0, 0), outline=(0, 0, 0))
+            dr.text((x + 7, y - 7), f"{i} {c['name']}", font=font, fill=(255, 255, 255), stroke_width=2,
+                    stroke_fill=(0, 0, 0))
+        im.save(os.path.join(out, "map", f"largemap_cities_s{k}.png"))
     return len(scenarios)
 
 
@@ -262,7 +325,7 @@ def genghis4_extras(game_dir, out):
     n, p = pictures(game_dir, scenarios, out)
     world_maps(game_dir, scenarios, out)
     print(f"4 scenarios: {c} countries, {t} cities, {m} men, {w} women; {b} 列傳; {n} 文化寶物 + {p} 特產品 "
-          f"pictures, 5 event pictures, 4 city maps")
+          f"pictures, 5 event pictures, the large map and 8 city maps")
 
 
 if __name__ == "__main__":

@@ -173,6 +173,8 @@
 - 前兩列是原樣的 byte。之後讀到 0x96 時再讀 n：n＝1 是字面的 0x96；否則從兩列上面同一欄、同一 plane 抄 n 個（0＝256），計數依（欄、plane）的順序延續，可以跨列。
 - 合集檔裡每張圖從 512-byte 的 block 開始，圖號＝block 號；`PICDATA.DAT` 的圖號另加 0x8000（0x96FA 依圖號選 `PACDATA`／`PICDATA` 再乘 512 seek）。
 
+**koei-wiki 匯出**：`dekoei.py places-export genghis-pc98 --game-dir ../games/genghis-pc98 --out ../export/koei-wiki/places`（`genghis_extras.places`，koei-places/1，2026-11-10）。41 國，`level` 是「國」；世界篇用遊戲的國號 1–27，蒙古篇是 100＋國號（101–114），兩篇是不同的地圖與國。`name` 是 DOS 中文版的寫法，`nameJa` 是 PC-98 版的；ムワッヒド朝在中文版寫成「倭馬亞王朝」（另一個王朝），照遊戲原文，寫在 `notes`。大地圖 `world/mongol.png`、`world/world.png`（384×320，200 線的圖縱向放大兩倍），`pos` 是國號標籤的中心。戰場地形只有 CSV，沒有給圖。檢查 353 項、0 不符。
+
 ## 人物欄位
 
 `persons.csv`：兩篇的君主、繼承人、部將、子女、女性，共 200 筆（同一人在兩篇各一筆），欄位見上面「能力」與本節。中文名取 `dos/` 的中文版同位置記錄。

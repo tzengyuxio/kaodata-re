@@ -97,7 +97,7 @@ created: 2026-11-07
 | 項劉記 `kouryuuki-dos` | `kouryuuki-extras` | 地點 39（中文名、PC-98 日文名與讀音、格、四劇本地點碼 ✅ code，相鄰【推】）；大地圖 2640×1408 四季各一張＋標名版（`MAP.KR1`＋`GRP4.KR1`，✅ code，2026-11-10 加） | 地點表 +14–16、`HKMD`／`HYMD` 戰場圖、部隊圖 |
 | ジンギスカン `genghis-pc98` | `genghis-extras` | 國 41（欄位 ✅ code+cross）、相鄰 ✅ cross（41 張戰場圖的進入區）；大地圖 2 張 384×160（PAK，✅ code）＋標名版；戰場地形 41 國 CSV（地形名 🟡）；人物 200；圖片 103（格式 ✅ code，內容【推】）；沒有道具 | `ANIME`／`HANIME`、地形名與六角格排法、`SAVEDATA` |
 | 元朝秘史 `genchou-pc98` | `genchou-extras` | 4 劇本的國 113 筆（✅ code+cross，PC-88／X68000／DOS 同值）、勢力 87 ✅ cross、人物 346；大地圖蒙古篇、世界篇各四季（✅ code，沒和截圖比對） | 結局圖 `ENDGRP` 23 張的色盤（在 `END.EXE`）、`PACKDATA`、`OPENGRP`；國表 +0x2A 高位、勢力關係表 |
-| 成吉思汗IV `genghis4pk-win` | `genghis4-extras` | 4 劇本的地域、國、都市、特產品、文化寶物、兵種、男女人物（讀取順序 ✅ code）；列傳 533 人 ✅ code；寶物圖 134、特產品圖 31、事件圖 5（名稱【推】）；都市標在小地圖上 | 大地圖（`MAPFIX`／`MAPVAR`）❌、都市的特產品 ❌、+44 bit 3–9、國關係旗標 |
+| 成吉思汗IV `genghis4pk-win` | `genghis4-extras` | 4 劇本的地域、國、都市、特產品、文化寶物、兵種、男女人物（讀取順序 ✅ code）；列傳 533 人 ✅ code；寶物圖 134、特產品圖 31、事件圖 5（名稱【推】）；大地圖 16000 × 3616（`LARGEMAP.BMP` 的 320 × 226 區塊，✅ code＋cross）＋各劇本都市標示 | `MAPFIX`／`MAPVAR` 每格屬性的意義 🟡、都市相鄰 ❌、都市的特產品 ❌、+44 bit 3–9、國關係旗標 |
 
 ## 下一步
 

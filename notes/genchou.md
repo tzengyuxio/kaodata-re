@@ -151,6 +151,8 @@
 - `map/mongolia-<季節>.png`、`world-<季節>.png`（spring、summer、autumn、winter）、`screen.png`（人物畫面底圖，用春季色盤 🟡）。
 - 0x238A0 起的 288×256（寬字 0x0120）用同一解法解不出來，0x249A0 之後 27 KB 沒查。❌
 
+**koei-wiki 匯出**：`dekoei.py places-export genchou-pc98 --game-dir ../games/genchou-pc98 --out ../export/koei-wiki/places`（`genchou_extras.places`，koei-places/1，2026-11-10；DOS 中文版要放在旁邊的 `../genchou-dos`）。47 國，`level` 是「國」；世界篇（劇本 2–4，三個劇本的國名、相鄰、號碼框相同，匯出時有檢查）用遊戲的國號 1–33，蒙古篇（劇本 1）是 100＋國號（101–114）。`name` 是 DOS 中文版的寫法，`nameJa` 是 PC-98 版的。大地圖 `world/{mongolia,world}-{spring,summer,autumn,winter}.png`（640×400），`pos` 是國號框的中心。檢查 391 項、0 不符。
+
 ## 人物欄位
 
 男性 27 bytes（PC-98 `GENDATA` 從 2 起，記錄內位移各版相同），`persons.csv` 一劇本一筆：

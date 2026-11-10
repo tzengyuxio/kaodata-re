@@ -184,6 +184,40 @@ def persons(data: bytes, dos, scenario):
     return rows
 
 
+def places(game_dir, out_dir):
+    """koei-places/1 rows (places_export): the countries of both scenarios. The 蒙古篇 and 世界篇 are two maps with
+    their own countries, so 世界篇 keeps the game's number and 蒙古篇 gets 100 + number. name is the Chinese DOS
+    spelling, nameJa the PC-98 one; pos is the country's number label on world/<map>.png (MAIN.EXE draws the map
+    at x = 256 on a 200-line screen, so x - 256 and y doubled)."""
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    rows = []
+    for scenario, cim, pak, _ in SCENARIOS:
+        with open(os.path.join(game_dir, cim), "rb") as f:
+            data = f.read()
+        with open(os.path.join(game_dir, "dos", cim), "rb") as f:
+            dos_data = f.read()
+        zh = [koei_tw_name(dos_data[0x3A + 25 * k:0x3A + 25 * k + 25].split(b"\0")[0]) for k in range(data[0x1CF])]
+        with open(os.path.join(game_dir, pak), "rb") as f:
+            img, _ = decode_pak(f.read())
+        img = double(img)
+        img.save(os.path.join(out_dir, "world", f"{scenario}.png"))
+        base = 100 if scenario == "mongol" else 0
+        stage = "蒙古篇" if scenario == "mongol" else "世界篇"
+        for r in countries(data, zh):
+            row = {"id": base + r["no"], "name": r["nameZh"]}
+            if r["name"] != r["nameZh"]:
+                row["nameJa"] = r["name"]
+            row["level"] = "國"
+            row["adjacent"] = [base + int(n) for n in r["neighbours"].split()]
+            row["pos"] = {"x": r["labelX"] - 256 + 6, "y": r["labelY"] * 2 + 7, "grid": "pixel",
+                          "w": img.width, "h": img.height}
+            notes = f"{stage}（`world/{scenario}.png`）；pos 是地圖上國號標籤的中心"
+            if r["name"] == "ムワッヒド朝":
+                notes += "；中文版寫成「倭馬亞王朝」（伍麥亞王朝，另一個王朝），照遊戲原文"
+            row["notes"] = notes
+            rows.append(row)
+    return rows
+
 def write_csv(path, rows):
     keys = []
     for r in rows:
