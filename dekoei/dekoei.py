@@ -22,6 +22,7 @@ from wiki_stats import stats_export
 from persons_export import persons_export
 from events_export import events_export
 from places_export import places_export, places_label
+from items_export import items_export
 from genpei_extras import genpei_extras
 from kouryuuki_extras import kouryuuki_extras
 from koukai_extras import koukai_extras
@@ -917,6 +918,7 @@ dekoei.add_command(export)  # kaodata 統一格式
 dekoei.add_command(biography)  # 武將列傳（koei-wiki）
 dekoei.add_command(stats_export, "stats-export")  # 武將能力值（koei-wiki）
 dekoei.add_command(places_export, "places-export")  # 地點與戰場圖（koei-wiki）
+dekoei.add_command(items_export, "items-export")  # 寶物（koei-wiki）
 dekoei.add_command(places_label, "places-label")  # 大地圖的地名標籤（koei-wiki）
 dekoei.add_command(persons_export, "persons-export")  # 人物全部欄位（koei-wiki）
 dekoei.add_command(events_export, "events-export")  # 遊戲內事件的圖（koei-wiki）
