@@ -45,6 +45,31 @@ def _clean(row):
     return {k: v for k, v in row.items() if v is not None and v is not False and v != "" and v != []}
 
 
+def _stat(target, amount):
+    return [{"target": target, "amount": int(amount)}] if target and int(amount) else []
+
+
+def _skill(name):
+    return [{"skill": name}] if name else []
+
+
+def _unsure(row):
+    """add "effects" to the row's uncertain list when it has effects"""
+    if row.get("effects"):
+        row["uncertain"] = row.get("uncertain", []) + ["effects"]
+    return row
+
+
+# 三國志VII-X: the bonus byte has no target in the record; weapons raise 武力 (✅ capture IX 劉備 雌雄一対の剣 +3, X 孫堅
+# 古錠刀 +3; VII, VIII by the same pattern 🟡). Books are left out: 12 and 13 put 兵法書 on 統率, not 知力, so the
+# target of a book's bonus in VII-X can't be told from its kind.
+SAN_WEAPON_KINDS = {"武器", "剣", "刀", "大刀", "矛", "戟", "斧", "鞭", "打撃", "暗器", "弓"}
+
+
+def _weapon(kind, amount):
+    return _stat("武力", amount) if kind in SAN_WEAPON_KINDS else []
+
+
 # 三國志IV PK (PC-98): holders.csv already has the kaodata id; descriptions in Japanese and the DOS 中文版's
 def items_san4pk_pc98(extract):
     holders = {}
@@ -54,9 +79,25 @@ def items_san4pk_pc98(extract):
     for r in _rows(extract, "items.csv"):
         i = int(r["id"])
         dup = 24 <= i <= 30
-        out.append({"id": i, "name": r["name"], "kind": r["kind_name"], "description": r["description"],
+        out.append({"id": i, "name": r["name"], "kind": r["kind_name"], "effects": _san4_effects(r["effect"]),
+                    "description": r["description"],
                     "descriptionZh": r["description_zh"], "holders": holders.get(i, []), "uncertain": ["kind"],
                     "notes": "玉璽、青釭等 7 件的複本，說明沒有效果欄，各劇本都沒人持有，用途不明" if dup else ""})
+    return out
+
+
+def _san4_effects(text):
+    """「知力  ＋５；政治力＋８」 -> stat bonuses; other parts (天変使用可, 退却確率の上昇, 魅力・統率力が１００) as skills"""
+    import re
+    import unicodedata
+    out = []
+    for part in unicodedata.normalize("NFKC", text).split(";"):
+        part = part.strip()
+        m = re.fullmatch(r"(\S+?)\s*\+\s*(\d+)", part)
+        if m:
+            out.append({"target": m[1], "amount": int(m[2])})
+        elif part:
+            out.append({"skill": part})
     return out
 
 
@@ -66,9 +107,10 @@ def items_san7pk_win(extract):
     for r in rows:
         r["_item"] = int(r["item"])
     holders = _person_holders(rows, "scenario", "holder", _scenario_numbers(rows, "scenario", extract))
-    return [{"id": int(r["item"]), "name": r["name"], "kind": r["kind"], "price": int(r["value"]),
-             "description": _flat(r["description"]), "holders": holders.get(int(r["item"]), []),
-             "uncertain": ["kind", "price"]} for r in _rows(extract, "items.csv")]
+    return [_unsure({"id": int(r["item"]), "name": r["name"], "kind": r["kind"], "price": int(r["value"]),
+                     "effects": _weapon(r["kind"], r["bonus"]), "description": _flat(r["description"]),
+                     "holders": holders.get(int(r["item"]), []), "uncertain": ["kind", "price"]})
+            for r in _rows(extract, "items.csv")]
 
 
 def _present(dataset):
@@ -113,10 +155,11 @@ def items_san8pk_win(extract, game_dir):
     for r in _rows(extract, "items.csv"):
         i, city = int(r["id"]), r["start"]
         city = "".join(SAN8_CITY_GAIJI.get(c, c) for c in city)
-        out.append({"id": i, "name": r["name"], "kind": r["type_name"], "price": int(r["value"]),
+        out.append(_unsure({"id": i, "name": r["name"], "kind": r["type_name"], "price": int(r["value"]),
+                    "effects": _weapon(r["type_name"], r["bonus"]) + _skill(r["skill_name"]),
                     "description": r["description"], "holders": holders.get(i, []),
                     "uncertain": ["kind", "price"],
-                    "notes": f"寶物表記開局放在都市「{city}」（各劇本是否相同沒確認）" if city and city != "人物" else ""})
+                    "notes": f"寶物表記開局放在都市「{city}」（各劇本是否相同沒確認）" if city and city != "人物" else ""}))
     return out
 
 
@@ -126,9 +169,10 @@ def items_san9pk_win(extract):
     for r in rows:
         r["_item"] = int(r["item"])
     holders = _person_holders(rows, "scenario", "holder", _scenario_numbers(rows, "scenario", extract))
-    return [{"id": int(r["id"]), "name": r["name"], "reading": r["reading"], "kind": r["kind_name"],
-             "price": int(r["value"]), "description": _flat(r["description"]),
-             "holders": holders.get(int(r["id"]), []), "uncertain": ["kind", "price", "holders"]}
+    return [_unsure({"id": int(r["id"]), "name": r["name"], "reading": r["reading"], "kind": r["kind_name"],
+                     "price": int(r["value"]), "effects": _weapon(r["kind_name"], r["bonus"]) + _skill(r["heihou"]),
+                     "description": _flat(r["description"]), "holders": holders.get(int(r["id"]), []),
+                     "uncertain": ["kind", "price", "holders"]})
             for r in _rows(extract, "items.csv")]
 
 
@@ -154,8 +198,9 @@ def items_san10pk_win(extract):
     for r in _rows(extract, "items.csv"):
         i = int(r["id"])
         note = f"有劇本由人物槽 {'、'.join(map(str, sorted(outside[i])))} 持有，這些槽不在 kaodata 資料集裡" if i in outside else ""
-        out.append({"id": i, "name": r["name"], "reading": r["reading"], "kind": r["kindName"],
-                    "description": r["description"], "holders": holders.get(i, []), "notes": note})
+        out.append(_unsure({"id": i, "name": r["name"], "reading": r["reading"], "kind": r["kindName"],
+                            "effects": _weapon(r["kindName"], r["b2"]), "description": r["description"],
+                            "holders": holders.get(i, []), "notes": note}))
     return out
 
 
@@ -194,7 +239,8 @@ def items_san12pk_win(extract, game_dir):
             if h != w.NONE and (h, n) in present:
                 holders.setdefault(k, []).append({"scenario": n, "person": h})
     return [{"id": int(r["id"]), "name": r["name"], "reading": r["reading"], "kind": r["kindName"],
-             "price": int(r["value"]), "description": r["description"], "holders": holders.get(int(r["id"]), []),
+             "price": int(r["value"]), "effects": _stat(r["stat"], r["amount"]) + _skill(r["skillName"]),
+             "description": r["description"], "holders": holders.get(int(r["id"]), []),
              "pk": r["pk"] == "pk", "uncertain": ["kind", "price"]} for r in _rows(extract, "items.csv")]
 
 
@@ -220,10 +266,21 @@ def items_san13pk_win(extract, game_dir):
             elif state in (0, 1) and place != 255:
                 holders.setdefault(k, []).append({"scenario": n, "other": places[place]})
     zh = san13_extras.zh_items(game_dir)
-    return [{"id": int(r["id"]), "name": r["name"], "nameZh": zh[int(r["id"])][0], "reading": r["reading"],
-             "kind": r["categoryName"], "price": int(r["price?"]), "description": r["description"],
-             "descriptionZh": zh[int(r["id"])][1], "holders": holders.get(int(r["id"]), []),
-             "uncertain": ["price", "holders"]} for r in _rows(extract, "items.csv")]
+    return [_unsure({"id": int(r["id"]), "name": r["name"], "nameZh": zh[int(r["id"])][0], "reading": r["reading"],
+                     "kind": r["categoryName"], "price": int(r["price?"]), "effects": _san13_effects(r["raw"]),
+                     "description": r["description"], "descriptionZh": zh[int(r["id"])][1],
+                     "holders": holders.get(int(r["id"]), []), "uncertain": ["price", "holders"]})
+            for r in _rows(extract, "items.csv")]
+
+
+# 三國志13 item table column 4 = stat, 5 = amount (🟡: same order as 三國志12's 0 統率 1 武力 2 知力 3 政治, and every
+# kind takes one of them: weapons 1, 兵書 0, 経書/論文/奇書 2, 政書/史書 3; 4 horses, 5 医書/薬, 6 玉璽 are not stats)
+SAN13_STATS = ["統率", "武力", "知力", "政治"]
+
+
+def _san13_effects(raw):
+    v = json.loads(raw)
+    return _stat(SAN13_STATS[v[4]], v[5]) if v[4] < len(SAN13_STATS) else []
 
 
 # 三國志14 PK: scenario 01 only (the others are not local). The decoded scedaex01.s14 has the items' state at
@@ -248,9 +305,11 @@ def items_san14pk_win(extract, game_dir):
             pid = 1000 if h == 2001 else h - 1
             if h and (pid, n) in present:
                 holders.setdefault(i, []).append({"scenario": n, "person": pid})
-    return [{"id": int(r["id"]), "name": r["name"], "nameZh": r["nameZh"], "reading": r["reading"], "kind": r["kind"],
-             "price": int(r["value"]), "description": r["description"], "descriptionZh": _flat(r["descriptionZh"]),
-             "holders": holders.get(int(r["id"]), []), "uncertain": ["price"]} for r in _rows(extract, "items.csv")]
+    return [_unsure({"id": int(r["id"]), "name": r["name"], "nameZh": r["nameZh"], "reading": r["reading"],
+                     "kind": r["kind"], "price": int(r["value"]),
+                     "effects": _stat(r["stat"], r["amount"]) + _skill(r["effect"]), "description": r["description"],
+                     "descriptionZh": _flat(r["descriptionZh"]), "holders": holders.get(int(r["id"]), []),
+                     "uncertain": ["price"]}) for r in _rows(extract, "items.csv")]
 
 
 # 信長の野望・天翔記 PK (PC-98): holder = name-record slot (1-based) of each scenario; its face number gives the id
@@ -298,8 +357,10 @@ def items_nobu7pk_win(extract):
 
 # 信長の野望・烈風伝 PK: person n is kaodata id n; no description text was found
 def items_nobu8pk_win(extract):
-    return [{"id": int(r["no"]), "name": r["name"], "kind": r["kind_name"], "grade": r["grade"],
-             "price": int(r["value_s10"]), "holders": _numbered_holders(r, 10, 0), "uncertain": ["grade", "price"]}
+    special = {r["name"]: r["special_effect"] for r in _rows(extract, "kinds.csv")}
+    return [_unsure({"id": int(r["no"]), "name": r["name"], "kind": r["kind_name"], "grade": r["grade"],
+                     "price": int(r["value_s10"]), "effects": _skill(special.get(r["kind_name"], "")),
+                     "holders": _numbered_holders(r, 10, 0), "uncertain": ["grade", "price"]})
             for r in _rows(extract, "kahou.csv")]
 
 
@@ -309,9 +370,23 @@ def items_nobu9pk_win(extract):
     for r in _rows(extract, "holders.csv"):
         h = ({"person": int(r["holder_id"])} if r["holder_type"] == "person" else {"other": r["holder"]})
         holders.setdefault(int(r["slot"]), []).append({"scenario": int(r["scenario"]), **h})
-    return [{"id": int(r["slot"]), "name": r["name"], "reading": r["reading"], "kind": r["kind_name"],
-             "grade": r["grade"], "holders": holders.get(int(r["slot"]), []), "pk": r["pk"] == "1",
-             "uncertain": ["grade"]} for r in _rows(extract, "kahou.csv")]
+    out = []
+    for r in _rows(extract, "kahou.csv"):
+        row = {"id": int(r["slot"]), "name": r["name"], "reading": r["reading"], "kind": r["kind_name"],
+               "grade": r["grade"], "effects": _nobu9_effects(r), "holders": holders.get(int(r["slot"]), []),
+               "pk": r["pk"] == "1", "uncertain": ["grade"]}
+        out.append(_unsure(row) if r["ability"] else row)
+    return out
+
+
+def _nobu9_effects(r):
+    """the kind's effect text: 「Xの能力が%d上がる」 -> X + the record's bonus, 「Xの特技を取得する」 -> 特技 X, else as is"""
+    import re
+    text = r["effect"]
+    if "%d" in text:
+        return _stat(r["ability"], r["ability_amount"] or 0)
+    m = re.fullmatch(r"(.+)の特技を取得する", text)
+    return _skill(m[1] if m else text)
 
 
 # 信長の野望・蒼天録 PK
@@ -374,9 +449,9 @@ def items_nobu12pk_win(extract):
             (pid,) = ids[name]
             holders.append({"scenario": int(s), "person": pid})
         note = f"說明的標題寫成「{r['description_name']}」" if r["description_name"] else ""
-        out.append({"id": int(r["id"]), "name": r["name"], "reading": r["reading"], "kind": r["kind"],
-                    "grade": r["grade_name"], "description": r["description"], "holders": holders,
-                    "uncertain": ["grade"], "notes": note})
+        out.append(_unsure({"id": int(r["id"]), "name": r["name"], "reading": r["reading"], "kind": r["kind"],
+                            "grade": r["grade_name"], "effects": _skill(r["tactic"]), "description": r["description"],
+                            "holders": holders, "uncertain": ["grade"], "notes": note}))
     return out
 
 
@@ -397,7 +472,10 @@ ZH = {"san7pk-win": ("san7_extras", 628030), "san8pk-win": ("san8_extras", 62804
 def add_zh(dataset, rows, game_dir):
     import importlib
     module, appid = ZH[dataset]
-    zh = importlib.import_module(module).zh_items(os.path.join(game_dir, "..", "steam", f"{appid}-tchinese", "depot"))
+    depot = os.path.join(game_dir, "..", "steam", f"{appid}-tchinese", "depot")
+    if not os.path.isdir(depot):  # the NAS archive keeps the depots beside the dataset folders
+        depot = os.path.join(game_dir, "..", f"{appid}-tchinese", "depot")
+    zh = importlib.import_module(module).zh_items(depot)
     for r in rows:
         r["nameZh"], r["descriptionZh"] = zh[r["id"]]
     return rows
