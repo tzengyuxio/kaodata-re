@@ -153,6 +153,16 @@
 
 **koei-wiki 匯出**：`dekoei.py places-export genchou-pc98 --game-dir ../games/genchou-pc98 --out ../export/koei-wiki/places`（`genchou_extras.places`，koei-places/1，2026-11-10；DOS 中文版要放在旁邊的 `../genchou-dos`）。47 國，`level` 是「國」；世界篇（劇本 2–4，三個劇本的國名、相鄰、號碼框相同，匯出時有檢查）用遊戲的國號 1–33，蒙古篇（劇本 1）是 100＋國號（101–114）。`name` 是 DOS 中文版的寫法，`nameJa` 是 PC-98 版的。大地圖 `world/{mongolia,world}-{spring,summer,autumn,winter}.png`（640×400），`pos` 是國號框的中心。檢查 391 項、0 不符。
 
+人物：`dekoei.py persons-export genchou-pc98 --game-dir ../games/genchou-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_genchou.py`，koei-persons/1，2026-11-11），372 人，和 kaodata `genchou-pc98` 的人物一一對上。檢查 864 項、0 不符；koei-wiki `verify_persons.py` 3260 項、0 不符。
+
+- 跨劇本對人：照 kaodata 的 `genchou_ids`，同名（NFKC，女性另算）是同一人；アイバク（劇本 4）、アルベルトゥス（劇本 3）照 FC 當另一人（`GENCHOU_PC88_SPLIT`）。`name` 用同 id 的 DOS 中文名（劇本 2、4 寫法不同的 15 人取劇本 4 的寫法，同 kaodata），史書寫法不同的 9 人寫在 `notes`。
+- 收哪些人：4 個劇本 `GENDATA` 的男女（劇本 4 的「モンゴル統一者」佔位不收），加上 `USDATA` 的登場武將（`status`「登場武將」，劇本開始時不在場，沒有 debut，標 `uncertain`）和有頭像的子嗣（「子嗣」）。
+- `stats` 是 政治力 戦闘力 指揮力 魅力，照存的 Ａ–Ｅ；`more` 是年齢、体力、体力上限、身分、文化圏、重病；`hidden.捕虜台詞`（欄名是這邊取的，標 `uncertain`）。能力、年齢取第一個出現的劇本，各劇本年齢寫在 `notes`。
+- `scenarios`：`status` 是身分（国王、領主、政治顧問、将軍），沒有所屬勢力的寫「将軍（無所屬）」；`lord` 是所屬勢力（+17）的君主；`location` 是所在国（+18，劇本 1 是 100＋國號＋1，其他是國號＋1，同地點匯出）。沒有年（0x1F8B 的年沒確認）。劇本 4 玩家勢力的人沒有 `lord`。
+- `relations.siblings`：+23 記號 `*`（君主的兄弟）連到同劇本的君主。其他親屬沒有欄位。
+- `extract/factions.csv` 只列到 GENDATA 的勢力數（+0x1F5C），但人物的 +17 會指到更後面的勢力（劇本 1 的タタル族是 26），匯出直接讀 33 筆勢力記錄。
+- 亂數產生的名字：劇本資料裡沒有；女性、子嗣的名字都存在檔案裡。
+
 ## 人物欄位
 
 男性 27 bytes（PC-98 `GENDATA` 從 2 起，記錄內位移各版相同），`persons.csv` 一劇本一筆：

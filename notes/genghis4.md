@@ -94,6 +94,15 @@
 
 **koei-wiki 匯出**：`dekoei.py places-export genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/places`（`genghis4_extras.places`，koei-places/1，2026-11-10）。都市 61（四個劇本合起來，id 是遊戲的都市號，同一都市在各劇本的名稱與座標相同，匯出時有檢查）、地域 56（100＋地域號，`level` 標在 `uncertain`）。遊戲沒有都市的相鄰表，所以沒有 `adjacent`。大地圖是 `world/largemap.png`（16000 × 3616，約 35 MB），`pos` 是都市所在格的中心（`grid: pixel`，64x＋32、16y＋8）。檢查 61 項、0 不符。
 
+人物：`dekoei.py persons-export genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_genghis4.py`，koei-persons/1，2026-11-11），629 人（男 519、女 110）。檢查 2136 項、0 不符；koei-wiki `verify_persons.py` 7780 項、0 不符。列傳：`dekoei.py biography genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/genghis4pk-win.jsonl`，519 段（`kind` 單段）。
+
+- 跨劇本對人：kaodata 的 id 是（性別、姓名、頭像）的流水號，同一人在各劇本用遊戲的人物號（+0）連。7 組名字與頭像相同、人物號不同（北條泰時 6／338 等），kaodata 當同一人，生卒年與列傳取第一個人物號，`notes` 有寫。同名不同頭像的 5 人（帖木爾滅里、高宗…）是不同人。
+- `born`、`died` 取生卒年表（7000＋人物號），`????` 不填、標 `uncertain`。
+- `stats` 政治 戰鬥 智謀（第一個出現的劇本）；`aptitude` 步兵 弓兵 騎兵 水軍（0–5 存值）；`skills.特技`（位元順序 🟡，標 `uncertain`）；`more.出身` 是出身地方。
+- `scenarios`：`year` 是劇本年；`status` 照 +44（未登場 有 `debut`＝登場年；6 讀進後改成 2，寫「將軍」；5 寫「未登場（子女）」，沒有登場年）；`location` 是所在都市的遊戲都市號（同地點匯出）；將軍的 `lord` 是所在都市所屬國的君主；`loyalty` 是忠誠（君主、未登場不填）。妃子的 `status` 寫「妃子」，沒有所在地。
+- `relations`：`father`（+21，男性序號）、`children`（反查）、`siblings`（同劇本父親相同，含沒有記錄的父親 501–512）、`spouse`（妃子的丈夫）。祖父不是規格裡的關係，放 `game.祖父`（名字）。
+- 亂數產生的名字：劇本資料裡沒有。遊戲中產生的人（新武將、出生的子女）用 6337、6339、6340 的「虛構的人物」列傳，不在劇本資料裡，所以不在匯出裡；妃子 112 筆都是固定名字。
+
 ## 人物欄位
 
 男性 51 bytes（讀進物件的位置在括號；位置從記錄開頭算，姓名在 +2，所以和上面「能力」從姓名起算的差 2）：
@@ -165,7 +174,6 @@
 
 ## 下一輪候選
 
-- 列傳交給 koei-wiki — 前置：確認 kaodata `genghis4pk-win` 的人物 id 和這裡的人物號怎麼對（kaodata 依劇本與性別去重，不是人物號）；做法：`biography.py` 加 `genghis4pk-win`
 - 都市相鄰與道路 — 前置：解 `MAPFIX` 的格屬性；做法：把每個欄位畫成圖疊在 `largemap.png` 上，看哪一欄是道路或都市格，再追 0x49A0D0（取格子）的呼叫者
 - 都市一覽各欄 — 做法：追 `CCityListCtrl` 的欄位讀取，或模擬器截圖比對
 

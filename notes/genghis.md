@@ -175,6 +175,15 @@
 
 **koei-wiki 匯出**：`dekoei.py places-export genghis-pc98 --game-dir ../games/genghis-pc98 --out ../export/koei-wiki/places`（`genghis_extras.places`，koei-places/1，2026-11-10）。41 國，`level` 是「國」；世界篇用遊戲的國號 1–27，蒙古篇是 100＋國號（101–114），兩篇是不同的地圖與國。`name` 是 DOS 中文版的寫法，`nameJa` 是 PC-98 版的；ムワッヒド朝在中文版寫成「倭馬亞王朝」（另一個王朝），照遊戲原文，寫在 `notes`。大地圖 `world/mongol.png`、`world/world.png`（384×320，200 線的圖縱向放大兩倍），`pos` 是國號標籤的中心。戰場地形只有 CSV，沒有給圖。檢查 353 項、0 不符。
 
+人物：`dekoei.py persons-export genghis-pc98 --game-dir ../games/genghis-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_genghis.py`，koei-persons/1，2026-11-11），讀 `extract/persons.csv`，152 人。檢查 314 項、0 不符；koei-wiki `verify_persons.py` 1291 項、0 不符。
+
+- `id` 是 kaodata 的流水號：兩篇同名（NFKC、去掉姓名間的空白）是同一人，所以跨篇用名字對。テムジン（蒙古篇）和ジンギスカン（世界篇）是同一人，但名字不同，kaodata 分成兩個 id，`notes` 有寫。
+- `name` 是 DOS 中文版的寫法，和 kaodata `nameHistorical` 不同的在 `notes` 寫史書寫法；`nameJa` 是 PC-98 的。
+- `scenarios`：`scenario` 是「蒙古篇」「世界篇」，沒有年（年齡是 1175／1205 年的值，劇本檔的年是 1174／1205，沒確認哪個是開始年）。`status` 照表名寫 君主、繼承人、子女、部將（部將的 `存在` 都是 1，寫「部將（未發掘）」）、女性；遊戲裡的稱呼沒找。君主有 `location`（100＋國號或國號，同地點匯出）。
+- 繼承人、子女的 `lord`、子女的 `father`、君主的 `children` 照「哪一組屬於哪位君主」的推定（🟡，見「人物欄位」），標 `uncertain: relations`。`clan` 是君主和 +28＝0（一族）的繼承人共用君主的 id。
+- `stats` 是君主、繼承人的 6 項能力；`more` 放年齢、部將與子女的基本能力値、部將的血縁値；兩篇都有的人取蒙古篇的值，各篇年齢寫在 `notes`（兩篇的年齡差不一定是 30，沒有換算生年）。`hidden.+28` 是一族記號。
+- 亂數產生的名字：劇本資料裡沒有。女性 40 人兩篇相同、名字固定；遊戲中出生的子女、升格的部將不在劇本資料裡，所以不在匯出裡。
+
 ## 人物欄位
 
 `persons.csv`：兩篇的君主、繼承人、部將、子女、女性，共 200 筆（同一人在兩篇各一筆），欄位見上面「能力」與本節。中文名取 `dos/` 的中文版同位置記錄。
