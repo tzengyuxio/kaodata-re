@@ -49,8 +49,8 @@ def _stat(target, amount):
     return [{"target": target, "amount": int(amount)}] if target and int(amount) else []
 
 
-def _skill(name):
-    return [{"skill": name}] if name else []
+def _skill(name, amount=0):
+    return [{"skill": name, **({"amount": int(amount)} if int(amount) else {})}] if name else []
 
 
 def _unsure(row):
@@ -307,7 +307,8 @@ def items_san14pk_win(extract, game_dir):
                 holders.setdefault(i, []).append({"scenario": n, "person": pid})
     return [_unsure({"id": int(r["id"]), "name": r["name"], "nameZh": r["nameZh"], "reading": r["reading"],
                      "kind": r["kind"], "price": int(r["value"]),
-                     "effects": _stat(r["stat"], r["amount"]) + _skill(r["effect"]), "description": r["description"],
+                     "effects": _stat(r["stat"], r["amount"]) + _skill(r["effect"], r["effectAmount"]),
+                     "description": r["description"],
                      "descriptionZh": _flat(r["descriptionZh"]), "holders": holders.get(int(r["id"]), []),
                      "uncertain": ["price"]}) for r in _rows(extract, "items.csv")]
 
