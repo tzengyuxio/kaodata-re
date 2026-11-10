@@ -133,4 +133,4 @@ koei-wiki 事件條目（2026-11-07 提案；koei-wiki 的使用者同意，格�
 - 第三輪 15 款（2026-11-08）已 commit（7cdaa78），還沒 push；要讀的檔已硬連結到 `games/<資料集>/`、重跑驗證過，三國志 6 以後、信長 7 以後的 Steam 安裝目錄已刪，大航海4、太閤5、ツクール與早期作品的保留（見 `notes/steam.md`「安裝目錄的刪除」）。
 - 第二輪候選（三國志 II、III、V，信長 2、3）還沒開始。
 - 第四輪（大航海 I–III、外傳、IV 補完，源平合戦）2026-11-10 完成並 commit，還沒 push。
-- 封存還沒做；每款「封存前還缺」見上表。新作的影音不留（見「結論」）。
+- 封存還沒做；每款「封存前還缺」見上表。新作的影音不留（見「結論」）。入庫用 `scripts/archive.py <dataset> [--library DIR] [--skip-original]`（re-common §11）：kaodata 匯出＋`faces.cbz`／`faces.csv`、koei-wiki 匯出、`extract/`（純圖資料夾打包成 cbz）、截圖複製進 `~/game-library/koei/<dataset>/`，Steam 安裝目錄硬連結到 `_original/win/` 並記 sha1；目前只收三國志 10–14、信長 9–13 的 Steam 版。2026-11-10 用 `nobu12pk-win --skip-original` 試跑到暫存目錄，頭像 1379 張、7 個 cbz 的張數都和來源一致；`--skip-original` 以外的路徑沒測，因為這 10 款的安裝目錄已經刪了。

@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `dekoei/`：主要 Python CLI（click）。所有子命令從 `dekoei/dekoei.py` 進入
 - `notes/`：格式研究筆記（繁中），改解碼邏輯前先讀對應筆記，例如源平合戰看 `notes/genpei.md`
 - `kaocgeditor/`：獨立的 React（Create React App）頭像編輯器，與 Python 端沒有程式碼共用
+- `scripts/archive.py`：把一個資料集的成果複製進素材庫 `~/game-library/koei/<dataset>/`（re-common §11 入庫），用法與限制見 `docs/backlog/events-items-art.md`「未收尾」
 - `research/face-crop/`：從三國志12／13 的大圖反推小頭像裁切框的研究腳本與結果（`san12pk-win` 的匯出會讀 `data/san12_boxes.json`）（要 numpy、scipy，用法見該目錄的 README）；`samples/` 不進版控
 - `GLYPH_TABLE/`、`PERSONS_TABLE/`、`MISC_TABLE/`、`montage/`：已產出的成果圖／表，不是原始碼
 - `games/`：原版遊戲，被 `.gitignore` 排除，不要 commit
