@@ -31,6 +31,10 @@ YEAR, TITLE = 0x199E, 0x1BD
 PROVINCE_ID, REGION_ID = 1000, 2000
 STATS = ["統率", "武勇", "知略", "内政", "外政"]
 GROWTH, GROWTH_AT, AMBITION_AT = (16, 109, 16), 44, 97  # 成長型 table (name 15); person +44 row, +97 野心
+# person +86 u8: the 志 type (one per person or house, not a fixdata key 6 row); only the types checked against the
+# official guide (織田 pages) and screenshots are named, the type -> name table is not found
+SHI_AT, SHI = 86, {13: "領地保全", 14: "家名存続", 15: "所領拡大", 16: "天下統一", 46: "家督継承", 21: "天下布武",
+                   52: "天が下知る"}
 SKILLS, SKILL_BITS = (15, 200, 290), 46  # fixdata key 15; bit k of fixed +46-+70 is skill k
 SKILL_KINDS = {0: "個性", 1: "個性", 2: "個性", 3: "個性", 4: "個性", 5: "個性", 6: "作戦", 7: "戦法", 8: "補佐効果"}
 # +39 (scenario 02 counts): 7 serving a 勢力, 3 浪人, 6 姫, 0 not born yet, 1 born but not yet out (with or
@@ -233,6 +237,8 @@ def persons(game_dir):
             row["reading"] = reading
         row.update({"born": _u16(t, 32), "died": _u16(t, 36), "stats": dict(zip(STATS, t[81:86]))})
         row["more"] = {"野心": t[AMBITION_AT]}
+        if t[SHI_AT] in SHI:
+            row["more"]["志"] = SHI[t[SHI_AT]]
         if growth[t[GROWTH_AT]]:
             row["hidden"] = {"成長型": growth[t[GROWTH_AT]]}
         skills = _skills(t, table)
@@ -282,7 +288,8 @@ def persons(game_dir):
                         "key 15 的序號），個性、戦法、作戦用本體劇本對過兩人的截圖，PK 改了部分人的戦法（明智光秀 逆撫で→麒麟児）；"
                         "補佐効果是 PK 加的，分類照記錄 +36。野心 +97 對過兩人的截圖（光秀 10、岡国高 4），劇本 02 的值。"
                         "成長型 +44 是 fixdata key 16 的列號（本多忠勝→本多忠勝型、毛利元就→毛利元就型）。"
-                        "志、気質還沒找到。其餘欄位是從資料推的：生年 +32、"
+                        "志是 +86 的種類號，只寫出對過證據的 7 種（一般武將的領地保全、家名存続、所領拡大、天下統一、家督継承，信長 天下布武、"
+                        "光秀 天が下知る：攻略本的織田家武將頁與截圖），其他大名、名將各有自己的號，號↔名稱的表還沒找到；気質還沒找到。其餘欄位是從資料推的：生年 +32、"
                         "登場年 +34、歿年 +36、父 +4、母 +74、配偶 +8（各劇本）、家 +22（relations.clan）、勢力 +11、"
                         "所在城 +18。status 依 +39：7 仕官（勢力的当主是自己時寫大名）、3 浪人、6 姫，0／1 是未登場"
                         "（debut 用 +34），8 是不在地圖上（多半已死），不列。"
