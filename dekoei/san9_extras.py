@@ -54,6 +54,19 @@ ITEM = (b"item", 22, 100)
 # first word (史書, 經書, 論文)
 KINDS = ["名馬・乗物", "武器", "兵法書", "政治書", "史書", "経書", "論文", "地図", "医書・方術書", "仙書", "玉璽",
          "宝物", "装身具"]
+# M_Rtdn.s9 列伝 k belongs to the people with face k for k < 563 and face k + 7 from 563 on: faces 563-569 (霊帝, 少帝,
+# 献帝, 貂蝉, 大喬, 小喬, 蔡琰) have no 列伝, so the rest move up 7. 659-667 are blank (faces 666-674: 北斗, 南斗 and the
+# role records), 668-678 are the 倭, 烏丸, 羌, 山越, 南蛮 people (a tribe's officers share one). ✅ cross: 573 of the
+# 584 texts that 三國志VII/VIII also have match the person of the same name there (the other 2 differ only in a
+# misspelt name, 厳晙/田与); the 95 IX-only texts fit their person by content.
+BIO_NO_TEXT = range(563, 570)
+BIO_LANG = "ja"
+
+
+def bio_face(k: int) -> int:
+    return k if k < BIO_NO_TEXT.start else k + len(BIO_NO_TEXT)
+
+
 # texts' gaiji not in SAN9_GAIJI, read off the readings beside them (🟡)
 MSG_GAIJI = {0xE006: "傕", 0xE00B: "兗", 0xE011: "闞", 0xE018: "譙", 0xE020: "邳", 0xE029: "釭", 0xE059: "蒺"}
 
@@ -256,17 +269,38 @@ def texts(game_dir, out, msg, persons):
         write_csv(os.path.join(out, "events", csv_name),
                   ["index", "title", "description"] + (["title_picture"] if csv_name == "pk_stages.csv" else []),
                   rows)
-    # M_Rtdn.s9: 679 列伝 by face number (✅ for the spot checks up to 500; from about 600 on the texts do not fit
-    # the person with that face, so face_name is only a hint 🟡); 659-667 are blank
+    # M_Rtdn.s9: 679 列伝, linked to people by bio_face
     by_face = {}
     for p in persons:
-        by_face.setdefault(p["face"], []).append(p["name"])
+        by_face.setdefault(p["face"], []).append(p)
     bios = entries(os.path.join(game_dir, "M_Rtdn.s9"))
-    write_csv(os.path.join(out, "text", "biographies.csv"), ["index", "face_name", "text"],
-              [[k, " ".join(by_face.get(k, [])), text(b).strip()] for k, b in enumerate(bios)])
+    rows = []
+    for k, b in enumerate(bios):
+        t = text(b).strip()
+        people = by_face.get(bio_face(k), []) if t else []
+        rows.append([k, bio_face(k), " ".join(str(p["id"]) for p in people), " ".join(p["name"] for p in people), t])
+    write_csv(os.path.join(out, "text", "biographies.csv"), ["index", "face", "person_ids", "names", "text"], rows)
     counts["M_Rtdn.s9"] = len(bios)
     return counts
 
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    """列伝 for biography.py: {person id: [("單段", text)]}, the line breaks of the game's layout removed. A tribe's
+    officers share one face and one 列伝; it goes to the first of them, the one the kaodata dataset keeps."""
+    first = {}
+    for p in load_san9_persons(game_dir):
+        first.setdefault(p["face"], p["id"])
+    out = {}
+    for k, b in enumerate(entries(os.path.join(game_dir, "M_Rtdn.s9"))):
+        t = text(b).strip().replace("\n", "")
+        if t and bio_face(k) in first:
+            out[first[bio_face(k)]] = [("單段", t)]
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    return {p["id"]: p["name"] for p in load_san9_persons(game_dir)}
 
 @click.command("san9-extras")
 @click.option("--game-dir", required=True, type=click.Path(exists=True), help="Steam install (628050)")
