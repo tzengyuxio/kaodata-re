@@ -290,7 +290,10 @@ PC-98 `SNn.NB5`（整檔 XOR 0xB4）0xAE4 起 460 格 × 39 bytes；X68000 位�
 
 ## 創造（nobu14）
 
-本地沒有遊戲檔（`games/steam/288390/` 是空的，帳號沒有這款，見 BACKLOG）。只有截圖 `nobu14-win-web-01.jpg`（百地三太夫）。
+遊戲檔是 Steam 繁中版（本體 292990、PK 344120），2026-11-11 下載到 `games/steam/292990-tchinese/depot/`，還沒解人物記錄；下表仍只根據截圖 `nobu14-win-web-01.jpg`（百地三太夫）。
+
+- 列伝：`MSG/bushou_retsuden01–29.n14`（本體 2957 個字串），PK 是 `MSG_PK/bushou_retsuden01–40_0.n14`（3999 個字串）；格式 `N14F`，同 12、13 代的 N12F／N13F（`wiki_nobu12.msg_entries`），只是字串是 cp950，全部解得開。前兩個字串是空字串與 `Error`，之後兩兩一組（姓名、本文），第一組是蠣崎季廣。和人物槽怎麼對還沒確認。🟡 code
+- 家宝說明在 `MSG/kahou_retsuden01–08.n14`（沒看）。
 
 | 類別 | 項目 | 狀態 | 證據 |
 |---|---|---|---|
