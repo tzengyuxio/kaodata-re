@@ -10,7 +10,7 @@ created: 2026-11-07
 - 範圍（使用者 2026-11-07 定）：三國志 I–V 與信長 2–6，加上三國志 12–14、信長 12–14，各代要解的是事件（文字與觸發）、事件插圖、道具（名稱、效果、圖）。
 - 目的之一是封存（`~/.claude/re-common.md` §11）：素材和資料先解好，就可以把遊戲封存、清出空間。新作佔的空間大（三國志12 11 GB、13 14 GB、14 20 GB），格式也比較單純；早期作品省下的空間有限，但規則已經比較熟。
 - 影音不留（使用者 2026-11-07）：三國志 6 以後、信長以 Windows 為主要平台以後的作品，過場影片、BGM、語音都不轉檔也不留，封存時直接捨棄（那時的檔案大、多是通用格式）。早期作品自家的音源與色盤動畫才照 re-common §10 處理。
-- 信長初代本地沒有遊戲檔；信長14（創造）帳號沒有，都不在範圍內。
+- 信長初代本地沒有遊戲檔，不在範圍內。信長14（創造）2026-11-11 才找到正確的 appid（292990，PK 是 DLC 344120），列在第三輪。
 - 事件文字要交給 koei-wiki 的話，格式要先和 koei-wiki 談（目前沒有規格）。
 
 ## 現況（2026-11-07 盤點）
@@ -41,7 +41,7 @@ created: 2026-11-07
 | 三國志14 PK（872410，20 GB） | `0002/*.rdb`（RDB 已解，`notes/san14.md`）；`ScreenLayout.rdb` 有 `sti_scenery_*` 25 張 | `0010_JP`、`0010_TC` 之外沒查 | `ScreenLayout.rdb` 的 `sti_item*` 219 張（512×512，已能解出）；名稱、效果沒找 |
 | 信長12 革新 PK（363090，1.8 GB） | `Grp/rekishicg.n12`（歷史事件）、`endingcg.n12`、`tokusanhincg.n12`（特産品） | `Msg/rek_*.n12`（歷史事件約 40 個）、`tok_tec_*`、`trl_*`、`end_*`、`rekev.n12`、`tokev.n12` | 家宝：`Grp/kahou.n12`（圖）、`Msg/Kfile01–08.n12`（說明）、人物串列 3（家宝 id）🟡 |
 | 信長13 天道 PK（363110，4.6 GB） | `grp/rekishicg.n13`、`endingcg.n13`、`titlecg.n13` | `msg/rks_*.n13`（歷史事件約 75 個）、`cev_*`（勢力事件約 60 個）、`han_*`（約 40 個）、`event_root.n13`、`rekev.n13`、`tokev.n13` | 家宝：`grp/kahou.n13`、`msg/Kfile01–08.n13`、人物串列 4 |
-| 信長14 創造 | 帳號沒有 | | |
+| 信長14 創造 PK（292990＋DLC 344120，繁中） | `RES_PK/res_grp.bin`（LINK，同大志） | `RES_PK/res_event.bin`、EXE 事件標題表 | 家宝：劇本檔＋`MSG_PK/kahou_retsuden*`、圖在 `res_grp.bin` 第 8 項 |
 
 ## 產出進度（2026-11-07 起，一款一 fork）
 
@@ -68,9 +68,10 @@ created: 2026-11-07
 |---|---|---|---|---|---|
 | 信長 大志 PK `nobu15pk-win` | 628890 | 35 GB | ✅ `nobu15-extras` | 家宝 121 件＋圖（名稱、說明、種類 ✅ code，等級 🟡）；事件腳本 326 個（台詞 ✅ code，指令 ❌）；歷史事件目標 437 筆；事件圖 13 組 897 張（用途 🟡）；家紋 255 ✅ cross | 事件觸發（`QUEST_PK/*.bsf`）、家宝效果與持有者、天災圖對名稱、家紋↔家名、DLC 頭像（加密）；讀的檔約 2.2 GB（`RES_PK/res_face.bin`、`res_grp.bin`、`res_event.bin` 等）；`PBOX_Books/` 數位畫冊 104 MB 沒開 |
 | 信長 新生 PK `nobu16pk-win` | 1336980 | 26 GB | ✅ `nobu16-extras` | 事件圖 264 張（1080p 145 ✅ code，對應 ❌）；家宝 122 件＋圖（名稱說明 ✅ cross，圖號 🟡）；家紋 226 ✅ code；事件名 555（465 對到事件號 ✅ code）；事件全文 17916 列；歷代武將頭像 17320 張（14 代，代別 🟡）；演出大字 138 | 事件↔插圖↔對白、發生條件（`FLOW*/REKISHI_0n.bsf`）、家宝種類效果持有者（`fixdataPK.n16`）、家紋↔勢力、歷代頭像↔武將；讀的檔約 1.7 GB＋`RES/res_face.bin` 1.4 GB |
+| 信長 創造 PK `nobu14pk-win` | 292990 | 5.1 GB | ✅ `nobu14-extras` | 頭像 2510＋特大 470（頭像號↔格號：0–1999、7400、9000、9500 段 ✅／🟡，其他 79 個號碼 ❌）；歷代頭像 12628（代別 ❌）；家宝 160 件＋圖 54＋圖示（細類＝圖號 ✅ capture）；事件 519 個（台詞 ✅ code，標題 359 ✅ code）；事件圖 127、戦法字 102；koei-wiki 人物、城國、列伝、家宝已匯出 | 頭像號 4000–8214、事件背景↔圖與觸發、城相鄰、特性、家宝效果、大地圖（`res_stage.bin`）；遊戲檔還在 `games/steam/292990-tchinese/`，沒硬連結到 `games/nobu14pk-win/` |
 | 三國志11 PK `san11pk-win` | 628070 | 2.0 GB | ✅ `san11-extras` | 事件圖 88＋PK 戰役 19＋特寫 62（圖 ✅，對應 🟡）；寶物 43 件＋圖 35 ✅、14 劇本持有者 602 筆 🟡；規則表（特技 100、技巧、施設、兵裝、爵位、官職、戰法、地形；名稱說明 ✅，數值 🟡）；訊息全文、列傳 821 人 ✅ cross；事件台詞 3934 則 | 事件觸發（`.eve` 位元組碼）、事件圖↔事件名、寶物加成與數值欄；讀的檔 752 MB，`games/san11pk-win/` 只缺 `media/san11res1.bin` 與 `media/msg/`（約 120 MB） |
 | 三國志X PK `san10pk-win` | 628060 | 964 MB | ✅ `san10-extras` | 寶物 200 件＋圖 176 ✅ code、18 劇本持有者 3600 筆（持有者 ✅ cross）；訊息 27732 則 ✅ code；事件靜止圖 96＋PK 10、事件場景素材 1177、都市畫面 800（圖 ✅，對應 🟡） | 事件腳本 `Event/*.EVS`／`*.PES` 加密（推定 XOR）；寶物 `b2`／`b3`；戰場是 3D（只出背景 7 張）、一騎討／舌戰沒做；讀的檔約 145 MB，研究事件另留 `Event/`（3.6 MB） |
-| 三國志IX PK `san9pk-win` | 628050 | 1.3 GB | ✅ `san9-extras` | 事件靜止圖 72＋PK 14（圖 ✅ code，對應 ❌）；結局、畫廊、戰役群像 41（色盤 🟡）；寶物 100 件＋圖 200（名稱說明 ✅ code，加成 🟡）、20 劇本持有者 2000 筆 🟡；兵法 41；訊息 14210／11073 則；列傳 679 則（600 以後對人錯開 🟡） | 完整大地圖（`D_Land00.s9` 拼圖塊，圖塊號未解）、事件圖↔事件、觸發（EXE 有 SteamStub）、列傳 600 以後對人、寶物加成與兵法數值；讀的檔 98 MB，`games/san9pk-win/` 缺 8 個 `G_*.s9`＋`M_Msg.s9`、`M_Rtdn.s9`（約 83 MB）；說明書 `San9WPK.pdf` 28 MB 可留 |
+| 三國志IX PK `san9pk-win` | 628050 | 1.3 GB | ✅ `san9-extras` | 事件靜止圖 72＋PK 14（圖 ✅ code，對應 ❌）；結局、畫廊、戰役群像 41（色盤 🟡）；寶物 100 件＋圖 200（名稱說明 ✅ code，加成 🟡）、20 劇本持有者 2000 筆 🟡；兵法 41；訊息 14210／11073 則；列傳 679 則（600 以後對人錯開 🟡） | 事件圖↔事件、觸發（EXE 有 SteamStub）、列傳 600 以後對人、寶物加成與兵法數值；讀的檔 98 MB，`games/san9pk-win/` 缺 8 個 `G_*.s9`＋`M_Msg.s9`、`M_Rtdn.s9`（約 83 MB）；說明書 `San9WPK.pdf` 28 MB 可留 |
 | 三國志VIII PK `san8pk-win` | 628040 | 789 MB | ✅ `san8-extras` | 寶物 255 筆（名稱 ✅ code，開局所在 ✅ cross，持有者 ❌）＋圖 80；效果字串 42；列傳 654 則 ✅ cross；訊息 323 項；事件腳本 230 個（各年情勢 51 ✅ code）；事件圖 79、人物動作 1695（色盤 🟡）；畫面背景 53 | 寶物持有者（`D_Sce.s8` 0xEF45 後）、寶物↔特技效果、事件腳本碼與觸發；戰法、一騎討、戰術地圖沒做（大地圖只有概覽圖 10 張）；`games/san8pk-win/` 缺 `g_event.s8`、`m_msg.s8` 與 53 個背景檔（約 71 MB） |
 | 三國志VII PK `san7pk-win` | 628030 | 637 MB | ✅ `san7-extras` | 寶物 72 件＋圖（名稱 ✅ code，說明 ✅ cross）、12 劇本持有者 864 筆 ✅ cross；兵裝 14；特技名 32 ✅ code；事件靜止圖 25、結局 30、名所 30、人物立繪 722、一騎討 209 等（用途 🟡）；訊息 7261、歷史事件對白 1575、年表 347；列傳 520 人 ✅ cross | 事件觸發（EXE，SteamStub）、事件圖↔事件、寶物加成欄、人物特技 bit；讀的檔 188 MB，`games/san7pk-win/` 缺約 140 MB（`G_*.s7`、`P_*.s7`、`M_Msg.s7`、`M_BFile.s7`、`S7gaiji.tte`） |
 | 信長 將星錄 PK `nobu7pk-win` | 628100 | 682 MB | ✅ `nobu7-extras` | 家宝 200 件（名稱說明 ✅ code，10 劇本持有者 387 筆 ✅ cross，種類等級 🟡）＋種類圖 27；家紋 147＋大名↔家紋 300 列 ✅ cross；事件靜止圖 32（對應 ❌）；大地圖全圖、小地圖、野戰地形；訊息 4474 則；合戰解說 16、城說明 66、官位 250（順序 🟡） | 家宝種類名與效能、事件切分與觸發、官位號（都要解殼 EXE，SteamStub）；讀的檔 65 MB，`games/nobu7pk-win/` 缺 14 個圖檔約 61 MB；說明書 6 MB 可留 |
@@ -133,7 +134,7 @@ koei-wiki 事件條目（2026-11-07 提案；koei-wiki 的使用者同意，格�
 ## 未收尾
 
 - 第一輪 10 款已 commit（4fe35fa）並 push。
-- 第三輪 15 款（2026-11-08）已 commit（7cdaa78），還沒 push；要讀的檔已硬連結到 `games/<資料集>/`、重跑驗證過，三國志 6 以後、信長 7 以後的 Steam 安裝目錄已刪，大航海4、太閤5、ツクール與早期作品的保留（見 `notes/steam.md`「安裝目錄的刪除」）。
+- 第三輪 15 款（2026-11-08）已 commit（7cdaa78）並 push；要讀的檔已硬連結到 `games/<資料集>/`、重跑驗證過，三國志 6 以後、信長 7 以後的 Steam 安裝目錄已刪，大航海4、太閤5、ツクール與早期作品的保留（見 `notes/steam.md`「安裝目錄的刪除」）。
 - 第二輪候選（三國志 II、III、V，信長 2、3）還沒開始。
-- 第四輪（大航海 I–III、外傳、IV 補完，源平合戦）2026-11-10 完成並 commit，還沒 push。
-- 封存還沒做；每款「封存前還缺」見上表。新作的影音不留（見「結論」）。入庫用 `scripts/archive.py <dataset> [--library DIR] [--skip-original]`（re-common §11）：kaodata 匯出＋`faces.cbz`／`faces.csv`、koei-wiki 匯出、`extract/`（純圖資料夾打包成 cbz）、截圖複製進 `~/game-library/koei/<dataset>/`，Steam 安裝目錄硬連結到 `_original/win/` 並記 sha1；目前只收三國志 10–14、信長 9–13 的 Steam 版。2026-11-10 用 `nobu12pk-win --skip-original` 試跑到暫存目錄，頭像 1379 張、7 個 cbz 的張數都和來源一致；`--skip-original` 以外的路徑沒測，因為這 10 款的安裝目錄已經刪了。
+- 第四輪（大航海 I–III、外傳、IV 補完，源平合戦）2026-11-10 完成並 commit（6c5cb96 等），已 push。
+- 三國志VIII–14（`san8pk-win`–`san14pk-win`）2026-11-11 已入庫，遊戲檔上傳到 NAS 後刪除本機副本（`notes/steam.md`「三國志8–14 的封存」）；其他款還沒入庫，每款「封存前還缺」見上表。新作的影音不留（見「結論」）。入庫用 `scripts/archive.py <dataset> [--library DIR] [--skip-original]`（re-common §11）：kaodata 匯出＋`faces.cbz`／`faces.csv`、koei-wiki 匯出、`extract/`（純圖資料夾打包成 cbz）、截圖複製進 `~/game-library/koei/<dataset>/`，Steam 安裝目錄硬連結到 `_original/win/` 並記 sha1；目前只收三國志 10–14、信長 9–13 的 Steam 版。2026-11-10 用 `nobu12pk-win --skip-original` 試跑到暫存目錄，頭像 1379 張、7 個 cbz 的張數都和來源一致；`--skip-original` 以外的路徑沒測，因為這 10 款的安裝目錄已經刪了。

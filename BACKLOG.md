@@ -73,7 +73,7 @@
 
 - [x] 三國志12 with PK（628080）、三國志13（363150，PK 是 DLC）、三國志14（872410，PK 是 DLC）— 三國志12 PK 匯出成 `san12pk-win`、三國志13 PK 匯出成 `san13pk-win`（2026-10-16 使用者決定收）；三國志14 PK 只分析；頭像尺寸與張數已交 kaodata 記錄；人物與頭像的對應、日文／繁中名已追到（見 `notes/san12.md`–`san14.md`）（2026-10-16）
 - [x] 大志（628890）、新生（1336980）— 只分析、先不交 kaodata；收 72×72，尺寸與張數已交 kaodata 記錄；人物、頭像號、日文／繁中名已追到（見 `notes/nobu15.md`、`nobu16.md`）（2026-10-16）
-- [ ] 信長の野望・創造 with PK（本體 292990、PK 是 DLC 344120，暫定 `nobu14pk-win`）— 2026-10-17 用了錯的 appid 288390 才回 No subscription；Steam 商店資料兩個都只列繁中，2026-11-11 已下載到 `games/steam/292990-tchinese/depot/`，列伝格式已確認（見 `notes/nobu-attributes.md`「創造」），人物記錄與頭像待分析（2026-11-11）
+- [ ] 信長の野望・創造 with PK（本體 292990、PK 是 DLC 344120，暫定 `nobu14pk-win`）— 2026-11-11 下載到 `games/steam/292990-tchinese/depot/`；人物、城國、列伝、家宝已匯出給 koei-wiki，頭像與素材由 `nobu14-extras` 輸出（`notes/nobu14.md`）；還沒交 kaodata：頭像裁切規則未定，頭像號 4000–8214 對格號也還沒解（2026-11-11）
 - [x] 三国志ツクール（397720）— 96×120 全彩，本體 5101＋已裝 DLC 2722 張，匯出成 `santsukuru-win`（WebP），先留 data-local 不上線；之後頭像連同人名要放到 Forgejo 的 koei-images 備查（repo 已存在：https://hikari.tail81eb54.ts.net:8444/tzengyuxio/koei-images ，本地還沒 clone；使用者說先不用做（2026-10-17），圖檔格式與人名附法到時再問；push 前先問使用者）（見 `notes/santsukuru.md`）（天道 PK 已匯出成 `nobu13pk-win`，太閤立志伝V DX 已匯出成 `taikoh5dx-win`，大航海時代IV PK HD 已匯出成 `koukai4pk-win`）（2026-10-16）
 - [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）
 
@@ -90,10 +90,6 @@
 - [ ] 維新の嵐的人物資料 — PC-98 的能力已能用 `koei-person ishin-pc98` 輸出（2026-11-06）；同志、所在還沒做；kaodata `ishin-pc98` 的人名已改用劇本的名表（2026-11-06）（2026-11-04）
 - [ ] 大航海時代系列的人物資料與港口資料（2026-11-04）
 - [ ] 各個遊戲的道具圖與道具資料（2026-11-04）
-- [ ] 寶物匯出補 `effects`（koei-items/1）— koei-wiki 的寶物條目要加「遊戲中的效果」；已交付的 16 個資料集先做，extract 裡有效果欄的：三國志IV PK、VII、VIII、IX、12、14，信長8、9；排在三國志8–14 刪檔之後（2026-11-11）
-- [ ] 三國志各代的大地圖已在 `<game>_extras` 的 `worldmap/`（VIII–14，2026-11-11）
-- [ ] 成吉思汗系列的歷史人物資料與各個國家 — 三代的國、相鄰、人物欄位已解（`genghis-extras`、`genchou-extras`、`genghis4-extras`，2026-11-10）；地點已匯出給 koei-wiki（2026-11-10）；成吉思汗IV 的大地圖也已解（2026-11-10）；人物匯出見下（2026-11-04）
-  - 人物匯出已做（2026-11-11）：`genghis-pc98` 152、`genchou-pc98` 372、`genghis4pk-win` 629 人，成吉思汗IV 列傳 519 段；跨劇本對人與亂數名字寫在各遊戲筆記「koei-wiki 匯出」
 - [ ] 遊戲歷史事件資料解析 — 以三國志、信長之野望為主（2026-11-06）
 
 ## 待確認（遊戲筆記的 🟡）

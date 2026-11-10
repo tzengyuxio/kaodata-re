@@ -11,7 +11,7 @@ import click
 DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
             "nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
             "nobu8pk-win": "wiki_nobu8", "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10",
-            "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13",
+            "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13", "nobu14pk-win": "wiki_nobu14",
             "san8pk-win": "wiki_san8", "san9pk-win": "wiki_san9", "san10pk-win": "wiki_san10", "san11pk-win": "wiki_san11",
             "san12pk-win": "wiki_san12", "san13pk-win": "wiki_san13",
             "san14pk-win": "wiki_san14",

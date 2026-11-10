@@ -45,6 +45,7 @@ from nobu9_extras import nobu9_extras
 from nobu10_extras import nobu10_extras
 from nobu11_extras import nobu11_extras
 from nobu13_extras import nobu13_extras
+from nobu14_extras import nobu14_extras
 from nobu15_extras import nobu15_extras
 from nobu16_extras import nobu16_extras
 from santsukuru_extras import santsukuru_extras
@@ -944,6 +945,7 @@ dekoei.add_command(nobu9_extras, "nobu9-extras")  # 信長9 事件、插圖、�
 dekoei.add_command(nobu10_extras, "nobu10-extras")  # 信長10 事件、插圖、家宝、家紋、官位、訊息、大地圖
 dekoei.add_command(nobu11_extras, "nobu11-extras")  # 信長11 事件、插圖、家宝、家紋、官位、役職、訊息
 dekoei.add_command(nobu13_extras, "nobu13-extras")  # 信長13 事件、插圖、家宝
+dekoei.add_command(nobu14_extras, "nobu14-extras")  # 信長14 頭像、事件、插圖、家宝
 dekoei.add_command(nobu15_extras, "nobu15-extras")  # 信長15 事件、插圖、家宝
 dekoei.add_command(nobu16_extras, "nobu16-extras")  # 信長16 事件、插圖、家宝、歷代頭像
 dekoei.add_command(santsukuru_extras, "santsukuru-extras")  # 三国志ツクール 事件圖、戰利品、41 州地圖、訊息
