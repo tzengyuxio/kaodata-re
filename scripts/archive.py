@@ -8,8 +8,8 @@ What goes where (<lib> = <library>/koei/<dataset>/):
   kaodata export (~/works/kaodata/data-local/<id>) -> <lib>/kaodata/          as delivered (kaodata/1)
     and its portraits, rendered by the reference renderer    -> <lib>/faces.cbz + faces.csv (index, code, group,
                                                                 who uses it)
-  export/koei-wiki/{persons,places,stats}/<id>.jsonl, export/koei-wiki/<id>.jsonl (biographies)
-                                                           -> <lib>/wiki/{persons,places,stats,biographies}.jsonl
+  export/koei-wiki/{persons,places,stats,items}/<id>.jsonl, export/koei-wiki/<id>.jsonl (biographies)
+                                                           -> <lib>/wiki/{persons,places,stats,items,biographies}.jsonl
   export/koei-wiki/places/<id>/ (battle maps)              -> <lib>/wiki/battlemaps.cbz
   export/koei-wiki/events/<id>.jsonl + <id>/               -> <lib>/wiki/events.jsonl + events.cbz
   games/<id>/extract/                                      -> <lib>/   files as they are, a folder of only images
@@ -39,7 +39,7 @@ KAODATA = os.path.expanduser("~/works/kaodata/data-local")
 WIKI = os.path.join(ROOT, "export", "koei-wiki")
 # dataset -> Steam appid (notes/steam.md)
 GAMES = {
-    "san10pk-win": 628060, "san11pk-win": 628070, "san12pk-win": 628080, "san13pk-win": 363150,
+    "san8pk-win": 628040, "san9pk-win": 628050, "san10pk-win": 628060, "san11pk-win": 628070, "san12pk-win": 628080, "san13pk-win": 363150,
     "san14pk-win": 872410,
     "nobu9pk-win": 628120, "nobu10pk-win": 628130, "nobu11pk-win": 628140, "nobu12pk-win": 363090,
     "nobu13pk-win": 363110,
@@ -128,7 +128,8 @@ def wiki(dataset: str, lib: str) -> None:
     out = os.path.join(lib, "wiki")
     os.makedirs(out, exist_ok=True)
     for src, name in [(f"persons/{dataset}.jsonl", "persons.jsonl"), (f"places/{dataset}.jsonl", "places.jsonl"),
-                      (f"stats/{dataset}.jsonl", "stats.jsonl"), (f"{dataset}.jsonl", "biographies.jsonl"),
+                      (f"stats/{dataset}.jsonl", "stats.jsonl"), (f"items/{dataset}.jsonl", "items.jsonl"),
+                      (f"{dataset}.jsonl", "biographies.jsonl"),
                       (f"events/{dataset}.jsonl", "events.jsonl")]:
         if os.path.exists(os.path.join(WIKI, src)):
             shutil.copy2(os.path.join(WIKI, src), os.path.join(out, name))
