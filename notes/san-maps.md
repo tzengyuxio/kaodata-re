@@ -982,7 +982,7 @@ EXE 的 `.text` 沒有解開，以下是資料交叉比對的結果。
   - 12（`san12pk-win`）：40 都市，日文版名稱（沒找到繁中版的資料），沒有圖（3D）。
   - 13（`san13pk-win`）：60 都市、147 縣級地點、8 關、22 港、2 渡口、7 沖、20 個其他地點；縣級地點的 `level`、`parentCity`（取相關都市的第一個）標 uncertain。攻城、關的場景名寫在 `notes`，野戰依地域碼選圖、不掛在地點上；沒有圖（3D）。繁中版外字 FA70 照日文版補成「坂」。
 - 大地圖的 2D 貼圖（給素材庫，不進 koei-wiki 匯出）：13 是四季地面顏色、地點號圖（號＝地點 id）與標題地圖，14 是地面底色、編輯器的六角格地形預覽與外圍底圖，寫到 `games/<id>/extract/worldmap/`，見 `notes/san13.md`、`notes/san14.md`「大地圖」。
-- 大地圖原圖（不是 places 匯出，給素材庫用，2026-11-11）：VIII 只有 392×352–736×340 的全國總覽圖 10 格（`san8_extras.worldmap`）；IX 有 800×400 等角、576×512 平面的總覽與地域、州界圖（`san9_extras.worldmap`），全尺寸的等角大地圖是 `D_Land00.s9` 的圖塊拼成，還沒做；X 的大地圖是 `San10Map.s10` 120 塊拼成的 4800×3072（`san10_extras.worldmap`）。都寫在 `games/<id>/extract/worldmap/`，格式見各代筆記。
+- 大地圖原圖（不是 places 匯出，給素材庫用，2026-11-11）：VIII 只有 392×352–736×340 的全國總覽圖 10 格（`san8_extras.worldmap`）；IX 有 800×400 等角、576×512 平面的總覽與地域、州界圖（`san9_extras.worldmap`），另有 `D_Land00.s9` 照 EXE 的畫法拼成的全尺寸等角大地圖，四季各一張 12800×6430（`san9_extras.land`，色盤、圖塊、位置 ✅ code，畫的順序等 🟡）；X 的大地圖是 `San10Map.s10` 120 塊拼成的 4800×3072（`san10_extras.worldmap`）。都寫在 `games/<id>/extract/worldmap/`，格式見各代筆記。
 - 還沒做：X 的 200 張戰場圖（3D，沒有預先畫好的圖，見 `notes/san10.md` 負面結論）、VI 的攻守方向。
 
 ## 下一輪候選

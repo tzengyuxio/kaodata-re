@@ -21,14 +21,52 @@ from sango import SAN9_GAIJI, SAN9_PERSONS, SAN9_SCENARIOS, load_san9_persons, s
 # u32 width, u32 height) and 8-bit pixels, top-down. Colour 0 (pure green) is the transparent key.
 # When there are as many palettes as pictures, picture k uses palette k (G_Still, G_StilPK); otherwise the file
 # does not say which palette a picture uses, so it is guessed (pick_palette, 🟡).
-# G_MMap.s9 (16 palettes, 221 pictures): the whole-country maps of the strategic screen, (picture, name). The full
-# isometric map is drawn from D_Land00.s9 (96489 records of 13 bytes: u16 sprite, u16 0, u8 x, u8 y on a 200 x 200
-# grid, …) with the G_LLand / G_LBUILD / G_MESH / G_LNMASK sprites and the P_Land_{S,N,A,W} season palettes; that
-# render is not done. The Japanese install was deleted before this, so the maps are read from the Steam 繁中版
-# depot (WORLDMAP_DEPOT, relative to the game folder); the region and border masks have arbitrary colours.
+# G_MMap.s9 (16 palettes, 221 pictures): the whole-country overview maps of the strategic screen, (picture, name).
+# The Japanese install was deleted before this, so the maps are read from the Steam 繁中版 depot (WORLDMAP_DEPOT,
+# relative to the game folder); the region and border masks have arbitrary colours.
 WORLDMAP = [(164, "iso_terrain"), (162, "iso_regions"), (163, "iso_borders"),
             (168, "flat_stone"), (166, "flat_regions"), (167, "flat_borders"), (169, "flat_frame_a"), (170, "flat_frame_b")]
 WORLDMAP_DEPOT = os.path.join("..", "steam", "628050-tchinese", "depot")
+# The full-size isometric map (LAND_*, land()), read from San9WPK.exe after removing the SteamStub wrapper (addresses
+# are VAs of that EXE). D_Land00.s9: u32 count (96489), u32 0, then 13-byte records: u16 id, u16 0, x, y (0-199),
+# height 1-7, layer (9 = the cell's ground, one per cell; 1-8 = transition pieces drawn over it), terrain 0-16, shape
+# 0-14, variant 0-5, mask set 0-2, FF (parser 0x521cf0). The cell's top-left corner is at ((200 - y + x) * 32,
+# (x + y) * 16 + 16) (0x522200), so north-west is the top corner. Each piece is drawn at that corner plus
+# LAND_OFFSETS[shape][layer] - (64, 54 + 10 * height), and 10 more up for shape 14 (tables 0x620e48, 0x6212c8).
+# Its picture in G_LLand.s9 comes from land_texture() (0x528960, checked against Unicorn runs of it for every input),
+# its palette from LAND_PALETTES (the picture -> palette table at 0x66e6d8; P_Land_<season>.s9 holds the 13), and
+# its outline is G_MASK.s9 picture land_mask() + layer (0x5293e0, 0x529490). The ground copies, row by row, every
+# pixel between the first and last non-zero mask pixel (0x52c6f0); a transition piece blends the texture in with
+# weight 256 - (grey of the mask colour in P_MASK.s9) and skips mask 0 (0x529c00). Textures repeat every (width - 64)
+# x height pixels and are sampled at the piece's map position. 🟡: that the height used is the record's (the game
+# reads it from another table), the drawing order (ground, then pieces, in rows of x + y), and the texture phase of
+# the pieces (assumed the same as the ground's).
+LAND_SEASONS = [("S", "spring"), ("N", "summer"), ("A", "autumn"), ("W", "winter")]  # files for season 0-3 (0x529780); the names are a guess (🟡)
+LAND_OFFSETS = [
+    [(32, 48), (0, 64), (64, 64), (0, 32), (64, 32), (32, 80), (0, 48), (95, 48), (32, 23)],
+    [(32, 36), (0, 64), (64, 64), (4, 15), (64, 15), (32, 80), (0, 48), (96, 48), (32, 10)],
+    [(32, 47), (0, 64), (64, 64), (0, 32), (64, 32), (32, 66), (0, 48), (96, 48), (32, 23)],
+    [(32, 36), (0, 64), (64, 64), (4, 15), (64, 15), (32, 66), (0, 48), (96, 48), (32, 10)],
+    [(32, 48), (4, 53), (64, 64), (0, 30), (64, 32), (32, 80), (0, 38), (96, 48), (32, 27)],
+    [(32, 37), (4, 53), (64, 64), (0, 22), (64, 15), (32, 80), (0, 38), (96, 48), (32, 13)],
+    [(32, 38), (0, 54), (64, 64), (0, 30), (64, 32), (32, 66), (0, 38), (96, 48), (32, 23)],
+    [(32, 37), (0, 53), (64, 63), (0, 21), (64, 16), (32, 66), (0, 37), (96, 47), (32, 13)],
+    [(32, 48), (0, 64), (64, 53), (0, 32), (64, 30), (32, 80), (0, 48), (96, 38), (32, 27)],
+    [(32, 37), (0, 64), (64, 53), (4, 15), (64, 22), (32, 80), (0, 48), (96, 38), (32, 13)],
+    [(32, 38), (0, 64), (64, 54), (0, 32), (64, 30), (32, 66), (0, 48), (96, 38), (32, 23)],
+    [(32, 37), (0, 63), (64, 53), (4, 16), (64, 21), (32, 66), (0, 47), (96, 37), (32, 13)],
+    [(32, 45), (4, 54), (64, 54), (0, 29), (64, 29), (32, 79), (0, 37), (96, 37), (32, 27)],
+    [(32, 37), (4, 54), (64, 54), (0, 21), (64, 21), (32, 79), (0, 37), (96, 37), (32, 13)],
+    [(32, 56), (0, 63), (64, 63), (0, 39), (64, 39), (32, 80), (0, 47), (96, 47), (32, 37)],
+]
+# G_LLand pictures from, palette (pictures 309-324 are four frames each of the water textures, palettes 4-7 are equal)
+LAND_PALETTES = [(0, 0), (192, 1), (249, 2), (306, 3), (309, None), (325, 8), (517, 9), (519, 10), (711, 11), (768, 12)]
+LAND_PIECE = (0, 5, 8, 0, 7, 2, 4, 7, 6, 1, 3, 6, 0, 5, 8)  # shape -> picture within a set of 9
+LAND_SINGLE = {6: 517, 7: 768, 8: 306, 9: 309, 10: 313, 15: 317, 16: 321}  # terrain with one texture
+LAND_SETS = {0: (352, 7, None), 1: (27, 7, None), 2: (546, 7, None),  # terrain: first picture, top height, above it
+             3: (219, 2, 192), 4: (738, 2, 711), 5: (276, 2, 249)}
+
+
 # (folder, file, pictures); picked from contact sheets of every file
 PICTURES = [
     ("still", "G_Still.s9", range(0, 72)),        # 45 small (160x128) and 27 large (512x384) event stills
@@ -345,15 +383,113 @@ def bio_names(game_dir) -> dict[int, str]:
     return dict(enumerate(zh_names(game_dir)))
 
 
+def land_texture(terrain, height, shape, variant):
+    """G_LLand picture of a D_Land00 record (0x528960)."""
+    v = (0, 1, 2, 3, 2, 1)[variant]
+    terrain = {11: 9, 12: 9, 13: 1, 14: 1}.get(terrain, terrain)
+    if terrain in LAND_SINGLE:
+        return LAND_SINGLE[terrain] + (v if height == 1 else 0)
+    first, top, above = LAND_SETS[terrain]
+    if height > top:
+        return above
+    if height == top:
+        return first + 27 * (height - 1) + v
+    return first + 27 * (height - 1) + 9 * v + LAND_PIECE[shape]
+
+
+def land_palette(k):
+    start, p = max(e for e in LAND_PALETTES if e[0] <= k)
+    return 4 + (k - start) % 4 if p is None else p
+
+
+def land_mask(shape, mask_set):
+    """First G_MASK picture of a record's outline (0x5293e0); add the layer (0 for the ground)."""
+    if shape:
+        return 9 * shape
+    return (0, 144, 153, 144)[mask_set]
+
+
+def raw_pictures(path):
+    """Picture files without palettes: u32 size of the picture block, then pictures as in load_pictures."""
+    with open(path, "rb") as f:
+        d = f.read()
+    end, o, pics = struct.unpack_from("<I", d)[0], 4, []
+    while o < end:
+        size, _, w, h = struct.unpack_from("<4I", d, o)
+        pics.append((w, h, d[o + 16:o + 16 + w * h]))
+        o += size
+    return pics
+
+
+def palette_file(path):
+    with open(path, "rb") as f:
+        d = f.read()
+    return [d[4 + k * 1064 + 40:4 + (k + 1) * 1064] for k in range(struct.unpack_from("<I", d)[0])]
+
+
+def land(depot, season):
+    """The full-size isometric map in one season's palettes (see LAND_SEASONS), RGBA, transparent outside."""
+    with open(os.path.join(depot, "D_Land00.s9"), "rb") as f:
+        d = f.read()
+    records = [d[8 + 13 * i:21 + 13 * i] for i in range(struct.unpack_from("<I", d)[0])]
+    records.sort(key=lambda r: (r[4] + r[5], r[4], r[7] != 9, r[7]))
+    textures, masks = raw_pictures(os.path.join(depot, "G_LLand.s9")), raw_pictures(os.path.join(depot, "G_MASK.s9"))
+    pals = palette_file(os.path.join(depot, f"P_Land_{season}.s9"))
+    grey = palette_file(os.path.join(depot, "P_MASK.s9"))[0][::4]
+    pieces = []
+    for r in records:
+        x, y, height, layer, terrain, shape, variant, mask_set = r[4:12]
+        layer = 0 if layer == 9 else layer
+        dx, dy = LAND_OFFSETS[shape][layer]
+        px = (200 - y + x) * 32 + dx - 64
+        py = (x + y) * 16 + 16 + dy - 54 - 10 * height - (10 if shape == 14 else 0)
+        pieces.append((px, py, land_texture(terrain, height, shape, variant), land_mask(shape, mask_set) + layer, layer))
+    left = min(p[0] for p in pieces)
+    top = min(p[1] for p in pieces)
+    right = max(p[0] + masks[p[3]][0] for p in pieces)
+    bottom = max(p[1] + masks[p[3]][1] for p in pieces)
+    canvas = Image.new("RGBA", (right - left, bottom - top), (0, 0, 0, 0))
+    tiled, alpha = {}, {}
+    for px, py, t, m, layer in pieces:
+        if t not in tiled:  # the repeating part, tiled to cover any mask at any phase
+            w, h, data = textures[t]
+            im = Image.frombytes("P", (w, h), data)
+            im.putpalette([pals[land_palette(t)][i] for i in range(1024) if i % 4 < 3])
+            im = im.convert("RGBA").crop((0, 0, w - 64, h))
+            big = Image.new("RGBA", ((w - 64) * (128 // (w - 64) + 2), h * (128 // h + 2)))
+            for ty in range(0, big.height, h):
+                for tx in range(0, big.width, w - 64):
+                    big.paste(im, (tx, ty))
+            tiled[t] = (big, w - 64, h)
+        if (m, layer > 0) not in alpha:
+            w, h, data = masks[m]
+            if layer:
+                a = bytes(0 if c == 0 else min(255, 256 - grey[c]) for c in data)
+            else:
+                a = bytearray(w * h)
+                for row in range(h):
+                    cols = [i for i in range(w) if data[row * w + i]]
+                    if cols:
+                        a[row * w + cols[0]:row * w + cols[-1] + 1] = b"\xff" * (cols[-1] - cols[0] + 1)
+            alpha[m, layer > 0] = Image.frombytes("L", (w, h), bytes(a))
+        big, pw, ph = tiled[t]
+        a = alpha[m, layer > 0]
+        u, v = px % pw, py % ph
+        canvas.paste(big.crop((u, v, u + a.width, v + a.height)), (px - left, py - top), a)
+    return canvas
+
+
 def worldmap(depot, out):
-    """The whole-country maps of G_MMap.s9 (WORLDMAP) to worldmap/<name>.png; palettes guessed (🟡)."""
+    """The overview maps of G_MMap.s9 (WORLDMAP, palettes guessed 🟡) and the full-size map in four seasons (land)."""
     pals, pics = load_pictures(os.path.join(depot, "G_MMap.s9"))
     os.makedirs(os.path.join(out, "worldmap"), exist_ok=True)
     for k, name in WORLDMAP:
         w, h, px = pics[k]
         p = 0 if len(set(px)) <= 4 else pick_palette(w, h, px, pals)  # the border masks: lines on palette 0
         to_image(w, h, px, pals[p]).save(os.path.join(out, "worldmap", f"{name}.png"))
-    return len(WORLDMAP)
+    for season, name in LAND_SEASONS:
+        land(depot, season).save(os.path.join(out, "worldmap", f"land_{name}.png"))
+    return len(WORLDMAP) + len(LAND_SEASONS)
 
 
 @click.command("san9-extras")
