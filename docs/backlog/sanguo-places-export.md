@@ -51,7 +51,7 @@ koei-wiki 要建三國地點與州條目。請把 `notes/san-maps.md` 整理好�
 
 - 2026-11-06 交付 kaodata-re@58f2f12，koei-wiki 複驗 14 個資料集 23609 項、0 筆不符，已收下。
 
-- 2026-11-06 koei-wiki 追加水滸傳：`suikoden-dos` 49 州，每州每季一張戰場圖（196 張）。新增的選填欄位是 `cities` 和 `battlemaps[].season`。本地檢查 668 項，koei-wiki 的 `scripts/verify_sanguo_places.py` 檢查 1217 項，都是 0 筆不符。還沒 commit，也還沒交付。
-- 2026-11-06 三8 戰場圖補進匯出：43 張 2016×648 PNG，色盤是 `p_main.s8` 第 174＋k%35 組（🟡）。本地檢查 1832 項，koei-wiki 的 verify 檢查 3559 項，都是 0 筆不符。還沒 commit，也還沒交付。
+- 2026-11-06 koei-wiki 追加水滸傳：`suikoden-dos` 49 州，每州每季一張戰場圖（196 張）。新增的選填欄位是 `cities` 和 `battlemaps[].season`。本地檢查 668 項，koei-wiki 的 `scripts/verify_sanguo_places.py` 檢查 1217 項，都是 0 筆不符。已 commit（6a5e026）並 push。
+- 2026-11-06 三8 戰場圖補進匯出：43 張 2016×648 PNG，色盤是 `p_main.s8` 第 174＋k%35 組（🟡）。本地檢查 1832 項，koei-wiki 的 verify 檢查 3559 項，都是 0 筆不符。已 commit（a8f3c03）並 push。
 - 之後：三10 戰場圖、三6 攻守方向。
 

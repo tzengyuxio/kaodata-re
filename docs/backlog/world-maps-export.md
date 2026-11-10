@@ -1,5 +1,5 @@
 ---
-status: todo
+status: done
 created: 2026-11-08
 from: koei-wiki
 sources:
