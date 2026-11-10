@@ -15,7 +15,8 @@ DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98"
             "san8pk-win": "wiki_san8", "san9pk-win": "wiki_san9", "san10pk-win": "wiki_san10", "san11pk-win": "wiki_san11",
             "san12pk-win": "wiki_san12", "san13pk-win": "wiki_san13",
             "san14pk-win": "wiki_san14",
-            "genghis-pc98": "wiki_genghis", "genchou-pc98": "wiki_genchou", "genghis4pk-win": "wiki_genghis4"}
+            "genghis-pc98": "wiki_genghis", "genchou-pc98": "wiki_genchou", "genghis4pk-win": "wiki_genghis4",
+            "eiketsu-dos": "wiki_eiketsu", "eiketsu-pc98": "wiki_eiketsu"}
 
 
 def check(rows, places):

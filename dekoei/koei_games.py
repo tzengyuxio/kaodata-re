@@ -233,11 +233,11 @@ EIKETSU_DOS_PERSONS = (0x1100, 384, 21)
 
 
 # PC-98 BAKDATA.R3 names are Shift-JIS with KOEI gaiji EB xx (glyphs in FONT.R3), read off the glyphs and the
-# Chinese release's names for the same records (AE is drawn 鷙, the Chinese has 騭)
+# Chinese release's names for the same records (AE is drawn 鷙, the Chinese has 騭); CE 釭 is only in the item 青釭の剣
 EIKETSU_PC98_GAIJI = dict(zip(
     [0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA7, 0xA8, 0xA9, 0xAB, 0xAE, 0xAF, 0xB0, 0xB1, 0xB3, 0xB6, 0xB8,
-     0xB9, 0xC0, 0xC1, 0xC4, 0xCA, 0xE2],
-    "瓚昱彧郃蒯蔡傕汜詡鄧龐鷙畯闞玠邢禕琬郝琦琮璝褚邈"))
+     0xB9, 0xC0, 0xC1, 0xC4, 0xCA, 0xCE, 0xE2],
+    "瓚昱彧郃蒯蔡傕汜詡鄧龐鷙畯闞玠邢禕琬郝琦琮璝褚釭邈"))
 
 
 def load_eiketsu_pc98_persons(bakdata) -> list[tuple[str, int]]:

@@ -77,7 +77,18 @@
 - ✅ code：`MAIN.EXE`（load image）0x13542 把兩張表寫進人物物件；攻擊力公式 0x12F6A 讀 +18（武力）、防禦力 0x13098 讀 +17；武將視窗 0x25DBC 依序顯示 武、知、統。標籤是圖示，EXE 裡沒有「知力」「統率」字串，這兩個名稱只依數值推定（諸葛亮 知 100、呂布 21；關羽 統 100）。
 - ✅ cross：PC-98 的記錄 +14–20 與整張狀態表和 DOS 相同；關羽 青龍偃月刀、張飛 蛇矛、呂布 赤兔馬＋方天畫戟。兵種名稱照 `MAIN.EXE` 的字串順序（DOS 0x37BF8、PC-98 0x358B0，19 種）對應，🟡。
 - 等級只有狀態表有值（曹操 18、諸葛亮 30），其他代的記錄都是 1。
-- ❌ 記錄 +16、+20，狀態表 +1–3、+9；策略值公式（0x25F07）、策略的學習表沒有找到。PC-98 的道具名有 `EIKETSU_PC98_GAIJI` 沒收的外字（青〓の剣）。
+- ❌ 記錄 +16、+20，狀態表 +1–3、+9；策略值公式（0x25F07）、策略的學習表沒有找到。
+- PC-98 道具名的外字 CE 是「釭」（`FONT.R3` 第 0xCE − 0x9F 個字形，金字旁＋工），道具是「青釭の剣」，2026-11-11 加進 `EIKETSU_PC98_GAIJI`。
+
+### koei-wiki 匯出
+
+`dekoei.py persons-export eiketsu-dos|eiketsu-pc98 --game-dir ../games/<id> --out ../export/koei-wiki/persons`（`wiki_eiketsu.py`），koei-persons/1，264 人，`id` 同 kaodata（記錄順序、略過兵種與一般人物）。
+
+- `stats`：武力、知力、統率（上面「能力」；知力、統率的名稱是推定，列在 `uncertain`）。
+- `more`：開局的兵力、士氣；`game`：兵種（名稱對應是推定，列在 `uncertain`）、等級、道具名稱。
+- `reading`：只有 `eiketsu-pc98` 填，取記錄 +6 的半形片假名（到 NUL 為止，最多 8 bytes），NFKC 轉全形。中文版的記錄也有同樣的讀音，沒填。
+- 遊戲寫法和史書不同的（同 kaodata 的 `nameHistorical`）寫在 `notes`（「遊戲寫作沙摩可，史書作沙摩柯」）；koei-wiki 不收 `nameHistorical`，正名由它的對照表處理。
+- 2026-11-11：本地檢查各 264 項、koei-wiki `verify_persons.py` 3170 項，0 不符。
 
 ## PC-98 版（`eiketsu-pc98`）
 
