@@ -247,6 +247,25 @@ def items(game_dir, out):
     return len([t for t in table if not t[-1]]), len(holders)
 
 
+# The 繁中版 (depot 628072) keeps the item table of SCEN000.s11 in the same 57-byte records at 0x23E10 (cp950 name,
+# empty reading); it has no item descriptions either (S11MSG02 850- is the glossary, not item texts).
+ZH_ITEMS = 0x23E10
+
+
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item k -> (name, "") of the 繁中版"""
+    from san9_extras import ZH_GAIJI, zh_text
+    with open(os.path.join(game_dir, "media/scenario", SCENARIOS[0]), "rb") as f:
+        d = f.read()
+    size, count = ITEMS[1:]
+    out = {}
+    for k in range(count):
+        name = zh_text(d[ZH_ITEMS + size * k:][:13].split(b"\0")[0], gaiji=ZH_GAIJI)
+        if name:
+            out[k] = (name, "")
+    return out
+
+
 def tables(game_dir, out):
     with open(os.path.join(game_dir, "media/scenario/Scenario.s11"), "rb") as f:
         d = f.read()

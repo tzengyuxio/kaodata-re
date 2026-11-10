@@ -285,6 +285,18 @@ def bio_names(game_dir) -> dict[int, str]:
     return names
 
 
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item k -> (name, description) of the 繁中版 (Steam tchinese depot): the D_Sn001 item table decoded with
+    ZH_TABLES and M_Msg.s7 part 30, cp950, the same order as the Japanese"""
+    with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
+        exe = f.read()
+    with open(os.path.join(game_dir, SAN7_SCENARIOS[0]), "rb") as f:
+        d = decode_san7_scenario(exe, f.read(), ZH_TABLES)
+    desc = entries(load_parts(game_dir, "M_Msg.s7")[ITEM_PART])
+    return {k: (d[ITEMS + ITEM_SIZE * k + 4:][:18].split(b"\0")[0].decode("cp950"),
+                desc[k].rstrip(b"\x05").decode("cp950").replace("\n", "").strip()) for k in range(ITEM_COUNT)}
+
+
 @click.command("san7-extras")
 @click.option("--game-dir", required=True, help="Steam 628030 安裝目錄")
 @click.option("--out", required=True, help="輸出目錄（games/san7pk-win/extract）")

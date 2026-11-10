@@ -205,6 +205,15 @@ def message_strings(pk, i, encoding):
     return san13_strings(san13_items(san13_items(pk[i])[0])[0], encoding)
 
 
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item i -> (name, description) of the 繁中 string table (PK item 1416, the same numbering as the Japanese)"""
+    import sango
+    from wiki_san13 import _strings
+    tc = _strings(game_dir, MSGDATA_TC, "cp950", sango.SAN13_GAIJI_TC)
+    return {i: (tc[ITEM_NAME + i], "".join(line.strip() for line in tc[ITEM_DESC + i].splitlines()))
+            for i in range(ITEM_COUNT)}
+
+
 def write_csv(path, header, rows):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8-sig") as f:

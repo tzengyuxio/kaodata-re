@@ -234,6 +234,24 @@ BIO_RANGES = [(0, 750, 0), (800, 832, 50), (900, 965, 111), (1150, 1232, 296), (
 ZH_GAIJI = {b"\xfa\x70": "坂", b"\xfa\x7f": "琰"}  # besides san9_extras.ZH_GAIJI: 高坂昌信, 崔琰の父 (🟡)
 
 
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item k -> (name, description) of the 繁中版 (depot 628082): the same PK/Scenario/Scenario0.dat part 27 records
+    (cp950 name at +4) and PK/Msg/S12MSG04.s12 entry k"""
+    import re
+    from san9_extras import ZH_GAIJI as SAN9
+    from san9_extras import zh_text
+    gaiji = {**SAN9, **ZH_GAIJI}
+    table = scenario_parts(os.path.join(game_dir, "PK/Scenario/Scenario0.dat"))[ITEM_PART]
+    desc = messages(os.path.join(game_dir, MSG.format(4)))
+    out = {}
+    for k in range(len(table) // ITEM_SIZE):
+        name = zh_text(table[ITEM_SIZE * k + 4:ITEM_SIZE * k + 0x11].split(b"\0")[0], gaiji)
+        if name:
+            text = re.sub(rb"\x02\x96[0-9]+x", b"", desc[k]).rstrip(b"\x05") if k < len(desc) else b""
+            out[k] = (name, zh_text(text, gaiji).replace("\n", "").strip())
+    return out
+
+
 def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
     import re
     from biography import sections

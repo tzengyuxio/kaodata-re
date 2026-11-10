@@ -266,6 +266,24 @@ def zh_persons(game_dir) -> list[tuple[int, str, int]]:
     return out
 
 
+# 繁中版 San10WPK.exe: the same string pointer table at 0x51D4D8 (item 0 at slot 102 = 0x51D670 -> 赤兔馬, kind 0 at
+# slot 502 -> 名馬)
+ZH_STRINGS = 0x51D4D8
+
+
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item k -> (name, description) of the 繁中版: EXE string slots 102 + k and msg/S10M12PK.s10 entry k"""
+    from san9_extras import zh_text
+    with open(os.path.join(game_dir, "San10WPK.exe"), "rb") as f:
+        exe = f.read()
+    msg = read_msg(os.path.join(game_dir, "msg", "S10M12PK.s10"))
+    out = {}
+    for k in range(ITEMS):
+        o = struct.unpack_from("<I", exe, ZH_STRINGS + 4 * (ITEM_NAMES + k))[0] - EXE_BASE
+        out[k] = (zh_text(exe[o:exe.index(b"\0", o)]), zh_text(msg[k].rstrip(b"\x05")).replace("\n", "").strip())
+    return out
+
+
 def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
     from san9_extras import zh_text
     msg = read_msg(os.path.join(game_dir, "msg", "S10M13PK.s10"))

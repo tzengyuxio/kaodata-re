@@ -239,6 +239,27 @@ def zh_persons(game_dir) -> list[tuple[int, str, int]]:
     return out
 
 
+def _zh_lines(b: bytes) -> str:
+    """a 繁中 m_msg entry: NUL-ended lines, the second on starting with @R, a $ line ends it"""
+    lines = [s.removeprefix(b"@R").removesuffix(b'$"') for s in b.split(b"\0")]
+    return "".join(s.decode("cp950") for s in lines if not s.startswith(b"$")).strip()
+
+
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item k -> (name, description) of the 繁中版: D_Sce.s8 item table (same layout, cp950) and m_msg.s8 item 50
+    (by the item's picture number +15, as the Japanese)"""
+    with open(os.path.join(game_dir, "D_Sce.s8"), "rb") as f:
+        sce = f.read()
+    desc = [_zh_lines(b) for b in msg_items(koei_archive(open(os.path.join(game_dir, "m_msg.s8"), "rb").read())[MSG_ITEMS])]
+    a, size, n = ITEMS
+    out = {}
+    for k in range(n):
+        r = sce[a + k * size:a + (k + 1) * size]
+        assert r[0] == k
+        out[k] = (r[1:14].split(b"\0")[0].decode("cp950").strip(), desc[r[15]])
+    return out
+
+
 def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
     msg = koei_archive(open(os.path.join(game_dir, "m_msg.s8"), "rb").read())
     texts = [b for k in MSG_BIOGRAPHIES for b in msg_items(msg[k])]

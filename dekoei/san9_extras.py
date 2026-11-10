@@ -307,6 +307,16 @@ def zh_names(game_dir) -> list[str]:
     return [zh_text(parts[4 * k] + parts[4 * k + 1]) for k in range(SAN9_PERSONS)]
 
 
+def zh_items(game_dir) -> dict[int, tuple[str, str]]:
+    """item k -> (name, description) of the 繁中版: M_MsgPK.s9 entries ITEMS_NAMES + 2k and ITEM_TEXTS + k, the same
+    numbers as the Japanese (the reading entry is empty), cp950 and ZH_GAIJI"""
+    msg = entries(os.path.join(game_dir, "M_MsgPK.s9"))
+
+    def t(b):
+        return zh_text(b.rstrip(b"\x05")).replace("\n", "").strip()
+    return {k: (t(msg[ITEMS_NAMES + 2 * k]), t(msg[ITEM_TEXTS + k])) for k in range(ITEM[2])}
+
+
 def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
     """列傳 of the Steam 繁中版 for biography.py: {person id: [("單段", text)]}, the line breaks of the game's layout
     removed. M_Rtdn.s9 has the same 679 entries in the same order as the Japanese release (bio_face), cp950 ended by
