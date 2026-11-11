@@ -48,6 +48,10 @@
 
 ---
 
+## 姓（koei-wiki 的 familyName、familyReading）
+
+只在遊戲分開存姓、名時填（2026-11-11）：三國志11 取繁中版記錄的姓 5 bytes（讀音是一整欄，不填 familyReading；複姓照遊戲存法，如 阿會｜喃）；三國志14 取繁中版的 surname，familyReading 是日文版讀音的第一段。718、1001 人全部有姓。其他代沒查。
+
 ## 三國志（I，san1）
 
 DOS `SINADATA.DAT` 4326 起每劇本 12490 bytes，255 筆 × 32 bytes（`s1_format`）。PC-98 `SAVEDATA` 槽 0、PC-88 `SN1.EXT` 是 34 bytes（前 14 bytes 是讀音＋姓名，之後同 DOS +12 起）；X68000 `SAVEDATA` 44 bytes（大端：+20 年齡、+21–26 能力、+32 u32 兵士、+41 経験）。PC-98／PC-88／X68000 的 loader 只讀頭像和姓名。下表用 DOS 的 offset。

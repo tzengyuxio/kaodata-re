@@ -98,6 +98,18 @@ def persons_raw(data, lang):
     return out, p
 
 
+def surnames(data, lang):
+    """(姓, its reading) of each of the slots of persons_raw: the 姓 field +0 (11 bytes), its reading +22 (19)"""
+    p, out = _key(data, 0, PERSONS), []
+    for _ in range(PERSONS):
+        out.append((text(data[p:p + 11], lang), text(data[p + 22:p + 41], lang)))
+        q = p + 90
+        for _ in range(4):
+            q += 4 + 2 * struct.unpack_from("<I", data, q)[0]
+        p = q + FIXED
+    return out
+
+
 def _u16(t, o):
     return struct.unpack_from("<H", t, o)[0]
 
@@ -218,7 +230,9 @@ def _load(game_dir):
 
 def persons(game_dir):
     scen, recs, lord = _load(game_dir)
-    tc = persons_raw(scenario(game_dir, MAIN, "TC")[2], "TC")[0]
+    tc_data = scenario(game_dir, MAIN, "TC")[2]
+    tc, tc_family = persons_raw(tc_data, "TC")[0], surnames(tc_data, "TC")
+    ja_family = surnames(scenario(game_dir, MAIN, "JP")[2], "JP")
     main = recs[MAIN]
     people = [k for k, r in enumerate(main) if r[0] not in DUMMY]
     known = set(people)
@@ -235,6 +249,11 @@ def persons(game_dir):
             row["nameJa"] = name_ja
         if reading:
             row["reading"] = reading
+        family = tc_family[k][0] if tc[k][0] else ja_family[k][0]
+        if family and name.startswith(family) and family != name:
+            row["familyName"] = family
+            if ja_family[k][1] and reading.startswith(ja_family[k][1]) and ja_family[k][1] != reading:
+                row["familyReading"] = ja_family[k][1]
         row.update({"born": _u16(t, 32), "died": _u16(t, 36), "stats": dict(zip(STATS, t[81:86]))})
         row["more"] = {"野心": t[AMBITION_AT]}
         if t[SHI_AT] in SHI:

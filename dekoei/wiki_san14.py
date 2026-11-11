@@ -152,7 +152,8 @@ def _person_names(game_dir):
         return t
 
     return [(text("TC", b["surname"] + b["given"]), text("JP", a["surname"] + a["given"]), text("TC", b["azana"]),
-             " ".join(kana_to_hiragana(r) for r in a["reading"])) for a, b in zip(ja, tc)]
+             " ".join(kana_to_hiragana(r) for r in a["reading"]), text("TC", b["surname"]),
+             kana_to_hiragana(a["reading"][0]) if b["given"] and len(a["reading"]) > 1 else "") for a, b in zip(ja, tc)]
 
 
 def persons(game_dir):
@@ -182,8 +183,12 @@ def persons(game_dir):
                 children.setdefault(ref(b, o), []).append(k)
     rows = []
     for k, b in enumerate(blocks):
-        name, name_ja, courtesy, reading = names[k]
+        name, name_ja, courtesy, reading, surname, surname_reading = names[k]
         row = {"id": k, "name": name}
+        if surname and surname != name:  # 姓 and 名 are separate fields, and so are their readings
+            row["familyName"] = surname
+            if surname_reading:
+                row["familyReading"] = surname_reading
         if name_ja != name:
             row["nameJa"] = name_ja
         if courtesy:

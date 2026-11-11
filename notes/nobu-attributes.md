@@ -340,6 +340,21 @@ Steam 1336980。人物在 `SCENARIO_PK/scedaPK??.n16`（欄位見 `notes/nobu16.
 
 未解：位階、忠誠、次要欄位。
 
+## 姓（koei-wiki 的 familyName、familyReading）
+
+koei-persons/1 的 `familyName`、`familyReading` 只在遊戲本來就分開存姓、名時才填（2026-11-11）：
+
+| 代 | 姓的來源 | familyReading |
+|---|---|---|
+| 武将風雲録 | 記錄的姓欄（DOS 中文版 6 bytes、PC-98 7 bytes），依頭像號收集 | 沒有讀音 |
+| 覇王伝（PC-98、Win） | 人物 +0 姓 7 bytes（Win +23 9 bytes）、後登場表 +4 | 沒有讀音 |
+| 将星録 | 繁中版記錄的姓 8 bytes | 讀音取自列伝檔頭，是一整串，不填 |
+| 創造 | 姓 11 bytes（繁中版） | 讀音是 "dummy" |
+| 大志 | 姓 11 bytes（name 用繁中版就取繁中版的姓），讀音 +22 | ✅ |
+| 新生 | msgdata 的姓列（head[0]） | 讀音列＝姓列＋3332 ✅ |
+
+各代都是全部人物有姓（女性也存著姓，如将星録 織田市）。其他代沒查。koei-wiki verify 2026-11-11 全部 0 不符。
+
 ## 下一輪候選
 
 - 天翔記技能再找 1–2 張亮燈不同的截圖確認（PC-98 PK 可以自己截）。

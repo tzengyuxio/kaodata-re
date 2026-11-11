@@ -112,6 +112,9 @@ def persons(game_dir):
         r, z, p = _record(main, i), zh[ZH_START + SIZE * i:ZH_START + SIZE * (i + 1)], ja[i]
         name = zh_text(z[0:5].split(b"\0")[0]) + zh_text(z[5:10].split(b"\0")[0])
         row = {"id": i, "name": name}
+        surname, given = zh_text(z[0:5].split(b"\0")[0]), zh_text(z[5:10].split(b"\0")[0])
+        if surname and given:  # 姓 and 名 are separate fields; the reading is one field, so no familyReading
+            row["familyName"] = surname
         if name != p["name"]:
             row["nameJa"] = p["name"]
         courtesy = zh_text(z[10:15].split(b"\0")[0])

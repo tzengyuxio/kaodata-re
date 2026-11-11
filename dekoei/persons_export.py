@@ -20,13 +20,26 @@ DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98"
             "koumei-win": "wiki_koumei", "eiketsu5-win": "wiki_eiketsu5"}
 
 
+def family_of(name, surnames):
+    """familyName: the longest stored surname that starts name, or None (koei-persons/1: never guessed from the
+    string, so only surnames the game keeps in their own field are candidates)."""
+    hits = sorted((s for s in surnames if s and name.startswith(s)), key=len)
+    return hits[-1] if hits else None
+
+
 def check(rows, places):
     """koei-persons/1 checks: unique ids, relations and scenario lords refer to persons of the dataset, scenario
-    locations to places of the same game's places export (skipped when there is none). Returns (checked, [problems])."""
+    locations to places of the same game's places export (skipped when there is none), familyName / familyReading
+    start name / reading. Returns (checked, [problems])."""
     ids = [r["id"] for r in rows]
     bad = [f"duplicate id {i}" for i in sorted({i for i in ids if ids.count(i) > 1})]
     ids, checked = set(ids), len(ids)
     for r in rows:
+        for key, whole in (("familyName", "name"), ("familyReading", "reading")):
+            if key in r:
+                checked += 1
+                if not r.get(whole, "").startswith(r[key]) or r[key] == "":
+                    bad.append(f"{r['id']}: {key} {r[key]!r} does not start {whole} {r.get(whole)!r}")
         for key, value in r.get("relations", {}).items():
             for x in [] if key == "clan" else value:
                 checked += 1

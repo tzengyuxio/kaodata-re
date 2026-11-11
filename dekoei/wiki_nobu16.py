@@ -152,6 +152,10 @@ def persons(game_dir):
         if name(ja, head) != row["name"]:
             row["nameJa"] = name(ja, head)
         row["reading"] = name(ja, head, True)
+        if 0xFFFF not in head[:2] and tc[head[0]] and row["name"].startswith(tc[head[0]]) and tc[head[1]]:
+            row["familyName"] = tc[head[0]]  # head[0] is the 姓 row, head[1] the 名 row
+            if ja[head[0] + READING] and row["reading"].startswith(ja[head[0] + READING]):
+                row["familyReading"] = ja[head[0] + READING]
         row["born"], row["died"] = _u16(t, 22), _u16(t, 26)
         row["stats"] = {"統率": t[46], "武勇": t[47], "知略": t[48], "政務": t[49]}
         if t[IDEOLOGY_AT] in IDEOLOGY:

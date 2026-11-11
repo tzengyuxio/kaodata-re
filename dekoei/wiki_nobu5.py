@@ -19,6 +19,7 @@ import os
 import struct
 
 import kaodata_export as K
+from persons_export import family_of
 import koei_games as G
 
 PEOPLE, DAIMYO, CITIES = 0x2AA, 0x48BE, 0x5536
@@ -99,18 +100,39 @@ def bio_names(game_dir):
     return {i: names[face] for face, i in ids.items()}
 
 
+def _surnames(scenarios, exe):
+    """face -> surnames as stored: person +23 family (9 bytes), arrival +4 family (G.load_nobu5_win_*)."""
+    out = {}
+    start, stride, size = G.NOBU5_WIN_ARRIVALS
+    for n in K.NOBU5_WIN_ORDER:
+        sv = scenarios[n]
+        for o in range(G.NOBU5_WIN_PEOPLE, G.NOBU5_WIN_PEOPLE + G.NOBU5_PC98_SLOTS * 39, 39):
+            if sv[o + 23]:
+                out.setdefault(_u16(sv, o + 17), set()).add(G._nobu5_win_name(sv[o + 23:o + 32]))
+        for o in range(start + n * stride, start + (n + 1) * stride - size + 1, size):
+            if not exe[o]:
+                break
+            out.setdefault(_u16(exe, o + 28), set()).add(G._nobu5_win_name(exe[o + 4:o + 13]))
+    return out
+
+
 def persons(game_dir):
     scenarios, exe = _load(game_dir)
     years = struct.unpack_from("<5I", exe, YEARS)
     ids, names = _ids(scenarios, exe)
+    surnames = _surnames(scenarios, exe)
     rows = {}
 
     def row(face, n, born, stats, giri, life, clan):
         """The person's row; the fixed values come from the first scenario of the builder's order."""
         if face not in rows:
-            r = {"id": ids[face], "name": names[face], "born": born, "stats": dict(zip(STATS, stats)),
-                 "hidden": {"義理": giri, "寿命": LIFESPAN[life >> 6]}, "scenarios": [],
-                 "uncertain": ["hidden.義理", "scenarios.loyalty"]}
+            r = {"id": ids[face], "name": names[face]}
+            surname = family_of(names[face], surnames.get(face, ()))
+            if surname:
+                r["familyName"] = surname
+            r.update({"born": born, "stats": dict(zip(STATS, stats)),
+                      "hidden": {"義理": giri, "寿命": LIFESPAN[life >> 6]}, "scenarios": [],
+                      "uncertain": ["hidden.義理", "scenarios.loyalty"]})
             if clan != 0xFF:
                 r["relations"] = {"clan": clan}
                 r["uncertain"].insert(1, "relations.clan")

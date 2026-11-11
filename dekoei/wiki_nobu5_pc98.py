@@ -22,6 +22,7 @@ from PIL import Image
 
 import kaodata_export as K
 import koei_games as G
+from persons_export import family_of
 from wiki_nobu5 import LIFESPAN, PROVINCE_BASE, STATS, _name
 
 BASE_YEAR = 1453
@@ -116,18 +117,35 @@ def _years(sns):
     return [BASE_YEAR + sn[1] for sn in sns]
 
 
+def _surnames(sns, sts):
+    """face -> surnames as stored: person +0 family (7 bytes), arrival +4 family."""
+    out = {}
+    for n in K.NOBU5_WIN_ORDER:
+        for p in _scenario(sns[n])[0].values():
+            out.setdefault(_u16(p, 29), set()).add(G._nobu5_pc98_name(p[:7]))
+        st = sts[n]
+        for o in range(0, len(st) - 29, 30):
+            out.setdefault(_u16(st, o + 26), set()).add(G._nobu5_pc98_name(st[o + 4:o + 11]))
+    return out
+
+
 def persons(game_dir):
     sns, sts, _, bfile = _load(game_dir)
     years = _years(sns)
     ids, names = _ids(sns, sts)
+    surnames = _surnames(sns, sts)
     rows = {}
 
     def row(face, born, stats, giri, life, clan):
         """The person's row; the fixed values come from the first scenario of the builder's order."""
         if face not in rows:
-            r = {"id": ids[face], "name": names[face], "born": born, "stats": dict(zip(STATS, stats)),
-                 "hidden": {"義理": giri, "寿命": LIFESPAN[life >> 6]}, "scenarios": [],
-                 "uncertain": ["hidden.義理", "scenarios.loyalty"]}
+            r = {"id": ids[face], "name": names[face]}
+            surname = family_of(names[face], surnames.get(face, ()))
+            if surname:
+                r["familyName"] = surname
+            r.update({"born": born, "stats": dict(zip(STATS, stats)),
+                      "hidden": {"義理": giri, "寿命": LIFESPAN[life >> 6]}, "scenarios": [],
+                      "uncertain": ["hidden.義理", "scenarios.loyalty"]})
             if clan != 0xFF:
                 r["relations"] = {"clan": clan}
                 r["uncertain"].insert(1, "relations.clan")

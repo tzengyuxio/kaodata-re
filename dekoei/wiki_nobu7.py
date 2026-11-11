@@ -63,6 +63,13 @@ def _name(data, k, encoding):
     return text(data[o:o + 8]) + text(data[o + 8:o + 16])
 
 
+def _surname(data, k, encoding):
+    """the surname field of person k (empty for persons without one)"""
+    o = PERSONS + SIZE * k
+    b = data[o:o + 8].split(b"\0")[0]
+    return koei_games.NOBU7_WIN_GAIJI.get(b) or b.decode(encoding)
+
+
 def _u16(data, k, field):
     return struct.unpack_from("<H", data, PERSONS + SIZE * k + field)[0]
 
@@ -194,6 +201,9 @@ def persons(game_dir):
         row = {"id": i, "name": name}
         if name_ja != name:
             row["nameJa"] = name_ja
+        surname = _surname(zh, zh_rec[i + 1], "big5")
+        if surname and name.startswith(surname) and surname != name:
+            row["familyName"] = surname
         uncertain, notes = ["debut", "hidden.寿命", "hidden.義理", "hidden.口調"], []
         bio = ja[index[i]] if i in index else None
         if bio and bio[1]:

@@ -90,6 +90,18 @@ def persons_raw(data):
     return out, p
 
 
+def surnames(data):
+    """the 姓 field (first 11 bytes) of each of the slots of persons_raw"""
+    p, out = _section(data, PERSONS), []
+    for _ in range(PERSONS[1]):
+        out.append(text(data[p:p + 11]))
+        q = p + 90
+        for _ in range(4):
+            q += 4 + 2 * struct.unpack_from("<I", data, q)[0]
+        p = q + 96
+    return out
+
+
 def houses(data, people):
     """{家 id: 当主 slot}: records start right after the persons; named ones carry "dummy" as reading at +13"""
     start, end = persons_raw(data)[1] + 8, _section(data, (24, 376)) - 8
@@ -165,15 +177,19 @@ def persons(game_dir):
     recs = {s: persons_raw(scen[s][2])[0] for s in SCENARIOS}
     lords = {s: houses(scen[s][2], recs[s]) for s in SCENARIOS}
     main = recs[MAIN]
+    family = surnames(scen[MAIN][2])
     people = [k for k, r in enumerate(main) if r[0] and r[0] != "預備預備"]  # 44 spare slots
     known = set(people)
     fathers = {k: _u16(main[k][2], 2) for k in people}
     rows = []
     for k in people:
         name, lists, t = main[k]
-        row = {"id": k, "name": name, "born": _u16(t, 31), "died": _u16(t, 35),
-               "stats": {"統率": t[38], "武勇": t[39], "知略": t[40], "政治": t[41]},
-               "hidden": {"創造性": t[37]}}
+        row = {"id": k, "name": name}
+        if family[k] and name.startswith(family[k]) and family[k] != name:
+            row["familyName"] = family[k]
+        row.update({"born": _u16(t, 31), "died": _u16(t, 35),
+                    "stats": {"統率": t[38], "武勇": t[39], "知略": t[40], "政治": t[41]},
+                    "hidden": {"創造性": t[37]}})
         if _u16(t, 22) != 0xFFFF:
             row["hidden"]["血族"] = _u16(t, 22)
         for key, lst in (("親愛武將", lists[1]), ("嫌惡武將", lists[2])):

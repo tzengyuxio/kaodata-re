@@ -10,6 +10,7 @@ import genpei
 import koei_games
 from kaodata_export import NOBU4_DOS_NAME_PICK, NOBU4_PC98_ALIASES
 from nobu4_extras import MAIN_PALETTE, _raw_image
+from persons_export import family_of
 from wiki_nobu3 import PC98_DIGITAL
 
 # SNDATAn.CIM: +1 year - 1476; 48 國 from 0x4 (45 bytes: +4 name 4 bytes, +30 7 neighbours, low 6 bits the 國
@@ -79,8 +80,31 @@ def _zh_names(game_dir):
     return out
 
 
+def _surnames(game_dir, dos):
+    """face code -> surnames as stored (surname and given name are separate fields), DOS 中文版 or PC-98."""
+    out = {}
+    start, size, face, at, arrival, arrival_face = 0x1192, 33, 0x15, 3, 28, 0x18  # same layout in both
+    decode = (lambda b: koei_games.nobu4_name(b[:6])) if dos else (lambda b: koei_games.nobu4_pc98_name(b[:7]))
+    folder = os.path.join(game_dir, "..", "nobu4-dos") if dos else game_dir
+    for n in range(1, 4):
+        with open(os.path.join(folder, f"SNDATA{n}.CIM"), "rb") as f:
+            data = f.read()
+        for o in range(start, len(data) - size + 1, size):
+            if data[o] < 0x20:
+                break
+            out.setdefault(int.from_bytes(data[o + face:o + face + 2], "little"), set()).add(decode(data[o:]))
+        with open(os.path.join(folder, f"SNDATA{n}T.CIM"), "rb") as f:
+            data = f.read()
+        for o in range(0, len(data) - arrival + 1, arrival):
+            if data[o + at]:
+                out.setdefault(int.from_bytes(data[o + arrival_face:o + arrival_face + 2], "little"), set()).add(
+                    decode(data[o + at:]))
+    return out
+
+
 def persons(game_dir):
     zh = _zh_names(game_dir)
+    family = {False: _surnames(game_dir, False), True: _surnames(game_dir, True)}
     rows, ids = [], {}
 
     def person(name, code, born, values, giri, life):
@@ -90,6 +114,9 @@ def persons(game_dir):
         row = {"id": len(rows), "name": zh.get(code, ja)}
         if row["name"] != ja:
             row["nameJa"] = ja
+        surname = family_of(row["name"], family[code in zh].get(code, ()))
+        if surname:
+            row["familyName"] = surname
         row.update({"born": born, "stats": dict(zip(NOBU4_LABELS, values)), "hidden": {"義理": giri, "寿命": life},
                     "scenarios": [], "uncertain": ["hidden.義理", "hidden.寿命"], "notes": NOBU4_NOTES})
         ids[code] = len(rows)
