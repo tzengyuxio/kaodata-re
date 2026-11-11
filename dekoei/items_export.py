@@ -512,6 +512,70 @@ def add_zh(dataset, rows, game_dir):
     return rows
 
 
+# Pictures: dataset -> (CSV in extract/items, id column, row -> path under extract/items). A path under pictures/
+# that is not a file is read from pictures.cbz (the 素材庫 keeps them packed). Notes per game: the 寶物 sections.
+PICTURES = {
+    "san4pk-pc98": ("items.csv", "id", lambda r: r["picture"]),
+    "san7pk-win": ("items.csv", "item", lambda r: f"pictures/{r['picture']}"),
+    "san8pk-win": ("items.csv", "id", lambda r: f"pictures/{r['picture']}"),
+    "san9pk-win": ("items.csv", "id", lambda r: r["picture_large"]),
+    "san10pk-win": ("items.csv", "id", lambda r: f"pictures/{int(r['picture']):03d}.png"),
+    "san11pk-win": ("items.csv", "id", lambda r: r["picture"]),
+    "san12pk-win": ("items.csv", "id", lambda r: f"pictures/{r['picture']}"),
+    "san13pk-win": ("items.csv", "id", lambda r: r["file"]),
+    "san14pk-win": ("items.csv", "id", lambda r: f"pictures/{r['picture']}.png"),
+    "nobu6pk-pc98": ("kahou.csv", "id", lambda r: r["picture"]),
+    "nobu7pk-win": ("kahou.csv", "no", lambda r: f"pictures/{r['file']}"),
+    "nobu8pk-win": ("kahou.csv", "no", lambda r: f"pictures/{r['file']}"),
+    "nobu9pk-win": ("kahou.csv", "slot", lambda r: f"pictures/{int(r['picture']):04d}.png"),
+    "nobu10pk-win": ("kahou.csv", "id", lambda r: f"pictures/{int(r['picture']):04d}.png"),
+    "nobu11pk-win": ("kahou.csv", "id", lambda r: f"pictures/{int(r['picture']):03d}.png"),
+    "nobu12pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
+    "nobu14pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
+    "nobu15pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
+    "nobu16pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
+}
+# one picture per kind, shared by every item of the kind (the games have no picture per item)
+KIND_PICTURES = {"nobu6pk-pc98", "nobu7pk-win", "nobu8pk-win", "nobu9pk-win", "nobu10pk-win", "nobu11pk-win",
+                 "nobu12pk-win", "nobu14pk-win"}
+# the item -> picture link was matched by looking at the pictures (san11 【推】, nobu11 🟡, nobu16 🟡)
+UNSURE_PICTURES = {"san11pk-win", "nobu11pk-win", "nobu16pk-win"}
+
+
+def _read_picture(items_dir, path):
+    full = os.path.join(items_dir, path)
+    if os.path.isfile(full):
+        with open(full, "rb") as f:
+            return f.read()
+    import zipfile
+    folder, name = path.split("/", 1)
+    with zipfile.ZipFile(os.path.join(items_dir, f"{folder}.cbz")) as z:
+        return z.read(name)
+
+
+def add_pictures(dataset, rows, extract, out):
+    """set "picture" on each row and copy the pictures it uses to OUT/<dataset>/ (one file per picture)"""
+    name, key, path = PICTURES[dataset]
+    items_dir = os.path.join(extract, "items")
+    paths = {int(r[key]): path(r) for r in _rows(extract, name)}
+    folder = os.path.join(out, dataset)
+    os.makedirs(folder, exist_ok=True)
+    for f in os.listdir(folder):
+        os.remove(os.path.join(folder, f))
+    for r in rows:
+        p = paths[r["id"]]
+        r["picture"] = os.path.basename(p)
+        target = os.path.join(folder, r["picture"])
+        if not os.path.exists(target):
+            with open(target, "wb") as f:
+                f.write(_read_picture(items_dir, p))
+        if dataset in KIND_PICTURES:
+            r["notes"] = "；".join(n for n in (r.get("notes"), "圖是種類圖，同種類的寶物共用一張") if n)
+        if dataset in UNSURE_PICTURES:
+            r["uncertain"] = r.get("uncertain", []) + ["picture"]
+    return rows
+
+
 def _person_names(dataset):
     """kaodata id -> names: the kaodata dataset's characters, and the koei-wiki persons export where there is one"""
     names = {}
@@ -556,6 +620,7 @@ def items_export(dataset, extract, game_dir, out):
     rows = fn(extract, game_dir) if dataset in NEEDS_GAME else fn(extract)
     if dataset in ZH:
         rows = add_zh(dataset, rows, game_dir)
+    rows = add_pictures(dataset, rows, extract, out)
     rows = [_clean({"dataset": dataset, **r}) for r in rows]
     problems = check(dataset, rows)
     for p in problems:
@@ -567,4 +632,5 @@ def items_export(dataset, extract, game_dir, out):
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     held = sum(len(r.get("holders", [])) for r in rows)
-    click.echo(f"{dataset}: {len(rows)} items, {held} holders")
+    pictures = len(os.listdir(os.path.join(out, dataset)))
+    click.echo(f"{dataset}: {len(rows)} items, {held} holders, {pictures} pictures")
