@@ -133,6 +133,8 @@ LINK 封裝 1000 項，548 項是 47108 bytes 的事件記錄，其中 29 項步
 
 `persons-export`、`places-export`、`biography`、`items-export` 都已掛 `nobu14pk-win`（`wiki_nobu14`）。2026-11-11：人物 2042（koei-wiki verify_persons 61350 項 0 不符）、地點 384（城＋國，verify 2921 項 0 不符）、列伝 1918、家宝 160（持有者 240 筆；家持有的寫 `{"scenario", "other": 家名}`）。
 
+- 沒有 `reading`：Steam 版只有繁中，人名、城名、家宝的讀音欄位都是 "dummy"，遊戲內沒有讀音（2026-11-11 搜過整個 depot 的 Shift-JIS／UTF-16 平假名、片假名）。日文版是另一個 Steam app（288390，只有日文），帳號沒有、也不能跨區購買，2026-11-11 決定不做。koei-wiki 用人物對照表從別代借讀音，這裡不填。
+
 ## 家紋（2026-11-11）
 
 `nobu14-extras` 的 `kamon()` 寫 `kamon/NNNN.png`（72×72）與 `kamon/index.csv`。
