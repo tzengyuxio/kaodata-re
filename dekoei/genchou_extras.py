@@ -70,6 +70,13 @@ def pack_pictures(game_dir):
     return out
 
 
+def region_pictures(game_dir, pics=None):
+    """the 47 region pictures by table index: 蒙古篇 region k at k, 世界篇 country k at 14 + k"""
+    exe = _read(game_dir, "MAIN.EXE")
+    by_off = dict(pics or pack_pictures(game_dir))
+    return [by_off[struct.unpack_from("<I", exe, DGROUP + REGION_PICTURES + 4 * k)[0]] for k in range(47)]
+
+
 def pictures(game_dir, dos_dir, out):
     """eventcg/, ordo/ and regions/ with a CSV each"""
     exe = _read(game_dir, "MAIN.EXE")
@@ -101,7 +108,7 @@ def pictures(game_dir, dos_dir, out):
     rows = []
     for k, (ja, zh) in enumerate(mongolia + world):
         o = struct.unpack_from("<I", exe, DGROUP + REGION_PICTURES + 4 * k)[0]
-        by_off[o].save(os.path.join(out, "regions", f"{k:02d}.png"))
+        by_off[o].save(os.path.join(out, "regions", f"{k:02d}.png"))  # same as region_pictures()[k]
         rows.append({"file": f"{k:02d}.png", "map": "mongolia" if k < 14 else "world",
                      "country": k if k < 14 else k - 14, "name": ja, "nameZh": zh, "offset": hex(o)})
     _write_csv(os.path.join(out, "regions", "regions.csv"), rows)
@@ -250,6 +257,8 @@ def places(game_dir, out_dir):
     for other in world[1:]:  # the 世界篇 scenarios share names, adjacency and boxes
         assert [(c["name"], c["adjacent"], c["x"], c["y"]) for c in other] == \
             [(c["name"], c["adjacent"], c["x"], c["y"]) for c in world[0]]
+    os.makedirs(os.path.join(out_dir, "regions"), exist_ok=True)
+    regions = region_pictures(game_dir)
     rows = []
     for base, stage, which, cs in ((100, "蒙古篇（劇本 1）", "mongolia", scenario(game_dir, dos_dir, 1)[0]),
                                    (0, "世界篇（劇本 2–4）", "world", world[0])):
@@ -260,6 +269,11 @@ def places(game_dir, out_dir):
             row.update({"level": "國", "adjacent": [base + int(a) + 1 for a in c["adjacent"].split()],
                         "pos": {"x": c["x"], "y": c["y"], "grid": "pixel", "w": 640, "h": 400},
                         "notes": f"{stage}（`world/{which}-*.png`）；pos 是地圖上國號框的中心"})
+            k = c["label"] - 1 + (14 if base == 0 else 0)
+            regions[k].save(os.path.join(out_dir, "regions", f"{row['id']}.png"))
+            row["picture"] = f"regions/{row['id']}.png"
+            row["notes"] += (f"；picture 是 PACKDATA.DAT 的地域圖，MAIN.EXE 0xA8B9 用國號查 DS:0x270C 的表，"
+                             f"世界篇加 14（這張是第 {k} 項）")
             rows.append(row)
     return rows
 

@@ -192,7 +192,7 @@
   - オルド（後宮）152×304 31 張（`ordo/GG-S.png`）：位移表 DS:0xAD5A，11 組 × 3 階段（0x20C21 ✅ code）。階段由 DS:0xADFE 決定（<100、<150、其餘，推定是寵愛度 🟡）：盛裝、寬衣、寢室。組是女性的文化圏 0–7（蒙古 内亜 印度 日本 西欧 東欧 回教 中国，同 DS:0x85F0），頭像碼 0、1、7 例外用組 8、9、10（ボルテ、クラン、ラッチ）；組 10 只有一張，三個位移都指向它，階段 2 跳過。使用者以前也解過，記得的 11 組相同（2026-11-12）。
   - 地域圖 128×64 47 張（`regions/NN.png`）：位移表 DS:0x270C，索引是國號，世界篇（DS:0x1F9A≠0）加 14（0xA8B9 ✅ code）；朝鮮半島、日本、ビルマ、エジプト、イベリア等的圖也和國相符 ✅ cross。
   - 事件名稱 ✅ code：砂嵐、寒波、台風、干ばつ 的圖表 DS:0xB504 和名稱表 DS:0xB39C 用同一個索引（0x23A0A；戰鬥畫面也用 DS:0xC1E4 的同 4 張，依 DS:0xBB9D xor 4）；疫病（0x22F7E 先印 DS:0xB468 再載入位移 0）、豊作（0x23750，DS:0xB4F4）；相擁圖在オルド階段 2 一律接著顯示（0x20CE8；拉奇的組 10 在階段 2 只顯示這張）；432×224 由 0x32BE2 載入，那段程式是什麼沒追，「勝利」是看圖【推】。
-  - koei-wiki：天災與豐作 6 張由 `events-export genchou-pc98` 交（`events_export.EVENTS`），后妃 31 張由 `ordo-export genchou-pc98` 交（2026-11-12）；相擁圖、勝利圖、地域圖沒交。
+  - koei-wiki：天災與豐作 6 張由 `events-export genchou-pc98` 交（`events_export.EVENTS`），后妃 31 張由 `ordo-export genchou-pc98` 交（2026-11-12）。同日使用者決定其餘也交：相擁圖是 ordo 的 `kind: "embrace"` 一行，勝利圖是事件匯出的 `victory.png`（`confidence: picture`），地域圖是地點匯出的 `picture`（`places/genchou-pc98/regions/<地點 id>.png`，`genchou_extras.places`）。
   - 之後的 160×112 解不出來，最後 33 KB（0x68A4A 起）不是這個格式 ❌。
 - `OPENGRP.DAT`（352×176 起）、`GRPDATA.DAT`、`KGRP.DAT`、`SGRP.DAT`、`KPAT.DAT`、`HEXKG.DAT`、`HEXSG.DAT` 的格式都沒解。❌
 

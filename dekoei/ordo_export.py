@@ -1,7 +1,8 @@
 """元朝秘史 后妃大圖 for koei-wiki: export/koei-wiki/ordo/<dataset>.jsonl + <dataset>/<file>.png (spec: koei-wiki
 docs/persons-format.mkdn「后妃大圖（元朝秘史）」). Read from genchou-extras' extract/ordo/; how the game picks the
 pictures is in notes/genchou.md「事件、插圖、道具」.
-One line per picture: {"dataset", "set", "culture" | "person", "stage" (from 1), "label", "file", "notes"}."""
+One line per picture: {"dataset", "set", "culture" | "person", "stage" (from 1), "label", "file", "notes"}, plus
+one {"kind": "embrace"} line for the picture every woman gets after stage 3."""
 import csv
 import json
 import os
@@ -42,4 +43,9 @@ def ordo_export(dataset, extract_dir, out_dir):
                 notes += "；這組只有一張，階段 1、2 都用它，階段 3 不顯示她的圖"
             line["notes"] = notes
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
-    click.echo(f"{dataset}: {len(rows)} pictures")
+        shutil.copyfile(os.path.join(extract_dir, "eventcg", "pack06.png"), os.path.join(pics, "embrace.png"))
+        f.write(json.dumps({"dataset": dataset, "kind": "embrace", "stage": 3, "label": "相擁", "file": "embrace.png",
+                            "uncertain": ["label"],
+                            "notes": "PACKDATA.DAT 0x621B8，216×200；MAIN.EXE 0x20CE8：每人第 3 階段的圖之後顯示，"
+                                     "拉奇第 3 階段只有這張"}, ensure_ascii=False) + "\n")
+    click.echo(f"{dataset}: {len(rows) + 1} pictures")

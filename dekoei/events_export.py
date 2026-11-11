@@ -45,6 +45,8 @@ EVENTS = {
         ("pack03.png", "typhoon.png", "台風", "颱風", "code", "PACKDATA.DAT 0x85CB；同上，第 2 項"),
         ("pack04.png", "drought.png", "干ばつ", "乾旱", "code", "PACKDATA.DAT 0xB26C；同上，第 3 項"),
         ("pack05.png", "good-harvest.png", "豊作", "豐收", "code", "PACKDATA.DAT 0xCA7A；MAIN.EXE 0x23750 先顯示 DS:0xB4F4「豊作」再載入這張"),
+        ("pack07.png", "victory.png", "勝利", "", "picture",
+         "MAIN.EXE 0x32BE2 載入；騎馬舉拳的君主與歡呼的士兵；顯示場合未追，名稱看圖推定"),
     ],
     "san4pk-pc98": [
         ("packgrp-50.png", "revolt.png", "反乱", "民變", "picture", "PACKGRP.S4 #50；MESSAGE.S4「ついに住民反乱が発生しました」"),
@@ -69,7 +71,7 @@ def events_export(dataset, extract_dir, out_dir):
     with open(os.path.join(out_dir, f"{dataset}.jsonl"), "w", encoding="utf-8") as f:
         for src, file, name, name_zh, confidence, notes in EVENTS[dataset]:
             shutil.copyfile(os.path.join(extract_dir, "eventcg", src), os.path.join(pics, file))
-            row = {"dataset": dataset, "file": file, "name": name, "nameZh": name_zh,
+            row = {"dataset": dataset, "file": file, "name": name, **({"nameZh": name_zh} if name_zh else {}),
                    "confidence": confidence, "notes": notes}
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"{dataset}: {len(EVENTS[dataset])} pictures")
