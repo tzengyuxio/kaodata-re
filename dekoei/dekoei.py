@@ -21,6 +21,7 @@ from biography import biography
 from wiki_stats import stats_export
 from persons_export import persons_export
 from events_export import events_export
+from ordo_export import ordo_export
 from places_export import places_export, places_label
 from items_export import items_export
 from genpei_extras import genpei_extras
@@ -923,6 +924,7 @@ dekoei.add_command(items_export, "items-export")  # 寶物（koei-wiki）
 dekoei.add_command(places_label, "places-label")  # 大地圖的地名標籤（koei-wiki）
 dekoei.add_command(persons_export, "persons-export")  # 人物全部欄位（koei-wiki）
 dekoei.add_command(events_export, "events-export")  # 遊戲內事件的圖（koei-wiki）
+dekoei.add_command(ordo_export, "ordo-export")  # オルド（後宮）的圖（koei-wiki）
 dekoei.add_command(san4_extras, "san4-extras")  # 三國志IV 事件、插圖、道具
 dekoei.add_command(san14_extras, "san14-extras")  # 三國志14 事件、插圖、寶物
 dekoei.add_command(san13_extras, "san13-extras")  # 三國志13 事件、插圖、寶物

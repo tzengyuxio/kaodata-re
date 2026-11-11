@@ -45,7 +45,12 @@ MARKS = {3: "#", 2: "*"}  # +23 bits 0-1: DS:0x27C8; 3 = 君主, 2 = 君主の�
 ORDO_OFFSETS, ORDO_SPECIAL = 0xAD5A, {8: 0, 9: 1, 10: 7}
 # Region pictures: u32 offsets at DS:0x270C, index = region number, + 14 on the world map (MAIN.EXE 0xA8B9)
 REGION_PICTURES = 0x270C
-EVENT_NAMES = ["疫病", "", "大雪", "嵐", "旱魃", "豊作", "オルド", "勝利"]  # 【推】 from the pictures
+# Event pictures in file order: (name, evidence). 砂嵐-干ばつ: u32 offsets at DS:0xB504 and names at DS:0xB39C, one
+# index (0x23A0A; the battle screen shows the same four from DS:0xC1E4 by [DS:0xBB9D] ^ 4, 0x24BF0); 疫病: 0x22F7E
+# prints DS:0xB468 and loads offset 0; 豊作: 0x23750 prints DS:0xB4F4 and loads 0xCA7A; the オルド one is loaded at
+# 0x20CEF after stage 2; the 432 x 224 one at 0x32BE2 (what that routine is, not followed).
+EVENT_NAMES = [("疫病", "✅ code"), ("砂嵐", "✅ code"), ("寒波", "✅ code"), ("台風", "✅ code"), ("干ばつ", "✅ code"),
+               ("豊作", "✅ code"), ("オルド", "✅ code"), ("勝利", "【推】")]
 
 
 def pack_pictures(game_dir):
@@ -76,7 +81,7 @@ def pictures(game_dir, dos_dir, out):
     for k, (o, im) in enumerate(events):
         im.save(os.path.join(out, "eventcg", f"pack{k:02d}.png"))
         rows.append({"file": f"pack{k:02d}.png", "offset": hex(o), "width": im.width, "height": im.height,
-                     "name": EVENT_NAMES[k]})
+                     "name": EVENT_NAMES[k][0], "evidence": EVENT_NAMES[k][1]})
     _write_csv(os.path.join(out, "eventcg", "pack.csv"), rows)
     cultures = _strings(exe, CULTURES)
     os.makedirs(os.path.join(out, "ordo"), exist_ok=True)
