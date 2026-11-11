@@ -36,6 +36,71 @@ MAPS = {"mongolia": (0x0, 0x3F1D), "world": (0x8CC7, 0xFDB9), "screen": (0x15B27
 POINTS = {"mongolia": (0x309E, 0x30E0, 14), "world": (0x3122, 0x3164, 33)}
 PALETTE_BASE, PALETTE_SEASON = 0x2C1A, 0x245E  # colours 0-7, colours 8-15 at + 0x48 * season (MAIN.EXE 0x4FE4)
 MARKS = {3: "#", 2: "*"}  # +23 bits 0-1: DS:0x27C8; 3 = 君主, 2 = 君主の兄弟
+# PACKDATA.DAT: pictures one after another in 信長4's packed format (nobu4_extras.decode_pack), 8 colours of the
+# palette at PALETTE_BASE: 6 events 224 x 160, 31 オルド pictures 152 x 304, 47 region pictures 128 x 64, then
+# 216 x 200, 432 x 224 and a 160 x 112 that does not decode (and 33 KB not in this format).
+# オルド: u32 offsets at DS:0xAD5A, 11 groups x 3 stages (MAIN.EXE 0x20C21): stage 0 / 1 / 2 by [DS:0xADFE] < 100 /
+# < 150 / more; the group is the woman's 文化圏 (0-7, same order as CULTURES), or 8 / 9 / 10 for face code 0 / 1 / 7
+# (ボルテ, クラン, ラッチ; group 10 has one picture, all three offsets point to it, and stage 2 is skipped).
+ORDO_OFFSETS, ORDO_SPECIAL = 0xAD5A, {8: 0, 9: 1, 10: 7}
+# Region pictures: u32 offsets at DS:0x270C, index = region number, + 14 on the world map (MAIN.EXE 0xA8B9)
+REGION_PICTURES = 0x270C
+EVENT_NAMES = ["疫病", "", "大雪", "嵐", "旱魃", "豊作", "オルド", "勝利"]  # 【推】 from the pictures
+
+
+def pack_pictures(game_dir):
+    """[(offset, image)] of PACKDATA.DAT, in file order, up to the first part that is not a picture"""
+    from nobu4_extras import decode_pack, _image
+    data, exe = _read(game_dir, "PACKDATA.DAT"), _read(game_dir, "MAIN.EXE")
+    pal = palette(exe, 0)[:24]
+    pal = [tuple(pal[i:i + 3]) for i in range(0, 24, 3)]
+    out, off = [], 0
+    while off < len(data):
+        r = decode_pack(data, off)
+        if not r or (r[1], r[2]) == (160, 112):
+            break
+        rows, w, h, used = r
+        out.append((off, _image(rows, pal)))
+        off += used
+    return out
+
+
+def pictures(game_dir, dos_dir, out):
+    """eventcg/, ordo/ and regions/ with a CSV each"""
+    exe = _read(game_dir, "MAIN.EXE")
+    pics = pack_pictures(game_dir)
+    by_off = dict(pics)
+    events = [(o, im) for o, im in pics if im.size != (152, 304) and im.size != (128, 64)]
+    os.makedirs(os.path.join(out, "eventcg"), exist_ok=True)
+    rows = []
+    for k, (o, im) in enumerate(events):
+        im.save(os.path.join(out, "eventcg", f"pack{k:02d}.png"))
+        rows.append({"file": f"pack{k:02d}.png", "offset": hex(o), "width": im.width, "height": im.height,
+                     "name": EVENT_NAMES[k]})
+    _write_csv(os.path.join(out, "eventcg", "pack.csv"), rows)
+    cultures = _strings(exe, CULTURES)
+    os.makedirs(os.path.join(out, "ordo"), exist_ok=True)
+    rows = []
+    for g in range(11):
+        for s in range(3):
+            o = struct.unpack_from("<I", exe, DGROUP + ORDO_OFFSETS + 4 * (3 * g + s))[0]
+            if g == 10 and s:
+                continue
+            by_off[o].save(os.path.join(out, "ordo", f"{g:02d}-{s}.png"))
+            rows.append({"file": f"{g:02d}-{s}.png", "group": g, "stage": s, "offset": hex(o),
+                         "culture": cultures[g] if g < 8 else "",
+                         "face": ORDO_SPECIAL.get(g, "")})
+    _write_csv(os.path.join(out, "ordo", "ordo.csv"), rows)
+    mongolia, world = region_names(game_dir, dos_dir)
+    os.makedirs(os.path.join(out, "regions"), exist_ok=True)
+    rows = []
+    for k, (ja, zh) in enumerate(mongolia + world):
+        o = struct.unpack_from("<I", exe, DGROUP + REGION_PICTURES + 4 * k)[0]
+        by_off[o].save(os.path.join(out, "regions", f"{k:02d}.png"))
+        rows.append({"file": f"{k:02d}.png", "map": "mongolia" if k < 14 else "world",
+                     "country": k if k < 14 else k - 14, "name": ja, "nameZh": zh, "offset": hex(o)})
+    _write_csv(os.path.join(out, "regions", "regions.csv"), rows)
+    return len(events), len(pics) - len(events) - 47, 47
 
 
 def _read(game_dir, name):
@@ -222,6 +287,8 @@ def genchou_extras(game_dir, dos_dir, out):
     _write_csv(os.path.join(out, "persons.csv"), people)
     n = maps(game_dir, os.path.join(out, "map"))
     print(f"{len(countries)} countries, {len(factions)} factions, {len(people)} people in 4 scenarios, {n} maps")
+    e, o, r = pictures(game_dir, dos_dir, out)
+    print(f"PACKDATA: {e} event pictures, {o} オルド pictures, {r} region pictures")
 
 
 if __name__ == "__main__":

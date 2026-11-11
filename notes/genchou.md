@@ -90,7 +90,7 @@
 
 ## 國與大地圖
 
-`dekoei.py genchou-extras --game-dir ../games/genchou-pc98 --out ../games/genchou-pc98/extract`（`genchou_extras.py`）輸出 `countries.csv`、`factions.csv`、`persons.csv` 與 `map/`。中文名讀 `games/genchou-dos/` 同位置的記錄（`--dos-dir`）。
+`dekoei.py genchou-extras --game-dir ../games/genchou-pc98 --out ../games/genchou-pc98/extract`（`genchou_extras.py`）輸出 `countries.csv`、`factions.csv`、`persons.csv`、`map/`，以及 `PACKDATA.DAT` 的 `eventcg/`、`ordo/`、`regions/`（見「事件、插圖、道具」）。中文名讀 `games/genchou-dos/` 同位置的記錄（`--dos-dir`）。
 
 位址是 PC-98 `MAIN.EXE` 的映像位址（MZ 檔頭 0x4200，DGROUP 在映像 0x37B20、檔案 0x3BD20）。`GENDATA<n>.DAT` 整個讀到 DS:0x42，所以「GENDATA 位移＋0x42＝DS 位址」：國表在 DS:0x0BC4（0x67E0 用 `(bx − 0xBC4) / 0x31` 換回國號）、勢力表在 DS:0x1216（0x67EC）、男性在 DS:0x44。✅ code
 
@@ -187,7 +187,12 @@
 
 - 沒有道具。
 - `ENDGRP.DAT`：開頭 23 張用 `san3.world_band` 解得出來（第 0 張 640×104，之後 640×200），色盤在 `END.EXE`，沒找，所以沒輸出。❌
-- `PACKDATA.DAT`（224×160 起）、`OPENGRP.DAT`（352×176 起）、`GRPDATA.DAT`、`KGRP.DAT`、`SGRP.DAT`、`KPAT.DAT`、`HEXKG.DAT`、`HEXSG.DAT` 的格式都沒解。❌
+- `PACKDATA.DAT`（DOS 版同檔）：一張接一張，格式同信長4 的壓縮圖（`nobu4_extras.decode_pack`，u16 寬、u16 高；每張讀完剛好接到下一張 ✅ code），色盤是 `PALETTE_BASE` 的 8 色（同頭像），`genchou-extras` 輸出到 `eventcg/`、`ordo/`、`regions/`，各附 CSV：
+  - 事件圖 224×160 6 張（`eventcg/pack00–05`，疫病、？、大雪、嵐、旱魃、豊作【推】，看圖），另有 216×200 的オルド圖（后妃與君主相擁，`pack06`）、432×224 的勝利圖（`pack07`）【推】。
+  - オルド（後宮）152×304 31 張（`ordo/GG-S.png`）：位移表 DS:0xAD5A，11 組 × 3 階段（0x20C21 ✅ code）。階段由 DS:0xADFE 決定（<100、<150、其餘，推定是寵愛度 🟡）：盛裝、寬衣、寢室。組是女性的文化圏 0–7（蒙古 内亜 印度 日本 西欧 東欧 回教 中国，同 DS:0x85F0），頭像碼 0、1、7 例外用組 8、9、10（ボルテ、クラン、ラッチ）；組 10 只有一張，三個位移都指向它，階段 2 跳過。使用者以前也解過，記得的 11 組相同（2026-11-12）。
+  - 地域圖 128×64 47 張（`regions/NN.png`）：位移表 DS:0x270C，索引是國號，世界篇（DS:0x1F9A≠0）加 14（0xA8B9 ✅ code）；朝鮮半島、日本、ビルマ、エジプト、イベリア等的圖也和國相符 ✅ cross。
+  - 之後的 160×112 解不出來，最後 33 KB（0x68A4A 起）不是這個格式 ❌。
+- `OPENGRP.DAT`（352×176 起）、`GRPDATA.DAT`、`KGRP.DAT`、`SGRP.DAT`、`KPAT.DAT`、`HEXKG.DAT`、`HEXSG.DAT` 的格式都沒解。❌
 
 ## 進度
 
@@ -199,7 +204,8 @@
 | 人物 +17 勢力、+18 所在国、+23、+24 | ✅ | code+cross | 見「人物欄位」 |
 | 兵種格的對應 | 🟡 | | 照兵種表順序與文化圏推定 |
 | 女性 +17–+19 | ❌ | | |
-| 事件圖、結局圖 | ❌ | | 見「事件、插圖、道具」 |
+| PACKDATA 的事件、オルド、地域圖 | ✅ | code | 86 張；事件圖名稱【推】 |
+| 結局圖 | ❌ | | 見「事件、插圖、道具」 |
 
 ## 未解
 
