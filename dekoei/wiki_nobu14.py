@@ -25,8 +25,8 @@ KINDS = ["茶具", "武具", "名馬", "書", "繪畫", "香具", "南蠻物", "
 PROVINCE_ID = 1000  # place id of 國 k
 YEAR, TITLE = 0x498, 0x1C5  # scenario header: u16 year, scenario name
 HOUSE_TAIL = 3354  # a 家 record ends with a fixed part of this size; its first u16 is the 当主 slot
-# Traditional Chinese names put Japanese kanji on these Big5 codes (as 大志, notes/nobu15.md「繁中外字」, plus A275)
-GAIJI = {0xA263: "雫", 0xA265: "籾", 0xA268: "簗", 0xA26D: "鑓", 0xA26E: "垪", 0xA26F: "梶", 0xA270: "榊",
+# Traditional Chinese names put Japanese kanji on these Big5 codes (as 大志, notes/nobu15.md「繁中外字」, plus A266, A275)
+GAIJI = {0xA263: "雫", 0xA265: "籾", 0xA266: "峠", 0xA268: "簗", 0xA26D: "鑓", 0xA26E: "垪", 0xA26F: "梶", 0xA270: "榊",
          0xA271: "畠", 0xA272: "樋", 0xA273: "樫", 0xA275: "条", 0xA278: "坂", 0xA279: "宍", 0xA27A: "誾",
          0xF9DA: "恒"}
 # +42 of the person record (scenario 02 counts): 7 serving a 家, 3 浪人 on the map, 8 浪人 not yet placed (most with no
