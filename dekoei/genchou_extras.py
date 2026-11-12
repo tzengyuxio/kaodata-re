@@ -36,19 +36,31 @@ MAPS = {"mongolia": (0x0, 0x3F1D), "world": (0x8CC7, 0xFDB9), "screen": (0x15B27
 POINTS = {"mongolia": (0x309E, 0x30E0, 14), "world": (0x3122, 0x3164, 33)}
 PALETTE_BASE, PALETTE_SEASON = 0x2C1A, 0x245E  # colours 0-7, colours 8-15 at + 0x48 * season (MAIN.EXE 0x4FE4)
 MARKS = {3: "#", 2: "*"}  # +23 bits 0-1: DS:0x27C8; 3 = 君主, 2 = 君主の兄弟
-# PACKDATA.DAT: pictures one after another in 信長4's packed format (nobu4_extras.decode_pack), 8 colours of the
-# palette at PALETTE_BASE: 6 events 224 x 160, 31 オルド pictures 152 x 304, 47 region pictures 128 x 64, then
+# PACKDATA.DAT: pictures one after another in 信長4's packed format (nobu4_extras.decode_pack), 8 colours that the
+# screen shows as colours 8-15 (see PACK_SEASONS, ORDO_PALETTES): 6 events 224 x 160, 31 オルド pictures 152 x 304, 47 region pictures 128 x 64, then
 # 216 x 200, 432 x 224 and a 160 x 112 that does not decode (and 33 KB not in this format).
 # オルド: u32 offsets at DS:0xAD5A, 11 groups x 3 stages (MAIN.EXE 0x20C21): stage 0 / 1 / 2 by [DS:0xADFE] < 100 /
 # < 150 / more; the group is the woman's 文化圏 (0-7, same order as CULTURES), or 8 / 9 / 10 for face code 0 / 1 / 7
 # (ボルテ, クラン, ラッチ; group 10 has one picture, all three offsets point to it, and stage 2 is skipped).
 ORDO_OFFSETS, ORDO_SPECIAL = 0xAD5A, {8: 0, 9: 1, 10: 7}
+# The オルド pictures are not shown in the PALETTE_BASE colours: MAIN.EXE 0x20B80 sets colours 8-15 from a table of
+# 25 x 8 colours (B, R, G like palette()) at segment 0x34ED:0x1E0 (file 0x392B0), entry 3 * culture + stage. The
+# culture is the one of the country she is in (0x6908: person +0x12 -> country record), so ボルテ and クラン (groups
+# 8, 9) take their country's entry, 蒙古 when they are in Mongolia; face code 7 (ラッチ) always takes entry 24. The
+# embrace picture (shown after stage 2, 0x20CEF) keeps the stage 2 colours of the woman's culture.
+ORDO_PALETTES = 0x392B0
 # Region pictures: u32 offsets at DS:0x270C, index = region number, + 14 on the world map (MAIN.EXE 0xA8B9)
 REGION_PICTURES = 0x270C
 # Event pictures in file order: (name, evidence). 砂嵐-干ばつ: u32 offsets at DS:0xB504 and names at DS:0xB39C, one
 # index (0x23A0A; the battle screen shows the same four from DS:0xC1E4 by [DS:0xBB9D] ^ 4, 0x24BF0); 疫病: 0x22F7E
 # prints DS:0xB468 and loads offset 0; 豊作: 0x23750 prints DS:0xB4F4 and loads 0xCA7A; the オルド one is loaded at
 # 0x20CEF after stage 2; the 432 x 224 one at 0x32BE2 (what that routine is, not followed).
+# The event and region pictures are shown on the map screen without a palette change, so they take the season's
+# map colours 8-15 (palette(exe, season)[24:]). Seasons each event can happen in (MAIN.EXE 0x23DA0 dispatches by
+# [0x1F9B]: 春 疫病 0x22F2C, 砂嵐, 寒波; 夏 台風, 干ばつ; 秋 台風; 冬 疫病, 寒波; 豊作 0x2373A needs 夏 or 秋, 0x2326A);
+# the first one is used for eventcg/packNN.png, every season goes to eventcg/seasons/. The victory picture is shown
+# after 0x32BFC sets the 16 colours at PALETTE_BASE, so its colours are PALETTE_BASE 8-15.
+PACK_SEASONS = [(0, 3), (0,), (3, 0), (1, 2), (1,), (2, 1)]
 EVENT_NAMES = [("疫病", "✅ code"), ("砂嵐", "✅ code"), ("寒波", "✅ code"), ("台風", "✅ code"), ("干ばつ", "✅ code"),
                ("豊作", "✅ code"), ("オルド", "✅ code"), ("勝利", "【推】")]
 
@@ -70,10 +82,25 @@ def pack_pictures(game_dir):
     return out
 
 
+def ordo_palette(exe, k):
+    raw = exe[ORDO_PALETTES + 24 * k:][:24]
+    return [v * 17 for i in range(8) for v in (raw[3 * i + 1], raw[3 * i + 2], raw[3 * i])]
+
+
+def _recolour(im, pal):
+    im = im.copy()
+    im.putpalette(pal)
+    return im
+
+
+def season_colours(exe, season):
+    return palette(exe, season)[24:]
+
+
 def region_pictures(game_dir, pics=None):
     """the 47 region pictures by table index: 蒙古篇 region k at k, 世界篇 country k at 14 + k"""
     exe = _read(game_dir, "MAIN.EXE")
-    by_off = dict(pics or pack_pictures(game_dir))
+    by_off = {o: _recolour(im, season_colours(exe, 0)) for o, im in (pics or pack_pictures(game_dir))}  # spring
     return [by_off[struct.unpack_from("<I", exe, DGROUP + REGION_PICTURES + 4 * k)[0]] for k in range(47)]
 
 
@@ -86,9 +113,22 @@ def pictures(game_dir, dos_dir, out):
     os.makedirs(os.path.join(out, "eventcg"), exist_ok=True)
     rows = []
     for k, (o, im) in enumerate(events):
+        season = ""
+        if EVENT_NAMES[k][0] == "オルド":
+            im = _recolour(im, ordo_palette(exe, 2))  # 蒙古 stage 2; other cultures tint it with their own stage 2
+        elif EVENT_NAMES[k][0] == "勝利":
+            im = _recolour(im, _base_8_15(exe))
+        else:
+            os.makedirs(os.path.join(out, "eventcg", "seasons"), exist_ok=True)
+            for s, name in enumerate(SEASONS):
+                _recolour(im, season_colours(exe, s)).save(
+                    os.path.join(out, "eventcg", "seasons", f"pack{k:02d}-{name}.png"))
+            season = SEASONS[PACK_SEASONS[k][0]]
+            im = _recolour(im, season_colours(exe, PACK_SEASONS[k][0]))
         im.save(os.path.join(out, "eventcg", f"pack{k:02d}.png"))
         rows.append({"file": f"pack{k:02d}.png", "offset": hex(o), "width": im.width, "height": im.height,
-                     "name": EVENT_NAMES[k][0], "evidence": EVENT_NAMES[k][1]})
+                     "name": EVENT_NAMES[k][0], "evidence": EVENT_NAMES[k][1], "season": season,
+                     "seasons": " ".join(SEASONS[s] for s in PACK_SEASONS[k]) if season else ""})
     _write_csv(os.path.join(out, "eventcg", "pack.csv"), rows)
     cultures = _strings(exe, CULTURES)
     os.makedirs(os.path.join(out, "ordo"), exist_ok=True)
@@ -98,17 +138,23 @@ def pictures(game_dir, dos_dir, out):
             o = struct.unpack_from("<I", exe, DGROUP + ORDO_OFFSETS + 4 * (3 * g + s))[0]
             if g == 10 and s:
                 continue
-            by_off[o].save(os.path.join(out, "ordo", f"{g:02d}-{s}.png"))
+            k = 24 if g == 10 else 3 * (g if g < 8 else 0) + s  # groups 8, 9 in Mongolia
+            _recolour(by_off[o], ordo_palette(exe, k)).save(os.path.join(out, "ordo", f"{g:02d}-{s}.png"))
             rows.append({"file": f"{g:02d}-{s}.png", "group": g, "stage": s, "offset": hex(o),
                          "culture": cultures[g] if g < 8 else "",
-                         "face": ORDO_SPECIAL.get(g, "")})
+                         "face": ORDO_SPECIAL.get(g, ""), "palette": k})
     _write_csv(os.path.join(out, "ordo", "ordo.csv"), rows)
     mongolia, world = region_names(game_dir, dos_dir)
     os.makedirs(os.path.join(out, "regions"), exist_ok=True)
     rows = []
     for k, (ja, zh) in enumerate(mongolia + world):
         o = struct.unpack_from("<I", exe, DGROUP + REGION_PICTURES + 4 * k)[0]
-        by_off[o].save(os.path.join(out, "regions", f"{k:02d}.png"))  # same as region_pictures()[k]
+        for s, name in enumerate(SEASONS):
+            im = _recolour(by_off[o], season_colours(exe, s))
+            if s == 0:
+                im.save(os.path.join(out, "regions", f"{k:02d}.png"))  # same as region_pictures()[k]
+            os.makedirs(os.path.join(out, "regions", "seasons"), exist_ok=True)
+            im.save(os.path.join(out, "regions", "seasons", f"{k:02d}-{name}.png"))
         rows.append({"file": f"{k:02d}.png", "map": "mongolia" if k < 14 else "world",
                      "country": k if k < 14 else k - 14, "name": ja, "nameZh": zh, "offset": hex(o)})
     _write_csv(os.path.join(out, "regions", "regions.csv"), rows)
@@ -153,6 +199,11 @@ def region_names(game_dir, dos_dir):
 def points(exe, which):
     xo, yo, n = POINTS[which]
     return list(zip(struct.unpack_from(f"<{n}H", exe, DGROUP + xo), struct.unpack_from(f"<{n}H", exe, DGROUP + yo)))
+
+
+def _base_8_15(exe):
+    raw = exe[DGROUP + PALETTE_BASE + 24:][:24]
+    return [v * 17 for i in range(8) for v in (raw[3 * i + 1], raw[3 * i + 2], raw[3 * i])]
 
 
 def palette(exe, season):
@@ -273,7 +324,7 @@ def places(game_dir, out_dir):
             regions[k].save(os.path.join(out_dir, "regions", f"{row['id']}.png"))
             row["picture"] = f"regions/{row['id']}.png"
             row["notes"] += (f"；picture 是 PACKDATA.DAT 的地域圖，MAIN.EXE 0xA8B9 用國號查 DS:0x270C 的表，"
-                             f"世界篇加 14（這張是第 {k} 項）")
+                             f"世界篇加 14（這張是第 {k} 項）；顏色跟著大地圖的季節換，這裡用春季")
             rows.append(row)
     return rows
 
