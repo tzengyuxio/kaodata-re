@@ -3,7 +3,7 @@
 NPDATA.CIM holds 5 scenarios of 13270 bytes; all offsets below are scenario offsets. id is the kaodata lempe-dos id
 (the record index 0-254, the same as koei-wiki lempe-persons-mapping.csv). Names and words are the Chinese
 version's; nameJa comes from the PC-88 NPDATA.CIM beside it (../lempe-pc88, the same order, half-width katakana),
-nameEn (persons) and the cities' game.英文名 from the English DOS NPDATA.CIM (same layout and data, English names), read from its archive
+nameEn (persons and cities) from the English DOS NPDATA.CIM (same layout and data, English names), read from its archive
 games/archives/dos/拿破崙_英文版_l-empereur.zip. Field sources: notes/lempe.md「koei-wiki 匯出」."""
 import os
 import unicodedata
@@ -156,7 +156,7 @@ def places(game_dir, out_dir):
         game = {"座標": {"x": rec[16], "y": rec[21]}}
         if rec[33] & 1:
             game["臨海"] = True
-        game["英文名"] = en[CITY + 34 * c:][:15].split(b"\0")[0].decode("ascii")
+        name_en = en[CITY + 34 * c:][:15].split(b"\0")[0].decode("ascii")
         out = []
         for k, d in enumerate(scen):
             year, month = _date(d)
@@ -167,7 +167,7 @@ def places(game_dir, out_dir):
                 if owner in lords[k]:
                     s["lord"] = lords[k][owner]
             out.append(s)
-        row = {"id": c, "name": name, **({"nameJa": name_ja} if name_ja != name else {}), "level": "城市",
+        row = {"id": c, "name": name, **({"nameJa": name_ja} if name_ja != name else {}), "nameEn": name_en, "level": "城市",
                "adjacent": [x for x in rec[26:33] if x != 0xFF], "scenarios": out, "game": game,
                "uncertain": ["scenarios.month", "game.座標", "game.臨海"],
                "notes": "城市記錄 NPDATA.CIM 7370＋34·c（各劇本相同）；國是劇本開始時的領有國（4102＋28·c），lord 是該國國王"
