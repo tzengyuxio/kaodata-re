@@ -15,7 +15,7 @@ NONE = 1305  # the "no person" record number
 # (🟡, from the values: 織田信長 96 70 97 91 99, 前田慶次 武力 88 政務 2, 石田三成 政務 98)
 STATS = ("統率", "武力", "政務", "知謀", "魅力")
 STATS_AT, STATS_REC, STATS_N = 14, 36, 1162
-# SNR segment 13: 12 bytes a person, the first 1000: +0 death year - 1500, +4 u32 師匠, +8 u32 正室 (record numbers;
+# SNR segment 13: 12 bytes a person, the first 1000: +0 death year - 1500, +4 u32 師匠 (relations.master), +8 u32 正室 (record numbers;
 # the wife is left out while she is dead or not married yet, so both are joined over the scenarios)
 LIFE_REC, LIFE_N, DIED = 12, 1000, 1500
 FICTION = 7  # SNR7 夢幻: everyone dies in 1614, no wives or masters
@@ -70,7 +70,7 @@ def persons(game_dir):
             row["relations"] = {"spouse": sorted(spouses[i])}
         if i in masters:
             assert len(masters[i]) == 1
-            row["game"] = {"師匠": masters[i].pop()}
+            row.setdefault("relations", {})["master"] = [masters[i].pop()]
         others = list(dict.fromkeys(sc[i][0] for sc in names if sc[i][0] != name_ja))
         if others:
             notes.append("其他劇本的日文寫法：" + "、".join(others))
