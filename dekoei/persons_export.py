@@ -20,6 +20,7 @@ DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98"
             "ishin-pc98": "wiki_ishin", "koukai-pc98": "wiki_koukai", "koukai2-pc98": "wiki_koukai2",
             "koukai3-win": "wiki_koukai3",
             "san1-pc98": "wiki_san1", "san2-pc98": "wiki_san2", "san3-pc98": "wiki_san3",
+            "san4pk-pc98": "wiki_san4",
             "eiketsu-dos": "wiki_eiketsu", "eiketsu-pc98": "wiki_eiketsu",
             "koumei-win": "wiki_koumei", "eiketsu5-win": "wiki_eiketsu5"}
 

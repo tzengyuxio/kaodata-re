@@ -169,6 +169,32 @@ PC-98 本體和 PK 的頭像、組合臉零件與人物頭像完全相同，網�
 - 挑臉追加頭像的 `name`：用三國志III DOS、水滸傳 DOS 的寫法，依頭像編號從 `san3-pc98`→`san3-dos`、`suikoden-pc98`→`suikoden-dos` 對應，203 張都對得上（`SAN4PK_DOS_EXTRA_NAMES`）。
 - 事件人物名、新君主／新武將範圍沿用 DOS 本體的表（`SAN4_PORTRAIT_NAMES`），沒有在 PK `MAIN.EXE` 重新確認。
 
+## koei-wiki 匯出（`san4pk-pc98` 人物，2026-11-14）
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export san4pk-pc98 --game-dir ../games/san4pk-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+讀取在 `dekoei/wiki_san4.py`（koei-persons/1，規格在 koei-wiki `docs/persons-format.mkdn`）。
+
+- **人物 579 人**：`id` 同 kaodata `san4pk-pc98`。0–461 是 10 個劇本的 SNDATA、TAIKI 去重的人物，462–578 是 NBDATA.SUI 的水滸伝武將，他們不在任何劇本裡。
+- **名字**：`name` 取 DOS 中文 PK `san4pk-dos`，兩版 579 人的頭像逐筆相同（程式裡有 assert）。日文寫法不同的填 `nameJa`。兩版的錯字照遊戲寫法，史書寫法寫在 `notes`。
+- **讀音、生年、能力**：`reading` 是人物記錄 p+9 的 11 bytes 半形片假名，轉成平假名。`born` 是 p+25＋100（✅ capture，見 `notes/san-attributes.md`）。`stats` 取第一筆記錄（同 stats-export），劇本的值不同時另放 `scenarios[].stats`。
+- **`skills.特殊能力`**：a+14 的 24 格 bitmask，名稱照畫面順序（✅ 3 人的截圖；外交、海戦、落雷只靠順序推定）。
+- **`hidden`**（整組 `uncertain`）：相性 p+24，義理、野望、冷静、勇猛 是 p+27 的 bit 0–3、4–7、11–13、14–16（cross：三國志V），血縁 p+22 原值。
+- **`relations`**（`uncertain`）：血縁 p+22 等於另一人的頭像碼時，那人是父親（孫策→孫堅），同父的是兄弟、父親那邊填 `children`。1000 以上是父親不在遊戲裡的一家人共用的群組號，填 `clan`（袁紹、袁術 1001；關羽、張飛 1004 也是同一組，可見它不只是血親）。
+- **`scenarios`**：劇本 1–9，`year` 是劇本檔 part 的 0x584（u16），月份沒找。
+  - `status`：a+18 的低 4 bit，查 MAIN.EXE DS:0x37EE 的身分名表（君主 将軍 軍師 侍中 一般 在野 未発 死亡 待機 太守 捕虜 皇帝）。讀身分的程式是 0e7f:99A0（`a+18 & 0xF`），✅ code。劇本開始時出現的值只有 君主、将軍、軍師、侍中、一般、在野、未発。軍師、将軍每個勢力不只一人。太守不存在記錄裡，沒填。
+  - `lord`：同勢力（a+13）的君主（身分 0），每個勢力剛好一位。在野、未発的人勢力是 255，沒有 `lord`。
+  - `location`：a+12，就是地點匯出的都市 `id`（劇本檔 0x94E 起 43 筆 87 bytes 的都市記錄也照這個順序，+1 是太守、+3／+5 是在野、未発串的開頭，指標是人物序號＋1）。
+  - `loyalty`：a+11，君主、在野、未発不填。
+- **沒列的**：
+  - 劇本 10（237 年）：400 人全部在都市 0、同一個勢力（君主劉諶），不是開局的配置，整個劇本不列。只出現在劇本 10 的 62 人（司馬炎、孫皓等）因此沒有 `scenarios`。
+  - TAIKI.S4 的後登場武將：記錄裡沒有登場年，登場規則沒追，所以那個劇本不列，`notes` 寫是哪幾個劇本（292 人）。
+  - 道具（a+7–9 只是候選）、健康、a+18 的高 4 bit。
+- **檢查**：persons-export 3895 筆、koei-wiki `verify_persons.py` 9152 筆，0 筆不符。
+
 ## 事件、插圖、道具（`san4pk-pc98`，2026-11-07）
 
 `dekoei.py san4-extras --game-dir ../games/san4pk-pc98 --dos-dir ../games/san4pk-dos --out ../games/san4pk-pc98/extract`（`san4_extras.py`，約 1 秒）。下文位址：`MAIN.EXE` 是 PK 的檔案 offset，其他是檔內 offset。
