@@ -1291,12 +1291,13 @@ LABEL_FACE = ("Sarasa Gothic J", "SemiBold")
 LABEL_NUDGES = (0, -12, 12, -24, 24, -36, 36, -48, 48)
 
 
-def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1):
+def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1, first=0):
     """Draw an "id name" label for each place with a pos on the world map src (koei-wiki convention): white
     rounded box, black border and text. Each label goes below the icon (centred), else right of it (vertically
     centred), else above it, trying LABEL_NUDGES along the side; a spot is refused if it leaves the map or overlaps
     an icon box (pos ± icon_half) or an earlier label. Labels are placed top to bottom, then left to right. scale > 1
-    enlarges the map (nearest neighbour) and pos by that factor first; icon_half is in enlarged pixels."""
+    enlarges the map (nearest neighbour) and pos by that factor first; icon_half is in enlarged pixels. The label number
+    is id + first (1 where the game itself numbers from 1)."""
     face = next((i for i in range(1000) if ImageFont.truetype(LABEL_FONT, size, index=i).getname() == LABEL_FACE),
                 None)
     font = ImageFont.truetype(LABEL_FONT, size, index=face)
@@ -1314,7 +1315,7 @@ def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1):
 
     placed = []
     for r in rows:
-        text = f"{r['id']} {r['name']}"
+        text = f"{r['id'] + first} {r['name']}"
         left, top, right, bottom = d.textbbox((0, 0), text, font=font)
         w, h = right - left + 10, bottom - top + 4
         x, y = r["pos"]["x"], r["pos"]["y"]
@@ -1334,6 +1335,8 @@ def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1):
 # dataset -> (world map file, half the size of a city icon around pos, enlargement)
 LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24, 1), "kouryuuki-dos": ("world-spring.png", 24, 1),
                  "genpei-pc98": ("world-spring.png", 24, 2), "lempe-pc98": ("world.png", 24, 3)}
+# label numbers start here instead of 0 where the map itself prints id + 1
+LABEL_FIRST = {"lempe-pc98": 1}
 
 
 @click.command()
@@ -1349,5 +1352,5 @@ def places_label(dataset, places):
         rows = [json.loads(line) for line in f]
     world = os.path.join(places, dataset, "world")
     out = os.path.join(world, name.replace(".png", "-labelled.png"))
-    label_world_map(os.path.join(world, name), rows, icon_half, scale=scale).save(out)
+    label_world_map(os.path.join(world, name), rows, icon_half, scale=scale, first=LABEL_FIRST.get(dataset, 0)).save(out)
     print(f"{dataset}: {sum(1 for r in rows if r.get('pos'))} labels -> {out}")

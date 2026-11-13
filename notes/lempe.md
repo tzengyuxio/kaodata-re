@@ -161,7 +161,7 @@ cd dekoei
 
 - 46 城的 id、name、nameJa、nameEn、相鄰、各劇本的國與 lord 同 `lempe-dos`；拿掉 `game.座標`，改出 `pos`。
 - `pos`：城市圖示在畫面上畫在 (x·8, y)，x、y 是記錄 +13、+23 的第 0 組（第 k 組給 k 號地圖），大小 24×16（image 0x6BA6 畫 3 bytes × 16 列的圖；滑鼠判定 0x3017 是 x·8…x·8＋24、y…y＋16）（✅ code）。`pos` 取圖示中心減去地圖的畫面位置：(x·8＋12, y＋8−128)，`grid: pixel`，`w`／`h` 640×272。
-- `world/world.png` 是 0 號圖；`world-labelled.png` 放大 3 倍標「id 名稱」（`LABELLED_MAPS`）。
+- `world/world.png` 是 0 號圖；`world-labelled.png` 放大 3 倍標「id＋1 名稱」，和地圖上印的號碼一致（`LABELLED_MAPS`、`LABEL_FIRST`）。
 - 檢查：places-export 693 項（含 `world_check`：5 個劇本的前 0x1600 bytes 和 46 城的相鄰與旗標對 DOS、nameJa 對 PC-98 城名、`pos` 在圖內），koei-wiki `verify_sanguo_places.py lempe-pc98` 529 項，0 不符。
 - 沒做：1–4 號區域地圖與它們的座標組；地圖沒有和遊戲畫面截圖比對過。
 
