@@ -138,3 +138,29 @@ ja.wikipedia〈三國志II〉：PC-9801 版 1990-03-23（1989-12 是 PC-8801 原
   - 259 徐盛：9CA8，劇本 6 是 8CA8
   - 295 劉延：8AEB，待機是 8A2B
 - 合併後 352 人，姓名、`id`、`face` 和 `san2-pc98` 完全相同，`nameHistorical` 沿用 `SAN2_JP_NAME_HISTORICAL`。沒有人物使用的頭像和名字也同 PC-98。
+
+## koei-wiki 匯出（`san2-pc98` 人物）
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export san2-pc98 --game-dir ../games/san2-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+讀取在 `dekoei/wiki_san2.py`（koei-persons/1，2026-11-14）。352 人，`id` 同 kaodata `san2-pc98`。
+
+- **名字**：`name` 取 DOS 中文版（`games/san2-dos`，`san2.load_san2_persons`），兩版的頭像碼順序逐筆相同（程式裡 assert）；PC-98 寫法不同時放 `nameJa`（75 人）。錯字照遊戲寫法，`kaodata_export.SAN2_NAME_HISTORICAL`／`SAN2_JP_NAME_HISTORICAL` 的史書寫法寫進 `notes`。`reading` 是姓名欄後 7 bytes 的半形片假名，轉成平假名。
+- **欄位**：`stats` 知力 武力 魅力（+4–6，同 `stats-export`）；`born` 是 +25 生年（✅ capture：`captures/screenshots/san2-pc98/main_000.raw1.png`，189 年曹操年令 35＝189−155＋1）；`hidden` 義理 人徳 野望 相性（+7、+8、+9、+15）與親族（+16 u16 bitmask），整組 `uncertain`。頂層取這個人第一筆記錄（劇本 1–6 依序，再到 TAIKI）。
+- **劇本檔 `SNDATAn.CIM` 的版面**（這次解出）：
+  - 表頭 +2 u16 是年份，畫面顯示＋1（188 → 189 年 1 月，✅ capture 同上；六個劇本 189、194、201、208、215、220，和 koei-wiki〈遊戲/三國志II〉相同）。
+  - 人物 255 格 × 43 bytes，從 0x16 起；+0 u16 是同一串的下一個人。指標是執行期位移：第 s 格在 88＋43s（檔案位移＋66）。
+  - 0x2AEB 起 7 bytes 未解，0x2AF2 起 16 個勢力 × 41 bytes：+0 君主、+2 本拠國、+4 軍師（指標）。六個劇本的君主依序和 MAIN.EXE 0x3CB88 起的劇本君主名單相同，✅ cross；+6 起有 16 bytes 都是 50 的一段（推定是對各勢力的友好度，未確認）。
+  - 0x2D82 起 41 國 × 35 bytes：+0 同勢力下一國、+2 現役武將串的頭、+6 在野武將串的頭、+16 所屬勢力（0xFF 無）。每個劇本的人物記錄都剛好出現在一串裡（程式裡 assert），+4 的串都是空的。
+- **`scenarios`**：每劇本 `year`、`status`、`lord`、`location`、`loyalty`。
+  - `status` 用遊戲的分類詞（MAIN.EXE 0x3DEF8「君主 太守 軍師 現役 在野」）：勢力記錄的君主是君主、軍師是軍師；現役串的第一個人是太守（✅ capture：189 年第 9 國「太守曹操、軍師陳宮」；其他國沒有對截圖，所以太守、軍師標 `uncertain`）；串裡其他人是現役；在野串是在野。軍師和串頭沒有重疊。
+  - `lord` 是所屬勢力的君主；`location` 是國號，就是地點匯出的 `id`（1–41）；`loyalty` 是 +11 忠誠（君主、在野不填）。
+  - 劇本裡沒有、但在 TAIKI.DAT（後登場武將）且登場年 ≥ 劇本年的，寫 `未登場`，附 `debut` 和 `location`（TAIKI +2 的國號，0 不填）。登場年比劇本年早、劇本裡又沒有的（史實已死的人等），遊戲會不會讓他登場沒追，不列。
+  - TAIKI +0 的登場年直接當西元：遊戲開局時年份先＋1（表頭 188 顯示 189），推定 TAIKI 和執行中的年份比，沒追程式，所以 `debut` 標 `uncertain`。孫亮等 6 人登場年是 255，看來是不會自動登場。
+  - TAIKI +1 是登場時投靠的人，存的是那個人的頭像碼低 byte（曹丕 103＝曹操、関平 30＝関羽、周瑜 109＝孫策），不是親屬，沒放進匯出。
+- **檢查**：persons-export 2832 筆、koei-wiki `verify_persons.py` 6843 筆，0 不符。
+- **沒填**：位、信用度、婚姻（畫面有，記錄裡沒找到）、兵士／訓練／武装（劇本起始值，沒匯出）、`died`（遊戲沒有）。
+- **地點名**：地點匯出的 `name` 是 null、借用三国志ツクール的州名；但遊戲畫面會顯示州名（截圖上的「兗州-9」），名稱表還沒找，找到後可以補地點的 `name`。
