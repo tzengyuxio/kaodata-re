@@ -40,7 +40,8 @@ def _scenarios(game_dir):
 
 def _split(rank):
     """(group, title): 「土佐藩士」-> ("土佐", "藩士"), 「幕臣」-> ("幕府", "幕臣"); others have no group. The group's
-    leader (藩主, 将軍, 天皇 on stage) is the scenario's lord."""
+    leader (藩主, 将軍, 天皇 on stage) is the scenario's lord, and the group is more.藩 (the han table's name, or 幕府 /
+    朝廷)."""
     for word in ("藩主", "家老", "重臣", "藩士"):
         if rank.endswith(word) and rank != word:
             return rank[:-len(word)], word
@@ -85,7 +86,8 @@ def persons(game_dir):
         top = on[0] if on else ts[0]
         r = scen[top][i]
         row["stats"] = r["stats"]
-        row["more"] = {**r["more"], "身分": r["rank"], **r["thought"]}
+        group, _ = _split(r["rank"])
+        row["more"] = {**r["more"], "身分": r["rank"], **({"藩": group} if group else {}), **r["thought"]}
         out = []
         for t in ts:
             r = scen[t][i]
