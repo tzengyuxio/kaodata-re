@@ -108,6 +108,29 @@
 - 事件人物照遊戲寫法：華佗、司馬徽、許子将、献帝、吉平、干吉、左慈、管輅、紫虚上人、李意、貂蝉。新君主／新武將的範圍和 DOS 相同。
 - 發行年份：PC-9801 版 1992-02-05（ja.wikipedia〈三國志III〉）。`VERSION` 是 ver 1.2。
 
+### koei-wiki 匯出
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export san3-pc98 --game-dir ../games/san3-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+`wiki_san3.py`，koei-persons/1，531 人，`id` 同 kaodata `san3-pc98`（`san3_characters`）。資料取 PC-98 `SNDATA?B.CIM`；`name` 取 DOS 中文版同一頭像碼的寫法（兩版頭像碼集合相同、一對一，✅ cross），和日文寫法不同的 115 人另填 `nameJa`（日文寫法和 `stats/san3-pc98.jsonl` 的 `name` 相同）。
+
+- 劇本 1 的車胄借了楊懐的頭像碼 0x82CB，這筆記錄歸給車胄（530，`SAME_CODE`）。這樣處理後，每個劇本每人最多一筆，生年、相性、義理、+31 在六個劇本都一樣。
+- `born`：+37 生年（✅ capture，年齢）。`more.年齢`＝第一個在地圖上的劇本年減生年，不是劇本 1 時寫在 `notes`。
+- `stats`：同 `wiki_stats.stats_san3_pc98`（逐筆相同）。
+- `hidden`：相性 +23、義理 +24（🟡 code，標 `uncertain`）。冷静等四個 nibble、+14 沒有遊戲裡的名稱，不填。
+- `relations.clan`：+31（255 是沒有），12 組：曹、劉備、孫、袁紹、袁術、馬、劉焉、劉表、董、公孫、張魯、孟（🟡，標 `uncertain`）。
+- `scenarios`：年份是 `SNDATAn.CIM` +2 u16 加 1（存 188、193、200、207、220、234，遊戲從下一年 1 月開始；劇本 1 是 189 年 1 月，✅ capture `main_005.raw1.png`），`month` 都是 1。
+  - `location`：+26 所在，就是 koei-places `san3-pc98` 的 `id`（袁紹南皮、曹操陳留、劉備平原對得上）。
+  - `status`：+16 身分，名稱取 PC-98 `MAIN.EXE` DGROUP 0x27FE 的表（0 君主、1 軍師、2 将軍、3 武官、4 文官、5 在野）；顯示時 0x8124 對城的太守改顯示「太守」，這個沒有匯出。6 寫「未発見」：0x97B3 把身分設成 6 時，把人放進城的第二張名單（5 在野是第一張），EXE 有「未発見武将」一詞，對應是推定（標 `uncertain`）；六個劇本裡沒有 5。
+  - 7 是不在地圖上（勢力、所在都是 255），那個劇本不列；76 人六個劇本都是 7，沒有 `scenarios`（遊戲中途怎麼登場沒追，所以不寫「未登場」）。
+  - `lord`：君主是自己；軍師到文官取同勢力（+27）的君主，另填 `loyalty`（+25，✅ capture）。未発見的人有的帶勢力號，意思沒查，不填 `lord`。
+- 史書寫法照 `SAN3_NAME_HISTORICAL`（中文版寫法）、`SAN3_PC98_NAME_HISTORICAL`（日文版寫法）寫在 `notes`。
+- 不填：兵士、訓練、士気、道具（+8 bitmask 的道具名沒對）、仕官、+14。
+- 檢查：persons-export 3116 項、koei-wiki `verify_persons.py` 7867 項，0 不符（2026-11-14）。
+
 ### 戰場地圖
 
 `dekoei.py san3 battlemap --game-dir ../games/san3-pc98 --out ../games/san3-pc98/extract/battlemap` 寫出 `01.png`–`68.png`（528×400）。下文位址是 `MAIN.EXE` 的映像位址。

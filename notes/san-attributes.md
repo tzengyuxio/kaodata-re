@@ -105,7 +105,7 @@ DOS `SNDATA?B.CIM` 49 bytes（`s3_format`）；PC-98、Win 62 bytes，前 43 byt
 | 隱藏 | 寿命? | 🟡 | +14，值都是 16 的倍數 | code |
 | 隱藏 | 親族 | 🟡 | +31 | code |
 
-未解：4 個 nibble 的名稱、身分 1／3–6、將軍名號存在哪、+14 的意思。
+未解：4 個 nibble 的名稱、將軍名號存在哪、+14 的意思。身分的名稱表在 PC-98 `MAIN.EXE` DGROUP 0x27FE（0 君主、1 軍師、2 将軍、3 武官、4 文官、5 在野；6 推定是未発見），見 `notes/san3.md`「koei-wiki 匯出」。
 
 ## 三國志IV（san4、san4pk）
 
