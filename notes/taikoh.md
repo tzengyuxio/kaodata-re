@@ -66,3 +66,25 @@
 - MAIN.Z 是 CZ10 壓縮（`ls11.cz10_decode`），解開的映像從 0x3FFFA 起算（由 `jsr` 目標推得）。
 - 人物：開局 241 人在映像 0x5FE7E，每筆 0x4A bytes，頭像碼是 +14 的大端序 u16；女性在 0x5FA32，每筆 14 bytes，頭像在 +8（大端序）。TBS.DAT 是 PC-98 的檔案，頭像碼照樣用小端序。姓名與頭像碼和 PC-98 版完全相同（`koei_games.load_taikoh_x68_persons`／`load_taikoh_x68_women`）。
 - 色盤：映像 0x5EB9E 是同一張 B、R、G 4 bit 表；0x43340（[$A9434] ≠ 0 的類比模式）淡入時組成 `G << 12 | R << 7 | B << 2`，寫到 E82200，也就是 5 bit 的 2v。換算 `2v << 3 | 2v >> 2`：`#000000 #2163A5 #F75200 #F763B5 #42C642 #00C6F7 #F7D600 #F7F7F7`。數位模式那條路徑沒有收。
+
+## koei-wiki 匯出
+
+`dekoei.py persons-export taikoh-pc98 --game-dir ../games/taikoh-pc98 …`、`places-export taikoh-pc98`（`wiki_taikoh.py`）。主資料集是 PC-98 版；`name` 用 DOS 中文版（`../taikoh-dos`，記錄與頭像碼逐筆相同），日文寫法放 `nameJa`。id 同 kaodata：MAIN.EXE 的 241 人、TBS.DAT 的人（同名合併），再接有頭像的 27 名女性。
+
+人物記錄 0x47 bytes（PC-98 MAIN.EXE DGROUP+0xB8C 的 241 筆，之後是 TBS.DAT）：
+
+| 位移 | 欄位 | 狀態 |
+|---|---|---|
+| +40 | 所屬大名家（0xFF 無） | ✅ code+cross：城表的大名家與每家唯一的大名對得上 |
+| +41 | 所在城（0xFF 無） | ✅ cross：春日山→上杉謙信、一乗谷→朝倉義景、清洲→織田信長 |
+| +42 | 身分，指向 MAIN.EXE 0x5BD1C 的 浪人 足軽頭 物頭 目付 奉行 中老 家老 宿老 大名 | ✅ code |
+| +43 u16 | 知行（`more.知行`） | 【推】 |
+| +51..+56 | 外交力 内政力 魅力 統率力 武力 野心（標籤表 MAIN.EXE 0x5BDE6） | 🟡 對應是看數值判斷的（織田信長 統率 100、野心 100） |
+
+城表：MAIN.EXE 0x5A9F4（DGROUP 0x4E64），123 筆 × 24 bytes，+0 城名（8 bytes）、+9 城主（人物序號）、+10 所屬大名家。DOS 中文版在同一個 DGROUP 位移，城名取那裡（有缺字代用，例如 櫪尾＝栃尾）。
+
+- 只有一個開局，寫成 scenario 1；年份是執行時的變數（「15%2d年」），不填 `year`。
+- MAIN.EXE 的 241 人：scenario 的 `status` 是身分，`lord` 是所屬大名家的大名，`location` 是所在城。大名家 17、18 沒有大名，`lord` 空著。
+- TBS.DAT 的人是遊戲中途登場的：`status` 寫「未登場」，登場時機沒追，沒有 `debut`。
+- 女性只有名字與頭像，`more.性別`＝女。
+- 地點只有城名、開局的所屬大名與城主（`game.城主`），`level`「城」是推定；沒有座標與相鄰（MAP.DAT、SIRO_PNT.DAT 沒解）。

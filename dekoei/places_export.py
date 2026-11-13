@@ -1212,7 +1212,8 @@ MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu2-dos": "wiki_nobu2_dos", "nobu3-pc9
            "genghis4pk-win": "genghis4_extras", "genpei-pc98": "wiki_genpei",
            "koukai-pc98": "wiki_koukai", "koukai2-pc98": "wiki_koukai2", "koukai3-win": "wiki_koukai3",
            "koukai4pk-win": "wiki_koukai4", "koukaigd-win": "wiki_koukaigd",
-           "ishin-pc98": "wiki_ishin", "lempe-dos": "wiki_lempe"}
+           "ishin-pc98": "wiki_ishin", "lempe-dos": "wiki_lempe",
+           "taikoh-pc98": "wiki_taikoh"}
 
 
 def check(dataset, rows, out_dir):
