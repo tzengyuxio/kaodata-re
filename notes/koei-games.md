@@ -655,6 +655,15 @@ cd dekoei
 - 色盤：文字色盤 E82200 由 0x86BAA 從 0x96FB6／0x9750C 設定，色號 0–7 是數位 8 色，和 PC-98 的 `TK_PC98_PALETTE` 相同（palette id `x68`）。
 - 名字：0x5F1D8（檔案位址）起 40 × 20 bytes，內容和 PC-98 的 19 bytes 記錄相同（`load_tk_pc98_names(..., TK_X68_ADMIRALS, 20)`），宇垣纒也是外字 EBA4，`GAIJI.DAT` 的字形沒有確認。
 
+### koei-wiki 匯出（`tk-pc98`）
+
+`dekoei.py persons-export tk-pc98`（`wiki_tk.py`），40 人，`id` 同 kaodata。只有日文版。
+
+- 名字照 `load_tk_pc98_names`，去掉空白；原本有空白的宇垣纒、吉川潔另填 `familyName`。
+- `more.軍`：0–19「日本軍」、20–39「連合国軍」（遊戲的用語，`RENMAIN.EXE` 檔案 0x437DB「あなたの担当は 1)日本軍 2)連合国軍」）。國籍沒有記錄。
+- 沒有能力：19 bytes 記錄在名字之後全是 0；開始遊戲時有「将校のデータを決定してください（スペースキーで停止）」（檔案 0x4369F），推定能力是那時隨機決定的【推】。
+- 沒有劇本欄位（劇本與人物的對應沒追）。
+
 ## 提督の決断II（TK2, PC-98 日文版）
 
 `dekoei.py export tk2-pc98` 用到的格式。來源是 `~/game-library/_original/pc98/[PC98] 提督の決断２.zip`（7 片 FDI：S 系統、A、B 資料、O 開場、E 結尾、U 使用者、K 硬碟起動；zip 裡的檔名是 Shift-JIS），每片解到 `games/archives/pc98/disks/tk2-pc98/<片>`，S、A、B 合併到 `games/tk2-pc98/`，另加 U 片的 SCE.TK2。U 片的 MAIN.EXE 和 S 片相同。
@@ -678,6 +687,20 @@ cd dekoei
 - 和本體的差別只有 ARDATA 兩個盟軍提督名：C.A.スプレング → スプレイグ、W.A.C.クラッチレー → V.A.C.クラッチレー。NEWSCE 裡的人物表和 PK 的 ARDATA、本體的 GRDATA／SJDATA 相同。
 - 色盤：解開的 main.exe 0x3D860，值和本體相同。
 
+### koei-wiki 匯出（`tk2pk-pc98`）
+
+`dekoei.py persons-export tk2pk-pc98`（`wiki_tk2.py`），99 人，`id` 同 kaodata（每邊提督 30、將軍 15，再接元首 90–98）。ARDATA 取 PACK.LZW 裡 PK 的版本。只有日文版。
+
+- 記錄欄位（下列程式位址是本體 `MAIN.EXE` 去掉 header 的 image 位址）：
+  - ARDATA 17 bytes：+0 名字 13、+13 國籍、+14 海戦、+15 空戦、+16 旗標。
+  - GRDATA 18 bytes：+0 名字 13、+13 國籍、+14 陸戦、+15 空戦、+16 不明（0、40、60）、+17 旗標。
+  - 提督一覽 0x149F0、將軍一覽 0x14BAE：階級印 DS:0x4E46（少将 中将 大将 元帥）的第 (+14 ＋ +15) / 60 項，接著 +14、+15 放在「海戦（陸戦）」「空戦」欄，國籍印 DS:0x4CC（日 米 英 蘭 豪 ソ 中 泰）的第 +13 項。✅ code
+  - SJDATA 31 bytes：+0 名字 13、+13 序號、+14 役職 15 bytes（内閣総理大臣、大統領…）、+29 各劇本不同的值（不明）、+30 旗標。
+- `name` 去掉姓名間的空白，日本人另填 `familyName`；`more.区分` 是「提督」「将軍」（一覽表標題的用語），`more.国籍` 是一個字；元首只有 `more.役職`。
+- `stats` 是劇本 1 的值；`scenarios` 10 個，各有 `stats` 與 `rank`（上面的算法）。年月取 KAIGI.EXE 0x34442 的劇本清單（1941.12.8 … 1945.2.19），依序對到各檔的第 1–10 段 🟡：古賀峯一在 1944.3.31 的劇本旗標 bit 0 是 0（他當天殉職），山本五十六從 1944 年的劇本起是 0，山口多聞從 1942.8.7 起是 0。
+- `status`：旗標 bit 0 是 0 的劇本，第一次在名單上之前寫「未登場」、之後寫「不在」（推定多半是已戰死；遊戲沒有稱呼，照使用者 2026-11-14 的規則，不標 `uncertain`）。實際只有「不在」（46 列）。將軍的 bit 0 全是 1。旗標的 0x02（細萱戊子郎、阿部弘毅、キンメル、本間雅晴等被撤換的人）、0x04（ウェーンライト、パーシバル）推定是預備役與俘虜，沒找到遊戲的用語，不匯出。
+- 沒做：PK 的新劇本（NEWSCE）、元首 +29 的值、指揮的艦隊（執行時決定）。
+
 ## 提督の決断III（TK3, PC-98 日文版）
 
 `dekoei.py export tk3-pc98`／`tk3pk-pc98` 用到的格式。來源是 `games/archives/pc98/[PC98] 提督の決断３.zip`（7 片 FDI；2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除，本體改由 DOSBox-X 安裝成 `~/game-library/_original/pc98/installed/tk3-pc98.zip`，81 個檔和 dpack 結果相同，`MAIN.EXE` 差 3 bytes 的安裝修補）與 `[PC98] 提督の決断３　パワーアップキット.zip`（2026-11-08 移到 `games/archives/to-delete/`，2026-11-09 已刪除；`games/tk3pk-pc98/` 全部 88 個檔和 neo-kobe 的 `Teitoku no Ketsudan III (with Powerup Kit) [HD].zip` 裡的 HDI 相同，留 HDI），磁片上只有 DPACK 安裝包，用 `dekoei/dpack.py` 解開（見 [dpack.md](dpack.md)）：本體解到 `games/tk3-pc98/`，`games/tk3pk-pc98/` 是本體再疊上 PK 的檔。
@@ -698,3 +721,14 @@ cd dekoei
   - 參謀：181 日本軍参謀（副官、大本営海軍部参謀）、182 アメリカ軍参謀；185–190 日本的作戦、砲術、航空、航海、情報、補給参謀，191–196 美國同順序（194 沒有事件用到，依順序是航海参謀）。
 - 111–140 的 30 張推定是「軍人登録」用的臉（`GUNJIN.TK3` 是 4＋30 × 78 bytes，MESSAGE 第 3 段有軍人登録的字串），沒有在程式裡追到。166、167、169–173、184 沒有在事件找到，用途不明。
 - 本體 README 是 1996 年 3 月，PK 是 1996 年 8 月。
+
+### koei-wiki 匯出（`tk3pk-pc98`）
+
+`dekoei.py persons-export tk3pk-pc98`（`wiki_tk3.py`），141 人，`id` 同 kaodata（頭像號）。只有日文版。
+
+- 0–110：PK `MAIN.EXE` 0x5291E 的人物表；197–203：PK `SNDATA2.TK3` 的德、蘇將領；141–164：`MESSAGE.TK3` 的元首（152 デーニッツ併入 78，寫在 notes）。
+- `more.軍籍`：0–78「海軍」、其餘「陸軍」（用語取 `MESSAGE.TK3` 第 7 段 144、145；範圍照上面看圖對過的分法）。
+- `more.国籍`：記錄 +15（1 日本 … 7 ドイツ），名稱取 `MESSAGE.TK3` 第 4 段的第 (值 − 1) 項（日本、アメリカ、イギリス、オランダ、オーストラリア、ソビエト、ドイツ…）。海軍 日 37、美 35、英 3、荷 1、澳 1（クラッチレー）、德 2；陸軍 日 16、美 11、英 5、德 5、蘇 2，和上面的人物分段一致。✅ cross
+- 沒有能力：遊戲的軍人欄位是 階級 役職 任務 戦果 砲撃 水雷 航空 潜水 陸戦 勲章 性格（`MESSAGE.TK3` 第 3 段 466–479），`MAIN.EXE` 也有「元帥 大将 中将 少将」「臆病 慎重 勇猛 蛮勇」（檔案 0x5D210）。人物表 26 bytes 裡只有 +0 一個 byte 像是階級與性格的組合（低 2 bit 對海軍將領的階級大致相符，對陸軍不符），能力值還沒找到，不匯出。
+- 元首沒有國籍與役職的對應記錄（`MESSAGE.TK3` 第 0 段 196–204 是役職、205 起是國名，沒有對應表）。
+- 沒有劇本欄位：`SNDATA*.TK3` 每檔有 7 份人物表複本，+0 與 +19 的值各份不同，劇本的年月與對應沒追。
