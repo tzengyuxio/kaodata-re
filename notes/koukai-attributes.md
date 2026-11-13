@@ -74,6 +74,8 @@
 | 次要 | 所屬艦隊、所在港口、職位 | 🟡 | +0x14、+0x15、+0x16（對照 II +44–46；+0x14 以前誤寫成人物序號） | cross |
 | 不明 | +0x14、+0x15、+0x17、+0x1A | ❌ | — | — |
 
+koei-wiki 人物匯出（兩個開局當 scenario 1、2，+0x15 當開局所在港）見 `notes/koukaigd.md`「koei-wiki 匯出」。
+
 ## 大航海時代III（koukai3-win）
 
 `CDS95.EXE` 裡 281 × 0xCC bytes 的 i32 人物表（0–245 是人物），讀取程式 0x47EF00。

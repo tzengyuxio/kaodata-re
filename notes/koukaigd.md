@@ -156,6 +156,49 @@
 - 從 `Message.dat` 取商圈名：是日文舊檔，名字要從 exe 的指標表 0x5F44C 取。
 - 以 II 的 37 bytes 讀港口狀態：第二筆起錯位（0x5D1B 才是第 1 筆），記錄是 38 bytes。
 
+## koei-wiki 匯出
+
+`dekoei/wiki_koukaigd.py`，資料集 `koukaigd-win`（只有中文版，沒有 `nameJa`）。
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export koukaigd-win --game-dir ../games/koukaigd-win --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py persons-export koukaigd-win --game-dir ../games/koukaigd-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+### 人物（171 人）
+
+- `id` 同 kaodata（`build_koukaigd_win` 的順序）：0、1 兩位主角，2–112 航海士（兩張表同名只留一次），113–132 事件人物，133–138 大航海時代II 的六位主角，139–168 酒館女性，169、170 事件人物表後的兩筆。程式裡逐筆和 kaodata 的名字比過，171 人相同。
+- 航海士與主角：
+  - `stats` 是 7 項能力，`more` 有年齡、國籍、航海／戰鬥水平與經驗，有職位時加 `職位`（名稱表在 exe 檔案 0x59FC8，11 bytes × 7：（空）提督 船長 助手 會計 水手長 航海士）。
+  - `skills.技能` 取自 +0x18；`hidden.運氣`、`hidden.忠誠` 是 +0xB、+0x13，名稱是推定，標 `uncertain`。
+  - 頂層的值取第一次出現的那張表（米蘭塔篇優先）；主角取自己那張表的玩家記錄。
+- `scenarios`：外傳沒有劇本選單，但兩位主角各用一張航海士表（0x416190 依 [0x4BFDA1] 複製），16 筆不同，有人只在其中一篇，有人在另一篇改當提督（例如亨利•蒙斯法爾）。所以 scenario 1 是米蘭塔篇、2 是薩爾巴多爾篇：
+  - 只列出現在該篇表裡的人。
+  - `status` 是 +0x16 的職位（目前只有提督）。
+  - `location` 是 +0x15 的開局所在港（就是港口 `id`；II 的 +45 同義，🟡 cross）。艦隊提督（+0x14 是艦隊號）沒有 `location`。
+  - 主角在自己那一篇是玩家，只列 `scenario`；在另一篇是有名字的航海士。
+  - 沒有年份：Sdata.dat 開頭的日期沒解。
+- 事件人物 113–132 只有名字。123–128（瑪努埃爾1世、卡洛斯1世、蘇萊曼大帝、亨利8世、佩特斯總督、耐普爾總督）是國王與總督，順序和國名表相同，照順序填 `more.國籍`，標 `uncertain`（同 II）。事件記錄 +20–22、+24–25 沒解。
+- 大航海時代II 的六位主角沒有人物記錄，只在劇本對白出現，`notes` 寫明。
+- 酒館女性：記錄 +13 是年齡（`more.年齡`，標 `uncertain`）、+14 是所在港（`game.所在港`，港名）。記錄和 II 的酒館女性逐 byte 同構（姓名以外相同）。
+- 不列入匯出的：只在劇本腳本出現的臉（上方「劇本腳本的頭像」）沒有 kaodata 人物 id。
+
+### 港口（130 個）
+
+- `level`：0–99 是「港」，100–129 是「補給港」。港口視窗的字串是「%s港」「補給港」「地區」（exe 檔案 0x75E1C）。
+- `region` 是港口狀態 +33 的商圈名（exe 指標表 0x5F44C），補給港沒有。
+- `pos` 是港口表 +0、+2 的地圖格（2160×1080，`grid: pixel`）；130 個都和 `koukai2-pc98` 的港口相同（Worldmap.lzw 也和 II byte 相同），✅ cross。`world/world.png` 是海陸示意圖，不是遊戲圖塊。
+- `game`：`同盟`（+0x15 低 3 bit，6 是沒有同盟）；0–99 號另有開局時的 `商業價值`（狀態 +0）、`工業價值`（+4）、`支持度`（+8–13，六國）。名稱取 exe 的字串，欄位對應照 II（沒讀外傳的程式），三項標 `uncertain`。
+
+### 檢查
+
+- 2026-11-14：
+  - `places-export`：130 個港口，130 筆檢查，0 筆不符。
+  - `persons-export`：171 人，248 筆檢查，0 筆不符。
+  - koei-wiki 的 `verify_sanguo_places.py`：1081 筆，0 筆不符。
+  - koei-wiki 的 `verify_persons.py`：1296 筆，0 筆不符。
+
 ## 待確認
 
 - 頭像 128、129 的用途。
