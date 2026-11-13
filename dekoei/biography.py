@@ -264,7 +264,7 @@ MODULES = {"nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu
            "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13", "nobu14pk-win": "wiki_nobu14", "nobu15pk-win": "wiki_nobu15", "nobu16pk-win": "wiki_nobu16",
            "san7pk-win": "san7_extras", "san8pk-win": "san8_extras", "san9pk-win": "san9_extras", "san10pk-win": "san10_extras", "san11pk-win": "san11_extras",
            "san12pk-win": "san12_extras",  # 三國志VII–12: the Steam 繁中版 depots
-           "genghis4pk-win": "wiki_genghis4"}
+           "genghis4pk-win": "wiki_genghis4", "royal-pc98": "wiki_royal"}
 
 
 def records(dataset, game_dir):

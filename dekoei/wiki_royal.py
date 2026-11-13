@@ -16,7 +16,9 @@ PLACE = 0x330  # 36 bytes: +14 owning house (FF none)
 YEARS = 2  # years since scenario 1 (DS:0x44), added to the age base
 MONTH = 3  # DS:0x45, the month; 0xD734 wraps it after 12
 AGE = 0xE52 + 10  # name record (13 bytes) +10: u16 age base (image 0x5DE adds DS:0x44)
-PLACE_NAMES = 0x1192  # 19 bytes: +0 name (9), +9 neighbours (8, FF none), +17 two bytes (map position?)
+PLACE_NAMES = 0x1192  # 19 bytes: +0 name (9), +9 neighbours (8, FF none), +17 x / 8, +18 y - 60 (map marker)
+BLURBS = 0x1CD0  # 64 near pointers to one-line person blurbs; image 0x8779 indexes it with the person number
+BIO_LANG = "ja"
 HOUSES = 0x153C  # 11 bytes per house name
 STATUS = {1: "当主", 2: "領主", 4: "家臣"}  # +7 & 0xF -> DS:0x1D50 labels (image 0x8660, 0x8746)
 STATS = ("政治", "軍事", "魅力")  # DS:0x56AE「政治%3d 軍事%3d 魅力%3d」prints +2, +3, +4 (image 0x8622)
@@ -49,6 +51,22 @@ def _lords(d):
         if r[5] != 0xFF and r[7] & 0xF == 1:
             out[r[6]] = i
     return out
+
+
+def bios(game_dir):
+    """id -> [("簡介", blurb)]: the status screen (image 0x8776) passes the person record to image 0x59C, which returns
+    (ptr - 0xF2) / 10, the person number, and prints the string DS:0x1CD0[number] points to."""
+    main, _ = _read(game_dir)
+    out = {}
+    for i in range(LORDS):
+        p = int.from_bytes(main[DS + BLURBS + 2 * i:][:2], "little")
+        out[i] = [("簡介", main[DS + p:].split(b"\0")[0].decode("cp932"))]
+    return out
+
+
+def bio_names(game_dir):
+    names, _ = kg.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
+    return dict(enumerate(names))
 
 
 def persons(game_dir):
@@ -120,8 +138,10 @@ def places(game_dir, out_dir):
                 s["家"] = houses[owner]
                 s["lord"] = lords[k][owner]
             out.append(s)
+        # image 0x396C / 0x397E return +17 * 8 and +18 + 60, the top left of the 24x24 mouse hot spot (image 0x39C3)
+        pos = {"x": rec[17] * 8 + 12, "y": rec[18] + 60 + 12, "grid": "pixel", "w": 640, "h": 400}
         rows.append({"id": c, "name": _kana(rec[:9]), "level": "国", "adjacent": [x for x in rec[9:17] if x != 0xFF],
-                     "scenarios": out,
-                     "notes": "国的記錄 MAIN.EXE DS:0x1192＋19·c（名字、相鄰）；家是劇本開始時的支配家（劇本 0x330＋36·c ＋14），"
-                              "lord 是該家的当主；沒有支配家的是空白地。"})
+                     "pos": pos, "scenarios": out,
+                     "notes": "国的記錄 MAIN.EXE DS:0x1192＋19·c（名字、相鄰、地圖位置）；家是劇本開始時的支配家（劇本 0x330＋36·c ＋14），"
+                              "lord 是該家的当主；沒有支配家的是空白地。pos 是 640×400 畫面上国標記（24×24 的滑鼠判定範圍）的中心。"})
     return rows
