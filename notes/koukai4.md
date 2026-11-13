@@ -165,6 +165,32 @@ cd dekoei
 - `text/mesfile_jp.csv`、`mesfile_tc.csv`：`{JP,TC}/mesfile.dk4`，同樣的容器，每段是以 NUL 分隔的字串（主角介紹、酒場、戰鬥台詞、BGM 曲名…）。有些字串沒有 NUL 直接接下一句，切分 🟡；日、繁中的段數不同，分開寫。
 - `{JP,TC}/EV0–6.dk4`（`WE` 開頭）、`EVA.DK4`：推定是事件的條件表，沒解 ❌。
 
+## koei-wiki 匯出（2026-11-14）
+
+`dekoei/wiki_koukai4.py`，讀 `games/koukai4pk-win/` 的遊戲檔（不讀 extract）：
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export koukai4pk-win --game-dir ../games/koukai4pk-win --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py persons-export koukai4pk-win --game-dir ../games/koukai4pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+- 共通：`name` 用繁中版（`TC/World0.dll`、TC 港名），`nameJa` 用日文版；標籤與值用日文版的詞（`DK4HD_jp.exe` 的表）。主資料取本體模式（`World0.dll`），PK 模式（`World1.dll`）不同的值放 `game.PK*`。
+- 人物 120 人，`id` 同 kaodata（記錄號 0–97、213、214–234；98–212 是沒有名字的角色，不列）：
+  - `name` 的組法同 kaodata：西方人「名‧中間名‧姓」，東亞 10 人姓在前，這 10 人填 `familyName`；酒場娘只有名。
+  - `stats`：+0x20–0x25 的基本值（体力 敏捷 魅力 知力 精神 運勢）✅ code；10 個能力不在記錄裡，不填。PK 模式不同的 8 人放 `game.PK能力`（多半差 1）。
+  - `more`：性別（+0x26）、国籍（+0x27）、星座（+0x29，13 是開局時抽的，不填）、所属（+0x2A 的勢力名，0x1A 不填）；後三項 🟡，標 `uncertain`。PK 模式所屬不同的放 `game.PK所属`（マリア・リー、シエン・ヤン在 PK 是無所屬，グリゴーリ、ユ・ムン有勢力）。
+  - 勢力首領（`World0.dll` 勢力表 +8）、7 個主角（`Sc0–6.dk4`）寫在 `notes`。
+  - 酒場娘 214–234：`game.所在港` 是記錄第 2 個名字欄的港名；イスタンプール、ジャカルタ、バハマ的寫法和港口表不同，照記錄。
+  - 不填 `scenarios`：七個主角共用同一個開局，人物記錄沒有分劇本。
+  - 沒填：+0x18、+0x1C、+0x28、+0x2C、+0x30（意義不明）、技能（記錄裡沒有）。
+- 港口 97 個（`World0.dll` 從ロンドン起，同 `koukai4-extras` 的 `ports.csv`）：
+  - `level` 都是「港」（遊戲字串「入港する」「寄港」）。`region` 是地域（+0x25，`DK4HD_jp.exe` 0x1405b73e0 的表），`game.海域` 是地域 +8 的海域。
+  - `game`：施設（+0x48 位元）、中心港（+0x24，名稱是 kaodata-re 取的，遊戲沒有這個詞）、シェア（+0x4C 三組勢力與 %，遊戲訊息「%sのシェアが」）；PK 不同的放 `PK施設`、`PKシェア`。施設、シェア 🟡，標 `uncertain`。
+  - `pos`：+0x14、+0x18 港町位置（地圖單位）除以 16 成格，`w`／`h` 2500×1250。`world/world.png` 是 `World.dat` 一格一點，每格是 `Chip.DK4` 圖塊縮成一點疊在海面貼圖上，等於 `extract/map/world.png` 縮成 1/4。`world_check` 檢查每港 4 格內有海（含海岸圖塊）。
+  - 交易所、相場、+0x52／+0x54 不在這次範圍。
+- 檢查：港口 194 筆、人物 130 筆，0 不符；koei-wiki 的 `verify_sanguo_places.py` 844 筆、`verify_persons.py` 737 筆，0 不符。
+
 ## 下一輪候選
 
 - 劇情 CG 對劇本 — 做法：在 `Sc?.dk4` 的 `DS` 腳本裡找台詞前後的指令，看哪個參數是 `EventBG?.dk4` 的圖號（每檔 50 張，推定是「檔號×50＋序號」）。

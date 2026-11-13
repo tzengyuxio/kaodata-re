@@ -103,6 +103,8 @@ koei-wiki 匯出（`wiki_koukai3.py`）：狀態視窗顯示的四項放 `stats`
 | 次要 | 星座、所屬勢力 | 🟡 | +0x29、+0x2A（見 `notes/koukai4.md`） | cross |
 | 不明 | +0x18、+0x1C u32，+0x28、+0x2C，+0x30 u32 | ❌ | — | — |
 
+koei-wiki 人物匯出（性別、国籍、星座、所属，PK 模式的差異）見 `notes/koukai4.md`「koei-wiki 匯出」。
+
 ## 下一輪候選
 
 - IV：10 個能力的公式（6 個基本值的順序已確定）。
