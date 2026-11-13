@@ -3,7 +3,7 @@
 NPDATA.CIM holds 5 scenarios of 13270 bytes; all offsets below are scenario offsets. id is the kaodata lempe-dos id
 (the record index 0-254, the same as koei-wiki lempe-persons-mapping.csv). Names and words are the Chinese
 version's; nameJa comes from the PC-88 NPDATA.CIM beside it (../lempe-pc88, the same order, half-width katakana),
-game.英文名 from the English DOS NPDATA.CIM (same layout and data, English names), read from its archive
+nameEn (persons) and the cities' game.英文名 from the English DOS NPDATA.CIM (same layout and data, English names), read from its archive
 games/archives/dos/拿破崙_英文版_l-empereur.zip. Field sources: notes/lempe.md「koei-wiki 匯出」."""
 import os
 import unicodedata
@@ -120,7 +120,7 @@ def persons(game_dir):
                     s["loyalty"] = r[7]
             out.append(s)
         row["scenarios"] = out
-        row["game"] = {"英文名": names_en[i]}
+        row["nameEn"] = names_en[i]
         if born_differs:
             uncertain.add("born")
         row["uncertain"] = sorted(uncertain | {"scenarios.month"})

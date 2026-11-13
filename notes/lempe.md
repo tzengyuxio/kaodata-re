@@ -72,7 +72,7 @@ cd dekoei
 - 城市的領有國：4102＋28·c，255 是無主（羅馬在劇本 1、5）。
 
 人物（255 人，`id` 同 kaodata，也就是記錄順序；和 koei-wiki `lempe-persons-mapping.csv` 的編號、遊戲中文名、日文名、英文名逐筆相同）：
-- `name` 用中文版，`nameJa` 取 PC-88（NFKC 轉全形），`game.英文名` 取英文版。史書寫法（`LEMPE_NAME_HISTORICAL`）寫在 `notes`。
+- `name` 用中文版，`nameJa` 取 PC-88（NFKC 轉全形），`nameEn` 取英文版（koei-wiki 2026-11-14 新增的頂層欄位，原本放 `game.英文名`；城市照舊放 `game.英文名`）。史書寫法（`LEMPE_NAME_HISTORICAL`）寫在 `notes`。
 - `stats` 是 8 項等級 D–A（五個劇本都相同）；`more` 是劇本 1 的 國 經驗 忠誠 兵力 士氣 訓練 年齡，標籤是中文版狀態視窗的字。
 - `born`＝劇本年－年齡。年齡 0 的是已死（官階 15），不算。7 人各劇本算出的生年不一致（26、56、75、83、138、216、229），取最早的劇本，`uncertain` 標 `born`。
 - `scenarios`：

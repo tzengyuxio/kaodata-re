@@ -38,6 +38,7 @@ def persons(game_dir):
     exe, text = _exe(game_dir)
     places = [text(PLACES + i * PLACE_SIZE + 8) for i in range(N_PLACES)]
     orgs = [text(ORGS + i * ORG_SIZE) for i in range(N_ORGS)]
+    kinds = [struct.unpack_from("<i", exe, ORGS + i * ORG_SIZE + 4)[0] for i in range(N_ORGS)]
     ranks = [text(RANKS + 8 * i) for i in range(N_RANKS)]
     start, size, count = kg.ISHIN2_WIN_PERSONS
     rows = []
@@ -56,6 +57,8 @@ def persons(game_dir):
         more = {"性別": "男" if sex == 1 else "女", "身分": ranks[rank]}
         if org >= 0:
             more["所属組織"] = orgs[org]
+            if kinds[org] in (0, 1, 2):  # as 維新の嵐 more.藩: the domain, or 幕府 / 朝廷
+                more["藩"] = orgs[org]
         row["more"] = more
         game = {}
         if alias_s or alias_g:
