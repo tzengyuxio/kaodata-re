@@ -342,6 +342,8 @@ PK 第 941 項第 6 子項的 XL 表（2165 列 × 307 欄，列號＝人物號�
 
 `dekoei.py stats-export <dataset> --game-dir ../games/<dataset> --out ../export/koei-wiki/stats/<dataset>.jsonl`（`dekoei/wiki_stats.py`）把上面「主能力」欄的值依 kaodata 人物 id 寫成 JSONL，一人一行 `{"dataset", "id", "name", "stats"}`。能力名照遊戲原文（三1 カリスマ、三6 智力，其他代是知力）。14 份的 id 與姓名都和 `~/works/kaodata/data-local/<dataset>/dataset.json` 逐一相同（✅ cross），kaodata 的每個人物都有值。2026-11-02 匯出。
 
+下游除了 koei-wiki，還有 kaodata 的臉譜 reel（`posts/reel/faces/stats.py`，2026-11-13 起只讀這份）：改取值規則或搬位置時要通知 kaodata。
+
 | 資料集 | 人數 | 能力 | 取值來源 |
 |---|--:|---|---|
 | `san1-pc98` | 255 | 身体 知力 武力 カリスマ 運勢 | DOS `SINADATA.DAT` 劇本 1（PC-98 劇本檔是編碼過的，`SAVEDATA` 是進行中的存檔）；人物順序與頭像碼和 PC-98 相同，5 個劇本的值相同，和 PC-98 的君主截圖一致 |
