@@ -1,6 +1,6 @@
 # 太閤立志傳IV（TAIKOH4, Windows 中文版）頭像與人物格式
 
-來源是 `games/archives/win/taiko4.rar`：裡面是 CloneCD 映像（`TAIKOU4.img`，2352 bytes 一個 Mode 1 磁區）。去掉磁區頭轉成 ISO 後，檔案解在 `games/archives/win/taikoh4-src/iso/`。匯出用的檔案複製到 `games/taikoh4-win/`：`FACE0.TG4`、`FACE1.TG4`、`SNR/SNR3.TR_`、`GAME/TAIKOU4.EXE`。
+來源是 `games/archives/win/taiko4.rar`：裡面是 CloneCD 映像（`TAIKOU4.img`，2352 bytes 一個 Mode 1 磁區）。去掉磁區頭轉成 ISO 後，檔案解在 `games/archives/win/taikoh4-src/iso/`。匯出用的檔案複製到 `games/taikoh4-win/`：`FACE0.TG4`、`FACE1.TG4`、`SNR/SNR1.TR_`–`SNR3.TR_`（SNR1、2 是 2026-11-14 為 koei-wiki 匯出補複製的）、`GAME/TAIKOU4.EXE`。
 
 - 有 `00000404`（繁中）語系檔，訊息是 Big5，所以是繁中版。
 - 光碟根目錄的 `TAIKOU4.EXE` 是 SafeDisc 外殼（有 `stxt` 區段）。`GAME/TAIKOU4.EXE` 是沒加殼的本體，檔案位置＝VA − 0x400000。
@@ -60,3 +60,22 @@
 - 分組：
   - 角色：女性（寧寧等、阿絹、志乃、小彩）、名人（文化人、上忍、土御門蛇琉）。
   - 頭像：一般人物、新武將、其他頭像。
+
+## koei-wiki 匯出
+
+`dekoei.py persons-export taikoh4-win --game-dir ../games/taikoh4-win --out ../export/koei-wiki/persons`（`wiki_taikoh4.py`），644 人，id、`name` 同 kaodata（劇本 3 的名字，劇本 1、2 名字不同的寫進 `notes`）。劇本 1、2 讀 `games/archives/win/taikoh4-src/iso/GAME/SNR/`（`games/taikoh4-win/` 只有 SNR3）。
+
+第 8 段的人物資料：人物 p（2–651）是第 8 段 48 × (p − 2) + 0x26 起的 48 bytes（和段落的 48 bytes 分界錯開 0x26；劇本 3 已死的人 +16 是 61，用這個對齊）。以下都是從數值判斷的：
+
+| 位置 | 內容 | 匯出 |
+|---|---|---|
+| +6..+10 | 統率、武力、內政、外交、魅力（EXE 0x1F4C5C 的順序；信長 95 70 98 93 98、千利休 4 3 56 71 95），三個劇本相同 | `stats`，🟡 標 `uncertain` |
+| +13 | 劇本狀態：低 4 bit 0 是勢力之主，1、2 部下，8–A 推定一門，4 不在地圖上（已死或還沒登場，分不出來）；高 4 bit 未明 | 只匯出低 4 bit 0 的人：`status`「大名」、`lord` 是本人 |
+| +16 | 勢力號（61 沒有）；同勢力只有一個 +13 低 4 bit 0 的人 | 只用來判斷大名 |
+| +20 | u16，大名 60000，其他 50–6000，推定俸祿 | 未匯出 |
+| +26 | u16 人物號，728 沒有；前田利家→阿松、松平元康→築山殿，推定配偶 | 未匯出 |
+
+- `scenarios` 只有大名（劇本 1 44 人、2 26 人、3 46 人）。部下不填 `lord`：還沒出生的人也已經掛在將來的勢力下（劇本 1 的大野治長、豊臣秀賴在織田家，+13 低 4 bit 是 1、2），沒有生年或登場年就分不出誰在場。
+- `year`：劇本 1 是桶狹間之後（1560）、3 是秀吉死後（1598），照第 0 段的劇本說明；劇本 2 推定 1577（謙信出兵能登、尼子再興、信玄與元就已死）。三個都標 `uncertain`，月未知。
+- 未匯出：技能（EXE 0x1F4C5C 的步兵…醫術 16 項，位置未找到）、身分（EXE 0x1F4BE0 浪人…女兒 30 種，和 +13 高 4 bit 對不上）、生年、地點。
+- 地點：EXE 0x1CFA69 起每筆 24 bytes 的地名表：0–159 是城（三戶…大口）、160–178 是改名後的城與新城、179–238 是 60 個町（弘前…鹿兒島）、之後是改名的町與忍者里。哪個欄位指到這張表、城的座標與相鄰都還沒找到，所以沒有地點匯出。
