@@ -154,7 +154,7 @@ def persons(game_dir):
             year, month = SCENARIO_DATES[t]
             s = {"scenario": t + 1, "year": year, "month": month}
             if not r["on"]:
-                s["status"] = "未登場" if not on or t < on[0] else "死亡"
+                s["status"] = "未登場" if not on or t < on[0] else "不在"
             else:
                 group, _ = _split(r["rank"])
                 s["status"] = r["rank"]
@@ -168,9 +168,11 @@ def persons(game_dir):
         row["scenarios"] = out
         row["uncertain"] = [f"more.{k}" for k in THOUGHTS]
         notes = []
-        if any(x["status"] in ("未登場", "死亡") for x in out):
-            row["uncertain"].append("scenarios.status")
-            notes.append("「未登場」「死亡」是看劇本開始時有沒有在地圖上推的：第一次登場前寫未登場（遊戲沒有稱呼，使用者 2026-11-14 定為未登場；之後何時由事件登場沒追，所以沒有 debut），登場過之後不在寫死亡。")
+        if any(x["status"] in ("未登場", "不在") for x in out):
+            notes.append("「未登場」「不在」是看劇本開始時有沒有在地圖上（28 bytes 記錄 +0x1B bit 6）：第一次登場前寫未登場，登場過之後寫不在"
+                         "（遊戲沒有稱呼，照使用者 2026-11-14 的規則；何時由事件登場沒追，所以沒有 debut）。")
+        if any(x["status"] == "不在" for x in out):
+            notes.append("登場過之後不在地圖上，推定已死（沒追）。")
         if top:
             notes.append(f"頂層的 stats、more 取劇本 {top + 1}（第一個登場的劇本）。")
         if i != cid:
