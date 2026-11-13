@@ -380,6 +380,26 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - `HEXMAP.DAT` 0x63F0 以後的部隊圖、DOS 版的圖塊。
 - 沒有和遊戲畫面比對過截圖。
 
+### koei-wiki 匯出（人物）
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export suikoden-dos --game-dir ../games/suikoden-dos --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+`wiki_suikoden.py`，koei-persons/1。PC-98 版要放在旁邊的 `../suikoden-pc98`（同地點匯出）。
+
+- 255 人，`id` 同 kaodata `suikoden-dos`。`name` 是中文版的寫法，`nameJa` 是 PC-98 寫法（不同時才填，兩版頭像碼逐筆相同，有 assert）。`reading` 是 PC-98 名字記錄 +7 的半形片假名轉平假名（中文版沒有讀音）。錯字的小說寫法寫在 `notes`（`SUIKODEN_DOS_NAME_HISTORICAL`、`SUIKODEN_PC98_NAME_HISTORICAL`）。
+- 標籤用中文版 `MAIN.EXE`（LZEXE＋EXEPACK 解開後 0x359D4–0x35B18）狀態視窗的字：`stats` 是 體力 能耐 技能 智慧 忠義 仁愛 勇氣；`more` 是 年齡、體力上限、能耐／技能／智慧經驗、士兵、人望、身份、性別、船隻、掌舵（後兩項只在有時填 `true`）；`hidden.口調`。頂層取劇本 1。
+- 四個劇本的年齡、能力都相同（只有 5 人的體力不同），遊戲不隨劇本加歲，所以不填 `born`。
+- `scenarios`：劇本 1–4，年份取中文版劇本選單（0x397D8）：1101 林沖逃亡、1103 宋江殺閻婆惜、1104 宋江吟反詩被捕、1105 晁蓋戰死；沒有月份。
+  - `status` 是該劇本的身份（P+0x15 的身分碼，名稱是中文版的 34 個字串）。
+  - `location` 是 P+4＋1，就是地點匯出的州 id（高俅 23 開封、魯智深劇本 1 在 15 渭州、宋江劇本 3 在 45 江州）。死亡的不填。
+  - `lord` 是 P+3：太尉、太守、官吏的是 0 高俅；好漢的是自己；頭目、強盜、義兄、義弟的是所屬好漢的 id（劇本 3、4 的武松、楊志、張青、孫二娘、曹正、施恩歸 1 魯智深，和小說的二龍山相合）。其他身份（在野的平民、罪犯、死亡）P+3 一律是 1，沒有意義，不填。四個劇本的每個好漢都是自己那一夥的 P+3，✅ cross（和小說對照）。
+  - `loyalty` 是 P+0x10 忠誠度，只填有 `lord` 而不是自己的人。
+- 沒填：綽號（名字記錄 +7–41 幾乎全是 0，中文版的綽號不在這裡，沒找）、P+0x11。
+- 檢查：persons-export 1714 筆、koei-wiki `verify_persons.py suikoden-dos` 4066 筆，0 筆不符（2026-11-14）。
+
 ### 下一輪候選（水滸伝的地圖）
 
 - 中文版 `MAPIBM.DAT` — 前置：中文版 `MAIN.EXE`（LZEXE 0.91，`deark -m lzexe` 解開）找到讀這個檔的函式；做法：照 PC-98 0x0F1C 的流程看 EGA 版每個單位存幾個 plane。
