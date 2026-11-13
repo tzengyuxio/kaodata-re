@@ -15,8 +15,11 @@ NATIONS = ["德", "意", "美", "英", "法", "蘇"]
 POSTS = {1: "軍團長", 2: "作戰參謀", 3: "情報參謀", 4: "最高統帥", 5: "參謀總長", 6: "空軍司令", 7: "特種兵長官"}
 # the officer table (DOS MAIN.EXE file 0x1279E): 國籍 +9, then these, 經驗 +18
 STATS = {"指揮": 10, "魅力": 11, "勇猛": 12, "體力": 13, "步兵": 15, "砲兵": 16, "坦克": 17}
-# SCEDATA blocks in file order; dates from the scenario texts at the start of SCEDATA (block k >= 1 -> text k - 1)
-DATES = [(1940, 5), (1940, 5), (1942, 5), (1943, 7), (1944, 6), (1944, 12), (1945, 4)]
+# SCEDATA block k is scenario menu item k (DOS MAIN.EXE image 0x6CB6 seeks to 0x1518 + k * 0x1D95 with the item id);
+# the block is read to DGROUP 0x42, so block +2 is the year - 1940 (DGROUP 0x44, image 0xA11E adds 1940) and +3 the
+# month (0x45). Menu labels (PC-98 MAIN.EXE 0x4BDAB): 0 is the campaign start
+SCENARIO_NAMES = ["キャンペーン", "フランス侵攻戦", "北アフリカ戦", "クルスク機甲戦", "ノルマンディーの戦い", "バルジの戦い",
+                  "ベルリン攻防戦"]
 
 
 def _nations(mask):
@@ -33,6 +36,8 @@ def persons(game_dir):
     with open(os.path.join(pc98, "MAIN.EXE"), "rb") as f:
         main = f.read()
     first, stride, count = kg.EUROPE_SCENARIOS
+    block = first - 0x25A  # the people table is at block +0x25A
+    dates = [(1940 + sce[block + s * stride + 2], sce[block + s * stride + 3]) for s in range(count)]
     records, scenarios = {}, {}
     for s in range(count):
         for k in range(40):
@@ -51,15 +56,14 @@ def persons(game_dir):
             r = records[i]
             row["stats"] = {k: r[o] for k, o in STATS.items()}
             row["more"] = {"國籍": _nations(r[9]), "經驗": r[18]}
-            row["scenarios"] = [{"scenario": s + 1, "year": DATES[s][0], "month": DATES[s][1]} for s in scenarios[i]]
-            row["uncertain"] = ["stats.體力", "scenarios.year", "scenarios.month"]
+            row["scenarios"] = [{"scenario": s + 1, "year": dates[s][0], "month": dates[s][1]} for s in scenarios[i]]
+            row["uncertain"] = ["stats.體力"]
             notes = ("指揮官，記錄在 SCEDATA 的劇本裡（22 bytes）；能力各劇本相同，經驗開局都是 0。"
                      "欄位照指揮官一覽（中文版 MAIN.EXE 檔案 0x1279E）：國籍 +9（bit 對應德、意、美、英、法、蘇），"
                      "指揮、魅力、勇猛、體力、步兵、砲兵、坦克是 +10–+13、+15–+17，經驗 +18；+14 和 +13 相同，"
-                     "推定是體力上限。scenario 是 SCEDATA 的 7 個區塊依序編號（1 法國 1940、2 法國 1940、3 北非 1942、"
-                     "4 庫爾斯克 1943、5 諾曼地 1944、6 阿登 1944、7 柏林 1945）；1、2 的地圖與法軍相同，1 的德軍是各戰場名將，"
-                     "推定是戰役模式的開局。year、month 照 SCEDATA 開頭的劇本說明（1940.5.10、1942.5.26、1943.7.5、"
-                     "1944.6.6、1944.12.16、1945.4.16），區塊與說明的對應是看指揮官推定的。")
+                     "推定是體力上限。scenario 是遊戲劇本選單的順序（1 キャンペーン、2 フランス侵攻戦、3 北アフリカ戦、"
+                     "4 クルスク機甲戦、5 ノルマンディーの戦い、6 バルジの戦い、7 ベルリン攻防戦），選單第 k 項（id k − 1）載入 SCEDATA 第 k 個區塊；"
+                     "1 是戰役模式的開局（1940.5），之後各階段讀劇本 3–7 的區塊。year、month 是區塊開頭的日期。")
             if i in (14, 34, 36):
                 notes += "中文版各劇本寫法不同，name 取出現最多的寫法（notes/europe.md）。"
             row["notes"] = notes

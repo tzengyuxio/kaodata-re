@@ -44,6 +44,8 @@
 | `genpei-pc98` | 4 | 沒找到 | SNDATA 劇本表頭（1180.10、1183.7、1184.10、1185.10；`games/genpei-dos/extract/tables/scenarios.csv`） | 沒找到 | 🟡 code（年月） |
 | `ishin-pc98` | 3 | 沒有標題，只有日期 | `ISIN.EXE` 0x3E672 的三個日期（嘉永６年…） | 沒找到 | 🟡 code |
 | `ishin2-win` | 3 | 主角名（0 龍馬、1 土方、2 フリー；`ISHIN2.EXE` VA 0x4A2EB0 依劇本號取主角 253／329／587） | VA 0x5E3140 每劇本 44 bytes：1853.6.1、1861.9.1、1862.3.1 | 沒找到 | 🟡 code（各劇本的人物狀態沒有，人物記錄只有一份，見 `notes/ishin2.md`） |
+| `tk3pk-pc98` | 各 SNDATA 檔 7 份人物表 | 沒找到（選單讀哪個區塊沒追） | `SNDATA*.TK3` 區塊 +3 年 − 1941、+4 月 − 1、+5 日 − 1（21 個日期和史實相合） | 沒找到 | 🟡 code+cross（年月；見 `notes/koei-games.md`） |
+| `europe-pc98` | 7（1 是戰役模式） | PC-98 `MAIN.EXE` 0x4BDAB 的選單（キャンペーン…ベルリン攻防戦） | `SCEDATA` 區塊 +2 年 − 1940、+3 月、+4 日 | `SCEDATA` 開頭的劇本說明（6 段，戰役沒有） | ✅ code（見 `notes/europe.md`） |
 | `suikoden-dos` | 4 | 中文版 `MAIN.EXE` 0x397D8 的劇本選單（林沖逃亡…晁蓋戰死） | 同左（沒有月） | 沒找到 | 🟡 code |
 | `kouryuuki-dos` | 4 | 沒找到 | `SNDT?.KR1` 檔頭 +3 西元前年、+1 月 | 沒找到 | 🟡 code（年月） |
 | `koukaigd-win` | 2（兩位主角，不是遊戲的劇本） | — | — | — | — |
