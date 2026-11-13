@@ -56,6 +56,36 @@
 - 🟡 R+0xB 非 0 是砲兵、否則 R+0xA 非 0 是騎兵、否則步兵（0x6078）。名字 +15 是 bits 0–1（只有 0–5 號是 3，波拿巴家族？）加上 bits 2–7 的 6 個旗標；舊碼的冷靜、勇猛、魅力、幸運等名稱沒有根據。❌ +16（大多是 6）、R+0、R+1。
 - 已修正（2026-10-22）：舊 `lempe_person` 忽略 `--scenario`（`PERSONS_TABLE/lempe-persons-s1…s4-*.csv` 完全相同），第二段錯開 2 bytes、漏了經驗、年齡、官階；ldr 標成「指揮」（遊戲用語是「領導」）；名字 +15 的四欄 冷靜 勇敢 魅力 幸運 沒有根據，改成一欄「隱藏」印出 8 個 bit；Bordeaux 原本譯成「布倫」，改成「波爾多」。`-s` 從 1 起算。s1–s4 的 en／zh 表已重新產生（en 用英文版 `NPDATA.CIM`，不在 `games/`）。
 
+### koei-wiki 匯出
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export lempe-dos --game-dir ../games/lempe-dos --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py persons-export lempe-dos --game-dir ../games/lempe-dos --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+`wiki_lempe.py`，koei-persons/1 與 koei-places/1。旁邊要有 `../lempe-pc88`（日文名）和 `../archives/dos/拿破崙_英文版_l-empereur.zip`（英文名，直接讀 zip 裡的 `empereur/NPDATA.CIM`；英文版的 `NPDATA.CIM` 除了名字，五個劇本的人物與城市記錄和中文版 byte 相同）。以下位移都是劇本內的位移（每劇本 13270 bytes）。
+
+- 劇本：5628 是 u16 年份（1796、1798、1802、1806、1815），下一個 byte 都是 3，當成 `month`（標 `uncertain`）；5632 是劇本號 1–5。
+- 國名：7220＋10·n，15 國（法蘭西 荷蘭 巴伐利亞 丹麥 土耳其 意大利 威尼斯 那普斯 葡萄牙 瑞典 西班牙 普魯士 俄羅斯 奧地利 英格蘭）；PC-88 在 `NPDATA.CIM` 0x1BA1＋9·n（半形片假名）。
+- 城市：7370＋34·c，46 個，五個劇本相同。+0 名字（15 bytes），+16 x、+21 y（畫出來是歐洲的形狀【推】），+26–+32 相鄰（0xFF 是空，全部雙向），+33 旗標。PC-88 在 0x1C28＋31·c，名字 12 bytes，之後 19 bytes 和 DOS 的 +15–+33 相同。+15、+17–+20、+22–+25（像是另外幾組座標，0xFF 是沒有）沒解。
+- 城市的領有國：4102＋28·c，255 是無主（羅馬在劇本 1、5）。
+
+人物（255 人，`id` 同 kaodata，也就是記錄順序；和 koei-wiki `lempe-persons-mapping.csv` 的編號、遊戲中文名、日文名、英文名逐筆相同）：
+- `name` 用中文版，`nameJa` 取 PC-88（NFKC 轉全形），`game.英文名` 取英文版。史書寫法（`LEMPE_NAME_HISTORICAL`）寫在 `notes`。
+- `stats` 是 8 項等級 D–A（五個劇本都相同）；`more` 是劇本 1 的 國 經驗 忠誠 兵力 士氣 訓練 年齡，標籤是中文版狀態視窗的字。
+- `born`＝劇本年－年齡。年齡 0 的是已死（官階 15），不算。7 人各劇本算出的生年不一致（26、56、75、83、138、216、229），取最早的劇本，`uncertain` 標 `born`。
+- `scenarios`：
+  - `status` 是官階（R+0xE & 0xF）在中文版 `MAIN.EXE` 的稱呼（0x3BE88 起，對應見上面英文版 0x60E8 的分析）：2 戰俘、3 預備軍官、4 現役軍官、5 司令官、6 督政官、7 國王；拿破崙 6 是第一執政、7 是皇帝。官階 0、1 沒有稱呼，不填 `status`（1 是王位繼承人）。15 是不在地圖上（已死或被取代），寫「不在」，不是遊戲用語，標 `uncertain`。年齡 ≥ 200（還沒出生，維多利亞）寫「未登場」。拿破崙官階 5 在某個條件下顯示「總司令官」，條件沒追，寫司令官。
+  - `location` 是 R+3 的城市號；`lord` 是同國的國王（官階 7），沒有國王時是督政官（官階 6，1796、1798 年的法蘭西是巴羅斯、威尼斯是曼寧）。戰俘、官階 0–2 不填 `lord`；`loyalty` 是 R+7（拿破崙沒有）。
+- 沒填：名字 +15 的隱藏旗標（名稱不明）、兵種、`relations`（遊戲沒有）。
+
+城市（46 個）：
+- `name` 用中文版的寫法（28 號是「布倫」，實際是波爾多），`nameJa` 取 PC-88，`game.英文名` 取英文版。`level` 一律「城市」，遊戲沒有地方區分，不填 `region`。
+- `adjacent` 是 +26–+32（都柏林沒有相鄰）。`scenarios[].國` 是領有國，`lord` 是該國的國王或督政官。
+- `game.座標` 放 +16、+21，`game.臨海` 是 +33 bit 0（和地理一致，【推】），都標 `uncertain`。大地圖（`HEXDATA.DAT`）沒解，所以沒有 `pos` 和 `world/`。
+- 檢查：places-export 320 項、persons-export 2508 項、koei-wiki `verify_persons.py` 5569 項、`verify_sanguo_places.py` 575 項，0 不符。
+
 ## 頭像碼 0xFF–0x103
 
 人物資料的頭像碼只有一個 byte，P255–P259 由程式直接把碼傳給畫頭像的函式（0xA17A，參數是頭像碼，0 起算）：
