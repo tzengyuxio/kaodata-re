@@ -41,6 +41,27 @@
 - 520 人裡有 13 人的值隨劇本不同，例如諸葛亮的武力 78（189 年）、83（217 年）、87（225 年以後），其他都一樣；全部在 1–100。
 - 沒有遊戲畫面可以對照；和參考表 S07 欄的劇本 1 值一致（cross）。
 
+### koei-wiki 匯出
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export san7pk-win --game-dir ../games/san7pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+`wiki_san7.py`（koei-persons/1），520 人，`id` 是武將編號（同 kaodata）。欄位位置見 `notes/san-attributes.md`「三國志VII」。
+
+- `name` 取繁中版（Steam depot 628032，`games/steam/628030-tchinese/depot`）D_Sn001 的寫法（`san7_extras.bio_names`，同列傳），和日文不同的 94 人填 `nameJa`。`courtesy` 是繁中版 +0x36 的字；`reading` 是日文版的讀音，轉平假名不加空白（同 kaodata）。
+- `stats` 同 stats 匯出（第一個有這人的劇本）；值和它不同的劇本另外放 `scenarios[].stats`（13 人）。`born` 是 +4。
+- `hidden`：相性（+0x59，✅ cross VI）；義理、野望、冷静、勇猛（+0x12 的 4、4、3、3 bit，名稱和順序取 EXE 的欄位名清單，配置同 VI，標 `uncertain`）。
+- `relations`：`father` 由親武将 +0x10 對到格號，`children` 反推，同父或同一兄弟組（1000 以上）的是 `siblings`（兄弟組標 `uncertain`）。`clan` 是血縁番号 +0xE 指的一族之首的 `id`，只有兩人以上共用時才填（66 組、233 人），標 `uncertain`。
+- `scenarios`：12 個劇本，`scenario` 是劇本號（標頭 +0x1A：1–7、101–105），`year` 是 +0x1C；月份沒找到，不填。`status` 是 +0x48 查身分表（君主 太守 軍師 一般 在野 未発見 待機 死亡，未発見在劇本裡沒出現）。
+  - 君主、太守、軍師、一般、在野填 `location`（+0x4A）；有勢力（+0x49 不是 255）的填 `lord`（同勢力的君主，每個劇本每個勢力剛好一位），君主以外另填 `loyalty`（+0x53，一般武將 72–100，標 `uncertain`）。
+  - 待機是後登場，填 `debut`（+2 登場年）。12 個劇本裡只有 103（211 年）的蔣琬是待機但登場年不晚於劇本年，`notes` 有寫。
+  - 死亡只寫 `status`。
+  - 12 個都是一般的開局配置，沒有要排除的特殊劇本。
+- 沒填：特技（+0x74 u32 照名稱順序解不合理）、兵科、仕官（+6）、功績、名声、兵士、寿命、性別、健康、成長；寶物的持有者在寶物匯出（`items/san7pk-win.jsonl`），人物這邊不重複。
+- 檢查：persons-export 5471 項、koei-wiki `verify_persons.py san7pk-win` 15392 項，0 不符（2026-11-14）。
+
 ## 事件、插圖、道具
 
 `san7-extras`（`dekoei/san7_extras.py`）讀 `games/san7pk-win/`（Steam 安裝目錄裡用到的檔，見 `notes/steam.md`「安裝目錄的刪除」），輸出到 `games/san7pk-win/extract/`（約 71 MB、7947 個檔，跑一次約 10 秒）：
