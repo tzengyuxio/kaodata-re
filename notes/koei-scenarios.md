@@ -43,6 +43,7 @@
 | `genghis4pk-win` | 4 | 劇本檔 0x494400 起 17 bytes 劇本名 | 同處 u16 開始年（1188、1270、1228、1369） | 同處 0x1F4 bytes 說明 | ✅ code |
 | `genpei-pc98` | 4 | 沒找到 | SNDATA 劇本表頭（1180.10、1183.7、1184.10、1185.10；`games/genpei-dos/extract/tables/scenarios.csv`） | 沒找到 | 🟡 code（年月） |
 | `ishin-pc98` | 3 | 沒有標題，只有日期 | `ISIN.EXE` 0x3E672 的三個日期（嘉永６年…） | 沒找到 | 🟡 code |
+| `ishin2-win` | 3 | 主角名（0 龍馬、1 土方、2 フリー；`ISHIN2.EXE` VA 0x4A2EB0 依劇本號取主角 253／329／587） | VA 0x5E3140 每劇本 44 bytes：1853.6.1、1861.9.1、1862.3.1 | 沒找到 | 🟡 code（各劇本的人物狀態沒有，人物記錄只有一份，見 `notes/ishin2.md`） |
 | `suikoden-dos` | 4 | 中文版 `MAIN.EXE` 0x397D8 的劇本選單（林沖逃亡…晁蓋戰死） | 同左（沒有月） | 沒找到 | 🟡 code |
 | `kouryuuki-dos` | 4 | 沒找到 | `SNDT?.KR1` 檔頭 +3 西元前年、+1 月 | 沒找到 | 🟡 code（年月） |
 | `koukaigd-win` | 2（兩位主角，不是遊戲的劇本） | — | — | — | — |
