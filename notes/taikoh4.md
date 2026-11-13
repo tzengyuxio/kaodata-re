@@ -63,7 +63,7 @@
 
 ## koei-wiki 匯出
 
-`dekoei.py persons-export taikoh4-win --game-dir ../games/taikoh4-win --out ../export/koei-wiki/persons`（`wiki_taikoh4.py`），644 人，id、`name` 同 kaodata（劇本 3 的名字，劇本 1、2 名字不同的寫進 `notes`）。劇本 1、2 讀 `games/archives/win/taikoh4-src/iso/GAME/SNR/`（`games/taikoh4-win/` 只有 SNR3）。
+`dekoei.py persons-export taikoh4-win --game-dir ../games/taikoh4-win --out ../export/koei-wiki/persons`（`wiki_taikoh4.py`），644 人，id、`name` 同 kaodata（劇本 3 的名字，劇本 1、2 名字不同的寫進 `notes`）。三個劇本都讀 `games/taikoh4-win/SNR1–3.TR_`。
 
 第 8 段的人物資料：人物 p（2–651）是第 8 段 48 × (p − 2) + 0x26 起的 48 bytes（和段落的 48 bytes 分界錯開 0x26；劇本 3 已死的人 +16 是 61，用這個對齊）。以下都是從數值判斷的：
 
