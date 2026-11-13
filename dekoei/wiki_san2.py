@@ -139,7 +139,9 @@ def persons(game_dir):
             uncertain.append("scenarios.status")
         row["uncertain"] = uncertain
         notes = []
-        if i in ke.SAN2_NAME_HISTORICAL:
+        if ke.yoshikawa_note(row["name"]):
+            notes.append(ke.yoshikawa_note(row["name"]))
+        elif i in ke.SAN2_NAME_HISTORICAL:
             notes.append(f"中文版寫法有誤，史書寫法 {ke.SAN2_NAME_HISTORICAL[i]}。")
         if i in ke.SAN2_JP_NAME_HISTORICAL and ke.SAN2_JP_NAME_HISTORICAL[i] != ke.SAN2_NAME_HISTORICAL.get(i):
             notes.append(f"日文版寫法有誤，史書寫法 {ke.SAN2_JP_NAME_HISTORICAL[i]}。")

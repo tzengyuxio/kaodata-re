@@ -127,7 +127,7 @@ cd dekoei
   - `status`：+16 身分，名稱取 PC-98 `MAIN.EXE` DGROUP 0x27FE 的表（0 君主、1 軍師、2 将軍、3 武官、4 文官、5 在野）；顯示時 0x8124 對城的太守改顯示「太守」，這個沒有匯出。6 寫「未発見」：0x97B3 把身分設成 6 時，把人放進城的第二張名單（5 在野是第一張），EXE 有「未発見武将」一詞，對應是推定（標 `uncertain`）；六個劇本裡沒有 5。
   - 7 是不在地圖上（勢力、所在都是 255），那個劇本不列；76 人六個劇本都是 7，沒有 `scenarios`（遊戲中途怎麼登場沒追，所以不寫「未登場」）。
   - `lord`：君主是自己；軍師到文官取同勢力（+27）的君主，另填 `loyalty`（+25，✅ capture）。未発見的人有的帶勢力號，意思沒查，不填 `lord`。
-- 史書寫法照 `SAN3_NAME_HISTORICAL`（中文版寫法）、`SAN3_PC98_NAME_HISTORICAL`（日文版寫法）寫在 `notes`。
+- 史書寫法照 `SAN3_NAME_HISTORICAL`（中文版寫法）、`SAN3_PC98_NAME_HISTORICAL`（日文版寫法）寫在 `notes`。308 王垢是吉川英治《三國志》（草莽の巻「空腹・満腹」）的寫法，《三國演義》第 17 回作王垕：兩張表都填 `nameHistorical` 王垕（2026-11-14 加，face 0x9942），`notes` 標「吉川版名字」，不寫成錯字（`kaodata_export.YOSHIKAWA_NAMES`）。
 - 不填：兵士、訓練、士気、道具（+8 bitmask 的道具名沒對）、仕官、+14。
 - 檢查：persons-export 3116 項、koei-wiki `verify_persons.py` 7867 項，0 不符（2026-11-14）。
 

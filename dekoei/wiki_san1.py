@@ -74,6 +74,8 @@ def persons(game_dir):
             notes.append(f"born 是劇本年減年齢（五個劇本算出來都一樣）；more.年齢取劇本 {first + 1}（第一個登場的劇本）。")
         if not out:
             notes.append("五個劇本開始時都不在地圖上。")
+        if ke.yoshikawa_note(row["name"]):
+            notes.append(ke.yoshikawa_note(row["name"]))
         if pid in ke.SAN1_PC98_NAME_HISTORICAL:
             notes.append(f"史書寫法 {ke.SAN1_PC98_NAME_HISTORICAL[pid]}。")
         if notes:

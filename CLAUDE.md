@@ -91,6 +91,7 @@ Python 端沒有 linter／formatter 設定。
   - PK 資料集（本體完全包含在內、只保留 PK 版的）在 PK 才有的頭像與人物加 `"pk": true`，`group` 照原本的類別名稱、不自己加「PK」：`san4pk-*` 是 340 之後的頭像與 NBDATA.SUI 的人物，`san5pk-*` 是 733 之後的頭像，`tk3pk-pc98` 是 KAODATA2 的頭像 197–204 與用到它們的劇本人物。`tk2pk-pc98` 只改了兩個提督名的寫法，沒有標記。
   - `nameHistorical`（史書寫法）的規則：遊戲寫法讓人認不出或搜不到史書（或《三國演義》）的寫法時才填，用該資料集的字形（日文版用新字體）。
     - 填：寫成別人的名字（樂進→于禁）、錯字（蔡冒→蔡瑁）、缺字代用（劉貴→劉璝）、少字（朶思王→朶思大王）。
+    - 吉川英治《三國志》的寫法（三國志 I–III 照它取名）不算錯字：史書或《三國演義》有這個人的，照樣填史書寫法（張資→張咨、王垢→王垕），koei-wiki 匯出的 `notes` 標「吉川版名字」；只有吉川版有的人（陳嬉、楊平）不填，標「吉川版人物」，條目名用吉川版的寫法。名單在 `kaodata_export.YOSHIKAWA_NAMES`（2026-11-14 使用者決定）。
     - 不填：同一字的不同字形（関／關、羣／群、彝／彞、万／萬、胄／冑、瞱／曄、毘／毗）、《三國演義》本身的寫法（喬瑁、范疆）、史書就有兩種寫法的（干吉／于吉、朱儁／朱雋、梁綱／梁剛）。
   - `source.revision` 會呼叫 `git rev-parse HEAD`，所以必須在 git 工作目錄下執行。
 - **源平合戰**：`genpei.py` 的色盤一律用 `load_mainpal`（Mainpal.pld），像素一律用 `decode_planar`／`read_rle3`。`genpei_extras.py`（`dekoei.py genpei-extras --game-dir ../games/genpei-dos --out ../games/genpei-dos/extract`）輸出 4 個劇本的武將、勢力、國、地方、官位、家寶表，戰略地圖（四季大地圖、156 個節點），NPK016 的圖，Message.gp 訊息與 EXE 字串，格式見 `notes/genpei.md`（2026-11-10 從 genpei-zh 移植）。`genpei cg` 的 NPK 解碼和 `genpei_extras.npk_unpack`、genpei-zh 的 `dump_gfx.py` 相同（220 張，cross），仍沒和截圖比對；它對 Maincmd2 的特殊處理（3bpp 64 寬毛筆字）是錯的，見 `notes/genpei.md`。koei-wiki 的人物、據點（`persons-export`／`places-export genpei-pc98`）與每人兩張人物像（`wiki_genpei.py` 直接跑，128×160 半身像與 64×80 頭像窗）讀在 `wiki_genpei.py`，見 `notes/genpei.md`「koei-wiki 匯出」。

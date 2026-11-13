@@ -405,6 +405,22 @@ SAN2_NAME_HISTORICAL = {
     284: "向寵", 295: "劉賢", 297: "鮑隆", 306: "朵思大王", 308: "阿會喃", 315: "金環三結", 319: "董荼那", 322: "沙摩柯",
     317: "龐羲", 332: "毌丘儉",
 }
+# names spelt as in 吉川英治《三國志》 (三國志 I-III follow it): name -> (historical spelling, where it is from), or
+# None for people only the novel has (their entry is the novel's name). Checked against the novel's text (青空文庫),
+# 毛宗崗本 and 三國志 on Wikisource, 2026-11-14; the user's rule: keep nameHistorical, mark them as 吉川版, not misspelt
+YOSHIKAWA_NAMES = {"張資": ("張咨", "正史"), "王垢": ("王垕", "《三國演義》"), "陳嬉": None, "楊平": None}
+
+
+def yoshikawa_note(name: str) -> str:
+    """koei-wiki notes for a 吉川版 name, or ""."""
+    if name not in YOSHIKAWA_NAMES:
+        return ""
+    if YOSHIKAWA_NAMES[name] is None:
+        return "吉川版人物：只在吉川英治《三國志》出現，正史、《三國演義》都沒有。"
+    historical, source = YOSHIKAWA_NAMES[name]
+    return f"吉川版名字：吉川英治《三國志》的寫法，{source}作{historical}（不是錯字）。"
+
+
 # KAODATA portraits no character uses (0-based), per koei-wiki 遊戲/三國志II/人物顏
 SAN2_PORTRAIT_GROUPS = {
     27: "特殊人物", 177: "特殊人物", 190: "特殊人物",
@@ -632,11 +648,12 @@ SAN3_NAME_HISTORICAL = {
     0xC1: "孔伷", 0xC02B: "蔡邕", 0x96D9: "張顗", 0x9C95: "張闓", 0xC4E8: "桓階", 0xDCB3: "劉璝", 0x8AA8: "于糜",
     0xC860: "閻象", 0xCCF9: "笮融", 0xCC33: "向舉", 0x8699: "全琮", 0xCE79: "龐羲", 7: "王粲", 72: "沙摩柯",
     38: "毌丘儉", 49: "金環三結", 135: "董荼那", 112: "朵思大王", 0x8284: "曹羲", 0x8EBB: "孫冀",
+    0x9942: "王垕",
 }
 SAN3_PC98_NAME_HISTORICAL = {
     0xC4E8: "桓階", 0x8AA8: "于糜", 86: "鍾繇", 0x96A5: "鍾進", 53: "鍾会", 0x9512: "梁剛", 76: "諸葛瑾",
     0xCC33: "向挙", 0xCE79: "龐羲", 72: "沙摩柯", 38: "毌丘倹", 49: "金環三結", 135: "董荼那", 112: "朶思大王",
-    0x84E4: "劉晙",
+    0x84E4: "劉晙", 0x9942: "王垕",
 }
 # event characters (MAIN.EXE DGROUP 0x2FB6 names / 0x2FCA codes) and 貂蟬 (連環計 sets face 307)
 SAN3_PORTRAIT_NAMES = {27: "華佗", 177: "司馬徽", 190: "許子將", 223: "獻帝", 224: "吉平", 225: "于吉", 226: "左慈",

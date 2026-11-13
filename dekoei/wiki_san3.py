@@ -79,9 +79,11 @@ def persons(game_dir):
             notes.append("六個劇本開始時都不在地圖上（身分 7）；遊戲中途怎麼登場沒追。")
         if any(s["status"] == "未発見" for s in out):
             notes.append("「未発見」是身分 6：在城裡但還沒被找到的在野武將（遊戲有「未発見武将」一詞，對應是推定）。")
-        if code in ke.SAN3_NAME_HISTORICAL:
+        if ke.yoshikawa_note(row["name"]):
+            notes.append(ke.yoshikawa_note(row["name"]))
+        elif code in ke.SAN3_NAME_HISTORICAL:
             notes.append(f"中文版寫法的史書寫法 {ke.SAN3_NAME_HISTORICAL[code]}。")
-        if code in ke.SAN3_PC98_NAME_HISTORICAL:
+        if code in ke.SAN3_PC98_NAME_HISTORICAL and not ke.yoshikawa_note(row["name"]):
             notes.append(f"日文版寫法的史書寫法 {ke.SAN3_PC98_NAME_HISTORICAL[code]}。")
         if notes:
             row["notes"] = "".join(notes)
