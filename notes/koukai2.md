@@ -149,6 +149,60 @@
 - 【推】其他 0x10 以上的代碼（0x20、0xAF、0x6C–0x76 …，共 4405 格）分佈在山脈、沙漠邊緣，大概是地形；`world.png` 用深綠標出。
 - 外傳的 Worldmap.lzw 和本作 byte 相同。
 
+## koei-wiki 匯出
+
+`dekoei/wiki_koukai2.py`，資料集 `koukai2-pc98`（只有日文版，沒有 `nameJa`）。
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export koukai2-pc98 --game-dir ../games/koukai2-pc98 --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py persons-export koukai2-pc98 --game-dir ../games/koukai2-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+### 人物（170 人）
+
+- `id` 同 kaodata：航海士 0–119、事件人物 120–139、酒館女性 140–169（上方「人物」的三張表）。
+- 六位主角共用同一份開局狀態（DATA1.LZW 第 15 段），所以不填 `scenarios`。
+- 航海士：
+  - `stats` 是 7 項能力。
+  - `more` 有年齢、国籍、航海Lv／経験、戦闘Lv／経験，以及有職位時的役職（1–69 號艦隊的提督是「提督」）。
+  - `skills.技能` 取自 +48。
+  - `hidden.運`、`hidden.忠誠` 是 +35、+43，名稱是推定，標在 `uncertain`。
+  - 開局在酒館的人（+45 不是 0xFF）有 `game.所在港`（港名）。
+  - `notes` 分成主人公（0–5）、艦隊提督（役職 1）、航海士。
+- 事件人物只有名字。130–135 號是國王與總督：表的順序和國名表 DS:0x8B0 相同（マヌエル１世、カルロス１世、スレイマン大帝、ヘンリー８世、ペトルス総督、ネーブル総督），所以 `more.国籍` 照順序填，標 `uncertain`。136 パウラ、137 サファ的身分沒查。
+- 酒館女性有名字，所以照樣列出。`game.所在港` 取自記錄 +0xE：image 0x26A4B 逐筆比 +0xE 和目前港口 `[0xCF6]`，同時要 +0x12 bit 0x08 為 1、bit 0x40 為 0 才出現，所以是 ✅ code。開局時カルロ－タ（bit 0x40）和ハディー（沒有 bit 0x08）不在酒館，但所在港照記錄填。
+- 不列入匯出的：
+  - 只在劇本腳本出現的臉（上方「劇本裡的臉」，頭像 18–25、93–96 等）：沒有 kaodata 人物 id。
+  - 艦隊和人物的對應（+44）：艦隊記錄還沒解。
+  - +44 是 254 的 69–78 號：意思沒查。
+
+### 港口（130 個）
+
+- `level`：0–99 是「港」，100–129 是「補給港」，都是遊戲字串。
+- `region` 是港口狀態 +33 的商圈名（MESSAGE.DAT 0x181＋n）。港口視窗的標題（image 0x7AFD）把這個名字接在「地方」前面顯示，補給港則顯示「補給港」，所以補給港沒有 `region`。✅ code
+- `pos`：
+  - 值是港口表 +0、+2 的地圖格，`grid: pixel`，`w`／`h` 是 2160×1080。
+  - 對應的圖是 `world/world.png`，用 `koukai2_extras.world` 畫的海陸圖，不是遊戲圖塊。
+  - 130 個港口都落在地圖的港口小格上（上方「世界地圖」），所以不標 `uncertain`。
+- `game`：
+  - `同盟`：+0x15 低 3 bit 的國名，6 表示沒有同盟，不填。
+  - 0–99 號另有三項，都是開局時的值：
+    - `商業価値`：港口狀態 +0。
+    - `工業価値`：+4。
+    - `支持率`：+8–13，六國各一個值。
+  - 名稱取自 MESSAGE.DAT 的表頭「港名 支持率 工業価値 商業価値」，以及港口視窗的「支持率」「%-14s %3d%%」。
+  - 工業価値和支持率的用法是 🟡，標在 `uncertain`。
+- 港口視窗另外會顯示 +2、+6（累積值）和「亂數＋50」的一個值（image 0x7B88），標籤不在字串裡，所以沒有匯出。
+
+### 檢查
+
+- 2026-11-14：
+  - `places-export`：130 個港口，130 筆檢查，0 筆不符。
+  - `persons-export`：170 人，170 筆檢查，0 筆不符。
+  - koei-wiki 的 `verify_sanguo_places.py`：981 筆，0 筆不符。
+  - koei-wiki 的 `verify_persons.py`：1046 筆，0 筆不符。
+
 ## 下一輪候選
 
 - 地圖 0x10 以上的地形代碼 — 前置：找到地圖解碼與移動判定的程式（還沒找到；0x2483A 附近是座標換算）；做法：從 0x10／0x11 的判定往回追。

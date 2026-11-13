@@ -204,6 +204,39 @@ VA 0x4DE540，273 筆 × 0x5C；執行時物件 0x5D0240（每個 0xA8）。
 
 - `DSTILL.CDS`：LS11，84 組（圖、色盤從 160 起、8 bytes 的 u32 寬高；不全是 320×240）。
 
+## koei-wiki 匯出
+
+`dekoei/wiki_koukai3.py`，資料集 `koukai3-win`（中文版）。本 repo 沒有日文版，所以不填 `nameJa`。
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export koukai3-win --game-dir ../games/koukai3-win --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py persons-export koukai3-win --game-dir ../games/koukai3-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+### 人物（246 人）
+
+- `id` 同 kaodata，是人物表 0–245（見「人物」）。246–280 是部隊、海怪和空記錄，不列。
+- 遊戲只有一個開局，開始時選主角，沒有劇本，所以不填 `scenarios`。人物表也沒有記所在城市的欄位。
+- `stats`：狀態視窗顯示的四項，體力、智力、武力、魅力。`hidden`：運氣、信仰，有標籤表，但狀態視窗不顯示。來源見「能力」。
+- `more`：國籍、職業、名聲、惡名、星座、血型。其中國籍、職業、星座、血型是 🟡，列在 `uncertain`（見「人物」的欄位表）。
+- `skills`：`技能`（13 項）與 `外語`（14 種）中等級不是 0 的項目。等級 1–3 放在 `game.技能等級`、`game.外語等級`。
+- 國王、總督不列。職業表雖有「國王」「總督」，0–245 卻沒有一筆用到，可見他們在遊戲裡沒有人物記錄。
+- 姓存在另一個欄位，但 `name` 的寫法是「名•姓」，姓不在開頭，所以不填 `familyName`。
+- 沒填年齡和生日：+0x10 是和某個基準年齡的差，基準沒追；生日只有玩家才顯示。
+
+### 城市（226 個，其中港口 135 個）
+
+- `level`：城市 +0x60 設施位元的位元 0（港口）有設就是「港口」，沒設就是「城市」。兩個詞都是遊戲用語，分別來自設施名「港口」和城市視窗的「城市 %s」。
+- `region`：文化圈，用城市 +0x20 查 VA 0x552128 的 11 個名稱（伊比利亞…美洲）。遊戲在都市一覽裡問「想知道座標之都市的文化圈」。✅ cross：文化圈 9「日本」是長崎、界鎮、京都，6「中國」是澳門、廣州等。
+- `pos`：WORLD.CDS 的格座標，`grid: pixel`，`w`／`h` 是 2500×1250，對應 `world/world.png`。這張是依地形類別上色的示意圖，和 `koukai3-extras` 的 `map/world.png` 相同。`world_check` 檢查每個 `pos` 都落在城鎮格上，每個港口 3 格內都有海。
+- `game`：國家、規模、行情（%）、行情區、特產品、狀況、設施（位元 0–11 的名稱）、首都（國家表 +8 指到的城市），都是開局時的值。特產品、首都是 🟡，列在 `uncertain`。
+- 沒有 `adjacent`，因為遊戲沒有相鄰表；也沒有 `scenarios`，因為沒有劇本。
+
+### 檢查
+
+- 2026-11-14：`places-export` 匯出 226 個，587 筆檢查，0 筆不符（含 `world_check`）；`persons-export` 匯出 246 人，246 筆檢查，0 筆不符。koei-wiki 的 `verify_sanguo_places.py` 1637 筆、`verify_persons.py` 1969 筆，都是 0 筆不符。
+
 ## 下一輪候選
 
 - WORLD.CDS 的原畫面 — 前置：找到讀 WORLD.CDS 並貼 OCEAN.CDS 圖塊的函式；做法：從開檔字串 `WORLD.CDS` 的 xref 往下追畫面繪製。

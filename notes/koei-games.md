@@ -485,6 +485,20 @@ bitflag: 0xff66, cursor=98, dest_len=2012
 - 外字 EBAE 耆（伯耆）、EBB2 忱、EBB3 韶是照劇本裡的名字判斷的，和上面 USKCG.SYS 的順序（耆、攘、誅、揆、忱、韶）一致。
 - 沒做：同志數（0x1627:0x30D）、所在、id 423 以後的一般人物。
 
+#### koei-wiki 匯出（`persons-export ishin-pc98`）
+
+`dekoei.py persons-export ishin-pc98 --game-dir ../games/ishin-pc98 --out ../export/koei-wiki/persons`，讀取在 `wiki_ishin.py`。456 人，id 和 kaodata `ishin-pc98` 相同（0–422 史實人物，423 起是劇本 2、3 接手記錄的繼任者，順序照 `build_ishin_pc98`，逐筆對過名字）。
+
+- `familyName`：ISIN.EXE 的姓表（姓、名分開存）；姓欄就是全名的（スネル等）不填。沒有讀音。
+- `stats`：武力、剣道、学力、魅力、原体力（上段「能力」的兩張表）。`more`：年齢、戦闘経験、レベル、身分（遊戲寫法，如「土佐藩士」）、尊王、公議、佐幕、攘夷（思想四格是看數值判斷的，標 `uncertain`）。頂層取這個人第一次在地圖上的劇本，不是劇本 1 時寫在 `notes`。
+- `scenarios`：三個劇本（1858.1、1863.5、1867.11，ISIN.EXE 0x3E672 的字串）。每人只列用他名字的劇本（繼任者只有劇本 2、3）。
+  - `status` 是該劇本的身分原文（土佐藩士、幕臣、海援隊、浪人…），藩名就在裡面。
+  - `lord`：藩主、家老、重臣、藩士取同藩在地圖上的藩主；幕府的取将軍，朝廷的取天皇。每個劇本每藩剛好一個藩主在地圖上（66 藩）。諸隊、浪人、學者等沒有 `lord`。
+  - 28 bytes 記錄 +0x1B 的 bit 6 看起來是「劇本開始時在地圖上」（🟡，從值判斷：島津斉彬、吉田松陰在劇本 2 起是 0，高杉晋作只有劇本 2 是 1）。不在的劇本寫 `status`「不在」（第一次登場前）或「死亡」（登場過之後），兩者都標 `uncertain`。從不在地圖上的有 9 人（藤田東湖、阿部正弘、吉村寅太郎、榎本武揚等），之後是否由事件登場沒追，所以不用規格的「未登場」（要填 `debut`）。
+  - 各劇本的能力放 `scenarios[].stats`。
+- 沒填：所在（19 bytes 記錄 +0 像是目前所在的地點號，28 bytes 記錄 +4 像是根據地，0x5C 一帶是江戸、0x69 一帶是京都，但地點名稱表沒找到，也沒有地點匯出）、同志數、讀音、生年。
+- 檢查：`persons-export` 1735 筆、0 筆不符；koei-wiki `scripts/verify_persons.py ishin-pc98` 4829 筆、0 筆不符（2026-11-14）。
+
 ### PC-88 版（`ishin-pc88`）
 
 `dekoei.py export ishin-pc88` 用到的差異（`build_ishin_pc98(pc88=True)`）。PC-88 版 1989 年 4 月（ja.wikipedia，在 PC-98 之後）。

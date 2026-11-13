@@ -1209,7 +1209,8 @@ MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu2-dos": "wiki_nobu2_dos", "nobu3-pc9
            "nobu8pk-win": "wiki_nobu8", "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10",
            "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13", "nobu14pk-win": "wiki_nobu14", "nobu15pk-win": "wiki_nobu15", "nobu16pk-win": "wiki_nobu16",
            "kouryuuki-dos": "kouryuuki_extras", "genghis-pc98": "genghis_extras", "genchou-pc98": "genchou_extras",
-           "genghis4pk-win": "genghis4_extras", "genpei-pc98": "wiki_genpei"}
+           "genghis4pk-win": "genghis4_extras", "genpei-pc98": "wiki_genpei",
+           "koukai-pc98": "wiki_koukai", "koukai2-pc98": "wiki_koukai2", "koukai3-win": "wiki_koukai3"}
 
 
 def check(dataset, rows, out_dir):

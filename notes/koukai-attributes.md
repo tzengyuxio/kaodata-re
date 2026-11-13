@@ -89,6 +89,8 @@
 | 次要 | 疲勞 | 🟡 | +0x58（只追到玩家） | code |
 | 不明 | +0x5C（0–3） | ❌ | — | — |
 
+koei-wiki 匯出（`wiki_koukai3.py`）：狀態視窗顯示的四項放 `stats`，運氣、信仰放 `hidden`，技能和外語放 `skills`，等級放 `game`。見 `notes/koukai3.md`「koei-wiki 匯出」。
+
 ## 大航海時代IV PK HD（koukai4pk-win）
 
 `JP/World0.dll`、`World1.dll`、`TC/World0.dll` 裡 235 × 56 bytes 的人物表。
