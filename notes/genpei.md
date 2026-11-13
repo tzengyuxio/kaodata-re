@@ -354,6 +354,38 @@ genpei-zh `tools/dump_gfx.py` 已切出、本 repo 還沒寫程式的 planar 圖
 - 兩版的名字都有用空白補齊的（かむろ、賊、吉次、商人、静、政子、白拍子等），`load_generals` 會去掉尾端空白。`genpei-dos` 從 2026-11-10 起可以從 `games/genpei-dos/` 匯出，但還沒重新匯出到 kaodata（kaodata 只有 `genpei-pc98`）。
 - `genpei_extras.py` 只對 DOS 版測過；PC-98 的 Main.exe 沒有壓縮、位移不同，不能直接用。
 
+## koei-wiki 匯出
+
+2026-11-14 照 koei-wiki 的規格（`docs/persons-format.mkdn`「源平合戰」、`docs/places-format.mkdn`「交付順序」第 7 點）交出，讀取在 `dekoei/wiki_genpei.py`：
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export genpei-pc98 --game-dir ../games/genpei-pc98 --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py persons-export genpei-pc98 --game-dir ../games/genpei-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+../.venv/bin/python wiki_genpei.py --game-dir ../games/genpei-pc98 --out ../export/koei-wiki/portraits
+```
+
+- **資料集 `genpei-pc98`**：全部讀 PC-98 的檔。SNDATA.GP 和 DOS 的 Sndata.gp 只差 8 bytes（393 的「宗／宋」，4 個劇本各 2 bytes），✅ cross。PC-98 MAIN.EXE 的節點表（0x5B028）、邊表（0x5A668）、小地圖座標（0x587B4）和 DOS 展開後的 Main.exe 逐 byte 相同，✅ cross。
+- **人物**：
+  - 400 人，`id` 是武將號，和 kaodata `genpei-pc98` 相同。
+  - `stats` 是 1180 年劇本的 9 項能力加体力。能力在劇本之間會變（370 人），所以各劇本的值另放 `scenarios[].stats`。
+  - 年齢、兵質、動員力、体力、特技、血緣碼在四個劇本都相同。
+  - `born` 是 1180 減年齡。
+  - `scenarios` 的 `status` 取身分碼。7 在劇本裡都是死亡：沒有人先 7 後活，所以沒有「未登場」。死亡的劇本不列所屬與所在。6 只出現 2 次（瀬尾兼康、平重衡，推測是落武者），寫進 `uncertain`。
+  - `lord` 是所屬勢力的棟梁。
+  - 僧／女／公家取 1180 年。大江広元等 4 人之後成為御家人，公家旗標就沒了，`notes` 有寫。
+  - 非武將 390–399：名字整個存在姓的欄位，讀音延伸到名的欄位。年齡、能力、旗標都是 0，所以只交名字、讀音與頭像。
+- **據點**：
+  - 39 個，`level` 是「拠点」（Main.exe 的字串「拠点を選択してください」）。
+  - `adjacent` 是據點表的鄰接欄。koei-wiki 原本要的是沿道路、海路節點展開的結果，但展開後和鄰接欄不同：
+    - 連海路一起展開時，22/39 相同。海路連成一片，一個據點可以到 15 個。
+    - 只走陸路時，24/39 相同。
+    - 遊戲用的是鄰接欄，所以交鄰接欄。
+  - `pos` 是節點格中心，對 `extract/map/` 的 1696×360 大地圖。
+  - 商業、治安、農業、財貨、兵糧標 `uncertain`（`scenarios.<欄>`）。
+- **人物像**：`portraits/genpei-pc98/bust/<id>.png` 是 128×160 透明背景，`window/<id>.png` 是遊戲的 64×80 頭像窗（墊背景）。window 的 RGBA 和 kaodata `checksums.json` 的 `ch:<id>` 400/400 相同，也就是 R2 上 `faces/genpei-pc98/` 那一份。
+- **檢查**：據點 288 項、人物 3967 項，0 不符。koei-wiki 的 `verify_persons.py` 8198 項，0 不符。
+
 ## 下一輪候選
 
 - Opendat／Enddat 的色盤 — 前置：無；做法：在 Open.exe／End.exe 找 chunk offset 表（0x12160 等）旁邊的色盤號，或照 End.exe 0x9FAE 那種「色盤位置、offset、大小表」（DGROUP 0x5D0）整理。
