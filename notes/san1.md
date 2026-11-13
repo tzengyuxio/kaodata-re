@@ -32,6 +32,23 @@
 - 順序和 `san1-fc` 相同，`id` 也照 FC 從 1 起算。和 FC 寫法不同的 10 人照遊戲寫法：干禁、旬攸、許収、蔡仲、雷同、李湛、諸葛謹、刑道栄、鮑龍、沙摩可，以及和 FC 相同的尚寵（向寵）。都是錯字，依 `nameHistorical` 規則（見 CLAUDE.md）填史書寫法（`SAN1_PC98_NAME_HISTORICAL`，12 筆）。陳嬉（197）找不到對應的史書人物，不填。
   - 204 劉延在劉度帳下，是劉度之子劉賢，不是東郡太守劉延：填 `nameHistorical` 劉賢（2026-11-02，依據是使用者的三國志能力表（Google 試算表，2015）的備註；`san1-sfc` 也改寫成劉賢）。DOS 版的 `nameZh` 一併改成劉賢。
 
+## koei-wiki 匯出
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export san1-pc98 --game-dir ../games/san1-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+`wiki_san1.py`，koei-persons/1，255 人，`id` 同 kaodata `san1-pc98`（1–255，FC 順序）。PC-98 的劇本檔加密還沒解，所以姓名、讀音取 PC-98 `SAVEDATA` 槽 0，其他取 DOS 英文版 `SINADATA.DAT` 的 5 個劇本（每劇本 12490 bytes，+0 劇本號，+8 u16 年份 189、195、201、208、215；人物在 +4326）。兩邊頭像碼 255/255 相同（`wiki_stats.stats_san1_pc98` 有 assert）。
+
+- `name`、`stats`：和 `stats/san1-pc98.jsonl` 相同（✅ 逐筆比過）。錯字照遊戲，史書寫法（`SAN1_PC98_NAME_HISTORICAL` 12 人）寫在 `notes`。
+- `reading`：`SAVEDATA` 記錄 +0 的半形片假名轉平假名（最長 7 字，沒有截斷），照遊戲寫法（諸葛謹＝しょかつきん）。
+- `born`：劇本年減 +12 年齡；在地圖上的 247 人五個劇本算出來都一樣。`more.年齢` 取第一個登場的劇本。
+- `scenarios`：+24 國（＝ koei-places `san1-pc98` 的 `id` 1–58；4 冀州的袁紹、10 徐州的陶謙對得上）是 0 的劇本不列（不在地圖上）。`status` 用 PC-98 `SANMAIN.EXE` 的用語：+19 bit 1（君主旗標）是「君主」，+25 勢力非 0 是「現役武将」，勢力 0 是「在野武将」。`lord` 是同勢力的君主（每勢力剛好一位）。現役武将另填 `loyalty`（+18，🟡，標 `uncertain`）。
+- 曹叡、劉禅、劉永、劉理、劉琮、姜維、司馬昭、司馬師 8 人五個劇本都不在地圖上，沒有 `scenarios`、`born`；遊戲中途怎麼登場沒追，所以也不填「未登場」與 `debut`。其他人在較早的劇本不在地圖上的，同樣不列那個劇本。
+- 不填：字、親屬（遊戲沒有）、+19 bit 0（150 人有，比 FC 的「すいぐん」多太多，意思未定）、兵士數與兵三項（各劇本不同，規格沒有對應欄位）。
+- 檢查：persons-export 1754 項、koei-wiki `verify_persons.py` 3930 項，0 不符（2026-11-14）。
+
 ## 戰場地圖
 
 58 國各一張，14 欄 × 12 列，每格 1 byte，逐列存放；奇數欄往下錯半格排成六角格。格式和 FC 版相同（`famicom-re:sangokushi/docs/BATTLE_MAP.md`）：bit 3–5 是地形 0–5（平地、山、森林、河、城、雪山，名稱是 FC 那邊看圖取的），bit 0–2 是布陣區。
