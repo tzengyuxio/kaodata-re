@@ -64,7 +64,7 @@
 
 `dekoei.py persons-export taikoh2-pc98 --game-dir ../games/taikoh2-pc98 …`（`wiki_taikoh2.py`）。主資料集是 PC-98 版；`name` 用 Windows 中文版（`../taikoh2-win`，同一個人物號），日文寫法放 `nameJa`。id 同 kaodata（BSDATA1 的 695 人，再接有頭像的師匠與女性）。
 
-BSDATA1.TR2、BSDATA2.TR2 是兩個開局（寫成 scenario 1、2）：BSDATA1 武田信繁、山本勘助還在，BSDATA2 蜂須賀小六、竹中半兵衛已仕織田，推定前者約 1560、後者約 1567 年，檔裡沒找到年份，不填 `year`。記錄 59 bytes：
+BSDATA1.TR2、BSDATA2.TR2 是兩個開局（寫成 scenario 1、2）：BSDATA1 武田信繁、山本勘助還在，BSDATA2 蜂須賀小六、竹中半兵衛已仕織田，推定前者約 1560、後者約 1567 年。檔裡沒找到年份，`year` 照這個推估填，標 `uncertain`（koei-wiki 2026-11-14 要求）。記錄 59 bytes：
 
 | 位移 | 欄位 | 狀態 |
 |---|---|---|

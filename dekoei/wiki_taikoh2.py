@@ -2,7 +2,7 @@
 original release); names are the Windows Chinese version's (../taikoh2-win: the same BSDATA records by person
 number), the PC-98 ones go to nameJa. id is the kaodata taikoh2-pc98 id: BSDATA1.TR2 people below 695 in file order
 (466 「この人削除」 takes the BSDATA2 name), then the masters and women with a face. BSDATA1 and BSDATA2 are the two
-starts, written as scenarios 1 and 2 (no year: not found in the files). No places: the location byte indexes a table
+starts, written as scenarios 1 and 2 (year 1560 / 1567 estimated from who is alive; the files have none). No places: the location byte indexes a table
 not found yet. Field sources: notes/taikoh2.md 「koei-wiki 匯出」."""
 import os
 
@@ -18,6 +18,8 @@ BORN = 1490  # record +39 & 0x7F + 1490 (織田信長 1534, 武田信玄 1521, �
 ABSENT = 0x80  # record +39 bit 7: not on the map in this start (dead, or not appeared yet)
 CLAN, RANK = 48, 57  # 0xFF clan = none
 
+# the two starts' years, estimated from who is alive (koei-wiki asked for them, 2026-11-14)
+YEARS = (1560, 1567)
 
 def _records(path):
     with open(path, "rb") as f:
@@ -60,17 +62,18 @@ def persons(game_dir):
             s = recs[n]
             if s[39] & ABSENT:
                 if not seen:
-                    scenarios.append({"scenario": k, "status": "未登場"})
+                    scenarios.append({"scenario": k, "year": YEARS[k - 1], "status": "未登場"})
                 continue
             seen = True
-            e = {"scenario": k, "status": RANKS[s[RANK] & 7]}
+            e = {"scenario": k, "year": YEARS[k - 1], "status": RANKS[s[RANK] & 7]}
             if s[CLAN] in h:
                 e["lord"] = h[s[CLAN]]
             scenarios.append(e)
         row["scenarios"] = scenarios
-        row["uncertain"] = ["born"] + [f"stats.{k}" for k in STATS]
+        row["uncertain"] = ["born", "scenarios.year"] + [f"stats.{k}" for k in STATS]
         row["notes"] = ("身分、所屬是兩個開局（BSDATA1、BSDATA2）各自的值；記錄標為不在場、之前也沒出場過的寫未登場，"
-                        "出場過後不在場的（死亡或退場，遊戲沒寫）不列。沒有所在地。")
+                        "出場過後不在場的（死亡或退場，遊戲沒寫）不列。沒有所在地。year 是推估（檔案裡沒有年份）："
+                        "從誰還在世判斷，開局 1 約 1560 年（武田信繁、山本勘助還在），開局 2 約 1567 年（蜂須賀小六、竹中半兵衛已仕織田）。")
         rows.append(row)
     exe = os.path.join(game_dir, "MAIN.EXE")
     others_ja = kg.load_taikoh2_win_others(exe, os.path.join(game_dir, "SNDATA1.TR2"), kg.TAIKOH2_PC98_NAMES,
