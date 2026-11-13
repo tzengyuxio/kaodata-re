@@ -43,6 +43,22 @@
 - 外字 EBE5 是「卬」（司馬卬，看字形判讀，同 `KOHRYUKI_X68_GAIJI`）；`KOHRYUKIPerson.extends` 原本寫成「卭」，已修正。
 - ❌ 隱藏值的名稱、+1、外交「有」的作用。
 
+### koei-wiki 匯出（人物）
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py persons-export kouryuuki-dos --game-dir ../games/kouryuuki-dos --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
+```
+
+`wiki_kouryuuki.py`，koei-persons/1。PC-98 版要放在旁邊的 `../kouryuuki-pc98`。
+- 92 人，`id` 同 kaodata（0–91；頭像 92–96 沒有人物）。`name` 用中文版，`nameJa`、`reading` 取 PC-98 `MAIN.EXE` 的人名表（同順序，讀音轉平假名）。史書寫法（`KOURYUUKI_DOS_NAME_HISTORICAL`）寫在 `notes`。
+- `stats`：戰鬥、統御、用兵；`more`：年齡、體力、上限、經驗、外交（劇本 1 的值，標籤是中文版狀態視窗的字）。和 `koei_stats.load_kouryuuki_stats` 逐筆相同（✅ cross）。`born` 是名字表 +15 的西元前生年，寫成負數。
+- `scenarios`：劇本 1–4，`year` 是檔頭 +3 的西元前年份（負數），`month` 是檔頭 +1。
+  - `status`：人物 +0 bits 0–2，0 君主、1 配下、2 在野、7 不在，整組標 `uncertain`。每個勢力（bits 4–7）剛好一個 0，就是 `lord`；2 是在野（筆記上段）。「配下」借「の配下に」一詞，「不在」是自訂的：劇本 3 的審食其是 7，劇本 4 又回來，所以 7 不等於死亡（被俘等，沒追）。
+  - `location`：配下與君主的 +2 是軍隊號。軍隊記錄在 `SNDT` 0x1684（格子圖之後）起每筆 27 bytes，+0 是同勢力下一支的 DS 位址，+8／+9 是所在格的 y／x，+25 是勢力號；格號對上地點表 +17 的就是那個地點（🟡：看值判斷，項羽在彭城、劉邦在南鄭、黥布在六、章邯在廢丘都對）。在野的 +2 直接是地點號（雍齒在沛、張良在彭城，🟡）。軍隊不在城、關的格上時不填 `location`（劇本 3、4 共 35 筆）。
+- 沒填：隱藏值四項（名字表 +16，名稱不明）、軍隊的兵數等、`relations`（遊戲沒有）。
+- 檢查：persons-export 638 項、koei-wiki `verify_persons.py` 1489 項，0 不符。
+
 ## 地點與地圖
 
 大地圖是 55 × 44 格，地點 39 處（0–38），沒有州、郡這類區域。部隊在格子上移動，遊戲裡**沒有地點之間的相鄰表**。下文 DOS 位址是 `MAIN.EXE` 解壓後的映像位址。
