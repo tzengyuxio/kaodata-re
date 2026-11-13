@@ -593,6 +593,23 @@ cd dekoei
   - OPEN.EXE DS:0x8D6C 的色盤是開場用的染色，套到頭像會變綠。
 - PC-9801 版 1991-12-21（ja.wikipedia）。
 
+### koei-wiki 匯出
+
+`wiki_royal.py`：`dekoei.py persons-export royal-pc98 --game-dir ../games/royal-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`，地點用 `places-export royal-pc98`（先跑地點）。只有日文版，沒有 `nameJa`。
+
+- 劇本：`SNDATA1`–`4.CIM`（1896 bytes），整檔載入 DS:0x42（image 0x59C 以 `(ptr − 0xF2) / 10` 算人物號，✅ code）。排法和 `famicom-re:royal/docs/ROM_FORMAT.md` §2 的 FC 版相同，位置是 FC 的 +3。
+  - 檔案 +2（DS:0x44）是開局後的年數 0、5、10、15，+3（DS:0x45）是月，都是 12；0xD734 每月加 1，過 12 月時 DS:0x43、0x44 加 1（✅ code）。劇本名在 MAIN.EXE 0x2EB1A（エランとレッドワルト、フェリアス家の危機、ティリアンの戦い、ロイヤルブラッド）。沒有西曆年，不填 `year`。
+  - 人物 0xB0 起 10 bytes × 64：+0 指標、+2 政治、+3 軍事、+4 魅力、+5 所在国（FF 不在）、+6 家、+7 身分、+8 血縁、+9 名声。
+    - 能力名：image 0x8622 用 DS:0x56AE「政治%3d 軍事%3d 魅力%3d」印 +2、+3、+4（✅ code；FC 版只有圖示）。
+    - 身分：image 0x8660 把 +7 & 0xF 的 1、2、4 換成 1–3，0x8746 查 DS:0x1D50 的「当主」「領主」「家臣」（✅ code）。四個劇本裡每国最多一個当主或領主，人物的家都等於所在国的支配家（✅ code+cross）。
+    - 名声：image 0x8711 只對当主印 +9（✅ code），放在該劇本的 `stats`。
+    - 血縁：+8 不是 FF 時狀態畫面印「血縁」（image 0x86BA，✅ code）；值看起來是家號（カル、ウルフスタン是 1、2，即ブランシェ、ライル）【推】，換成家名放 `more.血縁`，標 `uncertain`。
+  - 国 0x330 起 36 bytes × 30，+14 是支配家（FF 空白地）。
+- 年齢：名字表的 13 bytes 記錄 +10 的 u16 是基準，image 0x5DE 加 DS:0x44（✅ code）。`more.年齢` 是第一個登場劇本開始時（12 月）的年齢。
+- `scenarios`：四個劇本都列，`lord` 是所屬家的当主，`location` 是国 id。所在国是 FF 的劇本照規則寫：第一次登場前「未登場」，之後「不在」（遊戲沒有稱呼）。
+- 地點：MAIN.EXE DS:0x1192 起 19 bytes × 30：+0 名字（9 bytes）、+9 相鄰（8 bytes，FF 結束，雙向一致），+17 兩 bytes 沒解（看值像地圖位置，沒匯出）。`level` 寫「国」（遊戲訊息「%d国には領主が居らぬ」）。各劇本寫支配家（`家`）與其当主。家名表在 DS:0x153C，11 bytes × 41。
+- 沒做：DS:0x1CD0 的 64 句人物簡介（image 0x8779 以人物號查表，但 0 號レッドワルト配的是「歴史学者としても名を馳せる元文官」，和人物對不上，待查）；第 5 部隊（DS:0x13CC）。
+
 ### PC-88 版（`royal-pc88`）
 
 `dekoei.py export royal-pc88` 用到的差異（`build_royal_pc98(pc88=True)`）。
