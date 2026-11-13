@@ -1287,17 +1287,20 @@ LABEL_FACE = ("Sarasa Gothic J", "SemiBold")
 LABEL_NUDGES = (0, -12, 12, -24, 24, -36, 36, -48, 48)
 
 
-def label_world_map(src, rows, icon_half, gap=2, size=20):
+def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1):
     """Draw an "id name" label for each place with a pos on the world map src (koei-wiki convention): white
     rounded box, black border and text. Each label goes below the icon (centred), else right of it (vertically
     centred), else above it, trying LABEL_NUDGES along the side; a spot is refused if it leaves the map or overlaps
-    an icon box (pos ± icon_half) or an earlier label. Labels are placed top to bottom, then left to right."""
+    an icon box (pos ± icon_half) or an earlier label. Labels are placed top to bottom, then left to right. scale > 1
+    enlarges the map (nearest neighbour) and pos by that factor first; icon_half is in enlarged pixels."""
     face = next((i for i in range(1000) if ImageFont.truetype(LABEL_FONT, size, index=i).getname() == LABEL_FACE),
                 None)
     font = ImageFont.truetype(LABEL_FONT, size, index=face)
     im = Image.open(src).convert("RGB")
+    im = im.resize((im.width * scale, im.height * scale), Image.NEAREST)
     d = ImageDraw.Draw(im)
-    rows = sorted((r for r in rows if r.get("pos")), key=lambda r: (r["pos"]["y"], r["pos"]["x"]))
+    rows = sorted(({**r, "pos": {"x": r["pos"]["x"] * scale, "y": r["pos"]["y"] * scale}} for r in rows if r.get("pos")),
+                  key=lambda r: (r["pos"]["y"], r["pos"]["x"]))
     icons = [(r["pos"]["x"] - icon_half, r["pos"]["y"] - icon_half,
               r["pos"]["x"] + icon_half, r["pos"]["y"] + icon_half) for r in rows]
 
@@ -1324,8 +1327,9 @@ def label_world_map(src, rows, icon_half, gap=2, size=20):
     return im
 
 
-# dataset -> (world map file, half the size of a city icon around pos)
-LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24), "kouryuuki-dos": ("world-spring.png", 24)}
+# dataset -> (world map file, half the size of a city icon around pos, enlargement)
+LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24, 1), "kouryuuki-dos": ("world-spring.png", 24, 1),
+                 "genpei-pc98": ("world-spring.png", 24, 2)}
 
 
 @click.command()
@@ -1336,10 +1340,10 @@ def places_label(dataset, places):
 
     dekoei.py places-label san4pk-pc98 --places ../export/koei-wiki/places
     """
-    name, icon_half = LABELLED_MAPS[dataset]
+    name, icon_half, scale = LABELLED_MAPS[dataset]
     with open(os.path.join(places, f"{dataset}.jsonl"), encoding="utf-8") as f:
         rows = [json.loads(line) for line in f]
     world = os.path.join(places, dataset, "world")
     out = os.path.join(world, name.replace(".png", "-labelled.png"))
-    label_world_map(os.path.join(world, name), rows, icon_half).save(out)
+    label_world_map(os.path.join(world, name), rows, icon_half, scale=scale).save(out)
     print(f"{dataset}: {sum(1 for r in rows if r.get('pos'))} labels -> {out}")

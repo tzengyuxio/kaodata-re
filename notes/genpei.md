@@ -361,6 +361,7 @@ genpei-zh `tools/dump_gfx.py` 已切出、本 repo 還沒寫程式的 planar 圖
 ```sh
 cd dekoei
 ../.venv/bin/python dekoei.py places-export genpei-pc98 --game-dir ../games/genpei-pc98 --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py places-label genpei-pc98 --places ../export/koei-wiki/places
 ../.venv/bin/python dekoei.py persons-export genpei-pc98 --game-dir ../games/genpei-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
 ../.venv/bin/python wiki_genpei.py --game-dir ../games/genpei-pc98 --out ../export/koei-wiki/portraits
 ```
@@ -381,10 +382,11 @@ cd dekoei
     - 連海路一起展開時，22/39 相同。海路連成一片，一個據點可以到 15 個。
     - 只走陸路時，24/39 相同。
     - 遊戲用的是鄰接欄，所以交鄰接欄。
-  - `pos` 是節點格中心，對 `extract/map/` 的 1696×360 大地圖。
+  - `pos` 是節點格中心，對 `places/genpei-pc98/world/world-{spring,summer,autumn,winter}.png`（1696×360，讀 PC-98 MAINMAP.GP、MAINPAL.PLD，和 DOS 的 `extract/map/worldmap_*.png` 逐 pixel 相同，✅ cross）。
+  - `world-spring-labelled.png` 是春季圖放大 2 倍（3392×720），39 個據點標「編號 名稱」，放法同三國志IV、項劉記（`notes/san-maps.md`），圖示框取 `pos` ± 24（放大後）；道路點、海路點不標。koei-wiki 2026-11-14 要求放進匯出。
   - 商業、治安、農業、財貨、兵糧標 `uncertain`（`scenarios.<欄>`）。
 - **人物像**：`portraits/genpei-pc98/bust/<id>.png` 是 128×160 透明背景，`window/<id>.png` 是遊戲的 64×80 頭像窗（墊背景）。window 的 RGBA 和 kaodata `checksums.json` 的 `ch:<id>` 400/400 相同，也就是 R2 上 `faces/genpei-pc98/` 那一份。
-- **檢查**：據點 288 項、人物 3967 項，0 不符。koei-wiki 的 `verify_persons.py` 8198 項，0 不符。
+- **檢查**：據點 288 項（加上大地圖後 327 項）、人物 3967 項，0 不符。koei-wiki 的 `verify_persons.py` 8198 項，0 不符。
 
 ## 下一輪候選
 

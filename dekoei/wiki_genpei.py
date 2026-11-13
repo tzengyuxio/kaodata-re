@@ -169,9 +169,16 @@ def places(game_dir, out_dir):
         row["uncertain"] = [f"scenarios.{n}" for n in PLACE_GUESSED]
         row["notes"] = ("adjacent 是據點表的鄰接欄（+0x12，全部雙向，四個劇本相同）；沿戰略地圖的道路、海路節點展開的結果和它不同"
                         "（海路連成一片，展開後一個據點可到 15 個），所以不用展開的；"
-                        "pos 是戰略地圖節點格的中心（節點座標加 (12, 8)），對應 games/genpei-dos/extract/map/ 的四季大地圖；"
+                        "pos 是戰略地圖節點格的中心（節點座標加 (12, 8)），對應 world/ 的四季大地圖（world-spring.png 等）；"
                         "scenarios 的 lord 是所屬勢力的棟梁，空白地沒有 lord")
         rows.append(row)
+    world = os.path.join(out_dir, "world")
+    os.makedirs(world, exist_ok=True)
+    px, w, h = gx.world_map(game_dir)
+    assert (w, h) == (WORLD_W, WORLD_H)
+    pal = genpei.read_game_file(game_dir, "Mainpal.pld")
+    for k, season in enumerate(gx.SEASONS):
+        gx.to_image(px, w, h, genpei.load_mainpal(pal, k)).save(os.path.join(world, f"world-{season}.png"))
     return rows
 
 
