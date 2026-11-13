@@ -1213,7 +1213,7 @@ MODULES = {"nobu2-pc88": "wiki_nobu2", "nobu2-dos": "wiki_nobu2_dos", "nobu3-pc9
            "koukai-pc98": "wiki_koukai", "koukai2-pc98": "wiki_koukai2", "koukai3-win": "wiki_koukai3",
            "koukai4pk-win": "wiki_koukai4", "koukaigd-win": "wiki_koukaigd",
            "ishin-pc98": "wiki_ishin", "lempe-dos": "wiki_lempe",
-           "taikoh-pc98": "wiki_taikoh", "royal-pc98": "wiki_royal"}
+           "taikoh-pc98": "wiki_taikoh", "royal-pc98": "wiki_royal", "lempe-pc98": "wiki_lempe_pc98"}
 
 
 def check(dataset, rows, out_dir):
@@ -1333,7 +1333,7 @@ def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1):
 
 # dataset -> (world map file, half the size of a city icon around pos, enlargement)
 LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24, 1), "kouryuuki-dos": ("world-spring.png", 24, 1),
-                 "genpei-pc98": ("world-spring.png", 24, 2)}
+                 "genpei-pc98": ("world-spring.png", 24, 2), "lempe-pc98": ("world.png", 24, 3)}
 
 
 @click.command()

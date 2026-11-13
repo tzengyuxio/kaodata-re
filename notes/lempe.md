@@ -83,7 +83,7 @@ cd dekoei
 城市（46 個）：
 - `name` 用中文版的寫法（28 號是「布倫」，實際是波爾多），`nameJa` 取 PC-88，`nameEn` 取英文版（地點規格 2026-11-14 加的欄位）。`level` 一律「城市」，遊戲沒有地方區分，不填 `region`。
 - `adjacent` 是 +26–+32（都柏林沒有相鄰）。`scenarios[].國` 是領有國，`lord` 是該國的國王或督政官。
-- `game.座標` 放 +16、+21，`game.臨海` 是 +33 bit 0（和地理一致，【推】），都標 `uncertain`。大地圖（`HEXDATA.DAT`）沒解，所以沒有 `pos` 和 `world/`。
+- `game.座標` 放 +16、+21，`game.臨海` 是 +33 bit 0（和地理一致，【推】），都標 `uncertain`。大地圖（`HEXDATA.DAT`）沒解，所以沒有 `pos` 和 `world/`。PC-98 版的大地圖與 `pos` 另出成 `lempe-pc98`（見下面「PC-98 版」）。
 - 檢查：places-export 320 項、persons-export 2508 項、koei-wiki `verify_persons.py` 5569 項、`verify_sanguo_places.py` 575 項，0 不符。
 
 ## 頭像碼 0xFF–0x103
@@ -123,6 +123,47 @@ cd dekoei
 - `nameHistorical`：DOS 版的 11 筆是中文翻譯錯誤，日文版寫法是對的（ミロー、ウディノ等），不填。
 - `nameZh`：和 `lempe-fc` 的 `nameZh` 相同（`LEMPE_PC88_NAME_ZH`），讓兩個假名版顯示同樣的中文名。內容是 DOS 中文版的人名，換上 `LEMPE_NAME_HISTORICAL` 的 11 筆，並在 7 位君主的名字加上世號（如 122 腓特烈·威廉三世、147 弗朗茨二世）。
 - P255–P259：拿破崙的第一執政、皇帝臉沿用 DOS 的結論（PC-88 `MAIN.COM` 0x31A2 的官銜表有同樣的「第一執政」「皇帝」）。P257–P259 的名字照 PC-88 的字串：`MAIN.OVL` 0x4389 ジョゼフィーヌ、マリー・ルイーズ，`COMSUB.OVL` 0x1270 ネルソン。
+
+## PC-98 版（`lempe-pc98`，只出地點與大地圖）
+
+給 koei-wiki〈遊戲/拿破崙/城市資料一覽〉的大地圖（2026-11-14 koei-wiki 要求）。頭像不另收（映像的 `KAODATA.DAT` 在頭像 92 以後損壞，見 `koei-platforms.md`）。
+
+- 來源：`~/game-library/_original/pc98/neo-kobe-2017-11-17/Koei/L'Empereur/L'Empereur [FD].zip` 的 Disk A、Disk B（`.hdm`，1024 bytes／sector 的 FAT12；Disk A 是自開機片，開機區沒有 BPB，照 2HD 的標準配置讀）。每片解開的原樣在 `games/archives/pc98/disks/lempe-pc98/{A,B}/`，合併後放 `games/lempe-pc98/`。版本 `REL.VER`「L'EMPEREUR PC-9801 Ver. 1.0A」。
+- `MAIN.EXE` 沒有壓縮，以下位址是 load image（檔案扣掉 0x3E00 的檔頭），DGROUP 是 0x38A2（image 0x38A20）。
+
+### 和 DOS 版的比對
+
+- `NPDATA1–5.CIM`（12024 bytes，整檔讀到 DS:0x42，image 0xBB70）一個劇本一檔。0–0x15FF 和 DOS 中文版同劇本的前 0x1600 bytes **byte 相同**：人物 255 筆（+2 起 15 bytes）、城市的領有國（4102＋28·c）、劇本年份（5628）。之後的設定區只是位置挪了幾個 byte。
+- 人名（0x2006 起 15 bytes）、國名（0x1820 起 9 bytes）是半形片假名，和 PC-88 `NPDATA.CIM` byte 相同。
+- 城市：0x18A8＋41·c，46 個，5 個劇本相同。+0 名字（12 bytes），+12 同 DOS 的 +15，+13 起 5 個 u16 x、+23 起 5 個 u16 y（0xFFFF 是沒有），+33–+40 是相鄰與旗標，和 DOS 的 +26–+33 byte 相同。DOS 的單 byte 座標在 PC-98 改成 u16，y 是 400 線的畫面座標。
+- 所以人物與城市的資料（名字、能力、劇本）沒有和 DOS 不同的地方；`places-export lempe-pc98` 的 `world_check` 每次重跑都比對一次。
+
+### 大地圖
+
+- `PACDATA.DAT` 的地圖表 DS:0x3898（u32 檔案位移）：0 號 0（640×272，全歐洲）、1–4 號 0x7899、0xB32D、0xF0DE、0x128E8（區域地圖）。image 0x680E 把 k 號畫在畫面 (0, 128)（k＝0）或 (312, 128)，目前的編號存在 DS:0x3986（✅ code）。
+- 圖的格式（讀取 image 0x7744，解碼 image 0x1476）：u16 寬、u16 高，之後逐列以 4 點為單位直接寫進 VRAM（一列 160 單位）。
+  - `b < 0x80`：再讀 `b2`，`((b >> 4) & 7) + 1` 個單位，B 平面＝`b2 & 15`、R＝`b2 >> 4`、G＝`b & 15`。
+  - `b ≥ 0x80`：複製 `(b & 15) + 1` 個單位，來源是往回 `((b >> 4) & 3) + 1` 個單位；bit 6 設了就是往上那麼多個畫面列（640 點）。
+  - 一列的單位用完就換列，超出列尾的部分會被下一列蓋掉。和 `utils.unpack_npk_3bits` 是同一套碼，差在垂直複製以畫面寬度計、以及換列的方式（✅ code）。
+  - 0 號圖解出來沒有讀到圖外的單位。
+- 色盤：淡入（image 0x7030）最後把類比色 1–7 設成 0x00F、0x0F0、0x0FF、0xF00、0xF0F、0xFF0、0xFFF（G、R、B 各 4 bit），也就是色號 G·4＋R·2＋B 的全亮 8 色；數位色盤表 DS:0x3104 是恆等（37 15 26 04）（✅ code）。沒有四季變化。
+- 地圖本身印著城市號，是 id＋1（都柏林是 1）。
+
+### koei-wiki 匯出
+
+```sh
+cd dekoei
+../.venv/bin/python dekoei.py places-export lempe-pc98 --game-dir ../games/lempe-pc98 --out ../export/koei-wiki/places
+../.venv/bin/python dekoei.py places-label lempe-pc98 --places ../export/koei-wiki/places
+```
+
+`wiki_lempe_pc98.py`，koei-places/1。旁邊要有 `../lempe-dos`（列直接取 `wiki_lempe.places` 的 lempe-dos 列）。
+
+- 46 城的 id、name、nameJa、nameEn、相鄰、各劇本的國與 lord 同 `lempe-dos`；拿掉 `game.座標`，改出 `pos`。
+- `pos`：城市圖示在畫面上畫在 (x·8, y)，x、y 是記錄 +13、+23 的第 0 組（第 k 組給 k 號地圖），大小 24×16（image 0x6BA6 畫 3 bytes × 16 列的圖；滑鼠判定 0x3017 是 x·8…x·8＋24、y…y＋16）（✅ code）。`pos` 取圖示中心減去地圖的畫面位置：(x·8＋12, y＋8−128)，`grid: pixel`，`w`／`h` 640×272。
+- `world/world.png` 是 0 號圖；`world-labelled.png` 放大 3 倍標「id 名稱」（`LABELLED_MAPS`）。
+- 檢查：places-export 693 項（含 `world_check`：5 個劇本的前 0x1600 bytes 和 46 城的相鄰與旗標對 DOS、nameJa 對 PC-98 城名、`pos` 在圖內），koei-wiki `verify_sanguo_places.py lempe-pc98` 529 項，0 不符。
+- 沒做：1–4 號區域地圖與它們的座標組；地圖沒有和遊戲畫面截圖比對過。
 
 ## X68000 版（`lempe-x68`）
 
