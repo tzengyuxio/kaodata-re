@@ -61,8 +61,7 @@ def persons(game_dir):
         for k, (recs, h) in enumerate(zip(starts, heads), 1):
             s = recs[n]
             if s[39] & ABSENT:
-                if not seen:
-                    scenarios.append({"scenario": k, "year": YEARS[k - 1], "status": "未登場"})
+                scenarios.append({"scenario": k, "year": YEARS[k - 1], "status": "不在" if seen else "未登場"})
                 continue
             seen = True
             e = {"scenario": k, "year": YEARS[k - 1], "status": RANKS[s[RANK] & 7]}
@@ -72,7 +71,7 @@ def persons(game_dir):
         row["scenarios"] = scenarios
         row["uncertain"] = ["born", "scenarios.year"] + [f"stats.{k}" for k in STATS]
         row["notes"] = ("身分、所屬是兩個開局（BSDATA1、BSDATA2）各自的值；記錄標為不在場、之前也沒出場過的寫未登場，"
-                        "出場過後不在場的（死亡或退場，遊戲沒寫）不列。沒有所在地。year 是推估（檔案裡沒有年份）："
+                        "出場過後不在場的（死亡或退場，遊戲沒寫）寫不在。沒有所在地。year 是推估（檔案裡沒有年份）："
                         "從誰還在世判斷，開局 1 約 1560 年（武田信繁、山本勘助還在），開局 2 約 1567 年（蜂須賀小六、竹中半兵衛已仕織田）。")
         rows.append(row)
     exe = os.path.join(game_dir, "MAIN.EXE")
