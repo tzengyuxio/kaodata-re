@@ -27,6 +27,7 @@ DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98"
             "lempe-dos": "wiki_lempe", "ishin2-win": "wiki_ishin2",
             "taikoh-pc98": "wiki_taikoh", "taikoh2-pc98": "wiki_taikoh2",
             "taikoh3-win": "wiki_taikoh3", "taikoh4-win": "wiki_taikoh4", "taikoh5dx-win": "wiki_taikoh5",
+            "eiketsu3-win": "wiki_eiketsu3", "eiketsu4-win": "wiki_eiketsu4",
             "eiketsu-dos": "wiki_eiketsu", "eiketsu-pc98": "wiki_eiketsu",
             "koumei-win": "wiki_koumei", "eiketsu5-win": "wiki_eiketsu5"}
 

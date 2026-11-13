@@ -99,10 +99,11 @@
 
 ## koei-wiki 匯出（koei-persons/1）
 
-`dekoei.py persons-export <dataset> --game-dir ../games/<dataset> --out ../export/koei-wiki/persons`：英傑傳（`wiki_eiketsu.py`，見 `eiketsu.md`）、孔明傳（`wiki_koumei.py`）、曹操傳（`wiki_eiketsu5.py`）。`id` 同 kaodata 資料集；推定的欄位列在 `uncertain`，遊戲寫法和史書不同的寫進 `notes`。
+`dekoei.py persons-export <dataset> --game-dir ../games/<dataset> --out ../export/koei-wiki/persons`：英傑傳（`wiki_eiketsu.py`，見 `eiketsu.md`）、孔明傳（`wiki_koumei.py`）、毛利元就傳（`wiki_eiketsu3.py`）、織田信長傳（`wiki_eiketsu4.py`）、曹操傳（`wiki_eiketsu5.py`）。`id` 同 kaodata 資料集；推定的欄位列在 `uncertain`，遊戲寫法和史書不同的寫進 `notes`。
 
 - 孔明傳：240 人，一個名字取第一筆記錄的能力（結尾重複的 498–506 全是 0）；黃氏、黃承彥、崔州平、獻帝的能力全是 0，不填。`stats` 武力 統御力 智力、`more` 耐久力? 策略值?、`game` 兵種 等級 道具，全部推定。
 - 曹操傳：162 人（記錄 0–173 去掉道具與帶數字的分身）。`stats` 武力 統率 智力 敏捷 運氣（統率、智力的名稱推定）、`more` HP MP、`game` 兵種 等級 武器 護具 輔助。
+- 毛利元就傳（`wiki_eiketsu3.py`）201 人、織田信長傳（`wiki_eiketsu4.py`）186 人：見 `eiketsu3.md`、`eiketsu4.md`「koei-wiki 匯出」；占位記錄的人不填能力。2026-11-14 koei-wiki 檢查 1114＋1217 項，0 不符。
 - 2026-11-11：本地檢查孔明傳 240、曹操傳 162 項；koei-wiki `verify_persons.py` 2402 項（1429＋973），0 不符。
 
 ## 下一輪候選

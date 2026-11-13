@@ -59,6 +59,17 @@
 - 角色用到的臉放 `portraits.bin`，其他放 `extra.bin`。
 - `nameHistorical`：神原康政→榊原康政、佐佐成正→佐佐成政、下間賴簾→下間賴廉。
 
+## koei-wiki 匯出
+
+`dekoei.py persons-export eiketsu3-win --game-dir ../games/eiketsu3-win --out ../export/koei-wiki/persons`（`wiki_eiketsu3.py`，koei-persons/1）。
+
+- 201 人，`id` 和順序同上一節的 kaodata 匯出（`EIKETSU3_WIN_PEOPLE`＋`EIKETSU3_WIN_ALIASES`）。
+- 欄位：`stats` 攻擊力 防禦力 智力 運氣 技能值 命中率 敏捷；`more` 耐久力；`game` 兵種、等級（0 寫成 1）、道具（第 1 段的名稱，照格子順序）。技能值、命中率、敏捷列在 `uncertain`（只靠標籤順序對位）。
+- 一人有多筆記錄時，用名字和條目名相同的那筆，沒有就用第一筆非占位的記錄；其他記錄寫進 `notes`。妙姬用 799（181「夫人」能力不同）；吉川元春的 184「少輔次郎」能力相同。
+- 占位記錄（八項數值全是 1 或全是 50）不填能力，只留 `id`、`name`、`notes`：31 人，例如織田信長（125）、今川義元、足利義稙／義輝／義昭、杉夫人等各家女性、神秘僧侶（797）。
+- 沒有填：絕招（學習條件沒解）、成長、劇本（章節不是劇本，同曹操傳）、`nameJa`（日文版沒對過）。
+- 2026-11-14：本地 201 項、koei-wiki `verify_persons.py` 1114 項，0 不符。
+
 ## 待確認
 
 - 年齡臉實際在哪些劇情換上（要解 EEX 劇本）；28（白頭巾）、151、159、211 是誰。
