@@ -1289,15 +1289,18 @@ def places_export(dataset, game_dir, out):
 LABEL_FONT = os.path.expanduser("~/Library/Fonts/Sarasa-SuperTTC.ttc")
 LABEL_FACE = ("Sarasa Gothic J", "SemiBold")
 LABEL_NUDGES = (0, -12, 12, -24, 24, -36, 36, -48, 48)
+LABEL_NUDGES_FAR = tuple(n for k in range(0, 13) for n in ((-6 * k, 6 * k) if k else (0,)))  # number-only labels
 
 
-def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1, first=0):
+def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1, first=0, dots=False):
     """Draw an "id name" label for each place with a pos on the world map src (koei-wiki convention): white
     rounded box, black border and text. Each label goes below the icon (centred), else right of it (vertically
     centred), else above it, trying LABEL_NUDGES along the side; a spot is refused if it leaves the map or overlaps
     an icon box (pos ± icon_half) or an earlier label. Labels are placed top to bottom, then left to right. scale > 1
     enlarges the map (nearest neighbour) and pos by that factor first; icon_half is in enlarged pixels. The label number
-    is id + first (1 where the game itself numbers from 1)."""
+    is id + first (1 where the game itself numbers from 1). dots=True is for maps without place icons (the 大航海
+    schematics): each pos gets a red dot of radius icon_half, and a label that has no free spot shrinks to the number
+    alone (the full list is on the wiki page)."""
     face = next((i for i in range(1000) if ImageFont.truetype(LABEL_FONT, size, index=i).getname() == LABEL_FACE),
                 None)
     font = ImageFont.truetype(LABEL_FONT, size, index=face)
@@ -1313,17 +1316,25 @@ def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1, first=0):
         return b[0] >= 0 and b[1] >= 0 and b[2] <= im.width and b[3] <= im.height and \
             not any(b[0] < q[2] and q[0] < b[2] and b[1] < q[3] and q[1] < b[3] for q in taken)
 
+    if dots:
+        for r in rows:
+            x, y = r["pos"]["x"], r["pos"]["y"]
+            d.ellipse((x - icon_half, y - icon_half, x + icon_half, y + icon_half), fill="red", outline="black")
     placed = []
     for r in rows:
-        text = f"{r['id'] + first} {r['name']}"
-        left, top, right, bottom = d.textbbox((0, 0), text, font=font)
-        w, h = right - left + 10, bottom - top + 4
         x, y = r["pos"]["x"], r["pos"]["y"]
-        spots = [(x - w // 2 + n, y + icon_half + gap) for n in LABEL_NUDGES] + \
-            [(x + icon_half + gap, y - h // 2 + n) for n in LABEL_NUDGES] + \
-            [(x - w // 2 + n, y - icon_half - gap - h) for n in LABEL_NUDGES]
-        box = next(((x0, y0, x0 + w, y0 + h) for x0, y0 in spots if free((x0, y0, x0 + w, y0 + h), placed + icons)),
-                   None)
+        for text, nudges in [(f"{r['id'] + first} {r['name']}", LABEL_NUDGES)] + \
+                ([(f"{r['id'] + first}", LABEL_NUDGES_FAR)] if dots else []):
+            left, top, right, bottom = d.textbbox((0, 0), text, font=font)
+            w, h = right - left + 10, bottom - top + 4
+            spots = [(x - w // 2 + n, y + icon_half + gap) for n in nudges] + \
+                [(x + icon_half + gap, y - h // 2 + n) for n in nudges] + \
+                [(x - w // 2 + n, y - icon_half - gap - h) for n in nudges] + \
+                [(x - icon_half - gap - w, y - h // 2 + n) for n in nudges if nudges is LABEL_NUDGES_FAR]
+            box = next(((x0, y0, x0 + w, y0 + h) for x0, y0 in spots
+                        if free((x0, y0, x0 + w, y0 + h), placed + icons)), None)
+            if box:
+                break
         if box is None:
             raise click.ClickException(f"no free spot for label {text}")
         placed.append(box)
@@ -1337,6 +1348,11 @@ LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24, 1), "kouryuuki-dos": ("world
                  "genpei-pc98": ("world-spring.png", 24, 2), "lempe-pc98": ("world.png", 24, 3)}
 # label numbers start here instead of 0 where the map itself prints id + 1
 LABEL_FIRST = {"lempe-pc98": 1}
+# 大航海 world maps are schematics without port icons: draw dots, smaller text, number-only labels where crowded
+LABELLED_MAPS.update({"koukai-pc98": ("world.png", 3, 2), "koukai2-pc98": ("world.png", 3, 1),
+                      "koukai3-win": ("world.png", 3, 2), "koukai4pk-win": ("world.png", 3, 1),
+                      "koukaigd-win": ("world.png", 3, 1)})
+LABEL_DOTS = {"koukai-pc98", "koukai2-pc98", "koukai3-win", "koukai4pk-win", "koukaigd-win"}
 
 
 @click.command()
@@ -1352,5 +1368,7 @@ def places_label(dataset, places):
         rows = [json.loads(line) for line in f]
     world = os.path.join(places, dataset, "world")
     out = os.path.join(world, name.replace(".png", "-labelled.png"))
-    label_world_map(os.path.join(world, name), rows, icon_half, scale=scale, first=LABEL_FIRST.get(dataset, 0)).save(out)
+    dots = {"dots": True, "size": 16} if dataset in LABEL_DOTS else {}
+    label_world_map(os.path.join(world, name), rows, icon_half, scale=scale, first=LABEL_FIRST.get(dataset, 0),
+                    **dots).save(out)
     print(f"{dataset}: {sum(1 for r in rows if r.get('pos'))} labels -> {out}")

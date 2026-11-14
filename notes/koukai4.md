@@ -188,6 +188,7 @@ cd dekoei
   - `level` 都是「港」（遊戲字串「入港する」「寄港」）。`region` 是地域（+0x25，`DK4HD_jp.exe` 0x1405b73e0 的表），`game.海域` 是地域 +8 的海域。
   - `game`：施設（+0x48 位元）、中心港（+0x24，名稱是 kaodata-re 取的，遊戲沒有這個詞）、シェア（+0x4C 三組勢力與 %，遊戲訊息「%sのシェアが」）；PK 不同的放 `PK施設`、`PKシェア`。施設、シェア 🟡，標 `uncertain`。
   - `pos`：+0x14、+0x18 港町位置（地圖單位）除以 16 成格，`w`／`h` 2500×1250。`world/world.png` 是 `World.dat` 一格一點，每格是 `Chip.DK4` 圖塊縮成一點疊在海面貼圖上，等於 `extract/map/world.png` 縮成 1/4。`world_check` 檢查每港 4 格內有海（含海岸圖塊）。
+  - 標號圖：`dekoei.py places-label koukai4pk-win --places ../export/koei-wiki/places` 寫 `world/world-labelled.png`（原尺寸 2500×1250）。地圖沒有港口圖示，所以每個 `pos` 畫紅點，標「編號 名稱」，擠到放不下的只標編號（`places_export.LABEL_DOTS`）。 這張由遊戲圖塊縮成，是五代裡唯一用遊戲圖塊的；原尺寸 10000×5000 的 `extract/map/world.png` 太大，不交。
   - 交易所、相場、+0x52／+0x54 不在這次範圍。
 - 檢查：港口 194 筆、人物 130 筆，0 不符；koei-wiki 的 `verify_sanguo_places.py` 844 筆、`verify_persons.py` 737 筆，0 不符。
 

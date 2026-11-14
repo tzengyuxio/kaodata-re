@@ -26,7 +26,7 @@
 - 女性 0x7D0 起 21 筆 × 16 bytes；男性 0x920 起 41 筆 × 20 bytes（0x5D4C 以 `DS:0x970 + id × 20` 取用）。姓名 15 bytes，光榮台灣內碼（`koei_games.load_koukai_dos_people`）。
 - 女性 i 用頭像 13＋i（0x9F7E）。
 - `id`：男性 0–40、女性 41–61，和 `koukai-fc` 一致（男性國籍和 FC 的 variant 全部吻合）。女性 61 克莉絲汀娜（頭像 33）在 FC 只有頭像、沒有人物。
-- 人物都是虛構的，不填 `nameHistorical`。4 號「亞米洯斯」的「洯」沒驗證。
+- 人物都是虛構的，不填 `nameHistorical`。4 號「亞米洯斯」的「洯」：名字記錄是光榮內碼 0xB7C0（次常用字，CNS 2-3041），中文版的訊息字型 `ALLHAN.16P`（1249 字，每字 Big5 碼＋28 bytes 字形，看起來只收遊戲用到的字，不是全字庫）有 Big5 0xD25E＝洯，字形是「㓞」下「水」；音近的「浰」（D259）不在字型裡（✅ cross：內碼解碼和遊戲字型一致）。同樣是次常用字的「婭」（51、54、57、60 號女性）和 67 號港「強蘠」的「蘠」也都在字型裡。沒有和遊戲畫面比對。
 
 ### 能力
 
@@ -141,6 +141,7 @@ cd dekoei
 
 - `level` 都是「港」（`MAIN.EXE` 的「%s港」「中立港」）。沒有 `region`、`adjacent`：遊戲沒有海域或相鄰表。
 - `pos` 是 `x = bx × 14 + fx`、`y = by × 14 + fy`（見上方「港口位置」），`grid: pixel`，`w`／`h` 是 1008×504，對 `world/world.png`（`NEWGAME.DAT` 每個 byte 畫 2×2 點的示意圖，不是遊戲圖塊）。9 個港口離海岸稍遠，所以全部標 `uncertain`。
+- 標號圖：`dekoei.py places-label koukai-pc98 --places ../export/koei-wiki/places` 寫 `world/world-labelled.png`（放大 2 倍，2016×1008）。地圖沒有港口圖示，所以每個 `pos` 畫紅點，標「編號 名稱」，擠到放不下的只標編號（`places_export.LABEL_DOTS`）。 遊戲本身的圖塊 `MAP.PUT` 沒解出（見「負面結論」），所以只有示意圖。
 - 0–49 號有 `game`：同盟（港口 +19 & 3）、経済価値、経済投資額、工業価値、工業投資額、支持率、物価（%），都是開局的值，來源見上方「港口經濟」。50–69 號沒有經濟記錄，只有名稱和位置。
 
 ### 檢查

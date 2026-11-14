@@ -56,7 +56,6 @@ def persons(game_dir):
     for i, (ja, zh) in enumerate(zip(women, women_zh)):
         rows.append({"id": 41 + i, "name": zh, **({"nameJa": ja} if ja != zh else {}),
                      "notes": "女性人物，遊戲只存名字（頭像 13＋序號）。"})
-    rows[4]["notes"] += "中文名「亞米洯斯」的「洯」沒有和遊戲畫面核對。"
     return rows
 
 

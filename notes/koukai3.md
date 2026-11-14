@@ -230,6 +230,7 @@ cd dekoei
 - `level`：城市 +0x60 設施位元的位元 0（港口）有設就是「港口」，沒設就是「城市」。兩個詞都是遊戲用語，分別來自設施名「港口」和城市視窗的「城市 %s」。
 - `region`：文化圈，用城市 +0x20 查 VA 0x552128 的 11 個名稱（伊比利亞…美洲）。遊戲在都市一覽裡問「想知道座標之都市的文化圈」。✅ cross：文化圈 9「日本」是長崎、界鎮、京都，6「中國」是澳門、廣州等。
 - `pos`：WORLD.CDS 的格座標，`grid: pixel`，`w`／`h` 是 2500×1250，對應 `world/world.png`。這張是依地形類別上色的示意圖，和 `koukai3-extras` 的 `map/world.png` 相同。`world_check` 檢查每個 `pos` 都落在城鎮格上，每個港口 3 格內都有海。
+- 標號圖：`dekoei.py places-label koukai3-win --places ../export/koei-wiki/places` 寫 `world/world-labelled.png`（放大 2 倍，5000×2500；有城鎮相距只有 2 格，原尺寸放不下）。地圖沒有港口圖示，所以每個 `pos` 畫紅點，標「編號 名稱」，擠到放不下的只標編號（`places_export.LABEL_DOTS`）。 格值對到 `OCEAN.CDS` 圖塊的方法沒解出（見「負面結論」），所以只有示意圖。
 - `game`：國家、規模、行情（%）、行情區、特產品、狀況、設施（位元 0–11 的名稱）、首都（國家表 +8 指到的城市），都是開局時的值。特產品、首都是 🟡，列在 `uncertain`。
 - 沒有 `adjacent`，因為遊戲沒有相鄰表；也沒有 `scenarios`，因為沒有劇本。
 

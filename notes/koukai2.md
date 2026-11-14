@@ -184,6 +184,7 @@ cd dekoei
 - `pos`：
   - 值是港口表 +0、+2 的地圖格，`grid: pixel`，`w`／`h` 是 2160×1080。
   - 對應的圖是 `world/world.png`，用 `koukai2_extras.world` 畫的海陸圖，不是遊戲圖塊。
+  - 標號圖：`dekoei.py places-label koukai2-pc98 --places ../export/koei-wiki/places` 寫 `world/world-labelled.png`（原尺寸 2160×1080）。地圖沒有港口圖示，所以每個 `pos` 畫紅點，標「編號 名稱」，擠到放不下的只標編號（`places_export.LABEL_DOTS`）。 航海畫面用的海、陸圖塊沒找到（`WORLDMAP.LZW` 只有海陸遮罩與代碼），所以只有示意圖。
   - 130 個港口都落在地圖的港口小格上（上方「世界地圖」），所以不標 `uncertain`。
 - `game`：
   - `同盟`：+0x15 低 3 bit 的國名，6 表示沒有同盟，不填。

@@ -189,6 +189,7 @@ cd dekoei
 - `level`：0–99 是「港」，100–129 是「補給港」。港口視窗的字串是「%s港」「補給港」「地區」（exe 檔案 0x75E1C）。
 - `region` 是港口狀態 +33 的商圈名（exe 指標表 0x5F44C），補給港沒有。
 - `pos` 是港口表 +0、+2 的地圖格（2160×1080，`grid: pixel`）；130 個都和 `koukai2-pc98` 的港口相同（Worldmap.lzw 也和 II byte 相同），✅ cross。`world/world.png` 是海陸示意圖，不是遊戲圖塊。
+- 標號圖：`dekoei.py places-label koukaigd-win --places ../export/koei-wiki/places` 寫 `world/world-labelled.png`（原尺寸 2160×1080）。地圖沒有港口圖示，所以每個 `pos` 畫紅點，標「編號 名稱」，擠到放不下的只標編號（`places_export.LABEL_DOTS`）。 和 II 一樣只有示意圖。
 - `game`：`同盟`（+0x15 低 3 bit，6 是沒有同盟）；0–99 號另有開局時的 `商業價值`（狀態 +0）、`工業價值`（+4）、`支持度`（+8–13，六國）。名稱取 exe 的字串，欄位對應照 II（沒讀外傳的程式），三項標 `uncertain`。
 
 ### 檢查
