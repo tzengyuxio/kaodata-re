@@ -9,7 +9,7 @@
 | PC-88 | 26 | 14 | 2 | 1 | 1 | 8 |
 | PC-98 | 64 | 38 | 7 | 5 | 8 | 6 |
 | X68000 | 23 | 20 | 2 | 0 | 0 | 1 |
-| DOS 中文版 | 23 | 18 | 1 | 0 | 0 | 4 |
+| DOS 中文版 | 23 | 18 | 2 | 0 | 0 | 3 |
 | DOS 英文版 | 16 | 2 | 5 | 0 | 1 | 8 |
 | DOS/V（日文版） | 7 | 0 | 0 | 0 | 0 | 7 |
 
@@ -217,7 +217,7 @@
 | 1994 | 三國志IV（含威力加強版） | 已匯出 | `san4pk-dos` | 本體不另收 | `dos/三國志４_中文版_San4.rar`、`dos/6.10_三國志四加強版_killpeople.rar` |
 | 1994 | 源平合戰 | 標為版本 | → `genpei-pc98` | 舊 id `genpei-dos`，手上沒有原檔 | — |
 | 1994? | 光榮賽馬（ウイニングポスト） | 已匯出 | `winning-dos`（winning-post-zh 匯出） |  | — |
-| 1994? | 大航海時代II | 沒有檔案 |  | README 的舊 face 命令支援過 | — |
+| 1994 | 大航海時代II | 不另收 | → `koukai2-pc98` | 頭像（`KAO.LZW`）和 PC-98 byte 相同；人名、港名給 koei-wiki 匯出當 `name`（`notes/koukai2.md`「DOS 中文版」） | NAS「經典DOS遊戲合集1886款」的 `DOS/DHH2/`（取出在 `games/koukai2-dos/`） |
 | 1994? | 提督之決斷II | 沒有檔案 |  | README 的舊 face 命令支援過 | — |
 | 1995 | 太閤立志傳 | 已匯出 | `taikoh-dos` | DOSBox 包 | `win/[系列] 太閣立志傳 …/$太閤立志傳1.rar` |
 | 1995 | 三國志英傑傳 | 已匯出 | `eiketsu-dos` |  | `dos/6.10_三國志英傑傳_killpeople.rar` |

@@ -1,5 +1,7 @@
-"""大航海時代II for koei-wiki (koei-persons/1, koei-places/1): dataset koukai2-pc98 (Japanese only, no Chinese
-version). Field sources are in notes/koukai2.md「koei-wiki 匯出」.
+"""大航海時代II for koei-wiki (koei-persons/1, koei-places/1): dataset koukai2-pc98, names from the Chinese DOS
+version koukai2-dos (DATA1.LZW part 15 has the same records in the same order; only the name bytes differ, in the
+KOEI Taiwan internal code), the Japanese ones in nameJa. Field sources are in notes/koukai2.md「koei-wiki 匯出」and
+「DOS 中文版」.
 
 - Persons: kaodata ids (build_koukai2_pc98): mates 0-119, event people 120-139, tavern women 140-169 of DATA1.LZW
   part 15 (the start state). The six heroes share this one start state, so there is no scenarios field; the start
@@ -15,6 +17,7 @@ import struct
 from PIL import Image
 
 import koei_games
+from koei_games import koei_tw_name
 import koukai2_extras as x
 from koei_stats import KOUKAI2_NATIONS, KOUKAI2_SKILLS, KOUKAI2_STATS
 from ls11 import ls11_decode_parts
@@ -28,22 +31,38 @@ def _state(game_dir):
     return ls11_decode_parts(open(os.path.join(game_dir, "DATA1.LZW"), "rb").read())[15]
 
 
+def _dos_state(game_dir):
+    return _state(os.path.join(game_dir, "..", "koukai2-dos"))
+
+
 def _port_names(st):
     return [x.cstr(st[x.II_LAYOUT["ports"] + 22 * k + 4:][:17]) for k in range(x.N_PORTS)]
 
 
+def _port_names_zh(zh):
+    return [koei_tw_name(zh[x.II_LAYOUT["ports"] + 22 * k + 4:][:17]) for k in range(x.N_PORTS)]
+
+
+def _names(zh, ja):
+    return {"name": zh, **({"nameJa": ja} if ja != zh else {})}
+
+
 def persons(game_dir):
     st = _state(game_dir)
+    zh = _dos_state(game_dir)
     exe = open(os.path.join(game_dir, "MAIN.EXE"), "rb").read()
     ranks = x.ds_strings(exe, 0x8A2, 7)
-    ports = _port_names(st)
+    ports = _port_names_zh(zh)
     mates, events, tavern = koei_games.load_koukai2_pc98_people(os.path.join(game_dir, "DATA1.LZW"))
     start, _, size = koei_games.KOUKAI2_PC98_MATES
     rows = []
     for i, (name, _, _) in enumerate(mates):
         r = st[start + i * size:][:size]
+        z = zh[start + i * size:][:size]
+        assert r[26:] == z[26:]  # only the names differ in the Chinese record
         o = 28
-        row = {"id": i, "name": name, "stats": dict(zip(KOUKAI2_STATS[:7], r[o:o + 7]))}
+        row = {"id": i, **_names(koei_tw_name(z[:13]) + "•" + koei_tw_name(z[13:26]), name),
+               "stats": dict(zip(KOUKAI2_STATS[:7], r[o:o + 7]))}
         more = {"年齢": r[42], "国籍": KOUKAI2_NATIONS[r[49] & 0xF], "航海Lv": r[36],
                 "航海経験": struct.unpack_from("<H", r, 38)[0], "戦闘Lv": r[37],
                 "戦闘経験": struct.unpack_from("<H", r, 40)[0]}
@@ -60,9 +79,10 @@ def persons(game_dir):
         row["notes"] = ("主人公（六人中選一人玩）。" if i < 6 else
                         "艦隊提督（開局時率領艦隊）。" if r[46] == 1 else "航海士（可以在酒館招為同伴）。")
         rows.append(row)
+    e0, _, esize = koei_games.KOUKAI2_PC98_EVENT
     for k, (name, _) in enumerate(events):
         i = 120 + k
-        row = {"id": i, "name": name}
+        row = {"id": i, **_names(koei_tw_name(zh[e0 + k * esize:][:16]), name)}
         if i in KINGS:
             row["more"] = {"国籍": KOUKAI2_NATIONS[i - 130]}
             row["uncertain"] = ["more.国籍"]
@@ -73,13 +93,15 @@ def persons(game_dir):
     t0, _, tsize = koei_games.KOUKAI2_PC98_TAVERN
     for k, (name, _) in enumerate(tavern):
         r = st[t0 + k * tsize:][:tsize]
-        rows.append({"id": 140 + k, "name": name, "game": {"所在港": ports[r[0xE]]},
+        rows.append({"id": 140 + k, **_names(koei_tw_name(zh[t0 + k * tsize:][:12]), name),
+                     "game": {"所在港": ports[r[0xE]]},
                      "notes": "酒館女性，遊戲只存名字和所在港。"})
     return rows
 
 
 def places(game_dir, out_dir):
     st = _state(game_dir)
+    zh = _dos_state(game_dir)
     lb = x.ii_labels(game_dir)
     world = os.path.join(out_dir, "world")
     os.makedirs(world, exist_ok=True)
@@ -89,11 +111,13 @@ def places(game_dir, out_dir):
     img.save(os.path.join(world, "world.png"))
 
     rows = []
-    for k, name in enumerate(_port_names(st)):
+    for k, (name, name_zh) in enumerate(zip(_port_names(st), _port_names_zh(zh))):
         o = x.II_LAYOUT["ports"] + 22 * k
+        # the Chinese record differs only in the name bytes (+4..+20)
+        assert st[o:o + 4] + st[o + 21:o + 22] == zh[o:o + 4] + zh[o + 21:o + 22]
         px, py = struct.unpack_from("<HH", st, o)
         nation = st[o + 0x15] & 7
-        row = {"id": k, "name": name, "level": "港" if k < x.N_REAL_PORTS else "補給港",
+        row = {"id": k, **_names(name_zh, name), "level": "港" if k < x.N_REAL_PORTS else "補給港",
                "pos": {"x": px, "y": py, "grid": "pixel", "w": WORLD_W, "h": WORLD_H}}
         game = {}
         if nation < 6:

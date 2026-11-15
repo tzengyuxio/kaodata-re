@@ -151,7 +151,7 @@
 
 ## koei-wiki 匯出
 
-`dekoei/wiki_koukai2.py`，資料集 `koukai2-pc98`（只有日文版，沒有 `nameJa`）。
+`dekoei/wiki_koukai2.py`，資料集 `koukai2-pc98`。人名、港名照大航海時代 I 的做法：`name` 取 DOS 中文版（下方「DOS 中文版」），日文寫在 `nameJa`（兩者相同時不填，只有「美華」「長崎」這類）。人名的名、姓在兩版都是分開的欄位，中文版用「•」接，和外傳 Win 中文版的寫法相同（DOS 版實際顯示用什麼符號沒查【推】）；`game.所在港` 也用中文港名。
 
 ```sh
 cd dekoei
@@ -198,11 +198,22 @@ cd dekoei
 
 ### 檢查
 
+- 2026-11-15（改用中文名後）：`places-export` 130 筆、`persons-export` 170 筆，0 筆不符；koei-wiki 的 `verify_sanguo_places.py` 981 筆、`verify_persons.py` 1215 筆，0 筆不符。
 - 2026-11-14：
   - `places-export`：130 個港口，130 筆檢查，0 筆不符。
   - `persons-export`：170 人，170 筆檢查，0 筆不符。
   - koei-wiki 的 `verify_sanguo_places.py`：981 筆，0 筆不符。
   - koei-wiki 的 `verify_persons.py`：1046 筆，0 筆不符。
+
+## DOS 中文版
+
+- 來源：「經典DOS遊戲合集1886款」（NAS `Media/games/koei/_題材老遊戲分享/`，48 個 RAR5 加密分卷，密碼在同資料夾的 README）的 `DOS/DHH2/`，61 個檔，2026-11-15 用 RARLAB unrar 7.23 在 dongzhi 取出，放在 `games/koukai2-dos/`。合集要用 RARLAB unrar 才解得開：Homebrew 的 7-Zip、p7zip 沒有 RAR 解碼器，unar 1.10.7 讀 RAR5 分卷只認第 1 卷。
+- 檔案：大部分資料檔日期 1994-08-18，`MAIN.EXE` 1994-10-05；`PASS` 是破解說明（兩行 byte 樣式，`MAIN.EXE` 的比對改成跳過），`KOUKAI2.DAT` 是 2014 年的存檔，`PLAY.BAT` 是合集加的。劇本與事件拆成 `SNR0–6.DAT／.MES`、`EVENT0–6.DAT`，不是 PC-98 的 `SNRDAT.LZW`、`SNRMES.LZW`、`EVENT.LZW`。
+- `KAO.LZW`、`WORLDMAP.LZW` 和 PC-98 byte 相同，所以頭像不另做 kaodata 資料集（只差人名語言，照收錄規則不另收）。
+- 語言與編碼（✅ code＋cross）：`DATA1.LZW` 的 LS11 分段長度和 PC-98 完全相同（19 段），第 15 段（開局狀態）的航海士 120 筆、事件人物 20 筆、酒館女性 30 筆、港口 130 筆，除了名字欄位以外逐 byte 相同（`wiki_koukai2.py` 用 assert 檢查）。名字欄位是光榮台灣內碼（`koei_games.koei_tw_name`，同大航海時代 I DOS 中文版），300 個名字全部解得出，沒有空白或解不出的字。和外傳 Win 中文版（Big5）比對，170 人裡 139 人的中文名完全相同（cross）。
+- 罕用字（次常用字，沒和遊戲畫面或字型比對，合集沒有附字型檔）：37 號「羅伯特•怀爾德」的「怀」、158「阿美莉婭」與 166「路基婭」的「婭」、港口 11「錫腊庫扎」的「腊」。
+- 同名：149、155 都是「安娜」（日文也都是アンナ）。
+- 沒做：`MESSAGE.DAT`、`ITEM.MES` 等其他文字（交易品、道具、國名、商圈名），匯出的 `more`、`region`、`game` 的標籤仍用 PC-98 的日文。
 
 ## 下一輪候選
 
