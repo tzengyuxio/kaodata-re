@@ -77,6 +77,10 @@
 - [x] 三国志ツクール（397720）— 96×120 全彩，本體 5101＋已裝 DLC 2722 張，匯出成 `santsukuru-win`（WebP），先留 data-local 不上線；之後頭像連同人名要放到 Forgejo 的 koei-images 備查（repo 已存在：https://hikari.tail81eb54.ts.net:8444/tzengyuxio/koei-images ，本地還沒 clone；使用者說先不用做（2026-10-17），圖檔格式與人名附法到時再問；push 前先問使用者）（見 `notes/santsukuru.md`）（天道 PK 已匯出成 `nobu13pk-win`，太閤立志伝V DX 已匯出成 `taikoh5dx-win`，大航海時代IV PK HD 已匯出成 `koukai4pk-win`）（2026-10-16）
 - [x] 三國志11 with PK（628070）— 64×80 頭像是全彩，用 kaodata 的 `rgbaBlobs` 匯出成 `san11pk-win`，見 `notes/san11.md`（2026-10-16）
 
+## 待分析遊戲（主機版，本 repo 與 famicom-re／superfamicom-re 都沒有的平台）
+
+- [ ] 三國志戦記 — 使用者說似乎只有 PlayStation 版（PS 或 PS2、發行年與續作都待查）；本 repo 只收 PC 平台，主機版目前只有 FC、SFC（`notes/koei-platforms.md`「主機版（其他 repo）」），要做的話先決定放哪個 repo、能不能取得光碟映像（2026-11-16）
+
 ## 戰場地圖
 
 - [x] 三國志 I–V 的戰場地圖 — 能力總覽（`notes/san-attributes.md`）完成後做；正傳每代只挑一個平台（PC-98 或 DOS），不每個平台都做。I 已完成（PC-98，`san1 battlemap`，圖案從截圖切）。II 已完成（PC-98，`san2 battlemap`，排法和色盤還沒和畫面比過）；III 已完成（PC-98，`san3 battlemap`，每張用哪組圖塊是看圖判斷的）；IV 已完成（PC-98，`san4 battlemap`，色盤種類執行時才決定）；V 已完成（PC-98，`san5 battlemap`，戰場色盤沒追到）。FC／SFC 版在別的 repo，已完成的拿來對照：FC 初代 58 張、FC II 41 張（famicom-re）、SFC 初代 58 張、SFC II 41 張、SFC IV 88 張（superfamicom-re）；SFC III 只有格子資料、沒渲染（那邊的事，不在本 repo 改）（2026-10-21）
