@@ -427,7 +427,8 @@ def places_san4pk_pc98(game_dir, out_dir):
                      "level": "都市", "adjacent": adj[i], "battlemaps": maps,
                      "pos": {"x": pos[i][0], "y": pos[i][1], "grid": "pixel", "w": SAN4_WORLD_W, "h": SAN4_WORLD_H},
                      "notes": "讀的是 PC-98 PK 版；都市表、野戰表和本體 byte 相同。野戰圖依攻方從哪個鄰城來而定"
-                              "（from），攻城圖是都市自己的。戰場圖的色盤種類與季節是遊戲執行時決定的，這裡用種類 0、季節 0。"
+                              "（from），攻城圖是都市自己的。攻城圖的色盤只隨季節變；野戰圖的色盤種類（乾黃、黃綠、翠綠）照打仗的都市，"
+                              "共用的野戰圖取多數都市的種類。圖都是春（1–3 月）的色盤。"
                               "pos 是大地圖 world/MAINMAP.png（1536×1280，96×80 格、一格 16 點）上的像素：城的 3×3 格圖示"
                               "正中那格的中心（MAINMAP.S4 第 8 層是都市號）。"})
     return rows
@@ -731,18 +732,12 @@ def world_check_san5(game_dir, rows):
 
 
 def places_san5pk_pc98(game_dir, out_dir):
-    import ls11
     os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
     sango.render_san5_world_map(game_dir, os.path.join(game_dir, "..", "san5-pc98", "MAIN.EXE")).save(
         os.path.join(out_dir, "world", "MAINMAP.png"))
     boxes = san5_world_boxes(game_dir)
-    pal = sango.san5_pc98_battle_palette(os.path.join(game_dir, "..", "san5-pc98", "MAIN.EXE"), 0)
-    with open(os.path.join(game_dir, "HEXGRP.S5"), "rb") as f:
-        tiles = sango.battle_tiles(ls11.ls11_decode_parts(f.read())[0])
-    with open(os.path.join(game_dir, "HEXMAP.S5"), "rb") as f:
-        maps = ls11.ls11_decode_parts(f.read())[:47]
-    _save([sango.render_tile_layers(m, 50, 48, sango.SAN5_BATTLE_BASES, tiles, pal) for m in maps], out_dir,
-          [f"{n:02d}.png" for n in range(1, 48)])
+    _save(sango.render_san5_battle_maps(game_dir, palette_exe=os.path.join(game_dir, "..", "san5-pc98", "MAIN.EXE")),
+          out_dir, [f"{n:02d}.png" for n in range(1, 48)])
     with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
         exe = f.read()
     rows = []
@@ -753,9 +748,10 @@ def places_san5pk_pc98(game_dir, out_dir):
                      "battlemaps": [{"file": f"{n:02d}.png", "role": "攻城"}], "uncertain": ["battlemaps"],
                      "pos": {"x": boxes[n][0] + 16, "y": boxes[n][1] + 12, "grid": "pixel", "w": sango.SAN5_WORLD_W,
                              "h": sango.SAN5_WORLD_H},
-                     "notes": "讀的是 PC-98 PK 版；都市表、戰場圖檔和本體 byte 相同。戰場 47 張，第 n 張推定是第 n 個"
-                              "都市、打仗用守方都市的圖（照地形看圖判斷，讀取程式沒追）。這一代野戰與攻城在同一張圖上，"
-                              "role 填攻城是這邊的分類。戰場色盤用第 0 組（遊戲用哪一組沒追）。"
+                     "notes": "讀的是 PC-98 PK 版；都市表、戰場圖檔和本體 byte 相同。戰場 47 張，第 n 張是第 n 個"
+                              "都市的圖（程式用同一個都市號選圖和色盤）；那個都市號是不是守方都市沒追。這一代野戰與攻城在同一張圖上，"
+                              "role 填攻城是這邊的分類。戰場色盤隨季節變，華北、漢中、下弁以外的都市（都市表 +0x1E 沒有 bit 1）夏、冬改用另一組；"
+                              "圖是春（1–3 月）的色盤，春季各都市相同。"
                               "pos 是大地圖 world/MAINMAP.png（800×592）上的像素：都市表 +24、+26 是遊戲的 32×32 都市框左上角，"
                               "pos 取框內 (16, 12)，約是城的圖示中心（城和地名畫在地圖裡）。"})
     return rows

@@ -227,15 +227,48 @@ def san4_pc98_palette(main_exe) -> list[tuple]:
     return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
 
 
-def san4_pc98_battle_palette(main_exe, kind=0, season=0) -> list[tuple]:
-    """Battle palette (MAIN.EXE 0xB126): colours 0-7 from the 3 kinds x 4 seasons table at file 0x380C6,
-    4-5 the first frame of the water animation (DGROUP 0x7D4A), 8-15 as the default palette."""
+# MAIN.EXE file offsets of the battle palette data: segment 0x3252 (DGROUP 0xA502) starts at file 0x37320, DGROUP
+# (0x400E) at 0x44EE0. Field palettes 0x3252:0x0DA6 (3 kinds x 4 seasons), siege 0x3252:0x0EC6 (4 seasons), the kind
+# per battle city 0x3252:0x156A, the water flag per field map 0x3252:0x153C; cities and field-map table as in
+# places_export (base game offsets).
+SAN4_PC98_FIELD_PALETTES, SAN4_PC98_SIEGE_PALETTES = 0x380C6, 0x381E6
+SAN4_PC98_CITY_KIND, SAN4_PC98_MAP_WATER = 0x3888A, 0x3885C
+SAN4_PC98_CITIES, SAN4_PC98_FIELD = 0x3EA7D, 0x3855A
+SAN4_PC98_DGROUP = 0x44EE0
+
+
+def san4_pc98_battle_palette(main_exe, kind=0, season=0, water=True) -> list[tuple]:
+    """Field battle palette (MAIN.EXE 0xB126): colours 0-7 from the kinds x seasons table, 4-5 the first frame of the
+    water animation (river maps DGROUP 0x7D4A, or 0x7D5C in winter for kinds 0-1; other maps 0x7D38), 8-15 as the
+    default palette."""
     with open(main_exe, 'rb') as f:
         exe = f.read()
-    low = bytearray(exe[0x380C6 + 24 * (4 * kind + season):][:24])
-    low[12:18] = exe[0x44EE0 + 0x7D4A:][:6]
+    low = bytearray(exe[SAN4_PC98_FIELD_PALETTES + 24 * (4 * kind + season):][:24])
+    frame = (0x7D5C if kind < 2 and season == 3 else 0x7D4A) if water else 0x7D38
+    low[12:18] = exe[SAN4_PC98_DGROUP + frame:][:6]
     p = bytes(low) + exe[0x45E50 + 24:][:24]
     return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
+
+
+def san4_pc98_siege_palette(main_exe, season=0) -> list[tuple]:
+    """Siege palette (MAIN.EXE 0xB1F6): colours 0-7 by season only, 8-15 as the default palette."""
+    with open(main_exe, 'rb') as f:
+        exe = f.read()
+    p = exe[SAN4_PC98_SIEGE_PALETTES + 24 * season:][:24] + exe[0x45E50 + 24:][:24]
+    return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
+
+
+def san4_field_map_kinds(main_exe) -> list[int]:
+    """Palette kind of each of the 45 field maps. The game takes the kind of the battle city, so a map shared by
+    cities of different kinds changes colour; this picks the kind most of its cities have (ties: the lowest city)."""
+    with open(main_exe, 'rb') as f:
+        exe = f.read()
+    users = {}
+    for c in range(43):
+        adj = [b for b in exe[SAN4_PC98_CITIES + 29 * c + 15:][:14] if b != 0xFF]
+        for k in range(len(adj)):
+            users.setdefault(exe[SAN4_PC98_FIELD + 6 * c + k], []).append(exe[SAN4_PC98_CITY_KIND + c])
+    return [max(users[m], key=users[m].count) for m in range(45)]
 
 
 def battle_tiles(grp) -> list[list[int]]:
@@ -260,18 +293,23 @@ def render_tile_layers(m, cols, rows, bases, tiles, palette) -> Image.Image:
     return im
 
 
-def render_san4_battle_maps(game_dir, kind=0, season=0, palette_exe=None) -> list[Image.Image]:
-    """88 maps of 640x352: 45 field, then 43 siege. palette_exe: the MAIN.EXE with the palette at the base
-    game's offsets (the PK has the same bytes elsewhere)."""
-    palette = san4_pc98_battle_palette(palette_exe or os.path.join(game_dir, 'MAIN.EXE'), kind, season)
+def render_san4_battle_maps(game_dir, season=0, kind=None, palette_exe=None) -> list[Image.Image]:
+    """88 maps of 640x352: 45 field, then 43 siege. Field maps use the kind of san4_field_map_kinds unless kind is
+    given. palette_exe: the MAIN.EXE with the palette at the base game's offsets (the PK has the same bytes elsewhere)."""
+    exe = palette_exe or os.path.join(game_dir, 'MAIN.EXE')
+    with open(exe, 'rb') as f:
+        water = f.read()[SAN4_PC98_MAP_WATER:][:45]
+    kinds = [kind] * 45 if kind is not None else san4_field_map_kinds(exe)
+    palettes = [[san4_pc98_battle_palette(exe, kinds[m], season, water[m] == 1) for m in range(45)],
+                [san4_pc98_siege_palette(exe, season)] * 43]
     images = []
-    for map_file, grp_file, count, bases in SAN4_BATTLE_MAPS:
+    for (map_file, grp_file, count, bases), pals in zip(SAN4_BATTLE_MAPS, palettes):
         with open(os.path.join(game_dir, grp_file), 'rb') as f:
             grp = b''.join(ls11.ls11_decode_parts(f.read()))
         tiles = battle_tiles(grp)
         with open(os.path.join(game_dir, map_file), 'rb') as f:
             maps = ls11.ls11_decode_parts(f.read())[:count]
-        images += [render_tile_layers(m, 40, 22, bases, tiles, palette) for m in maps]
+        images += [render_tile_layers(m, 40, 22, bases, tiles, pal) for m, pal in zip(maps, pals)]
     return images
 
 
@@ -333,14 +371,14 @@ def render_san4_world_map(game_dir, palette_exe=None) -> Image.Image:
 @click.command(help='戰場地圖（PC-98）')
 @click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
 @click.option('--out', 'out_dir', required=True, help='輸出目錄')
-@click.option('--kind', type=click.IntRange(0, 2), default=0, help='色盤種類 0–2（遊戲執行時依地圖決定）')
-@click.option('--season', type=click.IntRange(0, 3), default=0, help='季節 0–3（3 是雪地）')
+@click.option('--kind', type=click.IntRange(0, 2), help='野戰色盤種類 0–2（預設照每張圖的都市）')
+@click.option('--season', type=click.IntRange(0, 3), default=0, help='季節 0–3（1–3、4–6、7–9、10–12 月；3 是雪地）')
 def san4_battlemap(game_dir, out_dir, kind, season):
     """
     dekoei.py san4 battlemap --game-dir ../games/san4-pc98 --out ../games/san4-pc98/extract/battlemap
     """
     os.makedirs(out_dir, exist_ok=True)
-    for k, im in enumerate(render_san4_battle_maps(game_dir, kind, season)):
+    for k, im in enumerate(render_san4_battle_maps(game_dir, season, kind)):
         im.save(os.path.join(out_dir, f'{k + 1:02d}.png'))
 
 
@@ -511,7 +549,8 @@ san5.add_command(san5_person, 'person')
 # then 2 x 47 600-byte cell streams; HEXGRP.S5 holds 488 tiles, the layers start at 0, 138 and 323.
 SAN5_BATTLE_BASES = (0, 138, 323)
 SAN5_PC98_DEFAULT_PALETTE = 0x49E12  # MAIN.EXE file offset (DGROUP 0x8C2)
-SAN5_PC98_BATTLE_PALETTES = 0x372B0  # 6 x 8 colours, which one the game uses is not traced
+SAN5_PC98_BATTLE_PALETTES = 0x372B0  # 6 x 8 colours (segment 0x2EE7:0x3A40), chosen by san5_pc98_battle_group
+SAN5_PC98_CITIES = 0x3F3A0  # base game: 47 x 32 bytes (segment 0x3A9A), +0x1E flags; bit 1 = the northern palettes
 
 
 # world map (PC-98; see notes/san-maps.md §V): MAINMAP.S5 is plain 800x592, 4 bpp: 50 columns 16 px wide, each
@@ -549,22 +588,38 @@ def san5_pc98_battle_palette(main_exe, palette=0) -> list[tuple]:
     return [(p[3 * i + 1] * 17, p[3 * i + 2] * 17, p[3 * i] * 17) for i in range(16)]
 
 
-@click.command(help='戰場地圖（PC-98）')
-@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
-@click.option('--out', 'out_dir', required=True, help='輸出目錄')
-@click.option('--palette', type=click.IntRange(0, 5), default=0, help='色盤 0–5（MAIN.EXE 0x372B0 的第幾組）')
-def san5_battlemap(game_dir, out_dir, palette):
-    """
-    dekoei.py san5 battlemap --game-dir ../games/san5-pc98 --out ../games/san5-pc98/extract/battlemap
-    """
-    pal = san5_pc98_battle_palette(os.path.join(game_dir, 'MAIN.EXE'), palette)
+def san5_pc98_battle_group(main_exe, city, season) -> int:
+    """Palette group of the battle in city (1-47) in season (DGROUP 0x49; 0-3 from months 1, 4, 7, 10): MAIN.EXE
+    image 0x84212 uses the season, except that cities without flag bit 1 take group 4 for season 1 and 5 for 3."""
+    with open(main_exe, 'rb') as f:
+        f.seek(SAN5_PC98_CITIES + 32 * (city - 1) + 0x1E)
+        flags = int.from_bytes(f.read(2), 'little')
+    return season if flags & 2 else {1: 4, 3: 5}.get(season, season)
+
+
+def render_san5_battle_maps(game_dir, season=0, palette_exe=None) -> list[Image.Image]:
+    """47 maps of 800x768; map n is the battle map of city n (MAIN.EXE image 0x8161F: map = DGROUP 0x8A8 - 1)."""
+    exe = palette_exe or os.path.join(game_dir, 'MAIN.EXE')
     with open(os.path.join(game_dir, 'HEXGRP.S5'), 'rb') as f:
         tiles = battle_tiles(ls11.ls11_decode_parts(f.read())[0])
     with open(os.path.join(game_dir, 'HEXMAP.S5'), 'rb') as f:
         maps = ls11.ls11_decode_parts(f.read())[:47]
+    return [render_tile_layers(m, 50, 48, SAN5_BATTLE_BASES, tiles,
+                              san5_pc98_battle_palette(exe, san5_pc98_battle_group(exe, k + 1, season)))
+            for k, m in enumerate(maps)]
+
+
+@click.command(help='戰場地圖（PC-98）')
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('--out', 'out_dir', required=True, help='輸出目錄')
+@click.option('--season', type=click.IntRange(0, 3), default=0, help='季節 0–3（1–3、4–6、7–9、10–12 月）')
+def san5_battlemap(game_dir, out_dir, season):
+    """
+    dekoei.py san5 battlemap --game-dir ../games/san5-pc98 --out ../games/san5-pc98/extract/battlemap
+    """
     os.makedirs(out_dir, exist_ok=True)
-    for k, m in enumerate(maps):
-        render_tile_layers(m, 50, 48, SAN5_BATTLE_BASES, tiles, pal).save(os.path.join(out_dir, f'{k + 1:02d}.png'))
+    for k, im in enumerate(render_san5_battle_maps(game_dir, season)):
+        im.save(os.path.join(out_dir, f'{k + 1:02d}.png'))
 
 
 san5.add_command(san5_battlemap, 'battlemap')
