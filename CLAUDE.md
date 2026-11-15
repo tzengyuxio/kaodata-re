@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 指令
 
-Python 環境：沿用既有 `.venv`（Python 3.11；`requirements.txt` 鎖的 `bitarray==2.7.3` 在 3.12 編不起來，見 `BACKLOG.md`）。
+Python 環境：沿用既有 `.venv`（Python 3.11）。`requirements.txt` 的 `bitarray` 2026-11-16 從 2.7.3 升到 3.4.2，Python 3.12 也裝得起來（測試與 LS11 解出的圖兩版相同）。
 
 `dekoei/` 內的模組用平面 import（`from utils import *`），**一律在 `dekoei/` 目錄下執行**：
 

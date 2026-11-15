@@ -5,7 +5,7 @@
 
 ## 環境
 
-- [ ] 更新 `requirements.txt` 的 bitarray — 鎖定的 2.7.3 沒有 Python 3.12 wheel，本機編譯失敗，目前 `.venv` 只能用 3.11（2026-10-10）
+- [x] 更新 `requirements.txt` 的 bitarray — 鎖定的 2.7.3 沒有 Python 3.12 wheel，本機編譯失敗，目前 `.venv` 只能用 3.11（2026-10-10）— 2026-11-16 升到 3.4.2：Python 3.12 新環境裝 `requirements.txt` 成功，測試 6 項通過，`sanr-extras`（LS11）的輸出和 3.11＋2.7.3 逐檔相同；`.venv` 也換成 3.4.2，同樣驗證
 
 ## 待分析遊戲（新增的 killpeople 壓縮檔，現在在 `games/archives/dos/`、`win/`）
 
