@@ -14,7 +14,8 @@
     Position in half map bytes: x = bx * 14 + fx, y = by * 14 + fy.
 - MAIN.EXE (DGROUP at file 0x40910): trade goods = 26 near pointers at DS:0x1EAC; shipyard names = 6 NUL-padded
   strings at DS:0xC7D4; item kind and rank = 31 x 2 bytes at DS:0x22CA (selling is refused when 150 x rank exceeds
-  the port's economy +0, the sell price is half the price).
+  the port's economy +0, the sell price is half the price). What each kind does is in ITEM_EFFECTS (by item id
+  for kind 0, by kind otherwise; notes/koukai.md「道具的效果」).
 - NEWGAME.DAT: u16 offset of section B, u16 offset of section C; section A from offset 4 is 288 x 5 bytes
   (u16 group, 3 bytes ?) for a 24 x 12 grid of groups; section B is 9 u16 block numbers per group (3 x 3);
   section C is 49-byte blocks (7 x 7 terrain codes, 0 = sea). The world is 504 x 252 bytes.
@@ -29,6 +30,17 @@ from PIL import Image, ImageDraw
 
 DIGITAL = ["#000000", "#00ff00", "#ff0000", "#ffff00", "#0000ff", "#00ffff", "#ff00ff", "#ffffff"]
 DGROUP = 0x40910
+# Effects of held items, by id for kind 0 (bits of fleet 0 +0xB tested directly) and by kind for 1-4 (rank of the
+# best held item of that kind, MAIN.EXE 0x41D4). Bonuses only apply to ships whose captain is the hero (man 0).
+ITEM_EFFECTS = {
+    0: "監視：看整個畫面（沒有時只能看相鄰 1 格）；航行時發現畫面內所有港口（沒有時只發現相鄰的）",
+    1: "測量：顯示現在位置（緯度、經度）",
+    2: "情報→地形 要有它才有作用（沒有時「別に異常はありやせんぜ」）",
+    "kind1": "主人公的船被砲擊時，傷害減少 10%×等級",
+    "kind2": "主人公的船斬り込み時，殺傷力×(1＋等級/8)",
+    "kind3": "主人公的船砲擊時，威力×(1＋等級/8)（上限 100）",
+    "kind4": "財宝：可在道具屋賣（半價）、送給王女（贈り物をする，好感固定 +40）",
+}
 
 
 def _name(b):
@@ -75,9 +87,11 @@ def tables(game_dir, out):
         price = struct.unpack_from("<H", cim, 0xA8 + i * 15 + 13)[0]
         kind, rank = exe[DGROUP + 0x22CA + i * 2:DGROUP + 0x22CA + i * 2 + 2]
         sold = [s for s in shops if i in s[2]]
+        effect = ITEM_EFFECTS[i] if kind == 0 else ITEM_EFFECTS[f"kind{kind}"]
         irows.append((i, name, price, price // 2, kind, rank, " ".join(str(s[0]) for s in sold),
-                      "、".join(s[1] for s in sold)))
-    _csv(f"{out}/items/items.csv", ["id", "name", "price", "sell", "kind", "rank", "ports", "port_names"], irows)
+                      "、".join(s[1] for s in sold), effect))
+    _csv(f"{out}/items/items.csv", ["id", "name", "price", "sell", "kind", "rank", "ports", "port_names", "effect"],
+         irows)
     _csv(f"{out}/items/shops.csv", ["port", "name", *(f"item{k}" for k in range(4)), *(f"name{k}" for k in range(4))],
          [(p, n, *lst, *(items[b] for b in lst)) for p, n, lst in shops])
     ships = []
