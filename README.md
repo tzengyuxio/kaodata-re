@@ -266,4 +266,6 @@ python dekoei.py items-export san14pk-win --extract ../games/san14pk-win/extract
 
 頭像以外的素材（事件圖、道具、港口、交易品、地圖等）由各遊戲的 `<game>-extras` 指令輸出到 `games/<dataset>/extract/`，目前 35 款，一覽見 [docs/backlog/events-items-art.md](docs/backlog/events-items-art.md)；例如大航海時代 I–IV、外傳的道具表含價格、效果與販賣的港。
 
+英傑傳、孔明傳、曹操傳的劇本腳本由 `eiketsu-scenario`、`koumei-scenario`、`eiketsu5-scenario` 解出（例：`python dekoei.py eiketsu5-scenario --game-dir ../games/eiketsu5-win --out ../games/eiketsu5-win/extract/scenario`）：每段腳本的反組譯（對話直接接在指令下）、每場戰鬥的戰場圖、回合上限與勝敗條件（`battles.csv`）、我軍、友軍、敵軍的部署與伏兵（`deploy.csv`）、單挑與其他事件（`events.csv`），以及標上部隊的戰場圖；格式與還沒解的指令見各遊戲筆記的「劇本腳本」節。
+
 三國志VIII–14 另有 `big_faces.py`（`python big_faces.py san13pk-win --game-dir ../games/san13pk-win`），把每張頭像的完整原圖（涵蓋範圍最大的一張，13、14 另有 1024×1024 的最大尺寸）無損輸出成 PNG。
