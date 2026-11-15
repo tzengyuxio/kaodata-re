@@ -85,11 +85,11 @@ def persons(game_dir):
                     s["location"] = r[0x15]
             scen.append(s)
         row["scenarios"] = scen
-        row["uncertain"] = ["hidden.運氣", "hidden.忠誠"]
         notes = ["scenario 1、2 是選米蘭塔、薩爾巴多爾開局時的狀態（兩人各用一張航海士表）；location 是開局時在酒館的港口。"]
         if hero is not None:
             notes.append(f"主角：劇本 {hero + 1} 由玩家操作，頂層的值取玩家記錄；"
-                         f"劇本 {2 - hero} 是另一位主角的航海士。")
+                         f"劇本 {2 - hero} 是另一位主角的航海士。"
+                         f"運氣在開局時重設為 {70 - 20 * hero}＋0–10 的亂數（0x4161E1），hidden.運氣 是表裡的值。")
         elif len(tables) == 1:
             notes.append(f"只在劇本 {min(tables) + 1} 的航海士表裡。")
         elif tables[0] != tables[1]:
