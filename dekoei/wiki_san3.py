@@ -15,6 +15,9 @@ RANKS = {0: "君主", 1: "軍師", 2: "将軍", 3: "武官", 4: "文官", 5: "�
 HIDDEN, ABSENT = 6, 7  # 6: put in the city's second list (MAIN.EXE 0x97B3), 「未発見武将」 (🟡); 7: not on the map
 # PC-98 scenario 1 gives 車胄 楊懐's face code 0x82CB (DOS: 0x9831): that record is 車胄, not 楊懐
 SAME_CODE = {(1, 0x82CB, "車胄"): 0x9831}
+# the DOS Chinese version gives these four another person's name (孔秀, 蔡陽, and 張闓/張顗 swapped); the PC-98 names
+# are right, so name takes the historical spelling instead (notes/san3.md「人物」)
+ZH_OTHER_PERSON = {0xC1, 0xC02B, 0x96D9, 0x9C95}
 
 
 def persons(game_dir):
@@ -43,8 +46,8 @@ def persons(game_dir):
 
     rows = []
     for i, (code, name_ja) in enumerate(chars):
-        row = {"id": i, "name": zh[code]}
-        if name_ja != zh[code]:
+        row = {"id": i, "name": ke.SAN3_NAME_HISTORICAL[code] if code in ZH_OTHER_PERSON else zh[code]}
+        if name_ja != row["name"]:
             row["nameJa"] = name_ja
         rec = next(recs[i] for _, recs in scen if i in recs)
         row["born"] = rec[37]
@@ -81,6 +84,8 @@ def persons(game_dir):
             notes.append("「未発見」是身分 6：在城裡但還沒被找到的在野武將（遊戲有「未発見武将」一詞，對應是推定）。")
         if ke.yoshikawa_note(row["name"]):
             notes.append(ke.yoshikawa_note(row["name"]))
+        elif code in ZH_OTHER_PERSON:
+            notes.append(f"中文版寫成別人的名字「{zh[code]}」，name 改用史書寫法。")
         elif code in ke.SAN3_NAME_HISTORICAL:
             notes.append(f"中文版寫法的史書寫法 {ke.SAN3_NAME_HISTORICAL[code]}。")
         if code in ke.SAN3_PC98_NAME_HISTORICAL and not ke.yoshikawa_note(row["name"]):

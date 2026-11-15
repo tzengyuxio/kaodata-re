@@ -18,6 +18,9 @@ SIZE, PERSONS, SLOTS, BASE = 43, 0x16, 255, 88
 FACTIONS, FACTION_SIZE = 0x2AF2, 41  # u16 君主, u16 capital province, u16 軍師 (pointers)
 PROVINCES, PROVINCE_SIZE, PROVINCE_BASE = 0x2D82, 35, 0x2DC4  # +2 現役 chain, +6 在野 chain, +16 owner faction
 HIDDEN = [(7, "義理"), (8, "人徳"), (9, "野望"), (15, "相性")]
+# the DOS Chinese version gives 31 張顗 the name of 310 張嶷; the PC-98 name is right, so name takes the historical
+# spelling instead (notes/san2.md)
+ZH_OTHER_PERSON = {31}
 
 
 def u16(b, o):
@@ -97,7 +100,7 @@ def persons(game_dir):
     rows = []
     for i, (face, name_ja) in enumerate(jp):
         r = first[i]
-        name = dos[i]["name"]
+        name = ke.SAN2_NAME_HISTORICAL[i] if i in ZH_OTHER_PERSON else dos[i]["name"]
         row = {"id": i, "name": name}
         if name_ja != name:
             row["nameJa"] = name_ja
@@ -141,6 +144,8 @@ def persons(game_dir):
         notes = []
         if ke.yoshikawa_note(row["name"]):
             notes.append(ke.yoshikawa_note(row["name"]))
+        elif i in ZH_OTHER_PERSON:
+            notes.append(f"中文版寫成別人的名字「{dos[i]['name']}」，name 改用史書寫法。")
         elif i in ke.SAN2_NAME_HISTORICAL:
             notes.append(f"中文版寫法有誤，史書寫法 {ke.SAN2_NAME_HISTORICAL[i]}。")
         if i in ke.SAN2_JP_NAME_HISTORICAL and ke.SAN2_JP_NAME_HISTORICAL[i] != ke.SAN2_NAME_HISTORICAL.get(i):

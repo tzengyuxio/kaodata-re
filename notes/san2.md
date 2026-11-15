@@ -148,7 +148,7 @@ cd dekoei
 
 讀取在 `dekoei/wiki_san2.py`（koei-persons/1，2026-11-14）。352 人，`id` 同 kaodata `san2-pc98`。
 
-- **名字**：`name` 取 DOS 中文版（`games/san2-dos`，`san2.load_san2_persons`），兩版的頭像碼順序逐筆相同（程式裡 assert）；PC-98 寫法不同時放 `nameJa`（75 人）。錯字照遊戲寫法，`kaodata_export.SAN2_NAME_HISTORICAL`／`SAN2_JP_NAME_HISTORICAL` 的史書寫法寫進 `notes`。`reading` 是姓名欄後 7 bytes 的半形片假名，轉成平假名。
+- **名字**：`name` 取 DOS 中文版（`games/san2-dos`，`san2.load_san2_persons`），兩版的頭像碼順序逐筆相同（程式裡 assert）；PC-98 寫法不同時放 `nameJa`（74 人）。例外是 31 張顗：DOS 版寫成 310 張嶷的名字，日文版是對的，`name` 改用史書寫法，`notes` 記中文版的寫法（`wiki_san2.ZH_OTHER_PERSON`，2026-11-16）。錯字照遊戲寫法，`kaodata_export.SAN2_NAME_HISTORICAL`／`SAN2_JP_NAME_HISTORICAL` 的史書寫法寫進 `notes`。`reading` 是姓名欄後 7 bytes 的半形片假名，轉成平假名。
 - **欄位**：`stats` 知力 武力 魅力（+4–6，同 `stats-export`）；`born` 是 +25 生年（✅ capture：`captures/screenshots/san2-pc98/main_000.raw1.png`，189 年曹操年令 35＝189−155＋1）；`hidden` 義理 人徳 野望 相性（+7、+8、+9、+15）與親族（+16 u16 bitmask），整組 `uncertain`。頂層取這個人第一筆記錄（劇本 1–6 依序，再到 TAIKI）。
 - **劇本檔 `SNDATAn.CIM` 的版面**（這次解出）：
   - 表頭 +2 u16 是年份，畫面顯示＋1（188 → 189 年 1 月，✅ capture 同上；六個劇本 189、194、201、208、215、220，和 koei-wiki〈遊戲/三國志II〉相同）。

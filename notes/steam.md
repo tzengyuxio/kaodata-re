@@ -42,6 +42,7 @@ steamcmd +@sSteamCmdForcePlatformType windows \
 - 放哪裡：`/Volumes/Media/games/koei/Steam/<同名資料夾>/`，資料夾與遊戲的對照在那邊的 `README.md`。檔名與大小逐檔核對一致後才刪本機（移到垃圾桶）。
 - sha1：`~/game-library/_original/win/san<N>pk-win/` 的 `STEAM_SHA1SUMS.txt`（日文版工具讀的檔）、`tchinese-SHA1SUMS.txt`、`pk-SHA1SUMS.txt`，另有 `steam.txt` 記 appid、depot、manifest。
 - 要重跑時把資料夾複製回 `games/` 的同名位置；`--game-dir` 照舊。三國志IX 的全尺寸大地圖、X、12 的地圖讀繁中版 depot（`games/steam/<appid>-tchinese/depot`）。
+- 只讀不寫時可以用 symlink 代替複製（2026-11-16 三國志12 這樣接回）：depot 整個資料夾 symlink（`games/steam/628080-tchinese`）；`games/san<N>pk-win/` 要建成真的資料夾、裡面逐項 symlink，因為程式用 `<game-dir>/../steam/...` 找繁中版，整個資料夾 symlink 時 `..` 會走到 Media 那邊。Media 沒掛載時連結失效。
 
 ## 下載紀錄
 

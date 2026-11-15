@@ -90,10 +90,36 @@ def _people(game_dir):
     return [p for p in ja if p["name"] and p["face"] not in SAN12PK_WIN_ROLE_FACES]
 
 
+# 1410-1475: the 66 relatives (「〇〇の父」 and 橋玄 … 田嬰), only referenced as fathers or mothers. The 繁中版 names of
+# these slots do not match the records (slot 1413 王允の父 is named 公孫瓚父 there, 1469 and 1472 lost the surname
+# 吳國), so their Chinese names are built from the son's Chinese name like the 繁中版 writes them (韓玄之父, 公孫瓚父)
+RELATIVES = range(1410, 1476)
+RELATIVE_ZH = {"呉国太": "吳國太", "呉国": "吳國"}  # 呉国の父 is 呉国太's father
+
+
+def _relative_names(zh, people):
+    """zh with the RELATIVES slots renamed from the Japanese name: Xの父 / X父 -> 中文(X)之父 (2 characters) or 中文(X)父"""
+    by_ja = {p["name"]: zh.get(p["id"], p["name"]) for p in people if p["id"] not in RELATIVES}
+    by_ja.update(RELATIVE_ZH)
+    out = dict(zh)
+    for p in people:
+        k, n = p["id"], p["name"]
+        if k not in RELATIVES:
+            continue
+        if n.endswith("父") and n not in by_ja:
+            x = n[:-2] if n.endswith("の父") else n[:-1]
+            son = by_ja.get(x, x)  # 袁遺, 荀勗, 孫秀 … are not in the game; their names are the same in both scripts
+            if not zh.get(k, "").startswith(son):  # 1466-1470 (陸凱父 …) are right in the 繁中版
+                out[k] = son + ("之父" if len(son) == 2 else "父")
+        else:
+            out[k] = by_ja.get(n, n)
+    return out
+
+
 def persons(game_dir):
     import san12_extras
-    zh = san12_extras.bio_names(os.path.join(game_dir, ZH_DIR))
     people = _people(game_dir)
+    zh = _relative_names(san12_extras.bio_names(os.path.join(game_dir, ZH_DIR)), people)
     ids = {p["id"] for p in people}
     master = _scenario(game_dir, MASTER)[2]
     data = [_scenario(game_dir, n) for n in SCENARIOS]

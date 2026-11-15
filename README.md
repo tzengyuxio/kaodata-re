@@ -256,10 +256,14 @@ python dekoei.py items-export san14pk-win --extract ../games/san14pk-win/extract
 
 | 指令 | 內容 | 目前支援 | 說明 |
 |---|---|---|---|
-| `persons-export` | 人物的全部欄位與各劇本的所屬、所在、身分 | 信長之野望 2–13、三國志VIII–14 | 各遊戲筆記的「koei-wiki 匯出」 |
+| `persons-export` | 人物的全部欄位與各劇本的所屬、所在、身分 | 三國志 I–14、信長之野望 2–16、大航海時代 I–IV 與外傳、蒼き狼と白き牝鹿系列、英傑傳系列、水滸傳、項劉記、維新の嵐 | 各遊戲筆記的「koei-wiki 匯出」 |
 | `items-export` | 寶物的名稱、說明（含繁中版）與各劇本的持有者 | 三國志IV、VII–14，信長之野望 6–12 | [notes/koei-items.md](notes/koei-items.md) |
-| `places-export` | 地點、相鄰關係與戰場圖 | 三國志各代、水滸傳、項劉記、蒼き狼と白き牝鹿系列 | [notes/san-maps.md](notes/san-maps.md) |
+| `places-export` | 地點、相鄰關係與戰場圖 | 三國志各代、水滸傳、項劉記、蒼き狼と白き牝鹿系列、源平合戰、維新の嵐、ロイヤルブラッド、ランペルール、大航海時代 I–IV 與外傳 | [notes/san-maps.md](notes/san-maps.md) |
 | `biography` | 武將列傳 | 三國志（繁中版）、信長之野望 5–8 | [notes/san-biographies.md](notes/san-biographies.md) |
 | `stats-export` | 三國志的主能力 | 三國志 I–14 | [notes/san-attributes.md](notes/san-attributes.md) |
+
+人名的 `name` 用中文版的寫法、`nameJa` 用日文版；中文版把人寫成別人的名字（日文版是對的）時，`name` 改用史書寫法，`notes` 記中文版原本的寫法。
+
+頭像以外的素材（事件圖、道具、港口、交易品、地圖等）由各遊戲的 `<game>-extras` 指令輸出到 `games/<dataset>/extract/`，目前 35 款，一覽見 [docs/backlog/events-items-art.md](docs/backlog/events-items-art.md)；例如大航海時代 I–IV、外傳的道具表含價格、效果與販賣的港。
 
 三國志VIII–14 另有 `big_faces.py`（`python big_faces.py san13pk-win --game-dir ../games/san13pk-win`），把每張頭像的完整原圖（涵蓋範圍最大的一張，13、14 另有 1024×1024 的最大尺寸）無損輸出成 PNG。

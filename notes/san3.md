@@ -115,7 +115,7 @@ cd dekoei
 ../.venv/bin/python dekoei.py persons-export san3-pc98 --game-dir ../games/san3-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
 ```
 
-`wiki_san3.py`，koei-persons/1，531 人，`id` 同 kaodata `san3-pc98`（`san3_characters`）。資料取 PC-98 `SNDATA?B.CIM`；`name` 取 DOS 中文版同一頭像碼的寫法（兩版頭像碼集合相同、一對一，✅ cross），和日文寫法不同的 115 人另填 `nameJa`（日文寫法和 `stats/san3-pc98.jsonl` 的 `name` 相同）。
+`wiki_san3.py`，koei-persons/1，531 人，`id` 同 kaodata `san3-pc98`（`san3_characters`）。資料取 PC-98 `SNDATA?B.CIM`；`name` 取 DOS 中文版同一頭像碼的寫法（兩版頭像碼集合相同、一對一，✅ cross），和日文寫法不同的 111 人另填 `nameJa`（日文寫法和 `stats/san3-pc98.jsonl` 的 `name` 相同）。例外是 DOS 版寫成別人名字的 4 人（孔伷、蔡邕、張顗、張闓，`wiki_san3.ZH_OTHER_PERSON`）：日文版是對的，`name` 改用史書寫法，`notes` 記中文版的寫法（2026-11-16，koei-wiki 發現 114／115 對反）。
 
 - 劇本 1 的車胄借了楊懐的頭像碼 0x82CB，這筆記錄歸給車胄（530，`SAME_CODE`）。這樣處理後，每個劇本每人最多一筆，生年、相性、義理、+31 在六個劇本都一樣。
 - `born`：+37 生年（✅ capture，年齢）。`more.年齢`＝第一個在地圖上的劇本年減生年，不是劇本 1 時寫在 `notes`。

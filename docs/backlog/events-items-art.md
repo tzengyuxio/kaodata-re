@@ -148,6 +148,7 @@ koei-wiki 事件條目（2026-11-07 提案；koei-wiki 的使用者同意，格�
 
 ## 發現的問題（範圍外）
 
+- koei-wiki 人名錯位（2026-11-16 修正）：三國志III 114／115（張顗／張闓）、16 孔伷、73 蔡邕與三國志II 31 張顗，DOS 中文版寫成別人的名字，改用史書寫法（`wiki_san3`／`wiki_san2.ZH_OTHER_PERSON`）；三國志12 1410–1475 的親屬，繁中版劇本的名字和記錄錯位，改從兒子的繁中名組成（`wiki_san12.RELATIVES`，`notes/san12.md`「匯出」）。用「中文名等於另一筆的日文名」掃過全部人物匯出，其他資料集沒有同類問題。
 - 信長4 PC-98 頭像的藍綠：fork 回報可能對調，2026-11-07 查證沒有對調（`guest os_024` 的織田信長頭像逐點相同，見 `notes/nobu4.md`「事件、插圖、道具」色盤）。是事件圖解碼器的 plane 順序不同。
 
 ## 未收尾
@@ -157,3 +158,4 @@ koei-wiki 事件條目（2026-11-07 提案；koei-wiki 的使用者同意，格�
 - 第二輪候選（三國志 II、III、V，信長 2、3）還沒開始。
 - 第四輪（大航海 I–III、外傳、IV 補完，源平合戦）2026-11-10 完成並 commit（6c5cb96 等），已 push。
 - 三國志VIII–14（`san8pk-win`–`san14pk-win`）2026-11-11 已入庫，遊戲檔上傳到 NAS 後刪除本機副本（`notes/steam.md`「三國志8–14 的封存」）；其他款還沒入庫，每款「封存前還缺」見上表。新作的影音不留（見「結論」）。入庫用 `scripts/archive.py <dataset> [--library DIR] [--skip-original]`（re-common §11）：kaodata 匯出＋`faces.cbz`／`faces.csv`、koei-wiki 匯出、`extract/`（純圖資料夾打包成 cbz）、截圖複製進 `~/game-library/koei/<dataset>/`，Steam 安裝目錄硬連結到 `_original/win/` 並記 sha1；目前只收三國志 10–14、信長 9–13 的 Steam 版。2026-11-10 用 `nobu12pk-win --skip-original` 試跑到暫存目錄，頭像 1379 張、7 個 cbz 的張數都和來源一致；`--skip-original` 以外的路徑沒測，因為這 10 款的安裝目錄已經刪了。
+- 第六輪（大航海道具）與人名錯位修正 2026-11-16 commit 並 push。三國志12 的遊戲檔為此從 `/Volumes/Media/games/koei/Steam/` 用 symlink 接回 `games/san12pk-win/`（逐項 symlink 的真資料夾）與 `games/steam/628080-tchinese`，見 `notes/steam.md`。
