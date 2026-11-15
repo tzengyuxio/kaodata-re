@@ -117,4 +117,4 @@ to: koei-wiki
 
 ## 未收尾
 
-- 15、16 代的人物與地點還沒匯出；事件、道具、劇本選項留到下一輪。
+- ~~15、16 代的人物與地點還沒匯出~~：大志 `nobu15pk-win`、新生 `nobu16pk-win` 已匯出（見 `notes/nobu15.md`、`notes/nobu16.md`「koei-wiki 匯出」），14 代創造 `nobu14pk-win` 也有；家宝 6–16 代都已接 `items-export`（13 代 2026-11-16 補上）。事件、劇本選項留到下一輪。

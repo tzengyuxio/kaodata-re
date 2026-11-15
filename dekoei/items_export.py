@@ -456,6 +456,22 @@ def items_nobu12pk_win(extract):
     return out
 
 
+# 信長の野望・天道 PK: kahou.csv of nobu13-extras; the holder is the scenario 11 slot (= kaodata id), the scenario the
+# kaodata names come from; grade 1-10 and the holder field are 🟡 (notes/nobu13.md「事件、插圖、道具」)
+def items_nobu13pk_win(extract):
+    present = _present("nobu13pk-win")
+    out = []
+    for r in _rows(extract, "kahou.csv"):
+        slot = int(r["owner_slot_s11"])
+        holders = [{"scenario": 11, "person": slot}] if (slot, 11) in present else []
+        note = "；".join(n for n in (f"說明的標題寫成「{r['description_name']}」" if r["description_name"] else "",
+                                     "圖是家宝表的圖號（353 件共用 72 張），不是每件一張") if n)
+        out.append({"id": int(r["id"]), "name": r["name"], "reading": r["reading"], "kind": r["kind"],
+                    "grade": r["grade"], "description": r["description"], "holders": holders,
+                    "uncertain": ["grade", "holders"], "notes": note})
+    return out
+
+
 def items_nobu14pk_win(extract, game_dir):
     import wiki_nobu14
     return wiki_nobu14.items(game_dir)
@@ -490,7 +506,7 @@ DATASETS = {"san4pk-pc98": items_san4pk_pc98, "san7pk-win": items_san7pk_win, "s
             "nobu6pk-pc98": items_nobu6pk_pc98, "nobu7pk-win": items_nobu7pk_win, "nobu8pk-win": items_nobu8pk_win,
             "nobu9pk-win": items_nobu9pk_win, "nobu10pk-win": items_nobu10pk_win,
             "nobu11pk-win": items_nobu11pk_win, "nobu12pk-win": items_nobu12pk_win,
-            "nobu14pk-win": items_nobu14pk_win, "nobu15pk-win": items_nobu15pk_win,
+            "nobu13pk-win": items_nobu13pk_win, "nobu14pk-win": items_nobu14pk_win, "nobu15pk-win": items_nobu15pk_win,
             "nobu16pk-win": items_nobu16pk_win}
 NEEDS_GAME = {"nobu6pk-pc98", "nobu14pk-win", "nobu16pk-win", "nobu11pk-win", "san8pk-win", "san12pk-win", "san13pk-win", "san14pk-win"}
 # 三國志VII-12: nameZh / descriptionZh from the Steam 繁中版 (games/steam/<appid>-tchinese/depot, next to the game
@@ -531,6 +547,7 @@ PICTURES = {
     "nobu10pk-win": ("kahou.csv", "id", lambda r: f"pictures/{int(r['picture']):04d}.png"),
     "nobu11pk-win": ("kahou.csv", "id", lambda r: f"pictures/{int(r['picture']):03d}.png"),
     "nobu12pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
+    "nobu13pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
     "nobu14pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
     "nobu15pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
     "nobu16pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
