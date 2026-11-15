@@ -128,7 +128,9 @@ def ii_labels(game_dir):
 
 
 def write_tables(st, colony, item_mes, lb: Labels, out, lay):
-    """st: the game state (DATA1 part 15 / Sdata.dat). Returns (ports, discoveries) as [(x, y, name)] for the map."""
+    """st: the game state (DATA1 part 15 / Sdata.dat). Returns (ports, discoveries) as [(x, y, name)] for the map.
+    lay["rename"] (optional) renames CSV columns whose meaning is known only for that version."""
+    rename = lay.get("rename", {})
     encoding, item_size, item_name = lay["encoding"], lay["item_size"], lay["item_name"]
     PORTS, PORT_STATE, MARKETS, ITEMS = lay["ports"], lay["port_state"], lay["markets"], lay["items"]
     item_names = [cstr(st[ITEMS + item_size * i:ITEMS + item_size * i + item_name], encoding) for i in range(N_ITEMS)]
@@ -153,11 +155,11 @@ def write_tables(st, colony, item_mes, lb: Labels, out, lay):
                     " ".join(shop), market, lb.markets[market], b34, b35,
                     lb.drinks[drink], lb.drink_prices[drink]] + list(st[s + 37:s + lay["port_state_size"]])
         rows.append(row)
-    _csv(os.path.join(out, "tables", "ports.csv"),
+    _csv(os.path.join(out, "tables", "ports.csv"), [rename.get(h, h) for h in
          ["id", "name", "x", "y", "nation", "nation_name", "flags", "economy", "economy_acc", "industry",
           "industry_acc", "support", "price_rates", "specialty", "specialty_price", "specialty_level", "area",
           "shop_items", "market", "market_name", "b34", "b35", "drink", "drink_price"]
-         + [f"b{i}" for i in range(37, lay["port_state_size"])], rows)
+         + [f"b{i}" for i in range(37, lay["port_state_size"])]], rows)
 
     _csv(os.path.join(out, "tables", "goods.csv"), ["id", "name", "category", "category_name"],
          [[g, n, lb.category(g), lb.categories[lb.category(g)]] for g, n in enumerate(lb.goods)])
@@ -186,9 +188,9 @@ def write_tables(st, colony, item_mes, lb: Labels, out, lay):
         sample = lay["ships"] + 22 * (40 + t)
         rows.append([t, cstr(st[sample:sample + 15], encoding), dur, turn, power, crew10 * 10, sailors, cargo, guns,
                      price, b0, b9])
-    _csv(os.path.join(out, "tables", "ships.csv"),
+    _csv(os.path.join(out, "tables", "ships.csv"), [rename.get(h, h) for h in
          ["id", "name", "durability", "turning", "propulsion", "max_crew", "min_sailors", "capacity", "max_guns",
-          "price_base", "b0", "b9"], rows)
+          "price_base", "b0", "b9"]], rows)
 
     rows = []
     for i in range(N_ITEMS):

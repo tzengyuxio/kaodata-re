@@ -5,13 +5,16 @@
   - Items: 31 records of 15 bytes at 0xA8: +0 name (13 bytes, Shift-JIS), +13 u16 price.
   - Fleets: 21 records of 17 bytes at 0xC34: +0 bx, by, fx, fy (position, same units as the ports), the rest raw.
   - Port economy: 50 records of 18 bytes at 0xD9A (ports 0-49): +0 u32, +4 u32, +8/+9/+10 shares of three nations
-    (%, 🟡), +11..+17 raw.
+    (%, 🟡), +11..+13 raw, +14..+17 the four item ids sold by the port's item shop.
+  - Ports with an item shop: port +19 bit 2 (MAIN.EXE 0xF0DA builds the town facility mask; facility 1 is the
+    item shop 0x10EA0, buy 0x10734 lists economy +14..+17 and charges item +13).
   - Flagship ヘルメス at 0x12C6 and 6 ship templates at 0x132F, 21 bytes: +0 name (15 bytes), +15 u16, +17 u8,
     +18 u16, +20 u8 (meanings unknown).
   - Ports: 70 records of 20 bytes at 0x1766: +0 name (15 bytes), +15 bx, +16 by, +17 fx, +18 fy, +19 flag.
     Position in half map bytes: x = bx * 14 + fx, y = by * 14 + fy.
 - MAIN.EXE (DGROUP at file 0x40910): trade goods = 26 near pointers at DS:0x1EAC; shipyard names = 6 NUL-padded
-  strings at DS:0xC7D4.
+  strings at DS:0xC7D4; item kind and rank = 31 x 2 bytes at DS:0x22CA (selling is refused when 150 x rank exceeds
+  the port's economy +0, the sell price is half the price).
 - NEWGAME.DAT: u16 offset of section B, u16 offset of section C; section A from offset 4 is 288 x 5 bytes
   (u16 group, 3 bytes ?) for a 24 x 12 grid of groups; section B is 9 u16 block numbers per group (3 x 3);
   section C is 49-byte blocks (7 x 7 terrain codes, 0 = sea). The world is 504 x 252 bytes.
@@ -65,9 +68,18 @@ def tables(game_dir, out):
     goods = struct.unpack_from("<26H", exe, DGROUP + 0x1EAC)
     _csv(f"{out}/tables/goods.csv", ["id", "name"],
          [(i, exe[DGROUP + q:exe.index(b"\0", DGROUP + q)].decode("cp932")) for i, q in enumerate(goods)])
-    _csv(f"{out}/items/items.csv", ["id", "name", "price"],
-         [(i, _name(cim[0xA8 + i * 15:0xA8 + i * 15 + 13]), struct.unpack_from("<H", cim, 0xA8 + i * 15 + 13)[0])
-          for i in range(31)])
+    items = [_name(cim[0xA8 + i * 15:0xA8 + i * 15 + 13]) for i in range(31)]
+    shops = [(p[0], p[1], cim[0xD9A + p[0] * 18 + 14:0xD9A + p[0] * 18 + 18]) for p in pts[:50] if p[8] & 4]
+    irows = []
+    for i, name in enumerate(items):
+        price = struct.unpack_from("<H", cim, 0xA8 + i * 15 + 13)[0]
+        kind, rank = exe[DGROUP + 0x22CA + i * 2:DGROUP + 0x22CA + i * 2 + 2]
+        sold = [s for s in shops if i in s[2]]
+        irows.append((i, name, price, price // 2, kind, rank, " ".join(str(s[0]) for s in sold),
+                      "、".join(s[1] for s in sold)))
+    _csv(f"{out}/items/items.csv", ["id", "name", "price", "sell", "kind", "rank", "ports", "port_names"], irows)
+    _csv(f"{out}/items/shops.csv", ["port", "name", *(f"item{k}" for k in range(4)), *(f"name{k}" for k in range(4))],
+         [(p, n, *lst, *(items[b] for b in lst)) for p, n, lst in shops])
     ships = []
     for i, a in [("flagship", 0x12C6), *((k, 0x132F + k * 21) for k in range(6))]:
         r = cim[a:a + 21]
@@ -136,7 +148,8 @@ def koukai_extras(game_dir, out):
     """大航海時代 (PC-98): ports, goods, items, ships, fleets and the world map."""
     pts = tables(game_dir, out)
     world_map(game_dir, out, pts)
-    click.echo(f"{len(pts)} ports, 26 goods, 31 items, 7 ship types, 21 fleets, map 504x252 -> {out}")
+    shops = sum(p[8] & 4 > 0 for p in pts[:50])
+    click.echo(f"{len(pts)} ports, 26 goods, 31 items ({shops} item shops), 7 ship types, 21 fleets, map 504x252 -> {out}")
 
 
 if __name__ == "__main__":

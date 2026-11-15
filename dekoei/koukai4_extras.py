@@ -7,10 +7,11 @@ landing places, the scenario dialogue and the message file, written under --out 
   are written for files that have a language suffix; bustup.dk4 (kaodata) and the fonts are left out.
 - Items: JP/World0.dll (JP/World1.dll for PK mode: same names, other places), 231 records of 32 bytes found by the
   pointer to カボチャの種: +0 name (pointer), +8 u32 price, +0xC u32 x and +0x10 u32 y (0xFFFFFFFF: not placed),
-  +0x14 kind (ITEM_KINDS), +0x15 region (8 none), +0x16 related post, +0x17 power, +0x18 port that sells it (port
-  record, 98 none: コショウの実 カリカット, タバコの苗木 ハバナ, 陣太鼓 大坂), +0x19 flags; +0x15 is the sea area
-  (SEA_AREAS, 8 none). The record
-  number is the picture of Item56.dk4 / Item32.dk4.
+  +0x14 kind (ITEM_KINDS), +0x15 region (8 none), +0x16 ship room (ROOMS, 24 none; the game shows its 関連役職),
+  +0x17 effect value (効果値: weapons and armour add it to 剣闘術, the others to the room's ability), +0x18 port that
+  sells it (port record, 98 none: コショウの実 カリカット, タバコの苗木 ハバナ, 陣太鼓 大坂), +0x19 state bits
+  (ITEM_FLAGS); +0x15 is the sea area (SEA_AREAS, 8 none). The record number is the picture of Item56.dk4 /
+  Item32.dk4 and, plus ITEM_TEXT, the message of the description in mesfile.dk4.
 - Ports: JP/World0.dll, 97 records of 132 bytes from ロンドン (GetFixTownProc(i) of the DLL; DK4HD_jp.exe copies them
   at 0x1402aed50) with the name inline (20 bytes): +0x14 x, y of the town and +0x1C x, y of the anchorage (map units),
   +0x24 1 = the zone's centre port, +0x25 zone (ZONES), +0x26 ?, +0x28 five (u16 good, u16 ?, u16 rate) market
@@ -28,7 +29,8 @@ landing places, the scenario dialogue and the message file, written under --out 
   40 FF FF <a> <b> text 00: a = 0 → b is the speaker (person record of World0.dll), a = 0x80 → narration. JP and TC
   have the same lines in the same order.
 - {JP,TC}/mesfile.dk4: the same container of string blocks; a block is NUL-separated text (some strings are
-  continued without a NUL). The JP and TC blocks are not the same, so they are written separately.
+  continued without a NUL). The JP and TC blocks are not the same, so they are written separately. The EXE cuts
+  them by its own offset tables (_messages); only the item descriptions use that so far.
 - World.dat: 2500 x 1250 u16 map cells, each the tile number of Chip.DK4 texture 0 (16 tiles of 32 x 32 per row,
   the sea transparent); drawn over the sea texture (texture 4) as map/world.png. Map units are 1/16 cell: the
   全世界 area of DK4HD_jp.exe 0x14058c590 is 0, 0, 40000, 20000. Only with the pictures.
@@ -83,6 +85,23 @@ SEA_AREAS = ["北海", "地中海", "アフリカ", "インド洋", "東南ア�
 # DK4HD_jp.exe 0x1401417e0: facility i of a town; port +0x48 bit i
 FACILITIES = ["広場", "交易所", "造船所", "出港所", "酒場", "ギルド", "王宮", "総督府", "宿屋", "遺跡", "教会", "城門"]
 NO_FORCE = 0x1A
+# the 10 abilities (DK4HD_jp.exe 0x1406886f0, index of GetAbility 0x1401ca2c0)
+ABILITIES = ["生命力", "統率力", "操船術", "測量術", "会計術", "剣闘術", "命中力", "説得力", "謀略術", "観察力"]
+# item +0x16: the ship room (DK4HD_jp.exe 0x1400256d0 builds the 24 rooms at 0x144296f30, 0x18 each: name, +0x10
+# the ability the room uses (11 none), +0x12 u16); 24 = none. (room name, ability index)
+ROOMS = [("マスト", 2), ("見張台", 9), ("甲板", 0), ("測量", 3), ("舵輪", 2), ("艦長室", 1), ("副官室", 7), ("海兵詰所", 5),
+         ("武装砲台", 6), ("物資倉庫", 11), ("積荷倉庫", 11), ("漕手室", 11), ("個室", 11), ("材木室", 3), ("診察室", 9),
+         ("調理室", 6), ("娯楽室", 11), ("飼育室", 0), ("礼拝室", 7), ("参謀室", 8), ("主計室", 4), ("追加１", 11),
+         ("追加２", 11), ("なし", 11)]
+# the 関連役職 the item window shows for room r: POSTS[ROOM_POST[r]] (DK4HD_jp.exe 0x140069320; POSTS is the name
+# table at 0x140587240; 17 = none)
+POSTS = ["艦長", "副官", "参謀", "主計長", "測量士", "操帆手", "操舵手", "見張り", "斬込隊長", "砲撃手", "宣教師", "船医", "料理長",
+         "船大工", "飼育員", "甲板要員"]
+ROOM_POST = [5, 7, 15, 4, 6, 0, 1, 8, 9, 17, 17, 17, 17, 13, 11, 12, 17, 14, 10, 2, 3]
+# item +0x19 (object +0x3C) bits; the data sets only rumoured, found and nosearch (names are kaodata-re's)
+ITEM_FLAGS = ["rumoured", "found", "owned", "nosearch", "lent", "told"]
+# item i is described by message ITEM_TEXT + i of mesfile.dk4 (DK4HD_jp.exe 0x140132a8b, DK4HD_tc.exe 0x140132d8b)
+ITEM_TEXT = 3520
 # World.dat: 2500 x 1250 cells; map units (port, item, landing place positions) are 1/16 cell (全世界 = 40000 x 20000)
 WORLD_W, WORLD_H, UNIT, TILE = 2500, 1250, 16, 32
 MAP_SCALE = 4  # world.png: pixels per cell, so a map position in pixels is units * MAP_SCALE / UNIT
@@ -254,6 +273,21 @@ def tables(game_dir, out):
         x, y = struct.unpack_from("<2I", data, o + 0xC)
         area = data[o + 0x15]
         return [SEA_AREAS[area] if area < len(SEA_AREAS) else "", *(_map(x, y) if x != 0xFFFFFFFF else ["", ""])]
+    def effect(kind, room):
+        """(room, 関連役職, ability) of +0x16: weapons and armour add +0x17 to 剣闘術, the others to the room's ability
+        (DK4HD_jp.exe 0x1401c9110)."""
+        if room >= len(ROOMS) - 1:
+            return ["", "", ABILITIES[5] if kind in (2, 3) else ""]
+        post = ROOM_POST[room] if room < len(ROOM_POST) else 17
+        ability = ROOMS[room][1]
+        return [ROOMS[room][0], POSTS[post] if post < len(POSTS) else "",
+                ABILITIES[ability] if ability < len(ABILITIES) else ""]
+
+    def flags(b):
+        return " ".join(f for k, f in enumerate(ITEM_FLAGS) if b >> k & 1)
+
+    text = {lang: _messages(exe[lang], os.path.join(game_dir, lang, "mesfile.dk4")) for lang, _ in LANGS}
+    assert text["JP"](ITEM_TEXT).startswith("新大陸で栽培"), "item descriptions moved"
     rows = []
     for i in range(n):
         o = start + i * ITEM_SIZE
@@ -262,11 +296,13 @@ def tables(game_dir, out):
         zh = w0["TC"].text(w0["TC"].ptr(tc_start + i * ITEM_SIZE)) if tc_start is not None else ""
         rows.append([i, jp.text(jp.ptr(o)), zh, ITEM_KINDS[kind] if kind < len(ITEM_KINDS) else kind, kind, price,
                      post, power, *place(jp.data, o), *place(w1.data, s1 + i * ITEM_SIZE),
-                     f"items/pictures/{i:03d}.png", *extra(jp.data, o), *extra(w1.data, s1 + i * ITEM_SIZE)])
+                     f"items/pictures/{i:03d}.png", *extra(jp.data, o), *extra(w1.data, s1 + i * ITEM_SIZE),
+                     *effect(kind, post), flags(jp.data[o + 0x19]), flags(w1.data[s1 + i * ITEM_SIZE + 0x19]),
+                     text["JP"](ITEM_TEXT + i), text["TC"](ITEM_TEXT + i)])
     _csv(os.path.join(out, "items", "items.csv"),
          ["id", "name", "nameZh", "kind", "kindCode", "price", "post", "power", "x", "y", "region", "shop", "b19",
           "pkX", "pkY", "pkRegion", "pkShop", "pkB19", "picture", "area", "mapX", "mapY", "pkArea", "pkMapX",
-          "pkMapY"], rows)
+          "pkMapY", "room", "postName", "ability", "flags", "pkFlags", "description", "descriptionZh"], rows)
     counts["items"] = n
 
     # EXE tables: (file, first name, stride)
@@ -323,6 +359,30 @@ def _blocks(path):
         data = f.read()
     n, = struct.unpack_from("<I", data, 0)
     return [data[o:o + s] for o, s in (struct.unpack_from("<2I", data, 4 + 8 * k) for k in range(n))]
+
+
+def _messages(exe, path):
+    """Message m of mesfile.dk4 as the EXE cuts it (DK4HD_jp.exe 0x140144700): a table of (u16 first message, u16
+    size) per block (0x140685930; DK4HD_tc.exe 0x140683650), found by the block sizes of the file header, then a u16
+    offset per message inside its block from the next 16-byte boundary (0x140685a10; TC 0x1406836f0). A message runs
+    to the next one's offset or the block end, cut at the first NUL."""
+    blocks = _blocks(path)
+    size = [re.escape(struct.pack("<H", len(b))) for b in blocks[:3]]
+    pat = re.compile(b"\0\0" + size[0] + b".." + size[1] + b".." + size[2], re.S)
+    m = next(m for m in pat.finditer(exe.data) if m.start() % 4 == 0)
+    table, used = m.start(), 0
+    while used < len(blocks) and struct.unpack_from("<H", exe.data, table + 4 * used + 2)[0] == len(blocks[used]):
+        used += 1
+    first = [struct.unpack_from("<H", exe.data, table + 4 * k)[0] for k in range(used)]
+    offsets = table + (4 * used + 15) // 16 * 16
+
+    def message(i):
+        b = max(k for k in range(used) if first[k] <= i)
+        start, end = struct.unpack_from("<2H", exe.data, offsets + 2 * i)
+        if b + 1 < used and i + 1 == first[b + 1] or end < start:
+            end = len(blocks[b])
+        return blocks[b][start:end].split(b"\0")[0].decode(exe.encoding, "replace").strip(" ")
+    return message
 
 
 def events(game_dir, out):
