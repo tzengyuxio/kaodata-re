@@ -264,7 +264,7 @@ BATTLE_COLS, BATTLE_ROWS, BATTLE_MAPS = 22, 20, 68
 BATTLE_LAYER = BATTLE_COLS * BATTLE_ROWS
 # HEXGRP.DAT tile sets (offset, tiles) of 24x20 3-plane tiles, 180 bytes each
 BATTLE_TILESETS = [(0, 228), (41040, 219), (80460, 124)]
-# tile set of each map; the game fills this table at run time, so it was picked by eye
+# tile set of each map: MAIN.EXE image 0x33D8C reads 0x49EB:0xFAC + map number (initialised data, image 0x4AE5C)
 BATTLE_MAP_TILESET = [0] * 46 + [1] * 7 + [2] + [1] * 14
 PC98_PALETTE = ["#000000", "#0044FF", "#FF5500", "#FF55DD", "#11BB55", "#00CCFF", "#FFEE00", "#FFFFFF"]
 

@@ -3132,9 +3132,12 @@ def load_santsukuru_win_faces(game_dir: str) -> list[tuple[int | None, int, str,
 # Tiles 0-79 are HEXZCHP.R3 part 0, 80- are part 2 for the maps listed at DGROUP 0x32BC (MAIN.EXE 0x257AC), else part 1.
 EIKETSU_BATTLE_TILESET2 = [0, 1, 4, 8, 10, 16, 20, 28, 29, 30, 35, 36, 39, 40, 42, 43, 44, 50, 52]
 EIKETSU_PC98_BATTLE_PALETTES = 0x359AC  # MAIN.EXE: 9 x 16 colours, B R G 4 bit; picked by state +5 (0x159B8)
+# State +5 (DGROUP 0x6DF0) is also the game mode; battles run in mode 3 (dispatch at 0x1B57A), so every battle
+# screen (map at 0x26020, attack scene at 0x2F856) uses palette 3.
+EIKETSU_PC98_BATTLE_PALETTE = 3
 
 
-def render_eiketsu_battle_maps(game_dir, palette=1):
+def render_eiketsu_battle_maps(game_dir, palette=EIKETSU_PC98_BATTLE_PALETTE):
     with open(os.path.join(game_dir, 'MAIN.EXE'), 'rb') as f:
         exe = f.read()
     pal = exe[EIKETSU_PC98_BATTLE_PALETTES + 48 * palette:EIKETSU_PC98_BATTLE_PALETTES + 48 * (palette + 1)]
@@ -3165,7 +3168,7 @@ def render_eiketsu_battle_maps(game_dir, palette=1):
 @click.command(help='戰場地圖（PC-98）')
 @click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
 @click.option('--out', 'out_dir', required=True, help='輸出目錄')
-@click.option('--palette', type=click.IntRange(0, 8), default=1, help='色盤 0–8（遊戲執行時決定，1 是綠地）')
+@click.option('--palette', type=click.IntRange(0, 8), default=EIKETSU_PC98_BATTLE_PALETTE, help='色盤 0–8（遊戲在戰場用 3）')
 def eiketsu_battlemap(game_dir, out_dir, palette):
     """
     dekoei.py eiketsu battlemap --game-dir ../games/eiketsu-pc98 --out ../games/eiketsu-pc98/extract/battlemap
@@ -3264,7 +3267,7 @@ eiketsu5.add_command(eiketsu5_battlemap, 'battlemap')
 
 # 英傑傳 PC-98: backgrounds of the attack scene (0x2F856). HEXBMAP.R3 parts 0-4 are the far view (23 x 10 tiles),
 # parts 5-8 the ground (24 x 22); HEXBCHP.R3 holds their 224 tiles (same encoding as HEXZCHP).
-def render_eiketsu_battle_backgrounds(game_dir, palette=1):
+def render_eiketsu_battle_backgrounds(game_dir, palette=EIKETSU_PC98_BATTLE_PALETTE):
     with open(os.path.join(game_dir, 'MAIN.EXE'), 'rb') as f:
         exe = f.read()
     pal = exe[EIKETSU_PC98_BATTLE_PALETTES + 48 * palette:EIKETSU_PC98_BATTLE_PALETTES + 48 * (palette + 1)]
@@ -3290,7 +3293,7 @@ def render_eiketsu_battle_backgrounds(game_dir, palette=1):
 @click.command(help='交戰畫面的背景（PC-98）')
 @click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
 @click.option('--out', 'out_dir', required=True, help='輸出目錄')
-@click.option('--palette', type=click.IntRange(0, 8), default=1, help='色盤 0–8（同 battlemap）')
+@click.option('--palette', type=click.IntRange(0, 8), default=EIKETSU_PC98_BATTLE_PALETTE, help='色盤 0–8（同 battlemap）')
 def eiketsu_battlebg(game_dir, out_dir, palette):
     """
     dekoei.py eiketsu battlebg --game-dir ../games/eiketsu-pc98 --out ../games/eiketsu-pc98/extract/battlebg
