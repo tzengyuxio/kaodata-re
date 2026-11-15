@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `games/`：原版遊戲，被 `.gitignore` 排除，不要 commit
   - 根目錄只放解開後、給 `--game-dir` 用的 `games/<dataset-id>/`（如 `games/san2-dos/`）
   - 源平合戦 DOS/V 版沒有發行包，安裝後的 `GENPEI/` 本身就是原始檔，放在 `~/game-library/_original/dos/genpei/`（記錄在 `_original/dos/genpei.txt`、`SHA1SUMS.txt`），`games/genpei-dos/` 是它的硬連結（唯讀）。2026-11-10 起源平合戦的格式研究以本 repo 為主，genpei-zh 只做中文化
-  - DOS、Windows 的原始壓縮檔與用不到的附帶檔（說明文字、`<dataset-id>-src/`）放在 `games/archives/dos/`、`win/`
+  - DOS、Windows 的原始壓縮檔與用不到的附帶檔（說明文字、`<dataset-id>-src/`）放在 `games/archives/dos/`、`win/`；2026-11-15 起新加的放 `~/game-library/_original/dos/`、`win/`（`SHA1SUMS.txt` 與每款一份 `<id>.txt`，例：`suikoden2-win`、`sanr-win`），附帶檔仍放 `games/archives/<platform>/<id>-src/`
   - PC-98、PC-88、X68000 的發行包（磁碟映像、neo-kobe 合集、安裝結果 `pc98/installed/`）放在 `~/game-library/_original/pc98/`、`pc88/`、`x68/`（各有 `SHA1SUMS.txt`，2026-11-09 從 `games/archives/` 搬過去）；新加的這三個平台的原始檔也放那裡。檔案已解到 `games/<game>-pc98/`、`games/san2-x68/` 等，每片磁碟解開的原樣在 `games/archives/pc98/disks/`、`pc88/disks/`；PC-98 的 FD／HD 取捨見 `docs/backlog/pc98-disk-images.md`
 - 舊的 unpacker 已移到另一個專案 `dekoei`，本 repo 不再處理；例外是 PC-98 安裝包 DPACK 的解壓 `dekoei/dpack.py`（`python dpack.py OUTDIR DPACK1 DPACK2 ...`，見 `notes/dpack.md`），用來從提督の決断III、三国志V 的磁片取得遊戲檔
 
