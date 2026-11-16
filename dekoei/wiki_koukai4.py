@@ -45,6 +45,14 @@ def _forces(w0):
     return [(w0.text(w0.ptr(start + 0x58 * i)), w0.data[start + 0x58 * i + 8]) for i in range(n)]
 
 
+def _forces_zh(game_dir, w0):
+    """Force names of TC/World0.dll (the same records; it also holds the PK-only forces)."""
+    tc = _pe(game_dir, "TC", "World0.dll", enc="cp950")
+    start, n = w0.table("カストール商会", 0x58)
+    t = kx.twin(w0, start, 0x58, n, tc)
+    return [tc.text(tc.ptr(t + 0x58 * i)) for i in range(n)]
+
+
 def _ports(game_dir):
     """(jp name, zh name, World0 record, World1 record) of the 97 ports, as koukai4_extras.tables finds them."""
     jp, w1 = _pe(game_dir, "JP", "World0.dll"), _pe(game_dir, "JP", "World1.dll")
@@ -68,8 +76,7 @@ def persons(game_dir):
     nations, values = _names(exe, NATIONS, 19), _names(exe, VALUES, 6)
     signs = _names(exe, SIGNS, 12, 32)
     forces, pk_forces = _forces(w0), _forces(w1)
-    leads = {leader: name for name, leader in forces}
-    port_ids = {jp: i for i, (jp, *_) in enumerate(_ports(game_dir))}
+    leads = {leader: name_zh for (_, leader), name_zh in zip(forces, _forces_zh(game_dir, w0))}
     base = koei_games.load_koukai4_win_persons(os.path.join(game_dir, "JP", "World0.dll"), "ラファエル", "cp932")
     zh = koei_games.load_koukai4_win_persons(os.path.join(game_dir, "TC", "World0.dll"), "拉斐爾", "cp950")
     t0, t1 = _person_table(w0), _person_table(w1)
@@ -106,9 +113,12 @@ def persons(game_dir):
         if girl:
             port = family
             game["所在港"] = port
-            notes.append(f"酒場娘（{port}の酒場）；遊戲只存名字和港名。")
-            if port not in port_ids:
-                notes.append("港名和港口表的寫法不同。")
+            # same wording as II and 外伝 (koei-wiki, 2026-11-17); the record holds name, port (+8), 性別 +0x26,
+            # a 国籍 byte +0x27 (19 at アテネ, past the nation table) and the bustup face +0x2B, no stats or force
+            notes.append("酒館女性，遊戲只存名字、所在港、性別、國籍和頭像。")
+            if r[0x27] < len(nations):  # アテネ's is 19, past the table: left out
+                more["国籍"] = nations[r[0x27]]
+                uncertain.append("more.国籍")
         else:
             if r[0x27] < len(nations):
                 more["国籍"] = nations[r[0x27]]
@@ -128,11 +138,11 @@ def persons(game_dir):
         if uncertain:
             row["uncertain"] = uncertain
         if i in PROTAGONISTS:
-            notes.insert(0, f"主人公（劇本 Sc{i}.dk4）。")
+            notes.insert(0, "主角。")  # the hero of Sc<i>.dk4
         if i in leads:
-            notes.append(f"{leads[i]}的首領（勢力表 +8）。")
+            notes.append(f"{leads[i]}的首領。")  # force table +8
         if "PK能力" in game or "PK所属" in game:
-            notes.append("頂層是本體模式（World0.dll）的值，PK 模式（World1.dll）不同的放 game.PK*。")
+            notes.append("PK 模式的值不同。")  # in game.PK*: World1.dll differs from World0.dll
         if notes:
             row["notes"] = "".join(notes)
         rows.append(row)
