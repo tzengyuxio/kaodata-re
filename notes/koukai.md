@@ -186,6 +186,17 @@ cd dekoei
 - 標號圖：`dekoei.py places-label koukai-pc98 --places ../export/koei-wiki/places` 寫 `world/world-labelled.png`（放大 2 倍，2016×1008）。地圖沒有港口圖示，所以每個 `pos` 畫紅點，標「編號 名稱」，擠到放不下的只標編號（`places_export.LABEL_DOTS`）。 遊戲本身的圖塊 `MAP.PUT` 沒解出（見「負面結論」），所以只有示意圖。
 - 0–49 號有 `game`：同盟（港口 +19 & 3）、経済価値、経済投資額、工業価値、工業投資額、支持率、物価（%），都是開局的值，來源見上方「港口經濟」。50–69 號沒有經濟記錄，只有名稱和位置。
 
+### 遊戲用語（2026-11-17）
+
+koei-wiki 要的中文用語，對照表在 `export/koei-wiki/terms/koukai-pc98.json`（日文 → DOS 中文版）。
+
+- 中文版 `MAIN.EXE` 是 TINYPROG 壓縮，用 dosgame-re 的 `tools/daming-yingxiong-zhuan/unpack_exe.py`（Unicorn，載入段 0x1000，OEP 1000:5204）解開，下面的位移是解開後映像的位移。
+- 國名（✅ cross）：0x47A19 依序是 葡萄牙、西班牙、鄂固曼、海盜，和 PC-98 的 ポルトガル、イスパニア、イスラム、海賊 同序。イスラム 在中文版一律寫「鄂固曼」，找不到「伊斯蘭」。
+- 港情報視窗（✅ cross，和 PC-98 0x48AE6 起同序）：0x4BD2A 中立港、葡萄牙同盟港、西班牙同盟港、鄂固曼同盟港，都是整串「國名＋同盟港」；經濟價值、經濟投資額、工業價值、工業投資額、支持率、物價。
+- 仲間視窗 0x50431（✅ cross，對 PC-98 0x4EF16）：領導能力、判斷力、智力、勇氣、力量；0x5041E「年齡: %2d歲」（PC-98 只有「%2d才」）；0x504CA 戰鬥經驗、戰鬥水準、航海經驗、航海水準。
+- 「國籍」這個標籤兩版都沒有。
+- `SAVE.DAT` 裡也有一段和程式資料區相同的中文字串（推定存檔時一起寫進去的記憶體），不是另一份訊息檔。
+
 ### 檢查
 
 - 2026-11-14：`places-export` 70 個港口，70 筆檢查 0 筆不符；`persons-export` 62 人，62 筆檢查 0 筆不符。koei-wiki 的 `verify_sanguo_places.py` 491 筆、`verify_persons.py` 310 筆，都是 0 筆不符。
