@@ -60,6 +60,7 @@ from genchou_extras import genchou_extras
 from genghis4_extras import genghis4_extras
 from sanr_extras import sanr_extras
 from suikoden2_extras import suikoden2_extras
+from tk3_extras import tk3_extras
 from eiketsu_script import eiketsu_scenario
 from koumei_script import scenario as koumei_scenario
 from eiketsu5_script import scenario as eiketsu5_scenario
@@ -966,6 +967,7 @@ dekoei.add_command(genchou_extras, "genchou-extras")  # 元朝秘史 國、勢�
 dekoei.add_command(genghis4_extras, "genghis4-extras")  # 成吉思汗IV 劇本表、人物、列傳、地圖、寶物
 dekoei.add_command(sanr_extras, "sanr-extras")  # 三國志風雲再起 頭像、地圖、戰場圖與其他圖
 dekoei.add_command(suikoden2_extras, "suikoden2-extras")  # 水滸傳 天導108星 頭像、圖、sprite、地面貼圖、州地圖
+dekoei.add_command(tk3_extras, "tk3-extras")  # 提督の決断III PK 插圖、事件圖、地圖、兵器表與資料卡
 dekoei.add_command(eiketsu_scenario, "eiketsu-scenario")  # 英傑傳 劇本腳本：戰場、部署、事件
 dekoei.add_command(koumei_scenario, "koumei-scenario")  # 孔明傳 劇本腳本：戰場、部署、事件
 dekoei.add_command(eiketsu5_scenario, "eiketsu5-scenario")  # 曹操傳 劇本腳本：戰場、部署、事件、跳關
