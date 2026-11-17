@@ -12,7 +12,7 @@ import click
 
 
 def _rows(extract, name):
-    with open(os.path.join(extract, "items", name), encoding="utf-8-sig") as f:
+    with open(os.path.normpath(os.path.join(extract, "items", name)), encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
@@ -500,6 +500,183 @@ def items_nobu15pk_win(extract):
     return out
 
 
+# 大航海時代 I-IV, 外傳: items are bought in shops, nobody holds them at the start; "shops" are place ids of the
+# dataset's koei-places/1 export (the game's port / city numbers). Sources: notes/koukai*.md, the item sections.
+
+# 大航海時代 (PC-98): items.csv of koukai-extras (shops = the reverse lookup of the 27 item shops, economy +14..+17,
+# fixed for the whole game ✅ code); nameZh from the DOS 中文版 SHINARIO.CIM (0xA8, 16-byte records, KOEI TW code).
+# The kinds have no names in the game except 財宝 (kind 4); the other names are guessed from the item names.
+KOUKAI_KINDS = ["航海道具", "護符", "剣", "彫像", "財宝"]
+KOUKAI_EFFECTS = {  # what each item does, for readers (notes/koukai.md「道具的效果」)
+    0: "航海中「監視」可以看整個畫面，航行時發現畫面內的所有港口（沒有望遠鏡時只看得到、發現得到相鄰的）。",
+    1: "航海中「測量」顯示現在的緯度、經度（沒有六分儀就不能測量）。",
+    2: "「情報」選單的「地形」要有它才有作用。",
+    "kind1": "主人公的船被砲擊時，傷害減少 10%×等級（只看持有中等級最高的護符）。",
+    "kind2": "主人公的船接舷戰（斬り込み）時，殺傷力×(1＋等級/8)（只看持有中等級最高的剣）。",
+    "kind3": "主人公的船砲擊時，威力×(1＋等級/8)，上限 100（只看持有中等級最高的彫像）。",
+    "kind4": "財宝：可以在道具屋用半價賣出（港口經濟不夠高的不收），或在王宮送給王女。",
+}
+
+
+def items_koukai_pc98(extract, game_dir):
+    from koei_games import koei_tw_name
+    with open(os.path.join(game_dir, "..", "koukai-dos", "SHINARIO.CIM"), "rb") as f:
+        dos = f.read()
+    out = []
+    for r in _rows(extract, "items.csv"):
+        i, kind = int(r["id"]), int(r["kind"])
+        effect = KOUKAI_EFFECTS[i] if kind == 0 else KOUKAI_EFFECTS[f"kind{kind}"]
+        out.append({"id": i, "name": r["name"], "nameZh": koei_tw_name(dos[0xA8 + 16 * i:0xA8 + 16 * i + 14]),
+                    "kind": KOUKAI_KINDS[kind], "grade": r["rank"], "price": int(r["price"]),
+                    "shops": [int(p) for p in r["ports"].split()],
+                    "uncertain": ["kind"] if kind < 4 else [],
+                    "notes": effect + ("" if kind in (1, 2, 3) else "等級只影響賣出：港口經濟價值不到 150×等級的道具屋不收。")
+                             + ("種類名是依道具名取的，遊戲裡只有「財宝」這個稱呼。" if kind < 4 else "")
+                             + ("「情報→地形」顯示什麼還沒確認。" if i == 2 else "")})
+    return out
+
+
+# 大航海時代II (PC-98) and 外傳 (Win): the item records of the start state (koukai2_extras / koukaigd_extras
+# layouts) and the item shop slots of port state +29..+32 (ports 0-99). The 4th slot only sells at a special time
+# (外傳: 2 a.m.; II: when a game counter is 6-8, meaning not confirmed).
+def _place_names(dataset):
+    """place id -> name of the dataset's koei-places/1 export"""
+    with open(os.path.join(os.path.dirname(__file__), "..", "export", "koei-wiki", "places", f"{dataset}.jsonl"),
+              encoding="utf-8") as f:
+        return {p["id"]: p["name"] for p in map(json.loads, f)}
+
+
+def _koukai2_shops(st, lay):
+    """{item: ([ports], [ports of the 4th slot only])}"""
+    import koukai2_extras as x
+    out = {}
+    for k in range(x.N_REAL_PORTS):
+        s = lay["port_state"] + lay["port_state_size"] * k
+        for slot, i in enumerate(st[s + 29:s + 33]):
+            if i != 0xFF:
+                normal, special = out.setdefault(i, ([], []))
+                (special if slot == 3 else normal).append(k)
+    return out
+
+
+def _koukai2_rows(dataset, extract, st, lay, attack, defence, price_sure):
+    shops = _koukai2_shops(st, lay)
+    places = _place_names(dataset)
+    out = []
+    for r in _rows(extract, os.path.join("..", "tables", "items.csv")):
+        i, kind, power = int(r["id"]), int(r["kind"]), int(r["power"])
+        normal, special = shops.get(i, ([], []))
+        notes = []
+        if special:
+            only = [p for p in special if p not in normal]
+            notes.append(f"{'、'.join(places[p] for p in only)}只在特別時段（秘藏寶物）才賣。" if only else "")
+        row = {"id": i, "name": r["name"], "kind": r["kind_name"], "price": int(r["price"]) * 100 or None,
+               "effects": _stat(attack if kind <= 3 else defence if kind == 6 else "", power),
+               "description": _flat(r["description"]), "shops": sorted(set(normal + special)),
+               "uncertain": [] if price_sure or not int(r["price"]) else ["price"], "notes": "".join(notes)}
+        out.append(row)
+    return out
+
+
+KOUKAI2_PLACEHOLDERS = {28, 48, 49, 79}  # 空白, 予備
+
+
+def items_koukai2_pc98(extract, game_dir):
+    import koukai2_extras as x
+    import wiki_koukai2 as w
+    from biography import koei_tw_text
+    from koei_games import koei_tw_name
+    st, zh = w._state(game_dir), w._dos_state(game_dir)
+    with open(os.path.join(game_dir, "..", "koukai2-dos", "ITEM.MES"), "rb") as f:
+        mes = f.read()
+    lay = x.II_LAYOUT
+    rows = _koukai2_rows("koukai2-pc98", extract, st, lay, "攻撃力", "防御力", False)
+    for r in rows:
+        i = r["id"]
+        o = lay["items"] + lay["item_size"] * i
+        assert st[o + lay["item_name"]:o + lay["item_size"]] == zh[o + lay["item_name"]:o + lay["item_size"]]
+        r["nameZh"] = koei_tw_name(zh[o:o + lay["item_name"]])
+        r["descriptionZh"] = _flat(koei_tw_text(mes[145 * i:145 * (i + 1)].split(b"\0")[0]))
+        if r["effects"]:
+            r["uncertain"].append("effects")
+        notes = [r["notes"]]
+        if i in KOUKAI2_PLACEHOLDERS:
+            notes.append(f"道具表的空格（名稱就是「{r['name']}」）。")
+        if i == 99:
+            notes.append("說明文是開發者的留言。")
+        if r.get("price"):
+            notes.append("價格是買價（道具表的值×100，同外傳）；賣價是一半。")
+        r["notes"] = "".join(notes)
+    return rows
+
+
+def items_koukaigd_win(extract, game_dir):
+    from koukaigd_extras import GD_LAYOUT
+    with open(os.path.join(game_dir, "Sdata.dat"), "rb") as f:
+        st = f.read()
+    rows = _koukai2_rows("koukaigd-win", extract, st, GD_LAYOUT, "攻擊力", "防禦力", True)
+    for r in rows:
+        notes = [r["notes"]]
+        if r["name"] == "預備":
+            notes.append("道具表的空格（名稱就是「預備」）。")
+        if 80 <= r["id"] <= 86:
+            notes.append("指向的秘寶地點在開新遊戲時隨機決定。")
+        if r.get("price"):
+            notes.append("價格是買價（道具表的值×100）；賣價是一半，可以殺價。")
+        r["notes"] = "".join(notes)
+    return rows
+
+
+# 大航海時代III (Win, Chinese): items.csv of koukai3-extras; shops = the 8 shop slots of city +0x3C (🟡: read by the
+# code, checked against リスボン only); pictures by +4 (🟡 cross, 99 items have none)
+def items_koukai3_win(extract, game_dir):
+    import koukai3_extras as k3
+    exe = k3.Exe(os.path.join(game_dir, k3.EXE))
+    shops = {}
+    for c, va in exe.records(k3.CITIES):
+        for i in exe.words(va + 0x3C, 8):
+            if i >= 0:
+                shops.setdefault(i, []).append(c)
+    out = []
+    for r in _rows(extract, "items.csv"):
+        i = int(r["item"])
+        row = {"id": i, "name": r["name"], "kind": r["kindName"], "price": int(r["price"]) or None,
+               "description": _flat(r["description"]), "shops": sorted(set(shops.get(i, []))),
+               "uncertain": ["shops"] if i in shops else []}
+        out.append(row)
+    return out
+
+
+# 大航海時代IV PK (Win): items.csv of koukai4-extras (Japanese and 繁中 names and texts, effect value and ability ✅
+# code, kind and price 🟡); shops = item +0x18 of World0.dll (本體 mode), the PK mode's World1.dll value in notes
+def items_koukai4pk_win(extract, game_dir):
+    import koukai4_extras as kx
+    jp = kx.PE(os.path.join(game_dir, "JP", "World0.dll"), "cp932")
+    w1 = kx.PE(os.path.join(game_dir, "JP", "World1.dll"), "cp932")
+    s0, n = jp.table("カボチャの種", kx.ITEM_SIZE)
+    s1, _ = w1.table("カボチャの種", kx.ITEM_SIZE)
+    places = _place_names("koukai4pk-win")
+    out = []
+    for r in _rows(extract, "items.csv"):
+        i = int(r["id"])
+        shop, pk = jp.data[s0 + kx.ITEM_SIZE * i + 0x18], w1.data[s1 + kx.ITEM_SIZE * i + 0x18]
+        shop, pk = (shop if shop < kx.PORTS else None), (pk if pk < kx.PORTS else None)
+        row = {"id": i, "name": r["name"], "nameZh": r["nameZh"], "kind": r["kind"], "price": int(r["price"]) or None,
+               "effects": _stat(r["ability"], r["power"]), "description": r["description"],
+               "descriptionZh": r["descriptionZh"], "shops": [shop] if shop is not None else [],
+               "uncertain": ["kind", "price"] + (["shops"] if shop is not None or pk is not None else [])}
+        notes = []
+        if pk != shop:
+            notes.append(f"PK 模式改在{places[pk]}賣。" if pk is not None and shop is not None else
+                         f"只有 PK 模式在{places[pk]}賣。" if pk is not None else "PK 模式不在道具店賣。")
+        if shop is not None or pk is not None:
+            notes.append("每件道具在遊戲裡只有一個所在，這是開局時擺在哪個港的道具店；"
+                         "賣出後、或遊戲進行中會不會換到別的店沒有確認。")
+        row["notes"] = "".join(notes)
+        out.append(row)
+    return out
+
+
 DATASETS = {"san4pk-pc98": items_san4pk_pc98, "san7pk-win": items_san7pk_win, "san8pk-win": items_san8pk_win,
             "san9pk-win": items_san9pk_win, "san10pk-win": items_san10pk_win, "san11pk-win": items_san11pk_win,
             "san12pk-win": items_san12pk_win, "san13pk-win": items_san13pk_win, "san14pk-win": items_san14pk_win,
@@ -507,8 +684,11 @@ DATASETS = {"san4pk-pc98": items_san4pk_pc98, "san7pk-win": items_san7pk_win, "s
             "nobu9pk-win": items_nobu9pk_win, "nobu10pk-win": items_nobu10pk_win,
             "nobu11pk-win": items_nobu11pk_win, "nobu12pk-win": items_nobu12pk_win,
             "nobu13pk-win": items_nobu13pk_win, "nobu14pk-win": items_nobu14pk_win, "nobu15pk-win": items_nobu15pk_win,
-            "nobu16pk-win": items_nobu16pk_win}
-NEEDS_GAME = {"nobu6pk-pc98", "nobu14pk-win", "nobu16pk-win", "nobu11pk-win", "san8pk-win", "san12pk-win", "san13pk-win", "san14pk-win"}
+            "nobu16pk-win": items_nobu16pk_win, "koukai-pc98": items_koukai_pc98,
+            "koukai2-pc98": items_koukai2_pc98, "koukaigd-win": items_koukaigd_win,
+            "koukai3-win": items_koukai3_win, "koukai4pk-win": items_koukai4pk_win}
+KOUKAI = {"koukai-pc98", "koukai2-pc98", "koukaigd-win", "koukai3-win", "koukai4pk-win"}
+NEEDS_GAME = KOUKAI | {"nobu6pk-pc98", "nobu14pk-win", "nobu16pk-win", "nobu11pk-win", "san8pk-win", "san12pk-win", "san13pk-win", "san14pk-win"}
 # 三國志VII-12: nameZh / descriptionZh from the Steam 繁中版 (games/steam/<appid>-tchinese/depot, next to the game
 # directory), read by <module>.zh_items(depot) -> {item id: (name, description)}; 11 has no item descriptions
 ZH = {"san7pk-win": ("san7_extras", 628030), "san8pk-win": ("san8_extras", 628040),
@@ -551,16 +731,22 @@ PICTURES = {
     "nobu14pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
     "nobu15pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
     "nobu16pk-win": ("kahou.csv", "id", lambda r: r["picture"]),
+    # 大航海II, 外傳: tables/ and pictures/ of the extras (one 48x48 picture list for discoveries and items)
+    "koukai2-pc98": ("../tables/items.csv", "id", lambda r: f"../pictures/{int(r['picture']):03d}.png"),
+    "koukaigd-win": ("../tables/items.csv", "id", lambda r: f"../pictures/{int(r['picture']):03d}.png"),
+    "koukai3-win": ("items.csv", "item",
+                    lambda r: f"pictures/{int(r['picture']):03d}.png" if int(r["picture"]) >= 0 else ""),
+    "koukai4pk-win": ("items.csv", "id", lambda r: r["picture"].removeprefix("items/")),
 }
 # one picture per kind, shared by every item of the kind (the games have no picture per item)
 KIND_PICTURES = {"nobu6pk-pc98", "nobu7pk-win", "nobu8pk-win", "nobu9pk-win", "nobu10pk-win", "nobu11pk-win",
                  "nobu12pk-win", "nobu14pk-win"}
-# the item -> picture link was matched by looking at the pictures (san11 【推】, nobu11 🟡, nobu16 🟡)
-UNSURE_PICTURES = {"san11pk-win", "nobu11pk-win", "nobu16pk-win"}
+# the item -> picture link was matched by looking at the pictures (san11 【推】, nobu11 🟡, nobu16 🟡, koukai3 🟡)
+UNSURE_PICTURES = {"san11pk-win", "nobu11pk-win", "nobu16pk-win", "koukai3-win"}
 
 
 def _read_picture(items_dir, path):
-    full = os.path.join(items_dir, path)
+    full = os.path.normpath(os.path.join(items_dir, path))
     if os.path.isfile(full):
         with open(full, "rb") as f:
             return f.read()
@@ -572,6 +758,8 @@ def _read_picture(items_dir, path):
 
 def add_pictures(dataset, rows, extract, out):
     """set "picture" on each row and copy the pictures it uses to OUT/<dataset>/ (one file per picture)"""
+    if dataset not in PICTURES:
+        return rows
     name, key, path = PICTURES[dataset]
     items_dir = os.path.join(extract, "items")
     paths = {int(r[key]): path(r) for r in _rows(extract, name)}
@@ -581,6 +769,8 @@ def add_pictures(dataset, rows, extract, out):
         os.remove(os.path.join(folder, f))
     for r in rows:
         p = paths[r["id"]]
+        if not p:
+            continue
         r["picture"] = os.path.basename(p)
         target = os.path.join(folder, r["picture"])
         if not os.path.exists(target):
@@ -617,7 +807,15 @@ def check(dataset, rows):
     if len(ids) != len(set(ids)):
         problems.append("duplicate ids")
     names = _person_names(dataset)
+    places = None
+    if any(r.get("shops") for r in rows):
+        with open(os.path.join(os.path.dirname(__file__), "..", "export", "koei-wiki", "places",
+                               f"{dataset}.jsonl"), encoding="utf-8") as f:
+            places = {json.loads(line)["id"] for line in f}
     for r in rows:
+        for p in r.get("shops", []):
+            if p not in places:
+                problems.append(f"{r['id']} {r['name']}: shop {p} is not a place of {dataset}")
         if not r.get("name"):
             problems.append(f"{r['id']}: no name")
         for h in r.get("holders", []):
@@ -629,7 +827,8 @@ def check(dataset, rows):
 @click.command()
 @click.argument("dataset", type=click.Choice(list(DATASETS)))
 @click.option("--extract", "extract", required=True, help="games/<id>/extract")
-@click.option("--game-dir", "game_dir", help="遊戲目錄（信長6、11、三國志VIII、12–14 讀劇本的持有者；三國志VII–12 由此找繁中版）")
+@click.option("--game-dir", "game_dir", help="遊戲目錄（信長6、11、三國志VIII、12–14 讀劇本的持有者；三國志VII–12 由此找繁中版；"
+              "大航海讀道具店，I、II 的中文名讀旁邊的 DOS 版）")
 @click.option("--out", "out", required=True, help="export/koei-wiki/items")
 def items_export(dataset, extract, game_dir, out):
     """寶物（koei-items/1）寫到 OUT/<dataset>.jsonl"""
@@ -649,5 +848,7 @@ def items_export(dataset, extract, game_dir, out):
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     held = sum(len(r.get("holders", [])) for r in rows)
-    pictures = len(os.listdir(os.path.join(out, dataset)))
-    click.echo(f"{dataset}: {len(rows)} items, {held} holders, {pictures} pictures")
+    folder = os.path.join(out, dataset)
+    pictures = len(os.listdir(folder)) if os.path.isdir(folder) else 0
+    shops = sum(len(r.get("shops", [])) for r in rows)
+    click.echo(f"{dataset}: {len(rows)} items, {held} holders, {shops} shops, {pictures} pictures")

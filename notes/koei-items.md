@@ -78,3 +78,20 @@
 - 三國志IX 用 240×240 的大圖，三國志X 用 240×240（`pictures/`，不用 `pictures_small/`）。
 - 張數：三國志IV 31、VII 72、VIII 80、IX 100、X 176、11 35、12 200、13 201、14 131；信長6 22、7 27、8 37、9 38、10 35、11 35、12 36、14 54、15 121、16 122。抽查 ✅ capture（看圖）：三國志X、13 的赤兎馬，信長11 九十九髪茄子（茶入），信長8 曜変稲葉天目（茶碗）。
 - 信長4（茶器 15 張）、5、13 還沒有寶物匯出，所以也沒有圖。
+
+## 大航海時代（2026-11-18）
+
+大航海時代 I–IV、外傳的道具在店裡買，開局沒有持有者，不出 `holders`；改出賣的港口 `shops`（koei-items/1 2026-11-18 加的欄位），值是同一資料集地點匯出（`export/koei-wiki/places/<dataset>.jsonl`）的 id，匯出時逐一檢查在不在裡面。五款都要 `--game-dir`（讀道具店；I、II 的中文名讀旁邊的 `games/koukai-dos`、`games/koukai2-dos`）。`name` 是主資料集的寫法（I、II、IV 是日文，外傳、III 是繁中版），`nameZh` 是中文版的寫法。`notes` 寫給 koei-wiki 的讀者，不放程式位址。
+
+| 資料集 | 件數 | 有賣的件數（港口數） | 名稱、說明 | 讀哪裡 | 標 `uncertain` |
+|---|--:|--:|---|---|---|
+| `koukai-pc98` | 31 | 18（108） | 日文名、`nameZh`（DOS 中文版 `SHINARIO.CIM` 0xA8，16 bytes 一筆，光榮台灣內碼）；沒有說明文 | `items/items.csv`（`koukai-extras`）；`shops` 是 27 個道具屋（經濟 +14–17）的反查，整局固定 ✅ code；`grade` 是等級；效果寫在 `notes`（`items_export.KOUKAI_EFFECTS`，照 `notes/koukai.md`「道具的效果」） | kind（種類 0–3 的名字是依道具名取的，只有「財宝」是遊戲的稱呼） |
+| `koukai2-pc98` | 100 | 61（171） | 日文名與說明（`ITEM.MES`）、`nameZh` 與 `descriptionZh`（DOS 中文版 `DATA1.LZW` 第 15 段同位置的名字、`ITEM.MES`，`koei_tw_name`／`biography.koei_tw_text`）；DOS 版的記錄除名字外和 PC-98 byte 相同（assert） | `tables/items.csv`（`koukai2-extras`）；`shops` 是港口狀態 +29–32（0–99 港）；第 4 格只在特別時段才賣（條件 [0x5B7] 是 6–8，意思沒確認），只出現在第 4 格的港寫在 `notes`；`effects` 是武器（種類 0–3）的攻撃力、鎧（6）的防御力＝威力（照外傳）；`price` 是記錄值×100（照外傳） | price、effects |
+| `koukaigd-win` | 100 | 60（173） | 繁中名與說明（`Item.mes`）；沒有日文版，所以沒有 `nameZh` | `tables/items.csv`（`koukaigd-extras`）；`shops` 同 II（第 4 格是凌晨 2 點台，✅ code）；`effects` 是攻擊力、防禦力 ✅ code；`price` 是買價＝記錄值×100 ✅ code；80–86 號地圖的目標開新遊戲時亂數決定（寫在 `notes`） | — |
+| `koukai3-win` | 285 | 53（104） | 繁中名與說明 | `items/items.csv`（`koukai3-extras`）；`shops` 重讀 `CDS95.EXE` 城市記錄 +0x3C 的 8 格（地點 id＝城市號，226 城含內陸城）🟡（code 只追到讀取，只對過里斯本）；威力欄 🟡 沒出 `effects` | picture、shops |
+| `koukai4pk-win` | 231 | 48（48） | 日文名與說明、`nameZh`、`descriptionZh`（`TC/`） | `items/items.csv`（`koukai4-extras`）；`effects` 是效果值加在 `ability`（武器防具是剣闘術，航海用具是船室的能力）✅ code；`shops` 是本體模式 `World0.dll` 記錄 +0x18（98＝無），一件只在一個中心港；PK 模式（`World1.dll`）的值不同的 37 件寫在 `notes`（改在別港賣 13、只有 PK 賣 14、PK 不賣 10） | kind、price、shops |
+
+- 圖：II、外傳是 extras 的 `pictures/`（48×48，發現物與道具同一串，`items.csv` 的 `picture` 已加上道具圖的起點），共用的只存一份（II 43 張、外傳 58 張）；III 是 `items/pictures/`（120×120，186 件有圖、99 件沒有，161 張），道具和圖的對應 🟡；IV 是 `items/pictures/`（`Item56.dk4`，231 張）。I 沒有道具圖。
+- II、外傳的空格（「空白」「予備」「預備」）照樣出，`notes` 註明；II 的 99 號「財宝20」說明文是開發者留言。
+- IV 的販賣港（🟡 `shops`）：+0x18 是販賣港 ✅ cross（產地與國別對得上，見 `notes/koukai4.md`「道具」），但道具在遊戲裡是單一物件，所在由程式設定（「放進商店」是其中一種），所以這只是開局時擺在哪個店；賣出後或遊戲中途會不會換店、本體與 PK 兩種模式的切換以外有沒有隨時期變動，都沒有確認。
+- 檢查（2026-11-18）：五款 747 件，必填齊、id 不重複且照順序、沒有規格外的欄位；`shops` 604 筆都在地點匯出裡；`picture` 引用的檔都在（II 43、外傳 58、III 161、IV 231 張，沒有多餘的檔）；notes 沒有 `0x`、`DS:` 位址。
