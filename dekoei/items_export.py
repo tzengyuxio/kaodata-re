@@ -525,7 +525,7 @@ def items_koukai_pc98(extract, game_dir):
     out = []
     for r in _rows(extract, "items.csv"):
         i, kind = int(r["id"]), int(r["kind"])
-        effect = KOUKAI_EFFECTS[i] if kind == 0 else KOUKAI_EFFECTS[f"kind{kind}"]
+        effect = KOUKAI_EFFECTS.get(i if kind == 0 else f"kind{kind}") or r["effect"].rstrip("。") + "。"
         out.append({"id": i, "name": r["name"], "nameZh": koei_tw_name(dos[0xA8 + 16 * i:0xA8 + 16 * i + 14]),
                     "kind": KOUKAI_KINDS[kind], "grade": r["rank"], "price": int(r["price"]),
                     "shops": [int(p) for p in r["ports"].split()],
@@ -539,10 +539,15 @@ def items_koukai_pc98(extract, game_dir):
 # 大航海時代II (PC-98) and 外傳 (Win): the item records of the start state (koukai2_extras / koukaigd_extras
 # layouts) and the item shop slots of port state +29..+32 (ports 0-99). The 4th slot only sells at a special time
 # (外傳: 2 a.m.; II: when a game counter is 6-8, meaning not confirmed).
+KOUKAI2_PLACEHOLDERS = {"空白", "予備", "預備"}  # names of the empty slots (II 28, 48, 49, 79; 外傳 44, 45)
+
+
 def _place_names(dataset):
-    """place id -> name of the dataset's koei-places/1 export"""
-    with open(os.path.join(os.path.dirname(__file__), "..", "export", "koei-wiki", "places", f"{dataset}.jsonl"),
-              encoding="utf-8") as f:
+    """place id -> name of the dataset's koei-places/1 export (run places-export first)"""
+    path = os.path.join(os.path.dirname(__file__), "..", "export", "koei-wiki", "places", f"{dataset}.jsonl")
+    if not os.path.exists(path):
+        raise click.ClickException(f"{path} is missing: run places-export {dataset} first")
+    with open(path, encoding="utf-8") as f:
         return {p["id"]: p["name"] for p in map(json.loads, f)}
 
 
@@ -570,15 +575,16 @@ def _koukai2_rows(dataset, extract, st, lay, attack, defence, price_sure):
         if special:
             only = [p for p in special if p not in normal]
             notes.append(f"{'、'.join(places[p] for p in only)}只在特別時段（秘藏寶物）才賣。" if only else "")
-        row = {"id": i, "name": r["name"], "kind": r["kind_name"], "price": int(r["price"]) * 100 or None,
+        empty = r["name"] in KOUKAI2_PLACEHOLDERS  # empty slots of the item table: their price means nothing
+        row = {"id": i, "name": r["name"], "kind": r["kind_name"],
+               "price": None if empty else int(r["price"]) * 100 or None,
                "effects": _stat(attack if kind <= 3 else defence if kind == 6 else "", power),
                "description": _flat(r["description"]), "shops": sorted(set(normal + special)),
-               "uncertain": [] if price_sure or not int(r["price"]) else ["price"], "notes": "".join(notes)}
+               "uncertain": [] if price_sure or empty or not int(r["price"]) else ["price"], "notes": "".join(notes)}
+        if empty:
+            row["notes"] += f"道具表的空格（名稱就是「{r['name']}」）。"
         out.append(row)
     return out
-
-
-KOUKAI2_PLACEHOLDERS = {28, 48, 49, 79}  # 空白, 予備
 
 
 def items_koukai2_pc98(extract, game_dir):
@@ -594,14 +600,12 @@ def items_koukai2_pc98(extract, game_dir):
     for r in rows:
         i = r["id"]
         o = lay["items"] + lay["item_size"] * i
-        assert st[o + lay["item_name"]:o + lay["item_size"]] == zh[o + lay["item_name"]:o + lay["item_size"]]
+        if st[o + lay["item_name"]:o + lay["item_size"]] != zh[o + lay["item_name"]:o + lay["item_size"]]:
+            raise click.ClickException(f"item {i}: the DOS record differs from PC-98 outside the name")
         r["nameZh"] = koei_tw_name(zh[o:o + lay["item_name"]])
         r["descriptionZh"] = _flat(koei_tw_text(mes[145 * i:145 * (i + 1)].split(b"\0")[0]))
-        if r["effects"]:
-            r["uncertain"].append("effects")
+        _unsure(r)
         notes = [r["notes"]]
-        if i in KOUKAI2_PLACEHOLDERS:
-            notes.append(f"道具表的空格（名稱就是「{r['name']}」）。")
         if i == 99:
             notes.append("說明文是開發者的留言。")
         if r.get("price"):
@@ -617,8 +621,6 @@ def items_koukaigd_win(extract, game_dir):
     rows = _koukai2_rows("koukaigd-win", extract, st, GD_LAYOUT, "攻擊力", "防禦力", True)
     for r in rows:
         notes = [r["notes"]]
-        if r["name"] == "預備":
-            notes.append("道具表的空格（名稱就是「預備」）。")
         if 80 <= r["id"] <= 86:
             notes.append("指向的秘寶地點在開新遊戲時隨機決定。")
         if r.get("price"):
@@ -661,6 +663,8 @@ def items_koukai4pk_win(extract, game_dir):
         i = int(r["id"])
         shop, pk = jp.data[s0 + kx.ITEM_SIZE * i + 0x18], w1.data[s1 + kx.ITEM_SIZE * i + 0x18]
         shop, pk = (shop if shop < kx.PORTS else None), (pk if pk < kx.PORTS else None)
+        if pk is not None and pk not in places:
+            raise click.ClickException(f"item {i}: PK-mode shop {pk} is not a place of koukai4pk-win")
         row = {"id": i, "name": r["name"], "nameZh": r["nameZh"], "kind": r["kind"], "price": int(r["price"]) or None,
                "effects": _stat(r["ability"], r["power"]), "description": r["description"],
                "descriptionZh": r["descriptionZh"], "shops": [shop] if shop is not None else [],
@@ -751,9 +755,13 @@ def _read_picture(items_dir, path):
         with open(full, "rb") as f:
             return f.read()
     import zipfile
-    folder, name = path.split("/", 1)
-    with zipfile.ZipFile(os.path.join(items_dir, f"{folder}.cbz")) as z:
-        return z.read(name)
+    folder = os.path.dirname(full)  # archived extracts keep a picture folder as <folder>.cbz (scripts/archive.py)
+    while not os.path.isfile(folder + ".cbz"):
+        if os.path.dirname(folder) == folder:
+            raise click.ClickException(f"picture not found: {full} (nor in a .cbz)")
+        folder = os.path.dirname(folder)
+    with zipfile.ZipFile(folder + ".cbz") as z:
+        return z.read(os.path.relpath(full, folder).replace(os.sep, "/"))
 
 
 def add_pictures(dataset, rows, extract, out):
@@ -809,9 +817,7 @@ def check(dataset, rows):
     names = _person_names(dataset)
     places = None
     if any(r.get("shops") for r in rows):
-        with open(os.path.join(os.path.dirname(__file__), "..", "export", "koei-wiki", "places",
-                               f"{dataset}.jsonl"), encoding="utf-8") as f:
-            places = {json.loads(line)["id"] for line in f}
+        places = _place_names(dataset)
     for r in rows:
         for p in r.get("shops", []):
             if p not in places:
