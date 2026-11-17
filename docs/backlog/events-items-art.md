@@ -25,7 +25,7 @@ created: 2026-11-07
 | 三國志II `san2-pc98` | `OPENNING.DAT`、`ENDING.DAT`、`PACKDATA.DAT` | `MAIN.EXE` 裡 | 沒有道具【推】 |
 | 三國志III `san3-pc98` | `NPKDATA.DAT`、`ENDSTIL.DAT`、`HEXIKKI.DAT`（一騎討？）、`OPENGRP.DAT` | `MAIN.EXE` 裡；事件人物、貂蟬連環計的條件已追到一部分（`notes/san3.md`） | 人物 +8 bitmask 🟡；名表沒找 |
 | 三國志IV `san4pk-pc98` | `PACKGRP*.S4`、`NEWGRP`、`REVGRP`、`PREGRP`、`HIBACK`、`MAINCG`、`TOSHICG`、`ENDDAT`、`OPENDAT`（部分是 NPK016，`notes/npk016.md`） | `MESSAGE.S4` 其他段（列傳只用 24–33 段） | 有（能力有道具加成），表沒找 |
-| 三國志V `san5pk-pc98` | `CANMA/B/D.S5`、`IKKI1/2.S5`、`IKKIHAI.S5`、`ESTL.S5`、`IMODE.S5`、`BUDOUKAI.S5`、`END1–4.S5`、`OPMONO*.S5` | `MESSAGE.S5` 其他段 | `ITEM.S5`（150 KB，推定是道具圖） |
+| 三國志V `san5pk-pc98` | 已做，見下表 `san5-extras` | 已做（`MESSAGE.S5` 全部） | 已做（`ITEM.S5` 是道具圖） |
 | 信長2 `nobu2-pc88` | Disk B、`ODA.OVL` 沒查 | — | 沒有道具 |
 | 信長3 `nobu3-pc98` | `OPEN.DAT`、`END1/2.DAT`、`PACKDATA.DAT` | `MAIN.EXE` 裡 | 沒有道具【推】 |
 | 信長4 `nobu4-pc98` | `KAIGA.DAT`（絵画？）、`OUGICHAK.DAT`（扇／茶器？）、`DEMO.DAT`；事件人物的程式位址已記（`notes/nobu4.md`） | `MAIN.EXE` 裡 | 茶器名 48 個（`SNDATAn.CIM` 0x0890），其他欄位沒解 |
@@ -52,6 +52,7 @@ created: 2026-11-07
 | 三國志 `san1-pc98` | `san1 eventcg`、`san1 strings` | 事件插圖 27 張（在 `PACKDATA.DAT`，不是 PICDATA；戰鬥 6 張用途 ✅ code，其餘 🟡）；PICDATA 113 起的小動畫 14 組 86 格（投降、待命 ✅，其餘 🟡）；`STRING.DAT` 15 州說明；沒有道具 | 4 張插圖（block 0、40、60、70，部分 XOR 編碼）與 PICDATA 348、378 ❌；事件文字在編碼過的程式裡 ❌（DOS 英文版是明文，可替代） |
 | 三國志14 `san14pk-win` | `san14-extras` | 寶物 131 件＋圖 219 ✅（加成對象 🟡）；事件文字 511 個 × 日／繁中 ✅（事件號 🟡）；事件插圖 913 張（事件 93、場景、背景、題詩、名勝、人物插圖 148 🟡、表情 540）；rdb inventory | 事件腳本 `0004/Event*.s14`；3D rdb 3.4 GB；寶物持有者 |
 | 三國志IV `san4pk-pc98`（中文 `san4pk-dos`） | `san4-extras` | 道具 31 件＋圖（加成 ✅ cross＋capture，種類名 🟡）、10 劇本持有者 129 筆 ✅ cross；事件插圖 53 張（NPK016，名稱 🟡、主色盤 🟡）；開場 85、結局 79 張（色盤格式 ✅ code，每張用哪組部分 ✅ code、部分 🟡）；`PREGRP`（NPK16＝NPK016）640×400 ✅；都市畫面 43 張（圖塊起點 🟡）；介面零件總覽 1 張；訊息日 1710／中 1711 則、38 段 | `HIGRP` 13、`NEWGRP` 0/1/5/9/10、`GRAPH`；`REVGRP` 等主色盤的程式證據；事件腳本與觸發；音樂（§10） |
+| 三國志V `san5pk-pc98`（中文 `san5pk-dos`） | `san5-extras` | 道具 32 件＋圖 48 張（名稱 ✅ cross、加成 3 byte 意義 🟡）、12 劇本持有者 223 筆 ✅ cross；事件插圖 ESTL 34 張（✅ code，名稱 🟡）、一騎討ち 3、武術大會對戰表、一騎討ちモード（色盤 🟡）、場景背景 9（CANMB，寬度 🟡）、勢力分布圖；大地圖 16 色 4 季（✅ capture）＋256 色 4 季（季節對應 🟡）；MESSAGE.S5 日 3578、繁中 3534 則；開場 13、結局 7 張（色盤 🟡）；UI、IKKI1/2、CANMA 只出 contact sheet | 事件圖與事件的對應、道具加成的意義、IKKI／CANMA 的分格、IMODE 與開場結局的色盤要 capture、END1／OPV 沒解；見 `notes/san5.md`「事件、插圖、道具」 |
 | 三國志12 `san12pk-win` | `san12-extras` | 事件 CG 130 張 ✅（歷史 39、汎用 32、komo 9、背景 23、結局 3、表情特寫 24）；名品 205 件＋圖 200 ✅（能力、特技 ✅ cross，其他效果與種類名 🟡）、特典名品 CG 20、特技 20；有語音台詞 520 句／16 段 ✅、事件訊息 2453 則 🟡、年表事件名 38 🟡 | `BtlMap` 1.8 GB、`CityMap`、`UI`；事件腳本位置；戰略地圖是 3D（只有小地圖） |
 | 三國志13 `san13pk-win` | `san13-extras` | 事件插圖 242 張 ✅（事件 70、結局 22、故事 15、小物 11、背景 51、教學 73）；寶物 234 件＋圖 256（種類 ✅，圖號與持有者 🟡）；訊息腳本 29859 段 ✅、事件名 50 🟡、事件表 999 筆（欄位 ❌）；容器 inventory 3380 項 | 事件表欄位；繁中 `msggame`；`tenkai*`、`event_sf`、`eiketsu_*`、`kako_kao_still` 6107 張 |
 | 信長4 `nobu4-pc98` | `nobu4-extras` | 事件圖 21 張（名稱 ✅ code，2 張 ✅ capture，砲撃 2 張 🟡）；開場 29 張（大名介紹卡 15，✅ capture）；結局 22 張（色盤 🟡）；茶器 48 件 ✅ code＋圖 15（持有者 🟡）；屏風畫 4 幅（繪師 🟡）；扇 20 格；`MAIN.EXE` 字串 2246 筆 | 事件切分與觸發；`DEMO.DAT`、`OPEN.DAT` 0x1E1CF 之後；茶器 value、扇的季節、結局色盤 |

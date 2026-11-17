@@ -35,6 +35,7 @@ from nobu5_extras import nobu5_extras
 from nobu6_extras import nobu6_extras
 from nobu12_extras import nobu12_extras
 from san4_extras import san4_extras
+from san5_extras import san5_extras
 from san12_extras import san12_extras
 from san13_extras import san13_extras
 from san14_extras import san14_extras
@@ -932,6 +933,7 @@ dekoei.add_command(persons_export, "persons-export")  # 人物全部欄位（koe
 dekoei.add_command(events_export, "events-export")  # 遊戲內事件的圖（koei-wiki）
 dekoei.add_command(ordo_export, "ordo-export")  # オルド（後宮）的圖（koei-wiki）
 dekoei.add_command(san4_extras, "san4-extras")  # 三國志IV 事件、插圖、道具
+dekoei.add_command(san5_extras, "san5-extras")  # 三國志V 事件、插圖、道具
 dekoei.add_command(san14_extras, "san14-extras")  # 三國志14 事件、插圖、寶物
 dekoei.add_command(san13_extras, "san13-extras")  # 三國志13 事件、插圖、寶物
 dekoei.add_command(san12_extras, "san12-extras")  # 三國志12 事件、插圖、名品

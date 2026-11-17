@@ -174,3 +174,134 @@ cd dekoei
 #### 負面結論
 
 - 舊筆記的 0x13570（DGROUP 0x8F2 的 4 組）是大地圖色盤，不是戰場的；戰場色盤要從讀 `0x2EE7:0x3A40` 的 0x84212 找，它在 overlay 裡，用 MZ 檔頭算出的 load image 範圍內搜不到。
+
+## 事件、插圖、道具
+
+`dekoei.py san5-extras --game-dir ../games/san5pk-pc98 --dos-dir ../games/san5pk-dos --out ../games/san5pk-pc98/extract`（`dekoei/san5_extras.py`）。
+
+- `eventcg/`：事件圖 34 張、一騎討ち 3 張、武術大會對戰表、一騎討ちモード、場景背景 9 張、勢力分布圖，共 49 張，附 `index.csv`。
+- `map/`：大地圖 16 色 4 張、256 色 4 張，附 `index.csv`。
+- `items/`：`items.csv`（32 件）、`holders.csv`（223 筆）、`pictures/00–47.png`。
+- `events/messages.jsonl`：日文 3578 則、繁中 3534 則。
+- `opening/`（13 張）、`ending/`（7 張），附 `opening-ending.csv`。
+- `fragments/`：無名碎片的 contact sheet（re-common §11），包括 `ui.png`、`sprites.png`（IKKI1/2、CANMA）、`opening-cels.png`、`ending-cels.png`。
+
+本節的位址，沒寫檔名的都是 PK 版 `MAIN.EXE` 的檔案位移。MZ 檔頭在 0x5400，DGROUP 在 0x51250；換成 load image 位址要減 0x5400。
+
+### 共通格式
+
+- **raw 圖（rcp）**：
+  - 每列是 w/8 組，每組 4 bytes，依序是 plane 0–3 的 8 個點（MSB 在左），一張 w×h 的圖佔 w×h/2 bytes。
+  - 畫圖 `0x1041:d296` 的參數依序是 x、y、w、h、buffer 內 offset。
+- **ESTL.S5、ITEM.S5、頭像的色**：都只用色 8–15。ESTL 是 3 面，每組 3 bytes，解出的色號加 8。
+- **主色盤**：DGROUP 0x910，16 色 ×（B、R、G）nibble。
+  - 色 8–15 是頭像色（DGROUP 0x928）。
+  - 大地圖的色 0–7 照季節換，取自 DGROUP 0x940 + 24×季節（0x18dad `imul ax,ax,0x18; add ax,0x940`）。
+- **畫面模式**：640×400、640×480、800×600 三種（`0x1041:2f6e` 判斷 256 色，`2f7e`／`2f8e` 判斷模式）。檔案裡三種模式的框都有。
+
+### 各檔
+
+| 檔 | 內容 | 證據 |
+|---|---|---|
+| `ESTL.S5` | LS11，34 段 × 14400 bytes，240×160、3 面。畫在 0x1a41e（第 27 張以後用 248×168 的窗），顯示在 0x1a592，事件分派在 0x71c12（表 es:[0x44b8]） | 圖 ✅ code；名稱 🟡 看圖 |
+| `IKKIHAI.S5` | 一騎討ち背景，讀在 0x8c0e0。640×400 由兩個 320×400 拼成（0x13100 放在 (0,0)、0x22B00 放在 (320,0)）；條件 DGROUP 0x2a00 成立時，再疊兩條 624×116（0x39D00 放在 (8,160)、0x42A60 放在 (8,276)），推定是武術大會版。800×600 框：80×296 四塊（0、0x2E40、0x5C80、0x8AC0）、640×56 兩塊（0xB900、0x35700）、640×40 兩塊（0xFF00、0x32500）；640×480 模式只用後兩塊 | 各塊 ✅ code；800×600 的組合 🟡 |
+| `BUDOUKAI.S5` | 從 0 起是 328×312 的武術大會對戰表，畫在 0xbcdd8；後面 1536 bytes 是小零件 | ✅ code |
+| `IMODE.S5` | 讀在 0xaf530，4 塊 320×200（32000 bytes），依序放在 (0,0)、(0,200)、(320,0)、(320,200)，畫在 0xafd54 起；之後到 236800 是 800×600 的框，再後面 6560 bytes 是別的資料 | 排法 ✅ code；只用色 1–4 與 8，色盤 🟡；用途（一騎討ちモード）🟡 |
+| `CANMB.S5` | 開頭 u16 個數，接著每項（u32 offset、u16 size），資料從 2+6n 起。共 18 項：0–6 是 256 寬（#5 是 207 列），7–8 是 400×256 的場景背景，9–17 是小零件。存取經過 0x1041:e08（0x661ba） | 索引 ✅ code；寬度、名稱 🟡 |
+| `CANMA.S5` 180 格、`CANMD.S5` | 同樣的索引格式。CANMA 是人物動作格，CANMD 是動畫腳本 | 只出 sheet |
+| `IKKI1/2.S5` | 各 109536 bytes，64 寬的騎將動作格，載入 EMS buffer 0x6ac0（IKKI2 在 +0x1abe0） | 只出 sheet，分格不明 |
+| `FMAP.S5` | 64800 bytes，讀在 0x18b4f，勢力分布圖 | 讀取 ✅ code；360×360 🟡 看圖 |
+| `MAINMAP.S5` | 50 欄 × 4736 bytes。每欄 16×592，4 個 plane 依序排，每 plane 每列 2 bytes | ✅ capture：和 `captures/screenshots/san5pk-pc98/guest-os-000.png` 在 (160,64) 起逐點一致，12 月時用季節第 3 組 |
+| `MAP256.S5`、`PAL256.S5` | 256 色版，50 欄 × 9472 bytes，每點 1 byte（0x88540；欄大小 [0x77fc] 是 0x2500 或 0x1280，在 0x87f00／0x87f31 設定）。`PAL256.S5` 是 4 組 × 213 色（色號 32–244），每色 B、R、G 各 1 byte | 排法 ✅ code；B、R、G 的順序與季節對應 🟡 看圖 |
+| UI：`BTNGRP`、`GRAPH`、`MAINWIN`、`CALC`、`HENV`、`HUNIT`、`HANIME`、`MAPANM` | 按鈕、圖示、視窗零件。BTNGRP 整檔讀進 0x6ab4；HANIME 在 0x8a5cd 從 19456 起讀 7680 bytes | 只出 `fragments/ui.png` |
+| `IMDATA.S5`、`ENDDATA.S5` | 資料，不是圖 | |
+
+### 道具
+
+- **名表**：
+  - `MAIN.EXE` 0x48e80（0x494c0 另有一份相同的），100 格 × 16 bytes，用了 32 格。
+  - 每筆：+0、+1、+2 是 3 個加成值，+3 起是 13 bytes 的 Shift-JIS 名字。
+  - 武器只用 +0，書只用 +1 或 +2，馬與玉璽都是 0，推定依序是武力、知力、政治 🟡。
+  - 外字 0xEBC8＝釭、0xEBF8＝蒺，和 FONT.S5 的字形對過。
+- **中文名**：DOS 版 `MAIN.EXE` 0x4fa20，格式相同（`sango.to_unicode_name`）。兩版逐筆一致，✅ cross。
+- **圖**：`ITEM.S5` 48 張 80×80（3200 bytes）。0xb4c3a 依 n×0xC80 讀出、畫成 80×80，✅ code。
+  - 0–31 號圖對應 0–31 號道具（✅ cross，圖和名字對得上）。
+  - 32–47 號推定是給 PK 道具編輯器（`ｸﾞﾗﾌｨｯｸ`）讓玩家自訂道具時選的圖 🟡。
+- **持有者**：
+  - 各劇本 SNDATA 段的最後 1100 bytes 是 100 筆 × 11 bytes；+0 u16 是持有者，0xFFFF 表示沒有。
+  - 持有者的值是該劇本人物記錄的序號，從 1 起算，順序是 SNDATA 在前、TAIKI 在後（`sango.san5_records` 的順序）。+2 是 0xFF，其餘是 0。
+  - ✅ cross：方天画戟→呂布、青龍偃月刀→関羽、孟徳新書→曹操；玉璽在劇本 1 是何進，劇本 4 起是曹操。換成 kaodata id 後，223 筆和 `san5pk-pc98` 的人名全部一致。
+- **沒有道具說明文**：MESSAGE.S5 沒有逐件的說明段。`MAIN.EXE` 只有道具編輯器的字串（ランク、特殊効果、ｸﾞﾗﾌｨｯｸ、ｱｲﾃﾑ削除）。
+
+### MESSAGE.S5
+
+- **結構**：LS11，56 段，每段開頭是 u16 個數，接著是 u16 offset（`biography.offset_table(p, True)`）。日文版共 3578 則，DOS 中文版共 3534 則，兩版的段不是一一對應。
+- **控制碼**：
+  - `01 22` 是行屬性，不帶參數；其他 `01 xx` 後面接 2 bytes。
+  - `02 xx yy` 插入變數，輸出寫成 `{V:xxyy}`。
+  - `04 xx`、`06 xx` 推定是選項清單的條件 🟡。
+  - `0A` 換行；`05 05 05` 結束一個選項。
+- **日文**：Shift-JIS，半形假名照三國志IV 的慣例寫成平假名，外字取自 FONT.S5（0xEB9F 起）。
+- **中文**：用 `biography.koei_tw_text`，88 則還有不認得的碼，寫成 `[xxxx]`。
+- **plain 欄**：去掉控制碼後的文字。
+
+### 開場、結局
+
+- **呼叫位址**：
+  - OPEN.EXE：code seg 0 在檔案 0x1800，DGROUP 在 0xCB10。開檔 0:0x89a8、讀 0:0x7a70、NPK 解壓 0:0x671e、畫圖 0:0x2e88、設色盤 0:0x6676。
+  - END.EXE：code seg 0 在檔案 0x1600，DGROUP 在 0xC820。開檔 0:0x88bc、讀 0:0x7990、設色盤 0:0x658a。
+- **NPK16**：`OPEN1`、`OPEN3`、`OPTITLE.S5` 是 NPK16，就是 NPK016（見 `notes/npk016.md`）。
+  - 解出的長度剛好是 w×h。
+  - OPEN1、OPEN3 的 NPK 塊後面直接接 raw 資料，要在 raw 的起點（0x357D0、0xC0F6、0xE26C）切開。
+- **色盤**：`OPENPLD.S5` 43 組、`EDPAL.S5` 41 組，每組 48 bytes，16 色 ×（B、R、G）nibble，程式用檔內 offset 選組。
+  - B、R、G 的順序和三國志IV `OPENDAT.S4` 的場景色盤相同（OPEN.EXE 依序寫 port 0xAE、0xAC、0xAA，見 `notes/san4.md`），✅ cross。
+  - 選第幾組 ✅ code；顏色沒和截圖比過。
+- **開場**：`opening/op-01`–`13`，依序是龍、龍全身、龍紋浮雕、城樓遠望、戰場 3 張、武將 3 張、山水、三君主、標題。各張的來源與證據見 `opening-ending.csv`。
+- **結局**：`ending/ed-01`–`07`，依序是都城鳥瞰、宮門、皇帝即位、宮殿內、皇帝背影 2 張、騎兵（ENDSCR，NPK016）。
+  - END2 部分圖的寬度是由檔案大小推的 🟡。
+  - END3 的色盤 🟡；END4 的 272×336 ✅ code（0x678d）。
+- **動畫格**：OPEN1 的龍 10 格、OPMONO 41 格、END2 的 26 格（576×160）只放進 contact sheet。
+
+### 進度
+
+| 項目 | 狀態 | 證據 | 說明 |
+|------|------|------|------|
+| 事件圖 ESTL 34 張 | 🟡 | code | 圖 ✅；名稱看圖，和事件的對應沒追 |
+| 一騎討ち背景、武術大會 | 🟡 | code | 各塊位置 ✅；800×600 組合、武術大會版的條件 🟡 |
+| 武術大會對戰表 | ✅ | code | 0xbcdd8 |
+| 一騎討ちモード（IMODE） | 🟡 | code | 排法 ✅；色盤 🟡 |
+| 場景背景 CANMB 9 張 | 🟡 | code | 索引 ✅；寬度、名稱看圖 |
+| 勢力分布圖 FMAP | 🟡 | code | 尺寸看圖 |
+| 大地圖 16 色 4 季 | ✅ | capture | `guest-os-000.png`（季節 3） |
+| 大地圖 256 色 4 季 | 🟡 | code | 色的順序、季節對應看圖 |
+| 道具 32 件名稱（日、繁中） | ✅ | code+cross | DOS 版名表 |
+| 道具加成 3 值 | 🟡 | code | 欄位意義推定 |
+| 道具圖 48 張 | ✅ | code+cross | 0xb4c3a；32–47 的用途 🟡 |
+| 持有者 12 劇本 223 筆 | ✅ | cross | kaodata 人名一致 |
+| MESSAGE.S5 日 3578、繁中 3534 | 🟡 | code | 文字 ✅；部分控制碼意義未明 |
+| 開場 13、結局 7 張 | 🟡 | code | 檔位置、色盤號 ✅；顏色沒和截圖比 |
+| END1、OPV | ❌ | | 見「未解」 |
+| UI、IKKI1/2、CANMA | 🟡 | | 只出 contact sheet（無名碎片） |
+
+### 未解
+
+- ESTL 第 n 張對應哪個事件：分派在 0x71c12，表 es:[0x44b8]，表的內容沒讀。
+- 道具加成 +0–+2 的意義、+2 之後 0xFF 的意思、自訂道具的等級與圖號欄位。base 版截圖 `captures/screenshots/san5-pc98/main_000.raw1.png` 的曹操知力 97（本體 96）和孟徳新書的 +5 對不上，但那是本體不是 PK。
+- IKKI1/2、CANMA 的分格；CANMD 的動畫腳本。
+- IMODE 的色盤；256 色地圖的季節順序。
+- MESSAGE.S5 `01 xx`、`04`、`06` 控制碼的意義；中文 88 則有不認得的碼。
+- END1（40×48 格加遮罩，END.EXE 0:0x2db8、0:0x9c92 的 0x8000 旗標）、OPV（END.EXE／OPEN.EXE 0:0x0a0b 依 DS:0x1FC 的座標表剪貼）沒解。END3、END4 除了已匯出的部分，其他精靈沒拆。
+
+### 下一輪候選
+
+- 事件圖對應：前置無；做法：讀 0x71c12 與 es:[0x44b8] 的表，列出事件號→ESTL 號。
+- 色盤的 capture：前置是在模擬器跑一騎討ち、武術大會、開場與結局；做法：截圖對 IMODE、IKKIHAI、op-01、op-13、ed-03、ed-07 的色號，順便確認 256 色地圖的季節。
+- 道具加成：前置是 PK 版存檔；做法：截圖比對持有道具前後的能力。
+- END1、OPV：讀 0:0x2db8、0:0x0a0b、0:0x9c92，拿到 atlas 的 pitch 後輸出格表。
+
+### 負面結論
+
+- 用「相鄰列相等」猜寬度：有網點的圖都失敗，改用程式的參數或看 4 bytes 一組的 hex。只有在圖沒有網點時才值得重試。
+- MAP256 當作 64 寬逐列排：錯。它是 16 寬 × 592 列一欄，共 50 欄；要先讀 0x88540 才看得出來。
+- MAINMAP 試了 rcp、cpr 等手猜的排法：都錯。它是每欄 4 個 plane 依序排；先對截圖的結構才定下來。
+- END1 試了 640／480／320／240／160 寬與 6 種 plane 排法：都對不上。它是 40×48 的格加遮罩；要先讀懂畫法才值得重試。
