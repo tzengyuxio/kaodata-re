@@ -238,7 +238,7 @@ cd dekoei
 G=../games/steam/628890
 ../.venv/bin/python dekoei.py places-export nobu15pk-win --game-dir $G --out ../export/koei-wiki/places
 ../.venv/bin/python dekoei.py persons-export nobu15pk-win --game-dir $G --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
-../.venv/bin/python dekoei.py biography nobu15pk-win --game-dir $G --out ../export/koei-wiki/nobu15pk-win.jsonl
+../.venv/bin/python dekoei.py biography nobu15pk-win --game-dir $G --out ../export/koei-wiki
 ../.venv/bin/python dekoei.py items-export nobu15pk-win --extract ../games/nobu15pk-win/extract --game-dir $G --out ../export/koei-wiki/items
 ```
 

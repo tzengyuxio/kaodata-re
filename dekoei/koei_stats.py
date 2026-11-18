@@ -42,19 +42,17 @@ def _genghis_layout(platform):
 
 def _genghis_records(cim: bytes, platform, kind):
     tables, shift, *_ = _genghis_layout(platform)
-    off, groups, gsize, n, size, face = tables[kind]
-    for g in range(groups):
-        for i in range(n):
-            o = off + g * gsize + i * size
-            rec = cim[o:o + size]
-            if not rec[0]:
-                continue
-            if platform == "dos":
-                name = k.koei_tw_name(rec[:20])
-            else:
-                raw = rec[:15].split(b"\0")[0]
-                name = unicodedata.normalize("NFKC", raw.decode("cp932")).replace(" ", "")
-            yield f"{g}.{i}" if groups > 1 else str(i), name, rec
+    groups, size = tables[kind][1], tables[kind][4]
+    for g, i, o in k.genghis_slots(tables, kind):
+        rec = cim[o:o + size]
+        if not rec[0]:
+            continue
+        if platform == "dos":
+            name = k.koei_tw_name(rec[:20])
+        else:
+            raw = rec[:15].split(b"\0")[0]
+            name = unicodedata.normalize("NFKC", raw.decode("cp932")).replace(" ", "")
+        yield f"{g}.{i}" if groups > 1 else str(i), name, rec
 
 
 def _num(rec, o, size):
@@ -189,22 +187,6 @@ def _name(raw: bytes, enc: str) -> str:
     return raw.split(b"\0")[0].decode(enc, "replace").strip()
 
 
-def _pc98_text(raw: bytes) -> str:
-    """Shift-JIS with KOEI gaiji EB xx (k.EIKETSU_PC98_GAIJI; unknown ones become 〓)."""
-    raw, out, i = raw.split(b"\0")[0], [], 0
-    while i < len(raw):
-        if raw[i] == 0xEB and i + 1 < len(raw):
-            out.append(k.EIKETSU_PC98_GAIJI.get(raw[i + 1], "〓"))
-            i += 2
-        elif raw[i] >= 0x81 and i + 1 < len(raw) and not 0xA0 <= raw[i] <= 0xDF:
-            out.append(raw[i:i + 2].decode("cp932", "replace"))
-            i += 2
-        else:
-            out.append(raw[i:i + 1].decode("cp932", "replace"))
-            i += 1
-    return "".join(out).strip()
-
-
 def load_eiketsu_dos_stats(bakdata, pc98=False) -> list[tuple]:
     """(slot, name, 武力, 知力, 統率, 兵種, 等級, 兵力, 士氣, items) of every BAKDATA.R3 person record."""
     with open(bakdata, "rb") as f:
@@ -218,7 +200,7 @@ def load_eiketsu_dos_stats(bakdata, pc98=False) -> list[tuple]:
     for slot, (name, _) in enumerate(names):
         r = data[start + slot * size:][:size]
         s = data[st + slot * st_size:][:st_size]
-        items = "/".join(_pc98_text(data[it + i * it_size:][:12]) if pc98 else _name(data[it + i * it_size:][:12], "big5")
+        items = "/".join(k.eiketsu_pc98_text(data[it + i * it_size:][:12]) if pc98 else _name(data[it + i * it_size:][:12], "big5")
                          for i in s[10:] if i != 0xFF)
         rows.append((slot, name, r[18], r[19], r[17], classes[s[7]] if s[7] < len(classes) else s[7], s[8],
                      s[5] | s[6] << 8, s[4], items))

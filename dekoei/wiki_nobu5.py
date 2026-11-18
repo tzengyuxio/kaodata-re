@@ -21,6 +21,7 @@ import struct
 import kaodata_export as K
 from persons_export import family_of
 import koei_games as G
+from common import u16
 
 PEOPLE, DAIMYO, CITIES = 0x2AA, 0x48BE, 0x5536
 YEARS, PROVINCE_NAMES, BIOS, BIO_SIZE, BIO_COUNT = 0xB7628, 0xB9E10, 0x876D8, 164, 1057
@@ -29,10 +30,6 @@ RDATA = 0x400000 + 0x74000 - 0x72A00  # VA - file offset of .rdata
 STATS = ["政治", "戦闘", "智謀", "采配", "野望"]
 LIFESPAN = "ABCD"
 PROVINCE_BASE = 173  # place id of province k is 173 + k (cities are 0-172)
-
-
-def _u16(b, o):
-    return int.from_bytes(b[o:o + 2], "little")
 
 
 def _name(raw):
@@ -54,7 +51,7 @@ def province_names(exe):
 def _scenario(sv):
     """(slot -> person record, daimyo number -> slot) of a SV1n.N5S file."""
     people = {s: sv[PEOPLE + 39 * s:][:39] for s in range(G.NOBU5_PC98_SLOTS) if sv[PEOPLE + 39 * s + 23]}
-    daimyo = {d: _u16(sv, DAIMYO + 39 * d) for d in range(64) if _u16(sv, DAIMYO + 39 * d) in people}
+    daimyo = {d: u16(sv, DAIMYO + 39 * d) for d in range(64) if u16(sv, DAIMYO + 39 * d) in people}
     return people, daimyo
 
 
@@ -108,11 +105,11 @@ def _surnames(scenarios, exe):
         sv = scenarios[n]
         for o in range(G.NOBU5_WIN_PEOPLE, G.NOBU5_WIN_PEOPLE + G.NOBU5_PC98_SLOTS * 39, 39):
             if sv[o + 23]:
-                out.setdefault(_u16(sv, o + 17), set()).add(G._nobu5_win_name(sv[o + 23:o + 32]))
+                out.setdefault(u16(sv, o + 17), set()).add(G._nobu5_win_name(sv[o + 23:o + 32]))
         for o in range(start + n * stride, start + (n + 1) * stride - size + 1, size):
             if not exe[o]:
                 break
-            out.setdefault(_u16(exe, o + 28), set()).add(G._nobu5_win_name(exe[o + 4:o + 13]))
+            out.setdefault(u16(exe, o + 28), set()).add(G._nobu5_win_name(exe[o + 4:o + 13]))
     return out
 
 
@@ -142,10 +139,10 @@ def persons(game_dir):
     entries = {}  # face -> {scenario: entry}
     for n in K.NOBU5_WIN_ORDER:
         people, daimyo = _scenario(scenarios[n])
-        lord_face = {d: _u16(people[s], 17) for d, s in daimyo.items()}
+        lord_face = {d: u16(people[s], 17) for d, s in daimyo.items()}
         rulers = set(daimyo.values())
         for s, p in people.items():
-            face = _u16(p, 17)
+            face = u16(p, 17)
             row(face, n, 1453 + p[5], p[0:5], p[6], p[14], p[9])
             e = {"scenario": n + 1, "year": years[n],
                  "status": "大名" if s in rulers else "浪人" if p[7] == 0xFF else "家臣", "location": p[10]}
@@ -154,7 +151,7 @@ def persons(game_dir):
                 e["loyalty"] = p[13]
             entries.setdefault(face, {})[n] = e
         for a in _arrivals(exe, n):
-            face = _u16(a, 28)
+            face = u16(a, 28)
             r = row(face, n, 1453 + a[20], a[21:26], a[26], a[27], a[1])
             r.setdefault("debut", 1453 + a[0])
             e = {"scenario": n + 1, "year": years[n], "status": "後登場", "debut": 1453 + a[0]}

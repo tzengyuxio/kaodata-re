@@ -155,7 +155,7 @@ N12F：+4 u32 字串表位移、+8 u32 項數 n，0x14 起 n 個 u32 是 token �
 
 ```sh
 ../.venv/bin/python dekoei.py persons-export nobu12pk-win --game-dir ../games/nobu12pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
-../.venv/bin/python dekoei.py biography nobu12pk-win --game-dir ../games/nobu12pk-win --out ../export/koei-wiki/nobu12pk-win.jsonl
+../.venv/bin/python dekoei.py biography nobu12pk-win --game-dir ../games/nobu12pk-win --out ../export/koei-wiki
 ```
 
 `wiki_nobu12.persons`／`bios`。列伝檔 `Msg/Bfile01–22.n12` 從 Steam 安裝目錄（`games/steam/363090/Msg/`）硬連結到 `games/nobu12pk-win/Msg/`。1100 人、1100 段列伝；persons-export 檢查 10817 項、koei-wiki `verify_persons.py` 31047 項，都是 0 筆不符。

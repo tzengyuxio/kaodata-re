@@ -6,12 +6,13 @@ import struct
 
 from PIL import Image
 
-import genpei
 import koei_games
 from kaodata_export import NOBU4_DOS_NAME_PICK, NOBU4_PC98_ALIASES
 from nobu4_extras import MAIN_PALETTE, _raw_image
 from persons_export import family_of
 from wiki_nobu3 import PC98_DIGITAL
+from common import read_file
+from gfx import decode_planar
 
 # SNDATAn.CIM: +1 year - 1476; 48 國 from 0x4 (45 bytes: +4 name 4 bytes, +30 7 neighbours, low 6 bits the 國
 # (0-based), FF ends); lords from 0xB90 (32 bytes: +0 the lord's pointer, +31 lord number); persons from 0x1192
@@ -46,20 +47,15 @@ NOBU4_NOTES = ("義理是 +20 的推定名稱（謙信 253、松永 0），寿�
                "只在同一劇本內有效、16 組重複使用，沒有輸出。身分只分得出大名、浪人，城主與軍師沒找到欄位。")
 
 
-def _read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
 def _scenario(game_dir, n):
     """(year, main [(record, offset)], arrivals [record], {lord number: offset of the lord's record})."""
-    d = _read(game_dir, f"SNDATA{n}.CIM")
+    d = read_file(game_dir, f"SNDATA{n}.CIM")
     main = []
     for o in range(NOBU4_PERSONS, len(d) - 32, 33):
         if d[o] < 0x20:  # scenario 2 ends with a record starting 0x01
             break
         main.append((d[o:o + 33], o))
-    t = _read(game_dir, f"SNDATA{n}T.CIM")
+    t = read_file(game_dir, f"SNDATA{n}T.CIM")
     arrivals = [t[o:o + 28] for o in range(0, len(t) - 27, 28) if t[o + 3]]
     lords = {}
     for i in range(NOBU4_PROVINCE_COUNT):
@@ -162,7 +158,7 @@ def _battle_map(hexdata, table, n, castle):
     im.putpalette(NOBU4_BATTLE_PALETTE)
 
     def block(off, height):
-        px = genpei.decode_planar(hexdata, NOBU4_TILES + off, 32, height, 3)
+        px = decode_planar(hexdata, NOBU4_TILES + off, 32, height, 3)
         return Image.frombytes("P", (32, height), bytes(px))
 
     for i in range(w * h):
@@ -197,11 +193,11 @@ def _battle_map(hexdata, table, n, castle):
 
 def world_map(game_dir):
     """The main map as stored, before the 國 are filled with the owners' colours (640 x 400, digital 8 colours)."""
-    return _raw_image(_read(game_dir, "MAPDATA.DAT")[:NOBU4_MAP_BYTES], 640, MAIN_PALETTE)
+    return _raw_image(read_file(game_dir, "MAPDATA.DAT")[:NOBU4_MAP_BYTES], 640, MAIN_PALETTE)
 
 
 def _fill_points(game_dir):
-    exe = _read(game_dir, "MAIN.EXE")
+    exe = read_file(game_dir, "MAIN.EXE")
     base = struct.unpack_from("<H", exe, 8)[0] * 16
     return list(zip(struct.unpack_from("<48H", exe, base + NOBU4_FILL_X),
                     struct.unpack_from("<48H", exe, base + NOBU4_FILL_Y)))
@@ -236,9 +232,9 @@ def places(game_dir, out_dir):
     os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
     world_map(game_dir).save(os.path.join(out_dir, "world", NOBU4_WORLD_FILE))
     fill = _fill_points(game_dir)
-    p, d = _read(game_dir, "SNDATA1.CIM"), _read(os.path.join(game_dir, "..", "nobu4-dos"), "SNDATA1.CIM")
-    hexdata = _read(game_dir, "HEXDATA.DAT")
-    exe = _read(game_dir, "MAIN.EXE")
+    p, d = read_file(game_dir, "SNDATA1.CIM"), read_file(os.path.join(game_dir, "..", "nobu4-dos"), "SNDATA1.CIM")
+    hexdata = read_file(game_dir, "HEXDATA.DAT")
+    exe = read_file(game_dir, "MAIN.EXE")
     table = exe[struct.unpack_from("<H", exe, 8)[0] * 16 + NOBU4_PIECE_TABLE:][:34]
     for kind in ("field", "castle"):
         os.makedirs(os.path.join(out_dir, kind), exist_ok=True)

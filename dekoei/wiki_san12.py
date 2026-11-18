@@ -20,6 +20,9 @@ import struct
 
 import sango
 from kaodata_export import SAN12PK_WIN_ROLE_FACES, kana_to_hiragana
+from places_export import PLACE_GAIJI, _gaiji
+import kaodata_export as K
+from wiki_stats import _pick
 
 SCENARIOS = [*range(1, 16), 20, 21]
 MASTER = 0  # Scenario0: the values the stats export uses
@@ -228,3 +231,34 @@ def scenarios_csv(game_dir, path):
             w.writerow([n, f"PK/Scenario/Scenario{n}.dat", title, zt, year,
                         "、".join(zh[rulers[k]] for k in sorted(rulers))])
     return len(SCENARIOS)
+
+
+##############################################################################
+# 三國志12 PK: PK/Scenario/Scenario0.dat part 6 (sango.san12_decrypt) holds the 40 cities (248 bytes: name +4,
+# 地方 the low 4 bits of +0x18, six u32 neighbours from +0x1C). The battle number is the city number (RVA 0x3E600),
+# but the maps are 3D terrain: no PNG.
+SAN12_REGIONS = ["河北", "中原", "西北", "呉越", "荊楚", "巴蜀"]
+
+
+def places(game_dir, out_dir):
+    with open(os.path.join(game_dir, "PK", "Scenario", "Scenario0.dat"), "rb") as f:
+        d = f.read()
+    n = struct.unpack_from("<I", d, 4)[0]
+    offsets = list(struct.unpack_from(f"<{n}I", d, 8)) + [len(d)]
+    city = sango.san12_decrypt(d[offsets[6]:offsets[7]])
+    rows = []
+    for k in range(40):
+        r = city[248 * k:][:248]
+        rows.append({"id": k, "name": _gaiji(r[4:9].split(b"\0")[0].decode("cp932"), PLACE_GAIJI), "level": "都市",
+                     "region": SAN12_REGIONS[struct.unpack_from("<I", r, 0x18)[0] & 0xF],
+                     "adjacent": [x for x in struct.unpack_from("<6I", r, 0x1C) if x < 40],
+                     "notes": "戰場號＝都市號（San12WPK.exe RVA 0x3E600），戰場推定用守方都市的地形；地形是 3D，沒有輸出圖。"
+                              "沒有関、港。"})
+    return rows
+
+
+def stats(game_dir):
+    sce = os.path.join(game_dir, K.SAN12PK_WIN_SCENARIOS[0])
+    chars = {p["id"]: p["name"] for p in sango.load_san12_persons(sce)
+             if p["name"] and p["face"] not in K.SAN12PK_WIN_ROLE_FACES}
+    return _pick(sango.load_san12_stats(sce), sango.SAN12_STATS, chars)

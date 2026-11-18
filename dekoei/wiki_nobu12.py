@@ -6,6 +6,7 @@ import os
 import struct
 
 import ls11
+from common import cstr
 
 SCENARIOS = ["01", "02", "03", "04", "05", "10", "11", "12"]
 # section 8: 225 拠点 names (42 bytes: name 13, reading 29); slots 0-179 are 城／港／館 (47 empty), 180-224 the 諸勢力
@@ -41,10 +42,6 @@ def _data(game_dir, s):
     return ls11.lwc_decode(p[p.index(b"LWC\x1a"):])
 
 
-def _text(data, o, n):
-    return data[o:o + n].split(b"\0")[0].decode("cp932")
-
-
 def _section(data, key):
     return data.index(struct.pack("<2I", *key)) + 8
 
@@ -59,7 +56,7 @@ def _named(data, p):
 
 def _scenario(data):
     base = _section(data, NAMES)
-    names = [(_text(data, base + 42 * i, 13), _text(data, base + 42 * i + 13, 29)) for i in range(NAMES[1])]
+    names = [(cstr(data[base + 42 * i:(base + 42 * i) + 13]), cstr(data[base + 42 * i + 13:(base + 42 * i + 13) + 29])) for i in range(NAMES[1])]
     slots = [i for i in range(FORCES) if names[i][0]]
     p, castles = _section(data, CASTLES), {}
     for s in slots:
@@ -88,7 +85,7 @@ def places(game_dir, out_dir):
     scenarios = [_scenario(d) for d in datas]
     data = datas[0]
     base = _section(data, PROVINCES)
-    provinces = [(_text(data, base + 30 * k, 11), _text(data, base + 30 * k + 11, 19)) for k in range(PROVINCES[1])]
+    provinces = [(cstr(data[base + 30 * k:(base + 30 * k) + 11]), cstr(data[base + 30 * k + 11:(base + 30 * k + 11) + 19])) for k in range(PROVINCES[1])]
     names, castles = scenarios[0]
     w = max(b[2] for _, _, _, b in castles.values())
     h = max(b[3] for _, _, _, b in castles.values())
@@ -184,7 +181,7 @@ def _lords(data, recs):
 
 def _offices(data):
     base = _section(data, OFFICES)
-    return [_text(data, base + 50 * i, 15) for i in range(OFFICES[1])]
+    return [cstr(data[base + 50 * i:(base + 50 * i) + 15]) for i in range(OFFICES[1])]
 
 
 def _year(game_dir, s):
@@ -193,8 +190,8 @@ def _year(game_dir, s):
 
 
 def _names(data):
-    return [_text(data, NAMES_AT + 213 * k, 11) + _text(data, NAMES_AT + 213 * k + 11, 11) for k in range(COUNT)], \
-        [_text(data, NAMES_AT + 213 * k + 22, 19) + _text(data, NAMES_AT + 213 * k + 41, 19) for k in range(COUNT)]
+    return [cstr(data[NAMES_AT + 213 * k:(NAMES_AT + 213 * k) + 11]) + cstr(data[NAMES_AT + 213 * k + 11:(NAMES_AT + 213 * k + 11) + 11]) for k in range(COUNT)], \
+        [cstr(data[NAMES_AT + 213 * k + 22:(NAMES_AT + 213 * k + 22) + 19]) + cstr(data[NAMES_AT + 213 * k + 41:(NAMES_AT + 213 * k + 41) + 19]) for k in range(COUNT)]
 
 
 def _bio_entries(game_dir):

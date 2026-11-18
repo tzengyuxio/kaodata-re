@@ -5,13 +5,13 @@ See notes/santsukuru.md「事件、插圖、道具」. Usage (from dekoei/):
     dekoei.py santsukuru-extras --game-dir ../games/santsukuru-win --out ../games/santsukuru-win/extract
 """
 import colorsys
-import csv
 import io
 import os
 import struct
 
 import click
 from PIL import Image, ImageDraw, ImageFont
+from common import write_csv
 
 # LINKDATA items (notes/santsukuru.md「封裝」)
 MESSAGES = 135      # 3110 CRLF lines of Shift-JIS: the game's messages, menus and editor texts
@@ -34,14 +34,6 @@ ROUTES = [("strategy_stil", "eventcg/still"), ("btl_result_stil", "eventcg/still
           ("end_", "eventcg/ending"), ("sentou_", "eventcg/effects"), ("senryaku_", "eventcg/effects"),
           ("stg_map", "map/atlas"), ("title_", "eventcg/screens"), ("shoki_bg", "eventcg/screens"),
           ("stg_bg", "eventcg/screens"), ("btl_bg", "eventcg/screens"), ("0", "eventcg/screens")]
-
-
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def save(im, path):
@@ -153,7 +145,7 @@ def items(ld, out):
 def provinces(ld, game_dir, out):
     """41 州: name and scenario position from the sample scenario, the box from HMMP, filled with the atlas's
     stg_map_area_mask_NN (alpha) on the strategy map. HMMP's own 1-bit masks do not fit the borders (not used)."""
-    from places_export import santsukuru_provinces
+    from wiki_san2 import santsukuru_provinces
     b = ld[PROVINCE_MASKS]
     assert b[8:12] == b"HMMP"
     offs = struct.unpack_from("<82I", b, 16)

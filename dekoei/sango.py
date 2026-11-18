@@ -3,10 +3,10 @@ import ls11
 import re
 import zlib
 import click
-import genpei
 from rich.console import Console
 from utils import *
 from san_person import *
+from gfx import decode_planar, gt1g_texture
 
 console = Console()
 
@@ -420,7 +420,7 @@ def san4_montage_parts(code):
 def san4_montage_record(data, head, area, record) -> tuple[int, int, bytes]:
     offset, rows, _, _ = SAN4_MONTAGE_AREAS[area]
     start = head * SAN4_MONTAGE_HEAD_SIZE + offset + record * rows * 24
-    return 64, rows, bytes(genpei.decode_planar(data, start, 64, rows, 3))
+    return 64, rows, bytes(decode_planar(data, start, 64, rows, 3))
 
 ##############################################################################
 
@@ -1273,16 +1273,7 @@ SAN13_LARGE = 13  # 1024 x 1024 (10 items are zp1\x02, see san13_unzip)
 
 def san13_texture(t: bytes, w: int, h: int, alpha: bool = False):
     """The RGB (RGBA with alpha) of the first texture of a GT1G0600 BC3 blob, cropped to w x h."""
-    from PIL import Image
-    # the table at +0xC gives each texture's 8-byte header (+1 format, +2 log2 height << 4 | log2 width, +7 bit 4:
-    # an extra header follows, its size the next u32)
-    header = struct.unpack_from("<I", t, 0x0C)[0]
-    o = header + struct.unpack_from("<I", t, header)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    tw, th = 1 << (dim & 15), 1 << (dim >> 4)
-    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    assert fmt == 8
-    im = Image.frombytes("RGBA", (tw, th), t[start:start + tw * th], "bcn", 3).crop((0, 0, w, h))
+    im = gt1g_texture(t).crop((0, 0, w, h))
     return im if alpha else im.convert("RGB")
 
 
@@ -1424,16 +1415,9 @@ def san14_face_sprites(game_dir) -> dict[str, tuple[tuple, tuple[float, float, f
 
 def san14_sprite(game_dir, ref):
     """A sprite of san14_face_sprites cut from the first texture of its GT1G0600 (BC3) as RGBA."""
-    from PIL import Image
     (fsize, loc), (u0, v0, u1, v1) = ref
-    t = san14_read(os.path.join(game_dir, SAN14_LAYOUT), fsize, loc)
-    header = struct.unpack_from("<I", t, 0x0C)[0]
-    o = header + struct.unpack_from("<I", t, header)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    w, h = 1 << (dim & 15), 1 << (dim >> 4)
-    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    assert fmt == 0x5B
-    im = Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3)
+    im = gt1g_texture(san14_read(os.path.join(game_dir, SAN14_LAYOUT), fsize, loc))
+    w, h = im.size
     return im.crop((round(u0 * w), round(v0 * h), round(u1 * w), round(v1 * h)))
 
 

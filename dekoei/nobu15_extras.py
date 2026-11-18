@@ -13,7 +13,6 @@
   slots); kind, grade and picture are scenario key 9 (121 x 18 bytes: u16, u16, u8, u32 picture, u32 grade, u32 kind,
   u8 flags); descriptions are MSG_PK_JP/kahou_retsuden01-03 (N15A, name and text pairs, same order).
 """
-import csv
 import json
 import os
 import struct
@@ -23,6 +22,8 @@ import click
 from PIL import Image
 
 import ls11
+from common import write_csv
+from gfx import gt1g_texture
 
 # (res file, outer entry, folder): the non-face picture entries
 PICTURE_SETS = [
@@ -74,27 +75,12 @@ def _cells(link):
             yield k, rect, link[o:o + s]
 
 
-def _texture(t):
-    assert t[:8] == b"GT1G0600", t[:8]
-    o, = struct.unpack_from("<I", t, 0x0C)
-    o += struct.unpack_from("<I", t, o)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    w, h = 1 << (dim & 15), 1 << (dim >> 4)
-    p = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    if fmt in (0x5B, 8):  # BC3
-        return Image.frombytes("RGBA", (w, h), t[p:p + w * h], "bcn", 3)
-    if fmt == 0x59:  # BC1
-        return Image.frombytes("RGBA", (w, h), t[p:p + w * h // 2], "bcn", 1)
-    assert fmt == 1, hex(fmt)
-    return Image.frombytes("RGBA", (w, h), t[p:p + 4 * w * h], "raw", "BGRA")
-
-
 def _save_cell(job):
     data, rect, dst = job
     if data[:4] == b"LWC\x1a":
         data = ls11.lwc_decode(data)
     x, y, w, h = rect
-    _texture(data).crop((x, y, x + w, y + h)).save(dst)
+    gt1g_texture(data).crop((x, y, x + w, y + h)).save(dst)
     return dst
 
 
@@ -146,15 +132,8 @@ def kamon_index(game_dir, out):
             rows.append([k, f"{k:04d}.png", surnames[k] + "家", "", "推定：該家武將最常見的姓"])
         else:
             rows.append([k, f"{k:04d}.png", "", "", ""])
-    _csv(os.path.join(out, "kamon", "index.csv"), ["kamon", "file", "name", "other_names", "source"], rows)
+    write_csv(os.path.join(out, "kamon", "index.csv"), ["kamon", "file", "name", "other_names", "source"], rows)
     return sum(1 for r in rows if r[2]), sum(1 for r in rows if r[4] == "placeholder")
-
-
-def _csv(path, header, rows):
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def _scenario(path):
@@ -224,8 +203,7 @@ def items(game_dir, out, jobs, names):
                      " ".join(map(str, related)), "、".join(names[r] for r in related),
                      texts[2 * i + 1].replace("\\n", ""), tc[2 * i], tc[2 * i + 1].replace("\\n", "")])
     assert len(pics) == 121
-    _csv(os.path.join(dst, "kahou.csv"),
-         ["id", "name", "reading", "kind_id", "kind", "grade", "picture", "flags", "related_slots", "related",
+    write_csv(os.path.join(dst, "kahou.csv"), ["id", "name", "reading", "kind_id", "kind", "grade", "picture", "flags", "related_slots", "related",
           "description", "name_zh", "description_zh"], rows)
     return len(rows)
 
@@ -269,7 +247,7 @@ def events(game_dir, out, names):
             rows.append([i, title, zt, len(steps), " ".join(sorted({str(s["bg"]) for s in steps if s["bg"] >= 0},
                                                                      key=int)),
                          "、".join(names[p] for p in people)])
-    _csv(os.path.join(dst, "index.csv"), ["id", "title", "title_zh", "steps", "backgrounds", "speakers"], rows)
+    write_csv(os.path.join(dst, "index.csv"), ["id", "title", "title_zh", "steps", "backgrounds", "speakers"], rows)
     quests = []
     for lang, enc in (("JP", "cp932"), ("TC", "cp950")):
         with open(os.path.join(game_dir, f"QUEST_PK_{lang}", "QuestInfo.bqi"), "rb") as fq:
@@ -288,8 +266,7 @@ def events(game_dir, out, names):
                                *struct.unpack_from("<3i", r, 0xC4), *struct.unpack_from("<2i", r, 0xD0)])
             elif k < len(quests):
                 quests[k][5:7] = [a, b]
-    _csv(os.path.join(dst, "quests.csv"),
-         ["record", "person_slot", "person", "text", "text2", "text_zh", "text2_zh", "u_c4", "u_c8", "u_cc", "u_d0",
+    write_csv(os.path.join(dst, "quests.csv"), ["record", "person_slot", "person", "text", "text2", "text_zh", "text2_zh", "u_c4", "u_c8", "u_cc", "u_d0",
           "u_d4"], quests)
     return len(rows), len(quests)
 
@@ -309,7 +286,7 @@ def nobu15_extras(game_dir, out, jobs):
         for k, w, h in _dump(os.path.join(game_dir, "RES_PK", res), entry, os.path.join(out, "eventcg", folder),
                              work):
             index.append([f"{folder}/{k:04d}.png", folder, k, w, h, f"RES_PK/{res} {entry}"])
-    _csv(os.path.join(out, "eventcg", "index.csv"), ["file", "set", "cell", "width", "height", "source"], index)
+    write_csv(os.path.join(out, "eventcg", "index.csv"), ["file", "set", "cell", "width", "height", "source"], index)
     click.echo(f"eventcg: {len(index)}")
     kamon = _dump(os.path.join(game_dir, "RES_PK", KAMON[0]), KAMON[1], os.path.join(out, "kamon"), work)
     with Pool(jobs) as pool:

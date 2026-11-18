@@ -15,17 +15,18 @@ eventcg/, items/, kamon/ and events/ (notes/nobu13.md「事件、插圖、道具
 - msg/*.n13 (N13F) scripts: tokens split by ',\\n'; '&,MSGnnn' a string, '&,<var>.FncNNN' a value shown in the text,
   '),<n>' and ',,<var>' arguments of the next '(,FncNNN' call, '(,Fnc000' ends a text box.
 """
-import csv
 import glob
 import json
 import os
 import struct
 
 import click
-from PIL import Image
 
 import wiki_nobu13
 from wiki_nobu12 import msg_entries
+from common import write_csv
+from nobu12_extras import _strings
+from gfx import gt1g_texture
 
 SCENARIO = "11"  # the scenario the 家宝 owners are read from (the kaodata names come from it too)
 ITEMS = (0x0E, 453)
@@ -49,32 +50,17 @@ def link_images(path):
     base, = struct.unpack_from("<I", d, 0x20)
     assert d[base:base + 8] == b"GT1G0600"
     heads, n = struct.unpack_from("<2I", d, base + 0xC)
-    textures = {}
+    textures, g = {}, d[base:]
 
     def texture(i):
         if i not in textures:
-            o = base + heads + struct.unpack_from("<I", d, base + heads + 4 * i)[0]
-            fmt, dim = d[o + 1], d[o + 2]
-            w, h = 1 << (dim & 15), 1 << (dim >> 4)
-            s = o + 8 + (struct.unpack_from("<I", d, o + 8)[0] if d[o + 7] & 0x10 else 0)
-            if fmt == 8:
-                textures[i] = Image.frombytes("RGBA", (w, h), d[s:s + w * h], "bcn", 3)
-            else:
-                assert fmt == 1, fmt
-                textures[i] = Image.frombytes("RGBA", (w, h), d[s:s + 4 * w * h], "raw", "BGRA")
+            textures[i] = gt1g_texture(g, i)
         return textures[i]
 
     for k in range(count):
         x, y, w, h, i = struct.unpack_from("<4HI", d, table + 12 * k)
         assert i < n
         yield texture(i).crop((x, y, x + w, y + h))
-
-
-def _strings(d, st):
-    cnt, first = struct.unpack_from("<2I", d, st)
-    offs = struct.unpack_from(f"<{cnt + 1}I", d, st + 8)
-    base = st + 8 + 4 * (cnt + 1)
-    return first, [d[base + offs[k]:base + offs[k + 1]].decode("cp932") for k in range(cnt)]
 
 
 def script(path):
@@ -130,13 +116,6 @@ def _kind_names(exe):
     return [text(v) for v in struct.unpack_from(f"<{KINDS}I", d, KIND_TABLE)]
 
 
-def _csv(path, header, rows):
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
 def items(game_dir, out):
     """家宝 table, 96 and 60 px pictures and descriptions -> out/items/"""
     os.makedirs(os.path.join(out, "items", "pictures"), exist_ok=True)
@@ -162,8 +141,7 @@ def items(game_dir, out):
         rows.append([i, name, reading, kind, kinds[kind], grade, f"pictures/{picture:02d}.png", owner,
                      names[owner][0] if owner >= 0 else "", a, r[217], "" if tname == name else tname, text])
     assert next(t, None) is None
-    _csv(os.path.join(out, "items", "kahou.csv"),
-         ["id", "name", "reading", "kind_id", "kind", "grade", "picture", "owner_slot_s11", "owner_s11", "u201",
+    write_csv(os.path.join(out, "items", "kahou.csv"), ["id", "name", "reading", "kind_id", "kind", "grade", "picture", "owner_slot_s11", "owner_s11", "u201",
           "flags", "description_name", "description"], rows)
     return len(rows)
 
@@ -193,8 +171,7 @@ def eventcg(game_dir, out):
             evidence = "" if first is None else "✅ cross" if kind == "rekishi" else "🟡"
             rows.append([cg, kind, k, im.width, im.height, file, f"grp/{name}", " ".join(sorted(used.get(cg, ()))),
                          who, evidence])
-    _csv(os.path.join(out, "eventcg", "index.csv"),
-         ["cg", "set", "index", "width", "height", "file", "source", "used_by", "person_arg", "cg_evidence"], rows)
+    write_csv(os.path.join(out, "eventcg", "index.csv"), ["cg", "set", "index", "width", "height", "file", "source", "used_by", "person_arg", "cg_evidence"], rows)
     return len(rows)
 
 

@@ -4,10 +4,10 @@ id is the kaodata royal-pc98 id (the lord index 0-63, also the name table and fa
 SNDATA1-4.CIM, loaded at DS:0x42 (MAIN.EXE image 0x59C: person = (ptr - 0xF2) / 10, so file 0xB0 = DS:0xF2).
 Field sources: notes/koei-games.md「ロイヤルブラッド」「koei-wiki 匯出」."""
 import os
-import unicodedata
 
 import koei_games as kg
 from kaodata_export import kana_to_hiragana
+from common import cstr
 
 DS = kg.ROYAL_PC98_DGROUP
 LORDS, PLACES = 64, 30
@@ -25,10 +25,6 @@ STATS = ("政治", "軍事", "魅力")  # DS:0x56AE「政治%3d 軍事%3d 魅力
 SCENARIO_NAMES = ("エランとレッドワルト", "フェリアス家の危機", "ティリアンの戦い", "ロイヤルブラッド")
 
 
-def _kana(b):
-    return unicodedata.normalize("NFKC", b.split(b"\0")[0].decode("cp932"))
-
-
 def _read(game_dir):
     with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
         main = f.read()
@@ -40,7 +36,7 @@ def _read(game_dir):
 
 
 def _houses(main):
-    return [_kana(main[DS + HOUSES + 11 * h:][:11]) for h in range(41)]
+    return [cstr(main[DS + HOUSES + 11 * h:][:11], nfkc=True) for h in range(41)]
 
 
 def _lords(d):
@@ -140,7 +136,7 @@ def places(game_dir, out_dir):
             out.append(s)
         # image 0x396C / 0x397E return +17 * 8 and +18 + 60, the top left of the 24x24 mouse hot spot (image 0x39C3)
         pos = {"x": rec[17] * 8 + 12, "y": rec[18] + 60 + 12, "grid": "pixel", "w": 640, "h": 400}
-        rows.append({"id": c, "name": _kana(rec[:9]), "level": "国", "adjacent": [x for x in rec[9:17] if x != 0xFF],
+        rows.append({"id": c, "name": cstr(rec[:9], nfkc=True), "level": "国", "adjacent": [x for x in rec[9:17] if x != 0xFF],
                      "pos": pos, "scenarios": out,
                      "notes": "国的記錄 MAIN.EXE DS:0x1192＋19·c（名字、相鄰、地圖位置）；家是劇本開始時的支配家（劇本 0x330＋36·c ＋14），"
                               "lord 是該家的当主；沒有支配家的是空白地。pos 是 640×400 畫面上国標記（24×24 的滑鼠判定範圍）的中心。"})

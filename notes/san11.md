@@ -115,7 +115,7 @@ cd dekoei
 - 列傳裡 F0AF（U+E06E）是「演義」圖示，F0AE（U+E06D）是「史實」圖示，用來分段。
 - `S11MSG02` 850 以後是用語辭典、年表、特技與技巧的說明、介面說明。
 - `S11MSG02` 的列傳只有 0–669、700–713 和人物號相同（2026-11-10 對內容發現）：699 是第二則献帝，714–721、724 是異民族與盗賊的身分，722、723 是張譲 729、蹇碩 730，725–756 依序是古武將 800–831，757 起是用語。`text/biographies.csv` 仍照則號標 id，所以 670 以後的姓名是錯的；koei-wiki 匯出用 `san11_extras.BIO_INDEX` 對人 🟡 cross。
-- koei-wiki 匯出讀 Steam 繁中版（depot 628072）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki/<dataset>.jsonl`，總表在 `notes/san-biographies.md`）：同樣 2428 則，cp950＋三國志IX 的外字，顏色碼 `02 96 NNx`；演義段以 FA60、史實段以 FA49 開頭（日文的 F0AF、F0AE）；「沒有記載」「並無記載」等不輸出。繁中劇本的人物記錄同樣 152 bytes，從 17760 開始。718 人，各段數和日文版相同（簡介 718、演義 631、史實 636）。
+- koei-wiki 匯出讀 Steam 繁中版（depot 628072）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki`，總表在 `notes/san-biographies.md`）：同樣 2428 則，cp950＋三國志IX 的外字，顏色碼 `02 96 NNx`；演義段以 FA60、史實段以 FA49 開頭（日文的 F0AF、F0AE）；「沒有記載」「並無記載」等不輸出。繁中劇本的人物記錄同樣 152 bytes，從 17760 開始。718 人，各段數和日文版相同（簡介 718、演義 631、史實 636）。
 - 外字：`SAN11_GAIJI` 加上地名外字，再加從讀音推的 26 個（`san11_extras.MSG_GAIJI`，🟡）；E052 認不出來，原樣留著。
 
 ### 讀了哪些檔

@@ -15,7 +15,6 @@ backgrounds and maps, written under --out (notes/taikoh5.md「事件、插圖、
   text. Hiragana are half-width katakana bytes; \\#XXXX names a person record (0x800: given name only, 0x1000: surname
   only), \\%NN is a run-time variable.
 """
-import csv
 import json
 import os
 import re
@@ -25,6 +24,8 @@ import click
 from PIL import Image
 
 import koei_games as kg
+from common import write_csv
+from gfx import gt1g_count, gt1g_texture
 
 BCN = {0x59: 1, 0x5B: 3}
 HALF = "｡｢｣､･ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ"
@@ -59,18 +60,8 @@ def textures(path):
         sets = [data[o:o + s] for o, s in (struct.unpack_from("<2I", data, 8 + 8 * i) for i in range(n))]
     for d in sets:
         assert d[:4] == b"GT1G"
-        table, count = struct.unpack_from("<2I", d, 12)
-        for off in struct.unpack_from(f"<{count}I", d, table):
-            h = table + off
-            fmt, dim = d[h + 1], d[h + 2]
-            w, ht = struct.unpack_from("<2I", d, h + 0x14) if dim == 0 else (1 << (dim & 15), 1 << (dim >> 4))
-            start = h + 8 + struct.unpack_from("<I", d, h + 8)[0]
-            if fmt in BCN:
-                size = w * ht // 2 if BCN[fmt] == 1 else w * ht
-                yield Image.frombytes("RGBA", (w, ht), d[start:start + size], "bcn", BCN[fmt])
-            else:
-                assert fmt == 1, fmt
-                yield Image.frombytes("RGBA", (w, ht), d[start:start + w * ht * 4])
+        for k in range(gt1g_count(d)):
+            yield gt1g_texture(d, k)
 
 
 def save_all(path, out):
@@ -163,14 +154,6 @@ def resolve(text, names):
         sur, given = names[k]
         return sur if v & 0x1000 else given if v & 0x800 else sur + given
     return re.sub(r"\\#([0-9A-F]{4})", name, text)
-
-
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 @click.command()

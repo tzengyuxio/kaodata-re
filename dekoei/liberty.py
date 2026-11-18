@@ -118,7 +118,7 @@ def liberty_cg(cg_file, out_dir, prefix):
             width = int.from_bytes(npk_data[0x0C:0x0E], LITTLE_ENDIAN)
             height = int.from_bytes(npk_data[0x0E:0x10], LITTLE_ENDIAN)
             # palette = npk_data[0x10:0x30]
-            color_indexes = unpack_npk(npk_data[0x30:], width)
+            color_indexes = unpack_npk(npk_data[0x30:], width, height)
             image = Image.new("RGB", (width, height), BGCOLOR)
             for px_index, color_index in enumerate(color_indexes):
                 y, x = divmod(px_index, width)

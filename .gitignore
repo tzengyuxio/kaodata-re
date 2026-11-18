@@ -155,3 +155,4 @@ export/
 # Social posts: rendered media hold game art
 posts/**/*.mp4
 posts/**/*.png
+scratch/

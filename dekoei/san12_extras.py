@@ -3,7 +3,6 @@
 See notes/san12.md「事件、插圖、道具」. Usage (from dekoei/):
     dekoei.py san12-extras --game-dir ../games/san12pk-win --out ../games/san12pk-win/extract
 """
-import csv
 import json
 import os
 import struct
@@ -13,6 +12,7 @@ import click
 from PIL import Image
 
 from sango import SAN12_GAIJI, san12_decrypt
+from common import write_csv
 
 # Data/EventStill, PK/Data/EventStill: headerless BGRA, the size gives the shape
 STILL_SHAPES = {1280 * 960 * 4: (1280, 960), 576 * 432 * 4: (576, 432), 400 * 224 * 4: (400, 224)}
@@ -128,13 +128,6 @@ def gt1g(t, rect=None):
     w, h = 1 << (t[0x26] & 15), 1 << (t[0x26] >> 4)
     im = Image.frombytes("RGBA", (w, h), t[0x2C:0x2C + w * h * 4], "raw", "BGRA")
     return im.crop((rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])) if rect and rect[2] else im
-
-
-def write_csv(path, header, rows):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def event_stills(game_dir, out):

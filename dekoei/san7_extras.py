@@ -3,10 +3,8 @@
 See notes/san7.md「事件、插圖、道具」. Usage (from dekoei/):
     dekoei.py san7-extras --game-dir ../games/san7pk-win --out ../games/san7pk-win/extract
 """
-import csv
 import os
 import struct
-import unicodedata
 
 import click
 from PIL import Image
@@ -14,6 +12,7 @@ from PIL import Image
 import ls11
 from sango import (SAN7_GAIJI, SAN7_PERSON_SIZE, SAN7_PERSONS, SAN7_SCENARIOS, decode_san7_scenario,
                    load_san7_persons)
+from common import fold_kana, write_csv
 
 # Picture files G_*.s7: the Kaodata.s7 container (u32 count, count x (offset, size, w, h) u32, offsets from the end
 # of the table), 8-bit pixels top-down, no compression. The palette is P_<same name>.s7 (Windows LOGPALETTE,
@@ -107,10 +106,7 @@ def text(b):
 
     def flush():
         if run:
-            s = unicodedata.normalize("NFKC", bytes(run).decode("cp932"))
-            if mode == "H":
-                s = "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in s)
-            out.append(s)
+            out.append(fold_kana(bytes(run).decode("cp932"), katakana=mode != "H"))
             run.clear()
 
     while i < len(b):
@@ -154,14 +150,6 @@ def text(b):
     while s.endswith("\n---\n"):
         s = s[:-5]
     return s
-
-
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def load_parts(game_dir, name):

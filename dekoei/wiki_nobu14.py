@@ -6,7 +6,9 @@ import os
 import re
 import struct
 
-import ls11
+from common import u16
+from wiki_nobu12 import _section
+from wiki_nobu15 import _decode
 
 SCENARIOS = ["02", "03", "04", "05", "06", "07", "16", "17", "18", "19"]  # PK; 01 is the tutorial
 MAIN = "02"  # names, stats and relations come from 1551 繼承家督
@@ -46,16 +48,6 @@ def text(b):
             out.append(chr(b[i]))
             i += 1
     return "".join(out)
-
-
-def _decode(path):
-    with open(path, "rb") as f:
-        raw = f.read()
-    return raw, ls11.lwc_decode(raw[raw.index(b"LWC\x1a"):])
-
-
-def _section(data, key):
-    return data.index(struct.pack("<2I", *key)) + 8
 
 
 def scenario(game_dir, s):
@@ -118,13 +110,9 @@ def houses(data, people):
         if b is None:  # the last named 家 is followed by unnamed records; find its lord by the person table instead
             continue
         lord, = struct.unpack_from("<H", data, b - HOUSE_TAIL)
-        if lord < len(people) and _u16(people[lord][2], 10) == hid:
+        if lord < len(people) and u16(people[lord][2], 10) == hid:
             lords[hid] = lord
     return lords
-
-
-def _u16(t, o):
-    return struct.unpack_from("<H", t, o)[0]
 
 
 def castles(data):
@@ -180,18 +168,18 @@ def persons(game_dir):
     family = surnames(scen[MAIN][2])
     people = [k for k, r in enumerate(main) if r[0] and r[0] != "預備預備"]  # 44 spare slots
     known = set(people)
-    fathers = {k: _u16(main[k][2], 2) for k in people}
+    fathers = {k: u16(main[k][2], 2) for k in people}
     rows = []
     for k in people:
         name, lists, t = main[k]
         row = {"id": k, "name": name}
         if family[k] and name.startswith(family[k]) and family[k] != name:
             row["familyName"] = family[k]
-        row.update({"born": _u16(t, 31), "died": _u16(t, 35),
+        row.update({"born": u16(t, 31), "died": u16(t, 35),
                     "stats": {"統率": t[38], "武勇": t[39], "知略": t[40], "政治": t[41]},
                     "hidden": {"創造性": t[37]}})
-        if _u16(t, 22) != 0xFFFF:
-            row["hidden"]["血族"] = _u16(t, 22)
+        if u16(t, 22) != 0xFFFF:
+            row["hidden"]["血族"] = u16(t, 22)
         for key, lst in (("親愛武將", lists[1]), ("嫌惡武將", lists[2])):
             v = [main[x][0] for x in lst if x < len(main) and main[x][0]]
             if v:
@@ -209,8 +197,8 @@ def persons(game_dir):
         siblings = [j for j, v in fathers.items() if j != k and father != 0xFFFF and v == father]
         if siblings:
             relations["siblings"] = siblings
-        spouses = list(dict.fromkeys(_u16(recs[s][k][2], 6) for s in SCENARIOS
-                                     if _u16(recs[s][k][2], 6) != 0xFFFF))
+        spouses = list(dict.fromkeys(u16(recs[s][k][2], 6) for s in SCENARIOS
+                                     if u16(recs[s][k][2], 6) != 0xFFFF))
         if [v for v in spouses if v in known]:
             relations["spouse"] = [v for v in spouses if v in known]
         if relations:
@@ -219,7 +207,7 @@ def persons(game_dir):
         for s in SCENARIOS:
             year, title, _ = scen[s]
             ts = recs[s][k][2]
-            st, house, loc = ts[42], _u16(ts, 10), _u16(ts, 18)
+            st, house, loc = ts[42], u16(ts, 10), u16(ts, 18)
             sc = {"scenario": int(s), "year": year}
             if st in STATUS and (st != 8 or ts[14] == 3):
                 if st == 7 and house in lords[s]:
@@ -227,9 +215,9 @@ def persons(game_dir):
                 sc["status"] = "大名" if sc.get("lord") == k else STATUS[st]
                 if loc != 0xFFFF:
                     sc["location"] = loc
-            elif st in (0, 1, 8) and _u16(ts, 35) >= year and _u16(ts, 33) >= year:  # dead or gone: not listed
+            elif st in (0, 1, 8) and u16(ts, 35) >= year and u16(ts, 33) >= year:  # dead or gone: not listed
                 sc["status"] = "未登場"
-                sc["debut"] = _u16(ts, 33)
+                sc["debut"] = u16(ts, 33)
             else:
                 continue
             row["scenarios"].append(sc)
@@ -304,7 +292,7 @@ def _house_names(data):
         i = data.find(b"dummy\0", i, end)
         if i < 0:
             return out
-        out[_u16(data, i - 13 + 0x5B)] = text(data[i - 13:i])
+        out[u16(data, i - 13 + 0x5B)] = text(data[i - 13:i])
         i += 6
 
 
@@ -317,7 +305,7 @@ def house_names(game_dir):
         people = persons_raw(data)[0]
         names = _house_names(data)
         for hid, lord in houses(data, people).items():
-            c = count.setdefault(_u16(people[lord][2], 22), {})
+            c = count.setdefault(u16(people[lord][2], 22), {})
             c[names[hid]] = c.get(names[hid], 0) + 1
     return {h: sorted(c, key=lambda n: (-c[n], len(n))) for h, c in count.items()}
 
@@ -332,7 +320,7 @@ def house_surnames(game_dir):
         for _ in range(4):
             q += 4 + 2 * struct.unpack_from("<I", data, q)[0]
         if sei and not sei.startswith("預備"):
-            c = count.setdefault(_u16(data, q + 22), {})
+            c = count.setdefault(u16(data, q + 22), {})
             c[sei] = c.get(sei, 0) + 1
         p = q + 96
     return {h: max(c, key=c.get) for h, c in count.items()}

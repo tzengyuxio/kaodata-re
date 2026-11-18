@@ -15,11 +15,12 @@ from PIL import Image
 
 import ls11
 import sango
+from common import fold_kana
 
 
 ITEM_GAIJI = {0xE029: "釭", 0xE059: "蒺"}  # 青釭の剣, 鉄蒺藜骨朶; glyphs read off S10Gaiji.tte
 # more glyphs read off S10Gaiji.tte for the messages (E08C/E08D are the up and down arrows of the help texts), and
-# the place-name ones of places_export; the rest stay as private-use characters
+# the place-name ones of wiki_san10; the rest stay as private-use characters
 TEXT_GAIJI = {**sango.SAN10_GAIJI, **ITEM_GAIJI, 0xE08C: "↗", 0xE08D: "↘", 0xE036: "琪", 0xE030: "鄱",
               0xE018: "譙", 0xE06B: "祁", 0xE06C: "嶲", 0xE02D: "鄴", 0xE020: "邳", 0xE022: "淄", 0xE024: "并",
               0xE00B: "兗"}
@@ -34,14 +35,6 @@ def read_msg(path) -> list[bytes]:
     return [part[offs[i]:offs[i + 1]] for i in range(n)]
 
 
-def _kana(ch: str, katakana: bool) -> str:
-    """Half-width kana to full-width; hiragana unless ESC K switched to katakana."""
-    full = unicodedata.normalize("NFKC", ch)
-    if katakana or full == "ー":
-        return full
-    return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in full)
-
-
 def text(b: bytes) -> str:
     """Message bytes to text: Shift-JIS with half-width kana shown as hiragana (ESC K ... ESC H = katakana),
     newline 0A, the 05 05 05 end mark dropped, 02 xx yy (a name or number put in at run time) as {xxyy},
@@ -52,7 +45,7 @@ def text(b: bytes) -> str:
         nonlocal kana
         if kana:
             s = kana.decode("cp932")
-            out.append(_kana(unicodedata.normalize("NFKC", s), kata) if s else "")
+            out.append(fold_kana(unicodedata.normalize("NFKC", s), kata) if s else "")
             kana = b""
 
     while i < len(b):
@@ -138,10 +131,11 @@ def _save(im: Image.Image, path: str) -> None:
 
 def place_names(exe: bytes) -> list[str]:
     import places_export as pe
-    gaiji = {**sango.SAN10_GAIJI, **pe.SAN10_EXTRA_GAIJI}
+    import wiki_san10 as ws
+    gaiji = {**sango.SAN10_GAIJI, **ws.SAN10_EXTRA_GAIJI}
     out = []
-    for i in range(pe.SAN10_PLACE_KINDS):
-        o = struct.unpack_from("<I", exe, pe.SAN10_PLACES + 12 * i)[0] - EXE_BASE
+    for i in range(ws.SAN10_PLACE_KINDS):
+        o = struct.unpack_from("<I", exe, ws.SAN10_PLACES + 12 * i)[0] - EXE_BASE
         out.append(pe._gaiji(exe[o:exe.index(b"\0", o)].decode("cp932"), gaiji))
     return out
 

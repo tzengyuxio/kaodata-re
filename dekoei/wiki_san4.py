@@ -12,6 +12,9 @@ import os
 
 import kaodata_export as ke
 import sango
+from places_export import _reading, _save, _text
+import struct
+from biography import koei_tw_text, message_parts, offset_table, sections
 
 DATASET = "san4pk-pc98"
 YEAR = 0x584
@@ -169,3 +172,146 @@ def _suikoden(game_dir, k):
     if skills:
         row["skills"] = {"特殊能力": skills}
     return row
+
+
+##############################################################################
+# 三國志IV PC-98 with PK: 43 cities at MAIN.EXE 0x4615D (base game 0x3EA7D, byte-identical; 29 bytes: name +3,
+# reading +8, neighbours +15 0-based FF-ended). Field maps: the table at 0x3FC28 (base 0x3855A, byte-identical to
+# the SFC table) gives map table[6 * defender + k] for the k-th neighbour attacking; siege map 46 + city.
+SAN4PK_PC98_CITIES, SAN4PK_PC98_FIELD = 0x4615D, 0x3FC28
+
+
+SAN4_GAIJI = {6: "鄴", 16: "下邳", 19: "譙"}
+
+
+SAN4_WORLD_W, SAN4_WORLD_H = sango.SAN4_WORLD_COLS * 16, sango.SAN4_WORLD_ROWS * 16
+
+
+def san4_world_pos(game_dir):
+    """{city: pixel} of the centre of the castle: the cell of layer 9 part 10 (middle of the 3 x 3 castle)."""
+    pos = {}
+    for y, row in enumerate(sango.san4_world_cells(game_dir)):
+        for x, cell in enumerate(row):
+            if cell[9] == 10 and cell[8] != 0xFF:
+                assert cell[8] not in pos
+                pos[cell[8]] = (x * 16 + 8, y * 16 + 8)
+    return pos
+
+
+def world_check(game_dir, rows):
+    """Each pos is on a cell of its own city (layer 8) whose layer 2 is the middle tile of a castle (9 k + 4), the
+    city's whole 3 x 5 area is cells of that city with parts 0-14 in order, and the map has no other cities."""
+    cells = sango.san4_world_cells(game_dir)
+    bad = []
+    for r in rows:
+        x, y = r["pos"]["x"] // 16, r["pos"]["y"] // 16
+        if cells[y][x][8] != r["id"] or cells[y][x][2] == 0xFF or cells[y][x][2] % 9 != 4:
+            bad.append(f"{r['id']}: pos not on the middle of its castle")
+            continue
+        area = [cells[y - 3 + k // 3][x - 1 + k % 3] for k in range(15)]
+        if any(c[8] != r["id"] or c[9] != k for k, c in enumerate(area)):
+            bad.append(f"{r['id']}: 3 x 5 area around pos is not the city's")
+    found = {c[8] for row in cells for c in row if c[9] < 100 and c[8] != 0xFF}
+    if found != {r["id"] for r in rows}:
+        bad.append(f"cities on the map {sorted(found)} differ from the places")
+    return len(rows), bad
+
+
+def places(game_dir, out_dir):
+    base = os.path.join(game_dir, "..", "san4-pc98", "MAIN.EXE")  # the palette offsets are the base game's
+    _save(sango.render_san4_battle_maps(game_dir, palette_exe=base), out_dir, [f"{n:02d}.png" for n in range(1, 89)])
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    sango.render_san4_world_map(game_dir, palette_exe=base).save(os.path.join(out_dir, "world", "MAINMAP.png"))
+    pos = san4_world_pos(game_dir)
+    with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
+        exe = f.read()
+    recs = [exe[SAN4PK_PC98_CITIES + 29 * i:][:29] for i in range(43)]
+    field = exe[SAN4PK_PC98_FIELD:][:43 * 6]
+    adj = [[b for b in r[15:29] if b != 0xFF] for r in recs]
+    users = {}
+    for i in range(43):
+        for k in range(len(adj[i])):
+            users.setdefault(field[6 * i + k], set()).add(i)
+    rows = []
+    for i, r in enumerate(recs):
+        maps = [{"file": f"{46 + i:02d}.png", "role": "攻城"}]
+        for k, a in enumerate(adj[i]):
+            m = {"file": f"{field[6 * i + k] + 1:02d}.png", "role": "野戰", "from": a}
+            shared = sorted(users[field[6 * i + k]] - {i})
+            if shared:
+                m["sharedWith"] = shared
+            maps.append(m)
+        rows.append({"id": i, "name": SAN4_GAIJI.get(i) or _text(r[3:8]), "reading": _reading(r[8:15]),
+                     "level": "都市", "adjacent": adj[i], "battlemaps": maps,
+                     "pos": {"x": pos[i][0], "y": pos[i][1], "grid": "pixel", "w": SAN4_WORLD_W, "h": SAN4_WORLD_H},
+                     "notes": "讀的是 PC-98 PK 版；都市表、野戰表和本體 byte 相同。野戰圖依攻方從哪個鄰城來而定"
+                              "（from），攻城圖是都市自己的。攻城圖的色盤只隨季節變；野戰圖的色盤種類（乾黃、黃綠、翠綠）照打仗的都市，"
+                              "共用的野戰圖取多數都市的種類。圖都是春（1–3 月）的色盤。"
+                              "pos 是大地圖 world/MAINMAP.png（1536×1280，96×80 格、一格 16 點）上的像素：城的 3×3 格圖示"
+                              "正中那格的中心（MAINMAP.S4 第 8 層是都市號）。"})
+    return rows
+
+
+def stats(game_dir):
+    # build_san4(pc98=True, pk=True): load_san4_persons order (scenarios 1-6), dedup by (code, name), no name fix;
+    # load_san4_stats yields the same records in the same order, so the first record of each kept person is used
+    sndata, taiki = os.path.join(game_dir, "SNDATA.S4"), os.path.join(game_dir, "TAIKI.S4")
+    persons = sango.load_san4_persons(sndata, taiki, True)
+    stats = sango.load_san4_stats(sndata, taiki, True)
+    assert len(persons) == len(stats)
+    out, seen = [], set()
+    for (_, name, code), (_, name2, *v) in zip(persons, stats):
+        assert name == name2
+        if (code, name) in seen:
+            continue
+        seen.add((code, name))
+        out.append((len(out), name, dict(zip(sango.SAN4_STATS, v))))
+    # then the 117 水滸伝 officers of NBDATA.SUI (ids 462-578); their 20-byte ability blocks have the SNDATA layout
+    # (統率 武力 知力 政治 魅力 at +2)
+    with open(os.path.join(game_dir, "NBDATA.SUI"), "rb") as f:
+        nb = f.read()
+    for k, (name, _) in enumerate(sango.load_san4pk_suikoden(os.path.join(game_dir, "NBDATA.SUI"), True)):
+        out.append((len(out), name, dict(zip(sango.SAN4_STATS, nb[k * 20 + 2:k * 20 + 7]))))
+    return out
+
+
+# 三國志IV PK: MESSAGE.S4 parts 24-33 (454 messages; the offset table has no count). A plain face code c < 0x8000 is
+# message c; a montage face is message 250 + its index in the MAIN.EXE 0x3EA98 table of codes (244, ends below
+# 0x8000). Persons are numbered as in kaodata_export.build_san4: scenario order, by (code, name); the tribes (南蠻王…)
+# and the 水滸伝 officers have none
+SAN4_BIO_PARTS = range(24, 34)
+
+
+SAN4_MONTAGE_CODES = 0x3EA98
+
+
+def san4_persons(game_dir) -> dict[int, tuple[str, int]]:
+    from kaodata_export import SAN4PK_DOS_NAME_FIX
+    seen = {}
+    for _, name, code in sango.load_san4_persons(os.path.join(game_dir, "SNDATA.S4"),
+                                                  os.path.join(game_dir, "TAIKI.S4")):
+        seen.setdefault((code, SAN4PK_DOS_NAME_FIX.get(name, name)), len(seen))
+    return {i: (name, code) for (code, name), i in seen.items()}
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    parts = message_parts(os.path.join(game_dir, "MESSAGE.S4"))
+    bios = [m for k in SAN4_BIO_PARTS for m in offset_table(parts[k], False)]
+    with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
+        exe = f.read()
+    montage = []
+    while (c := struct.unpack_from("<H", exe, SAN4_MONTAGE_CODES + 2 * len(montage))[0]) >= 0x8000:
+        montage.append(c)
+    out = {}
+    for i, (_, code) in san4_persons(game_dir).items():
+        k = code if code < 0x8000 else 250 + montage.index(code) if code in montage else None
+        if k is not None and k < len(bios):
+            out[i] = sections("", [("單段", koei_tw_text(bios[k], "。"))])
+    return out
+
+
+def bio_names(game_dir):
+    return {i: v[0] for i, v in san4_persons(game_dir).items()}
+
+
+BIO_LANG = "zh-Hant"  # biography.py: the 列傳 are read from the Chinese release

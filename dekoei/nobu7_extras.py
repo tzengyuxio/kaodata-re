@@ -14,7 +14,6 @@ the sprite sets, written under --out (notes/nobu7.md「事件、插圖、道具�
 - message.nb7 (LS11, 45 parts): u16 count, offsets, strings; half-width katakana, ESC K / ESC H switch the script,
   ESC k opens a reading; 0x02 xx yy and 0x01 C xx yy are variables, 0x05 ends a page.
 """
-import csv
 import os
 import re
 import struct
@@ -24,6 +23,7 @@ from PIL import Image
 
 import ls11
 import wiki_nobu7 as w
+from common import read_file, write_csv
 
 ITEMS, ITEM_SIZE, ITEM_COUNT = 0x15F30, 0x20, 200
 DAIMYO, DAIMYO_SIZE, DAIMYO_COUNT = 0xD0, 0x118, 30
@@ -48,13 +48,8 @@ PICTURES = [
 CASTLE_PARTS, KAHOU_PARTS, KANI_PARTS, KASSEN_PART, HELP_PART = (30, 31), (32, 33, 34, 35), (36, 37, 38, 39, 40), 42, 27
 
 
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def palette(game_dir):
-    p = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "grppal.nb7")))[0]
+    p = ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "grppal.nb7")))[0]
     return b"".join(bytes((p[3 * c + 1], p[3 * c + 2], p[3 * c])) for c in range(256))
 
 
@@ -80,7 +75,7 @@ def write_pictures(game_dir, out, pal):
         d = os.path.join(out, folder)
         os.makedirs(d, exist_ok=True)
         n = 0
-        for i, (wd, h, px) in enumerate(pictures(_read(os.path.join(game_dir, name)))):
+        for i, (wd, h, px) in enumerate(pictures(read_file(os.path.join(game_dir, name)))):
             _image(wd, h, px, pal).save(os.path.join(d, f"{i:04d}.png"))
             n += 1
         counts[folder] = n
@@ -88,7 +83,7 @@ def write_pictures(game_dir, out, pal):
 
 
 def main_map(game_dir, out, pal):
-    data = _read(os.path.join(game_dir, "mainmap.nb7"))
+    data = read_file(os.path.join(game_dir, "mainmap.nb7"))
     tiles = len(data) // (MAP_TILE * MAP_TILE)
     cols = tiles // MAP_COLUMN
     im = Image.new("P", (cols * MAP_TILE, MAP_COLUMN * MAP_TILE))
@@ -148,14 +143,6 @@ def kassen(parts):
     return out
 
 
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        wr = csv.writer(f)
-        wr.writerow(header)
-        wr.writerows(rows)
-
-
 def _person_names(data):
     return {n: w._name(data, k, "cp932") for n, k in w._records(data).items()}
 
@@ -180,12 +167,10 @@ def items(game_dir, out, parts, scenarios):
             holders.append("" if h == 0xFFFF else f"{h} {ns.get(h, '?')}")
         rows.append([num, name, "" if _kata(text[i][0]) == _kata(name) else text[i][0], text[i][1], kind, grade, pic, f"{pic:04d}.png", value, flag, effect, *holders,
                      text[i][3]])
-    _csv(os.path.join(out, "items", "kahou.csv"),
-         ["no", "name", "name_message", "reading", "kind", "grade", "picture", "file", "value", "flag", "effect",
+    write_csv(os.path.join(out, "items", "kahou.csv"), ["no", "name", "name_message", "reading", "kind", "grade", "picture", "file", "value", "flag", "effect",
           *[f"holder_s{k + 1:02d}" for k in range(len(scenarios))], "description"], rows)
     helps = [clean(x) for x in _strings(parts, HELP_PART)]
-    _csv(os.path.join(out, "items", "help_texts.csv"), ["index", "group", "text"],
-         [[i, "技術" if i < 10 else "家宝効能" if i < 30 else "城修行", t] for i, t in enumerate(helps)])
+    write_csv(os.path.join(out, "items", "help_texts.csv"), ["index", "group", "text"], [[i, "技術" if i < 10 else "家宝効能" if i < 30 else "城修行", t] for i, t in enumerate(helps)])
     return len(rows), sum(1 for r in rows for h in r[11:11 + len(scenarios)] if h)
 
 
@@ -198,21 +183,19 @@ def kamon(out, scenarios):
             no, lord, crest = struct.unpack_from("<3H", d, o)
             if lord:
                 rows.append([s + 1, no, lord, ns.get(lord, "?"), crest, f"{crest:04d}.png"])
-    _csv(os.path.join(out, "kamon", "daimyo.csv"), ["scenario", "daimyo", "lord", "lord_name", "kamon", "file"], rows)
+    write_csv(os.path.join(out, "kamon", "daimyo.csv"), ["scenario", "daimyo", "lord", "lord_name", "kamon", "file"], rows)
     return len(rows)
 
 
 def texts(out, parts):
     rows = [[k, i, clean(s)] for k in range(len(parts)) for i, s in enumerate(_strings(parts, k))]
-    _csv(os.path.join(out, "events", "messages.csv"), ["part", "index", "text"], rows)
+    write_csv(os.path.join(out, "events", "messages.csv"), ["part", "index", "text"], rows)
     ks = kassen(parts)
-    _csv(os.path.join(out, "events", "kassen.csv"), ["name", "reading", "sides", "text"], ks)
+    write_csv(os.path.join(out, "events", "kassen.csv"), ["name", "reading", "sides", "text"], ks)
     castles = named_entries(parts, CASTLE_PARTS)
-    _csv(os.path.join(out, "tables", "castles.csv"), ["index", "name", "reading", "description"],
-         [[i + 1, n, r, t] for i, (n, r, _, t) in enumerate(castles)])
+    write_csv(os.path.join(out, "tables", "castles.csv"), ["index", "name", "reading", "description"], [[i + 1, n, r, t] for i, (n, r, _, t) in enumerate(castles)])
     kani = named_entries(parts, KANI_PARTS)
-    _csv(os.path.join(out, "tables", "kani.csv"), ["index", "name", "reading", "description"],
-         [[i + 1, n, r, t] for i, (n, r, _, t) in enumerate(kani)])
+    write_csv(os.path.join(out, "tables", "kani.csv"), ["index", "name", "reading", "description"], [[i + 1, n, r, t] for i, (n, r, _, t) in enumerate(kani)])
     return len(rows), len(ks), len(castles), len(kani)
 
 
@@ -222,7 +205,7 @@ def texts(out, parts):
 def nobu7_extras(game_dir, out):
     """信長の野望・将星録 PK: event pictures, 家宝, 家紋, messages, the big map and sprites."""
     pal = palette(game_dir)
-    parts = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "message.nb7")))
+    parts = ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "message.nb7")))
     scenarios = w._scenarios(game_dir)
     for folder, n in write_pictures(game_dir, out, pal).items():
         click.echo(f"{folder}: {n}")

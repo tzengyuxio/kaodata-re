@@ -6,12 +6,12 @@ version's; nameJa comes from the PC-88 NPDATA.CIM beside it (../lempe-pc88, the 
 nameEn (persons and cities) from the English DOS NPDATA.CIM (same layout and data, English names), read from its archive
 games/archives/dos/拿破崙_英文版_l-empereur.zip. Field sources: notes/lempe.md「koei-wiki 匯出」."""
 import os
-import unicodedata
 import zipfile
 
 import kaodata_export as ke
 import koei_games as kg
 from utils import to_unicode_name
+from common import cstr
 
 DATASET = "lempe-dos"
 PERSONS, CITIES, NATIONS = 255, 46, 15
@@ -45,10 +45,6 @@ def _scenarios(game_dir):
 def _pc88(game_dir):
     with open(os.path.join(game_dir, "..", "lempe-pc88", "NPDATA.CIM"), "rb") as f:
         return f.read()
-
-
-def _kana(b):
-    return unicodedata.normalize("NFKC", b.split(b"\0")[0].decode("cp932")).strip()
 
 
 def _zh(b):
@@ -152,7 +148,7 @@ def places(game_dir, out_dir):
     for c in range(CITIES):
         rec = d0[CITY + 34 * c:][:34]
         name = _zh(rec[:15])
-        name_ja = _kana(pc88[PC88_CITY + 31 * c:][:12])
+        name_ja = cstr(pc88[PC88_CITY + 31 * c:][:12], nfkc=True).strip()
         game = {"座標": {"x": rec[16], "y": rec[21]}}
         if rec[33] & 1:
             game["臨海"] = True

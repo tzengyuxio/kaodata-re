@@ -21,6 +21,7 @@ from koei_games import koei_tw_name
 import koukai2_extras as x
 from koei_stats import KOUKAI2_NATIONS, KOUKAI2_SKILLS, KOUKAI2_STATS
 from ls11 import ls11_decode_parts
+from common import cstr
 
 DATASET = "koukai2-pc98"
 WORLD_W, WORLD_H = 2160, 1080  # WORLDMAP.LZW cells; port +0 / +2 are in these cells
@@ -36,7 +37,7 @@ def _dos_state(game_dir):
 
 
 def _port_names(st):
-    return [x.cstr(st[x.II_LAYOUT["ports"] + 22 * k + 4:][:17]) for k in range(x.N_PORTS)]
+    return [cstr(st[x.II_LAYOUT["ports"] + 22 * k + 4:][:17], errors="replace") for k in range(x.N_PORTS)]
 
 
 def _port_names_zh(zh):

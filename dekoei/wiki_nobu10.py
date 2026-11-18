@@ -6,6 +6,7 @@ import os
 import re
 import struct
 import unicodedata
+from common import cstr, u16
 
 # SCEDAT??.NBX: 11 地方 x 19 bytes (+0 name 5, +5 reading 14), 64 國 x 39 (+0 name 9, +9 reading 17, +26 地方, +27
 # neighbours x 6, 0xFE none), 250 城 x 56 (+1 name 9, +10 reading 17, +27 suffix kind, +28 國, +29 neighbours x 7, +37/+39
@@ -17,10 +18,6 @@ SCENARIOS = ["01", "02", "03", "04", "05", "06", "09", "10", "11", "12", "13"]
 SUFFIXES = ["城", "城", "館", "館", "御坊", "御堂", "御所", "寺", "社", "砦", "柵", "聖堂", "の村", "の町", "湊", "の里"]
 # GMAP_POS.NBX starts with 250 (u32 x, u32 y): the castles' positions on the large map
 PROVINCE_ID, REGION_ID = 1000, 2000  # place id: 城 = castle number 0-249, 國 = 1000 + 國號, 地方 = 2000 + 地方號
-
-
-def _text(b):
-    return b.split(b"\0")[0].decode("cp932")
 
 
 def _table(data, spec):
@@ -37,14 +34,14 @@ def places(game_dir, out_dir):
         gmap = f.read()
     main = scenarios[SCENARIOS[0]]
     year = {n: int(d[0x2C:0x30]) for n, d in scenarios.items()}
-    regions = [(_text(r[:5]), _text(r[5:19])) for r in _table(main, REGIONS)]
+    regions = [(cstr(r[:5]), cstr(r[5:19])) for r in _table(main, REGIONS)]
     provinces = _table(main, PROVINCES)
     rows = []
     for k, (name, reading) in enumerate(regions):
         rows.append({"id": REGION_ID + k, "name": name, "reading": reading, "level": "地方",
                      "notes": f"地方號 {k}（place id 是地方號＋2000）。"})
     for k, r in enumerate(provinces):
-        rows.append({"id": PROVINCE_ID + k, "name": _text(r[:9]), "reading": _text(r[9:26]), "level": "國",
+        rows.append({"id": PROVINCE_ID + k, "name": cstr(r[:9]), "reading": cstr(r[9:26]), "level": "國",
                      "region": regions[r[26]][0], "adjacent": [PROVINCE_ID + n for n in r[27:33] if n != 0xFE],
                      "notes": f"國號 {k}（place id 是國號＋1000）。相鄰取國記錄 +27–+32，各劇本相同。"})
     tables = {n: _table(d, CASTLES) for n, d in scenarios.items()}
@@ -52,8 +49,8 @@ def places(game_dir, out_dir):
         x, y = struct.unpack_from("<II", gmap, 8 * k)
         suffix = SUFFIXES[r[27]]
         stone, stone_max, trade, trade_max = struct.unpack_from("<4H", r, 37)
-        row = {"id": k, "name": _text(r[1:10]), "reading": _text(r[10:27]), "level": suffix.removeprefix("の"),
-               "province": _text(provinces[r[28]][:9]), "region": regions[provinces[r[28]][26]][0],
+        row = {"id": k, "name": cstr(r[1:10]), "reading": cstr(r[10:27]), "level": suffix.removeprefix("の"),
+               "province": cstr(provinces[r[28]][:9]), "region": regions[provinces[r[28]][26]][0],
                "adjacent": [n for n in r[29:36] if n != 0xFE], "pos": {"x": x, "y": y, "grid": "pixel"},
                "uncertain": ["pos"]}
         notes = f"城號 {k}。名稱、種類取劇本 01（{year['01']} 年），遊戲裡顯示成「名稱＋{suffix}」。" \
@@ -62,8 +59,8 @@ def places(game_dir, out_dir):
         others = []
         for n in SCENARIOS[1:]:
             o = tables[n][k]
-            if (_text(o[1:10]), o[27]) != (_text(r[1:10]), r[27]):
-                others.append(f"{year[n]} 年 {_text(o[1:10])}{SUFFIXES[o[27]]}")
+            if (cstr(o[1:10]), o[27]) != (cstr(r[1:10]), r[27]):
+                others.append(f"{year[n]} 年 {cstr(o[1:10])}{SUFFIXES[o[27]]}")
         if others:
             notes += "其他劇本：" + "、".join(dict.fromkeys(others)) + "。"
         row["notes"] = notes
@@ -136,11 +133,7 @@ def _officers(data):
 
 
 def _name(r):
-    return _text(r[:9]) + _text(r[26:35])
-
-
-def _u16(r, o):
-    return struct.unpack_from("<H", r, o)[0]
+    return cstr(r[:9]) + cstr(r[26:35])
 
 
 def bios(game_dir):
@@ -162,23 +155,23 @@ def persons(game_dir):
     main = officers[MAIN]
     year = {n: int(d[0x2C:0x30]) for n, d in scenarios.items()}
     order = sorted(SCENARIOS, key=lambda n: (year[n], n))
-    provinces = [_text(r[:9]) for r in _table(scenarios[MAIN], PROVINCES)]
-    daimyo = {n: [_u16(d, DAIMYO + DAIMYO_SIZE * k) for k in range(256)] for n, d in scenarios.items()}
+    provinces = [cstr(r[:9]) for r in _table(scenarios[MAIN], PROVINCES)]
+    daimyo = {n: [u16(d, DAIMYO + DAIMYO_SIZE * k) for k in range(256)] for n, d in scenarios.items()}
     wives = {}
     for r in _table(scenarios[MAIN], (WOMEN, WOMAN_COUNT, WOMAN_SIZE)):
-        if _u16(r, 66) < PEOPLE:
-            wives.setdefault(_u16(r, 66), []).append(_name(r))
+        if u16(r, 66) < PEOPLE:
+            wives.setdefault(u16(r, 66), []).append(_name(r))
     titles = {k: bio_entry(raw) for k, raw in _bio_pairs(game_dir).items()}
 
     def person(v):
         return v if v < PEOPLE else None
 
-    fathers = {k: person(_u16(main[k], 69)) for k in range(PEOPLE)}
+    fathers = {k: person(u16(main[k], 69)) for k in range(PEOPLE)}
     rows = []
     for k in range(PEOPLE):
         r = main[k]
-        row = {"id": k, "name": _name(r), "reading": _text(r[9:26]) + _text(r[35:52]),
-               "born": _u16(r, 57), "died": _u16(r, 61)}
+        row = {"id": k, "name": _name(r), "reading": cstr(r[9:26]) + cstr(r[35:52]),
+               "born": u16(r, 57), "died": u16(r, 61)}
         notes = [f"姓名、讀音取劇本 {MAIN}（1582 年）。"]
         uncertain = ["hidden.相性Ａ", "hidden.相性Ｂ", "hidden.義理", "hidden.野心", "relations.clan", "game.出自",
                      "game.出身国", "game.兵種", "scenarios.lord"]
@@ -212,13 +205,13 @@ def persons(game_dir):
         siblings = [j for j, f in fathers.items() if j != k and f is not None and f == fathers[k]]
         if siblings:
             relations["siblings"] = siblings
-        if _u16(r, 67) < NONE16:
-            relations["clan"] = _u16(r, 67)
+        if u16(r, 67) < NONE16:
+            relations["clan"] = u16(r, 67)
         if relations:
             row["relations"] = relations
         for label, o in (("義父", 71), ("養父", 73)):
-            if person(_u16(r, o)) is not None:
-                notes.append(f"{label}（+{o}）：{_name(main[_u16(r, o)])}（id {_u16(r, o)}）。")
+            if person(u16(r, o)) is not None:
+                notes.append(f"{label}（+{o}）：{_name(main[u16(r, o)])}（id {u16(r, o)}）。")
         if k in wives:
             notes.append("妻（女性記錄的「夫」指向此人；女性不是 kaodata 人物，沒有 id）：" + "、".join(wives[k]) + "。")
         game = {}
@@ -240,7 +233,7 @@ def persons(game_dir):
                 continue
             sc = {"scenario": int(n), "year": year[n], "status": STATES[state]}
             if state == 0:
-                sc["debut"] = _u16(o, 57)
+                sc["debut"] = u16(o, 57)
             else:
                 if o[83] != NONE8:
                     sc["location"] = o[83]

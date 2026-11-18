@@ -3,13 +3,13 @@ is the PC-98 scenarios; name is the DOS 中文版's (nobu3-dos beside it, the sa
 PC-98 Japanese. Field sources and how sure they are: notes/nobu3.md「人物欄位」「地理」「koei-wiki 匯出」."""
 import os
 import struct
-import unicodedata
 
 from PIL import Image
 
-import genpei
 import koei_games
 from nobu4_extras import decode_pack
+from common import cstr
+from gfx import decode_planar
 
 # SNDATA1/2.CIM (PC-98 and DOS alike): +4 u16 year; lords from 0x4C (46 bytes: +0 the lord's person pointer, 0 ends);
 # 38 國 from 0x722 (41 bytes: +2 name 9 bytes, +27 lord pointer, +29 城主 pointer, +31 7 neighbours: low 6 bits
@@ -44,10 +44,6 @@ def _read(game_dir, n):
         return f.read()
 
 
-def _ja(b):
-    return unicodedata.normalize("NFKC", b.split(b"\0")[0].decode("cp932"))
-
-
 def _scenario(game_dir, n):
     """(year, [(slot, record, zh name)], {lord index: slot}, {province: (lord slot, 城主 slot)})."""
     p, d = _read(game_dir, n), _read(os.path.join(game_dir, "..", "nobu3-dos"), n)
@@ -74,7 +70,7 @@ def persons(game_dir):
     ids, rows, scenarios = {}, [], [_scenario(game_dir, n) for n in (1, 2)]
     for year, people, _, _ in scenarios:
         for k, r, zh in people:
-            key = (_ja(r[:9]) + _ja(r[9:16]), struct.unpack_from("<H", r, 27)[0])
+            key = (cstr(r[:9], nfkc=True) + cstr(r[9:16], nfkc=True), struct.unpack_from("<H", r, 27)[0])
             if key not in ids:
                 ids[key] = len(rows)
                 age, life, debut = r[16], r[17], r[26]
@@ -91,7 +87,7 @@ def persons(game_dir):
                 rows.append(row)
     slot_id = []
     for year, people, lords, rule in scenarios:
-        slot_id.append({k: ids[(_ja(r[:9]) + _ja(r[9:16]), struct.unpack_from("<H", r, 27)[0])] for k, r, _ in people})
+        slot_id.append({k: ids[(cstr(r[:9], nfkc=True) + cstr(r[9:16], nfkc=True), struct.unpack_from("<H", r, 27)[0])] for k, r, _ in people})
     for n, ((year, people, lords, rule), sid) in enumerate(zip(scenarios, slot_id), 1):
         castellans = {c for _, c in rule.values() if c is not None}
         heads = set(lords.values())
@@ -122,7 +118,7 @@ def _battle_map(hexdata, n, castle):
         raw = bytearray(hexdata[NOBU3_TILES + 0x180 * t:][:0x180])
         if castle and v & 0x10:
             raw[1::3] = bytes(0x80)
-        tile = Image.frombytes("P", (32, 32), bytes(genpei.decode_planar(raw, 0, 32, 32, 3)))
+        tile = Image.frombytes("P", (32, 32), bytes(decode_planar(raw, 0, 32, 32, 3)))
         im.paste(tile, (32 * (c % 13), 32 * (c // 13) + (16 if c % 13 & 1 else 0)))
     return im
 
@@ -186,7 +182,7 @@ def places(game_dir, out_dir):
     rows = []
     for c in range(NOBU3_PROVINCE_COUNT):
         r, q = p[NOBU3_PROVINCES + 41 * c:][:41], d[NOBU3_PROVINCES + 41 * c:][:41]
-        ja, zh = _ja(r[2:11]), koei_games.koei_tw_name(q[2:11].split(b"\0")[0])
+        ja, zh = cstr(r[2:11], nfkc=True), koei_games.koei_tw_name(q[2:11].split(b"\0")[0])
         row = {"id": c + 1, "name": zh}
         if zh != ja:
             row["nameJa"] = ja

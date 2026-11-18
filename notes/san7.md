@@ -111,7 +111,7 @@ cd dekoei
 
 ### 訊息與列傳
 
-- koei-wiki 匯出讀 Steam 繁中版（depot 628032）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki/<dataset>.jsonl`，總表在 `notes/san-biographies.md`）：同名檔、同樣的排法，文字是 cp950、沒有外字，`M_BFile.s7` 第 k 筆是武將 k，520 人 ✅ cross（和日文版逐則對過內容）。名字從劇本取，繁中版的劇本加密表在 `San7WPK.exe` 0x4E43E0（和日文版 0x4E5500 byte 相同）；D_Sn001–007 寫 54 喬瑁、430 傅僉，PK 劇本寫橋瑁、傅儉，取前者（`san7_extras.bios`、`bio_names`）。
+- koei-wiki 匯出讀 Steam 繁中版（depot 628032）（2026-11-10，`dekoei.py biography <dataset> --game-dir ../games/steam/<appid>-tchinese/depot --out ../export/koei-wiki`，總表在 `notes/san-biographies.md`）：同名檔、同樣的排法，文字是 cp950、沒有外字，`M_BFile.s7` 第 k 筆是武將 k，520 人 ✅ cross（和日文版逐則對過內容）。名字從劇本取，繁中版的劇本加密表在 `San7WPK.exe` 0x4E43E0（和日文版 0x4E5500 byte 相同）；D_Sn001–007 寫 54 喬瑁、430 傅僉，PK 劇本寫橋瑁、傅儉，取前者（`san7_extras.bios`、`bio_names`）。
 
 - `M_Msg.s7`（53 part）、`M_BFile.s7`（13 part）都是 LS11。一個 part 是 u16 筆數＋筆數個 u16 offset（從 part 開頭算）。一筆可以有幾段文字，各以 05 05 05 結尾。✅ code
 - 半形假名平常是平假名，ESC K 起是片假名、ESC H 回平假名（同三國志IX）；0A 換行；01＋3 bytes、02＋2 bytes 是變數，其他 0x20 以下的 byte 是指令，都照原樣寫成 `{..}`。

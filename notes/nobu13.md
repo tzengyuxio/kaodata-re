@@ -169,7 +169,7 @@
 
 ```sh
 ../.venv/bin/python dekoei.py persons-export nobu13pk-win --game-dir ../games/nobu13pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
-../.venv/bin/python dekoei.py biography nobu13pk-win --game-dir ../games/nobu13pk-win --out ../export/koei-wiki/nobu13pk-win.jsonl
+../.venv/bin/python dekoei.py biography nobu13pk-win --game-dir ../games/nobu13pk-win --out ../export/koei-wiki
 ```
 
 `wiki_nobu13.persons`／`bios`。列伝檔 `msg/Bfile01–27.n13` 從 `games/steam/363110/msg/` 硬連結到 `games/nobu13pk-win/msg/`。1344 人、1328 段列伝（槽 2290–2305 沒有）；persons-export 檢查 18748 項、koei-wiki `verify_persons.py` 53440 項，都是 0 筆不符。

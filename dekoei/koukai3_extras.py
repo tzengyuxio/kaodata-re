@@ -25,7 +25,6 @@ ships, items, discoveries, the extra person fields and the world map, written un
 - WORLD.CDS: 2500 x 1250 u16 cells (0.144 degree each); the high byte is the terrain class. The map is drawn by
   class (the OCEAN.CDS tiles are not mapped yet) as map/world.png, with the cities as map/world_cities.png.
 """
-import csv
 import os
 import struct
 
@@ -34,6 +33,7 @@ from PIL import Image, ImageDraw
 
 import koei_games
 import ls11
+from common import write_csv
 
 EXE = "CDS95.EXE.pec2bac"
 CITIES = (0x4EF150, 226, 0x88)
@@ -142,8 +142,7 @@ def tables(exe: Exe, persons, out):
         _, lang, capital, religion, a, b = exe.words(va, 6)
         rows.append([i, nation_names[i], lang, name(languages, lang), capital, name(city_names, capital),
                      religion, name(religions, religion), a, b])
-    _csv(os.path.join(out, "tables", "nations.csv"),
-         ["nation", "name", "language", "languageName", "capital", "capitalName", "religion", "religionName",
+    write_csv(os.path.join(out, "tables", "nations.csv"), ["nation", "name", "language", "languageName", "capital", "capitalName", "religion", "religionName",
           "+0x10", "+0x14"], rows)
 
     cities = []
@@ -163,8 +162,7 @@ def tables(exe: Exe, persons, out):
                      " ".join(item_names[g] for g in more), w[23], name(conditions, w[23]),
                      f"{bits:016b}", " ".join(FACILITY_KINDS[k] for k in range(16) if bits >> k & 1), u62,
                      " ".join(disc_names[d] for d in disc if d >= 0), " ".join(map(str, matrix))])
-    _csv(os.path.join(out, "tables", "cities.csv"),
-         ["city", "name", "x", "y", "kind", "link", "linkName", "+0x14", "shipBits", "marketZone", "region",
+    write_csv(os.path.join(out, "tables", "cities.csv"), ["city", "name", "x", "y", "kind", "link", "linkName", "+0x14", "shipBits", "marketZone", "region",
           "nation", "nationName", "size", "rate", "specialty", "specialtyName", "+0x34", "level", "levelValue",
           "shopItems", "condition", "conditionName", "facilityBits", "facilities", "+0x62", "discoveries",
           "+0x74"], rows)
@@ -173,8 +171,7 @@ def tables(exe: Exe, persons, out):
     for i, va in exe.records(GOODS):
         w = exe.words(va, 0x88 // 4)
         rows.append([i, goods_names[i], w[1], w[2], name(goods_kinds, w[2]), w[31], w[32], w[33], *w[3:31]])
-    _csv(os.path.join(out, "tables", "goods.csv"),
-         ["goods", "name", "picture", "category", "categoryName", "weight", "durability", "flag",
+    write_csv(os.path.join(out, "tables", "goods.csv"), ["goods", "name", "picture", "category", "categoryName", "weight", "durability", "flag",
           *[f"price{z}" for z in range(28)]], rows)
 
     rows = []
@@ -183,15 +180,14 @@ def tables(exe: Exe, persons, out):
         members = [c[1] for c, va2 in zip(cities, [v for _, v in exe.records(CITIES)])
                    if exe.words(va2 + 0x1C, 1)[0] == z]
         rows.append([z, " ".join(name(goods_names, x) for x in g if x >= 0), " ".join(members)])
-    _csv(os.path.join(out, "tables", "market_zones.csv"), ["zone", "goods", "cities"], rows)
+    write_csv(os.path.join(out, "tables", "market_zones.csv"), ["zone", "goods", "cities"], rows)
 
     rows = []
     for i, va in exe.records(FACILITIES):
         p0, p1, city, kind, *rest = exe.words(va, 14)
         rows.append([i, exe.text(p0), exe.text(p1), city, name(city_names, city), kind,
                      name(FACILITY_KINDS, kind), *rest])
-    _csv(os.path.join(out, "tables", "facilities.csv"),
-         ["facility", "name", "genericName", "city", "cityName", "kind", "kindName", "link0", "link1", "link2",
+    write_csv(os.path.join(out, "tables", "facilities.csv"), ["facility", "name", "genericName", "city", "cityName", "kind", "kindName", "link0", "link1", "link2",
           "link3", "x", "y", "w", "h", "+0x30", "+0x34"], rows)
 
     rows = []
@@ -199,8 +195,7 @@ def tables(exe: Exe, persons, out):
         w = exe.words(va, 15)
         flags = exe.words(va + 0x3C, 1, "H")[0]
         rows.append([i, exe.text(w[0]), *w[1:14], w[14] * 1000, f"{flags:04x}"])
-    _csv(os.path.join(out, "tables", "ships.csv"),
-         ["ship", "name", "+4", "citySizeNeeded", "propulsion", "propulsionMax", "durability", "durabilityMax",
+    write_csv(os.path.join(out, "tables", "ships.csv"), ["ship", "name", "+4", "citySizeNeeded", "propulsion", "propulsionMax", "durability", "durabilityMax",
           "weight", "weightMax", "capacity", "capacityMax", "cannons?", "cannonsMax?", "+0x34", "price",
           "flags"], rows)
 
@@ -211,8 +206,7 @@ def tables(exe: Exe, persons, out):
         p, pic, price, v2, power, kind, last = exe.words(va, 7)
         rows.append([i, exe.text(p), pic, price, v2, power, kind, name(item_kinds, kind), last,
                      exe.text(texts[i]).replace("\n", " ")])
-    _csv(os.path.join(out, "items", "items.csv"),
-         ["item", "name", "picture", "price", "+0xC", "power", "kind", "kindName", "+0x18", "description"], rows)
+    write_csv(os.path.join(out, "items", "items.csv"), ["item", "name", "picture", "price", "+0xC", "power", "kind", "kindName", "+0x18", "description"], rows)
 
     disc_kinds = exe.strings(DISCOVERY_KINDS)
     rows = []
@@ -222,8 +216,7 @@ def tables(exe: Exe, persons, out):
         rows.append([i, disc_names[i], w[1], name(disc_kinds, w[1]), w[2], w[3], w[4], w[5], w[6], w[12],
                      w[14], *w[17:21], w[21], w[22], " ".join(map(str, w[7:12])), w[13], w[15], w[16],
                      text.replace("\n", " ")])
-    _csv(os.path.join(out, "discoveries", "discoveries.csv"),
-         ["discovery", "name", "category", "categoryName", "code", "still", "+0x10", "+0x14", "reward", "+0x30",
+    write_csv(os.path.join(out, "discoveries", "discoveries.csv"), ["discovery", "name", "category", "categoryName", "code", "still", "+0x10", "+0x14", "reward", "+0x30",
           "text", "x1", "y1", "x2", "y2", "+0x54", "+0x58", "+0x1C..+0x2C", "+0x34", "+0x3C", "+0x40",
           "description"], rows)
 
@@ -235,8 +228,7 @@ def tables(exe: Exe, persons, out):
         nation, star, blood, job, fame, notoriety = w[5:11]
         rows.append([i, pname, nation, name(nation_names, nation), star, name(stars, star), blood,
                      name(bloods, blood), job, name(jobs, job), fame, notoriety, w[22], w[23]])
-    _csv(os.path.join(out, "persons_extra.csv"),
-         ["person", "name", "nation", "nationName", "starSign", "starSignName", "bloodType", "bloodTypeName",
+    write_csv(os.path.join(out, "persons_extra.csv"), ["person", "name", "nation", "nationName", "starSign", "starSignName", "bloodType", "bloodTypeName",
           "job", "jobName", "fame", "notoriety", "+0x58", "+0x5C"], rows)
 
     return cities, {"nations": len(nation_names), "cities": len(cities), "goods": len(goods_names),
@@ -289,14 +281,6 @@ def pictures(game_dir, out, sys_rgb):
         picture(parts[2 * n], 400, 320, palette(sys_rgb, parts[2 * n + 1], 74)).save(
             os.path.join(folder, f"{n:03d}.png"))
     return items, stills, len(parts) // 2
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 @click.command("koukai3-extras")

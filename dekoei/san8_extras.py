@@ -4,7 +4,6 @@ for archiving.
 See notes/san8.md「事件、插圖、道具」. Usage (from dekoei/):
     dekoei.py san8-extras --game-dir ../games/san8pk-win --out ../games/san8pk-win/extract
 """
-import csv
 import os
 import random
 import re
@@ -14,6 +13,7 @@ import click
 from PIL import Image
 
 from sango import SAN8_GAIJI, SAN8_PERSON_SIZE, SAN8_PERSONS, koei_archive, load_san8_persons
+from common import write_csv
 
 # The KOEI archives (sango.koei_archive) hold raw 8 bit pixels with no size or palette. Widths are found by row
 # correlation (guess_width); palettes are 256 x (R, G, B, flag) entries of p_main.s8, picked per picture by the
@@ -101,13 +101,6 @@ def to_png(e: bytes, w: int, pal: list[tuple], path: str) -> None:
     im.putpalette([c for p in pal for c in p])
     im.info["transparency"] = 0
     im.save(path)
-
-
-def write_csv(path: str, header: list, rows) -> None:
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def event_pictures(game_dir: str, out: str, palettes: dict) -> tuple[int, int]:

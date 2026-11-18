@@ -11,6 +11,7 @@ from PIL import Image
 
 import koei_games
 import ls11
+from common import read_file
 
 # person records: 744 x 0x5C from 0x53D0 (koei_games.NOBU7_WIN_PERSONS); person n (1-744) is kaodata id n - 1, and
 # only 1-716 are kaodata characters (717- are the unnamed 姫一-十六, 農民 and 佚名). 城 k (1-64) at 0x469C + 0x34 k.
@@ -39,35 +40,23 @@ BIO_LANG = "zh-Hant"
 ATKMAP_TYPE = 0x26
 
 
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def _scenarios(game_dir):
-    return [_read(os.path.join(game_dir, n)) for n in SCENARIOS]
+    return [read_file(os.path.join(game_dir, n)) for n in SCENARIOS]
 
 
 def _zh(game_dir, name=ZH_SCENARIOS[MAIN]):
-    return _read(os.path.join(game_dir, "..", "nobu7-win", name))
+    return read_file(os.path.join(game_dir, "..", "nobu7-win", name))
 
 
 def _name(data, k, encoding):
     """surname + given name of person k (0-based record)."""
     o = PERSONS + SIZE * k
-
-    def text(b):
-        b = b.split(b"\0")[0]
-        return koei_games.NOBU7_WIN_GAIJI.get(b) or b.decode(encoding)
-
-    return text(data[o:o + 8]) + text(data[o + 8:o + 16])
+    return koei_games.nobu7_win_text(data[o:o + 8], encoding) + koei_games.nobu7_win_text(data[o + 8:o + 16], encoding)
 
 
 def _surname(data, k, encoding):
     """the surname field of person k (empty for persons without one)"""
-    o = PERSONS + SIZE * k
-    b = data[o:o + 8].split(b"\0")[0]
-    return koei_games.NOBU7_WIN_GAIJI.get(b) or b.decode(encoding)
+    return koei_games.nobu7_win_text(data[PERSONS + SIZE * k:][:8], encoding)
 
 
 def _u16(data, k, field):
@@ -154,8 +143,8 @@ def _bios(game_dir):
     """(Chinese entries, Japanese entries, {person id: entry index}). The two files hold the same 716 entries in the
     same order (only 真田信幸 and 瀬名 differ in the years), so the Japanese names, which match the PK records, place
     the Chinese texts too."""
-    zh = biographies(ls11.ls11_decode_parts(_read(os.path.join(game_dir, "..", "nobu7-win", "Message.nb7"))), "big5")
-    ja = biographies(ls11.ls11_decode_parts(_read(os.path.join(game_dir, "message.nb7"))), "cp932")
+    zh = biographies(ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "..", "nobu7-win", "Message.nb7"))), "big5")
+    ja = biographies(ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "message.nb7"))), "cp932")
     assert len(zh) == len(ja)
     names, born = _person_names(game_dir)
     return zh, ja, _bio_index(ja, names, born)[0]
@@ -276,8 +265,8 @@ def persons(game_dir):
 
 def _siege_maps(game_dir, out_dir, types):
     """Write the 攻城圖 of the given types as Atkmap_NN.png; returns {type: file}."""
-    data = _read(os.path.join(game_dir, "ATKMAP.NB7"))
-    pal = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "grppal.nb7")))[0]
+    data = read_file(os.path.join(game_dir, "ATKMAP.NB7"))
+    pal = ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "grppal.nb7")))[0]
     pal = b"".join(bytes((pal[3 * c + 1], pal[3 * c + 2], pal[3 * c])) for c in range(256))
     base = 4 + 16 * struct.unpack_from("<I", data, 0)[0]
     os.makedirs(out_dir, exist_ok=True)

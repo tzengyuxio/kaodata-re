@@ -14,7 +14,6 @@ event text, written under --out as items/, eventcg/, kamon/, map/ and events/ (n
 - Event text: every Japanese string in the EXE .rdata, with the .data pointer tables (runs of string pointers) that
   reference it; the events themselves are coded in the encrypted .text, so the text is not grouped per event.
 """
-import csv
 import io
 import json
 import os
@@ -24,6 +23,7 @@ import click
 from PIL import Image
 
 from utils import pe_resources
+from common import write_csv
 
 EXE = "Nobunaga5WPK.exe"
 RDATA, RDATA_END, DATA, DATA_END = 0x72A00, 0x86800, 0x86800, 0xD7C00
@@ -43,13 +43,6 @@ MOVIES = [("op.avi", "オープニング", 13883284), ("ED1.AVI", "エンディ�
           ("ed3.avi", "エンディング", 10217296), ("REKIS1.AVI", "歴史事件", 8137796), ("REKIS2.AVI", "歴史事件", 4755524),
           ("jisin.avi", "地震", 689986), ("taifuu.avi", "台風", 689988), ("housa.avi", "豊作", 689988),
           ("kyous.avi", "凶作", 689990), ("katid.avi", "勝鬨", 2234184), ("Testavi.avi", "テスト", 727832)]
-
-
-def _csv(path, header, rows):
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def _cstr(data, off):
@@ -114,8 +107,7 @@ def items(steam, pc98, out):
         rows.append([i, name, "" if pc98_names is None or pc98_names[i] == name else pc98_names[i],
                      categories[kind_category[pic]], pic, f"pictures/{pic:02d}.png", value,
                      kind >> 6 & 1, kind >> 7, "" if holder == 0xFFFF else holder])
-    _csv(os.path.join(out, "items", "kahou.csv"),
-         ["id", "name", "name_pc98", "category", "kind", "picture", "value", "flag6", "flag7", "holder"], rows)
+    write_csv(os.path.join(out, "items", "kahou.csv"), ["id", "name", "name_pc98", "category", "kind", "picture", "value", "flag6", "flag7", "holder"], rows)
     return len(rows), sum(1 for r in rows if r[2] == "")
 
 
@@ -128,9 +120,9 @@ def eventcg(steam, out):
         im = cache[src][rid]
         im.save(os.path.join(d, f"{name}.png"))
         rows.append([k, f"{name}.png", purpose, f"{src} BMP {rid}", f"{im.width}x{im.height}", "🟡"])
-    _csv(os.path.join(d, "index.csv"), ["no", "file", "purpose", "source", "size", "evidence"], rows)
+    write_csv(os.path.join(d, "index.csv"), ["no", "file", "purpose", "source", "size", "evidence"], rows)
     rows = [[f, p, size, "🟡 名前から推定"] for f, p, size in MOVIES]
-    _csv(os.path.join(d, "movies.csv"), ["file", "purpose", "bytes", "evidence"], rows)
+    write_csv(os.path.join(d, "movies.csv"), ["file", "purpose", "bytes", "evidence"], rows)
     return len(EVENT_CG), len(rows)
 
 

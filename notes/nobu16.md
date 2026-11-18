@@ -184,7 +184,7 @@ cd dekoei
 G=../games/steam/1336980; E=../export/koei-wiki
 ../.venv/bin/python dekoei.py places-export nobu16pk-win --game-dir $G --out $E/places
 ../.venv/bin/python dekoei.py persons-export nobu16pk-win --game-dir $G --out $E/persons --places $E/places
-../.venv/bin/python dekoei.py biography nobu16pk-win --game-dir $G --out $E/nobu16pk-win.jsonl
+../.venv/bin/python dekoei.py biography nobu16pk-win --game-dir $G --out $E
 ../.venv/bin/python dekoei.py items-export nobu16pk-win --extract ../games/nobu16pk-win/extract --game-dir $G --out $E/items
 ```
 
@@ -196,7 +196,7 @@ G=../games/steam/1336980; E=../export/koei-wiki
 ../.venv/bin/python nobu16_extras.py --game-dir ../games/nobu16pk-win --out ../games/nobu16pk-win/extract
 ```
 
-封裝：`RES*/res_*.bin` 是 `LINK`，+8 是 0x20 的是圖片 LINK（項目表從 0x20 起、+0x10 是每格 12 bytes 的框），否則項目表從 0x10 起；位置都相對於該 LINK。每格是 `01 01` 的 LZ4 包裝（`00 01` 是同樣的檔頭但沒壓縮，家宝圖第 120 格就是），解開是 GT1G0600，格式 0x59 BC1、0x5B BC3、0x01 RGBA。訊息檔的 XL 表同三國志13（+6 欄數、+8 列數、+10 列長、+12 表頭長），字串 UTF-16LE；`ESC C A`／`B`／`C`…`ESC C Z` 是人名、家名、地名的上色，輸出寫成 `{A}…{Z}`。
+封裝：`RES*/res_*.bin` 是 `LINK`，+8 是 0x20 的是圖片 LINK（項目表從 0x20 起、+0x10 是每格 12 bytes 的框），否則項目表從 0x10 起；位置都相對於該 LINK。每格是 `01 01` 的 LZ4 包裝（`00 01` 是同樣的檔頭但沒壓縮，家宝圖第 120 格就是），解開是 GT1G0600，格式 0x59 BC1、0x5B BC3、0x01 每點 4 byte，依序 B、G、R、A（2026-11-18 以前當成 RGBA 讀，歷代頭像 8 色到 16 色的 04–08 項紅藍對調；改成 BGRA 後膚色正常，和信長14、15 相同）。訊息檔的 XL 表同三國志13（+6 欄數、+8 列數、+10 列長、+12 表頭長），字串 UTF-16LE；`ESC C A`／`B`／`C`…`ESC C Z` 是人名、家名、地名的上色，輸出寫成 `{A}…{Z}`。
 
 | 輸出 | 來源 | 內容 | 可信度 |
 |---|---|---|---|

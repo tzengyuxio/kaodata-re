@@ -161,7 +161,7 @@
 ```sh
 ../.venv/bin/python dekoei.py places-export nobu7pk-win --game-dir ../games/nobu7pk-win --out ../export/koei-wiki/places
 ../.venv/bin/python dekoei.py persons-export nobu7pk-win --game-dir ../games/nobu7pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
-../.venv/bin/python dekoei.py biography nobu7pk-win --game-dir ../games/nobu7pk-win --out ../export/koei-wiki/nobu7pk-win.jsonl
+../.venv/bin/python dekoei.py biography nobu7pk-win --game-dir ../games/nobu7pk-win --out ../export/koei-wiki
 ```
 
 - 主資料集 `nobu7pk-win`：數值取 Steam PK 的 10 個劇本（`SNDATA01–10.NB7`，從 `games/steam/628100/` 硬連結到 `games/nobu7pk-win/`），`name` 取中文視窗版（`../nobu7-win`），日文寫法不同時放 `nameJa`。人物與城的序號兩版相同。

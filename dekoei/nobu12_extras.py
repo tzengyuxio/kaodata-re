@@ -18,7 +18,6 @@
   '),<n>' and ',,<var>' arguments of the next '(,FncNNN' call, '(,Fnc000' without arguments ends a text box,
   '*,<n>' a label.
 """
-import csv
 import glob
 import json
 import os
@@ -29,6 +28,7 @@ from PIL import Image
 
 import wiki_nobu12
 from wiki_nobu12 import msg_entries
+from common import write_csv
 
 ITEM_NAMES, ITEM_DATA = (9, 455), (13, 455)
 NAME_SIZE, DATA_SIZE = 201, 21
@@ -114,13 +114,6 @@ def script(path):
     return boxes, steps, strings
 
 
-def _csv(path, header, rows):
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
 def _scripts(game_dir):
     for path in sorted(glob.glob(os.path.join(game_dir, "Msg", "*.n12"))):
         name = os.path.basename(path)[:-4]
@@ -161,8 +154,7 @@ def items(game_dir, out):
                      data[db + DATA_SIZE * i + 20], f"pictures/{picture:02d}.png", who,
                      "" if tname == name else tname, text])
     assert next(t, None) is None
-    _csv(os.path.join(out, "items", "kahou.csv"),
-         ["id", "name", "reading", "kind_id", "kind", "grade", "grade_name", "tactic", "u4", "flags", "picture",
+    write_csv(os.path.join(out, "items", "kahou.csv"), ["id", "name", "reading", "kind_id", "kind", "grade", "grade_name", "tactic", "u4", "flags", "picture",
           "owners", "description_name", "description"], rows)
     sdir = os.path.join(out, "items", "tokusanhin")
     os.makedirs(sdir, exist_ok=True)
@@ -170,8 +162,7 @@ def items(game_dir, out):
     assert len(spec) == len(SPECIALTIES)
     for k, im in enumerate(spec):
         im.save(os.path.join(sdir, f"{k:02d}.png"))
-    _csv(os.path.join(sdir, "index.csv"), ["id", "name", "file"],
-         [[k, n, f"{k:02d}.png"] for k, n in enumerate(SPECIALTIES)])
+    write_csv(os.path.join(sdir, "index.csv"), ["id", "name", "file"], [[k, n, f"{k:02d}.png"] for k, n in enumerate(SPECIALTIES)])
     for kind, name in ICON_SETS:
         os.makedirs(os.path.join(out, "items", kind), exist_ok=True)
         for k, im in enumerate(f11n_sprites(os.path.join(game_dir, "Grp", name))):
@@ -205,8 +196,7 @@ def eventcg(game_dir, out):
             # the scene numbers were checked on rek_okehazama_zenya (8 scenes match the text, 🟡 for the others)
             rows.append([cg, kind, k, im.width, im.height, file, f"Grp/{name} {2 * k},{2 * k + 1}",
                          " ".join(sorted(used.get(cg, ()))), "✅ cross" if kind == "rekishi" else "🟡"])
-    _csv(os.path.join(out, "eventcg", "index.csv"),
-         ["scene", "set", "index", "width", "height", "file", "source", "used_by", "evidence"], rows)
+    write_csv(os.path.join(out, "eventcg", "index.csv"), ["scene", "set", "index", "width", "height", "file", "source", "used_by", "evidence"], rows)
     return len(rows)
 
 

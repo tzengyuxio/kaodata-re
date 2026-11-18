@@ -366,6 +366,7 @@ def san2_grp(game_dir, out_dir):
             "#FFFFFF",
         ]
     )
+    os.makedirs(out_dir, exist_ok=True)
     grp_file = f"{game_dir}/GRPDATA.DAT"
     grp_file = os.path.expanduser(grp_file)
     images = []

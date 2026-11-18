@@ -4,12 +4,12 @@
 See notes/genghis4.md. Usage (from dekoei/):
     dekoei.py genghis4-extras --game-dir ../games/genghis4pk-win --out ../games/genghis4pk-win/extract
 """
-import csv
 import os
 import struct
 
 import click
 from PIL import Image, ImageDraw, ImageFont
+from common import read_file, write_csv
 
 # Counts per scenario 1-4, hard-coded in CKW95.EXE (countries 0x491630, cities 0x4916A0, men 0x491710,
 # women 0x491790). The country record holds one relation per country, so its size depends on the scenario.
@@ -34,22 +34,9 @@ def _s(raw: bytes) -> str:
     return raw.split(b"\0")[0].decode("big5", "replace").rstrip()
 
 
-def _write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
-def _read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
 def load_scenario(game_dir, k):
     """SCEDATk.CK in the order CKW95.EXE 0x494400 reads it (each section's reader is named below)."""
-    d = _read(game_dir, f"SCEDAT{k}.CK")
+    d = read_file(game_dir, f"SCEDAT{k}.CK")
     sc = {"year": struct.unpack_from("<H", d, 0)[0], "title": _s(d[2:0x13]), "intro": _s(d[0x13:0x207])}
     o = 0x207
     sc["regions"] = []  # 0x494CD0: u8 id, 15 name, u8 kind, u8 culture, u8 c
@@ -109,7 +96,7 @@ def load_scenario(game_dir, k):
 
 def load_messages(game_dir):
     """MESSAGE.CK: {section * 1000 + index: raw bytes}. A section is u16 count, count x u16 offsets from its start."""
-    exe, d = _read(game_dir, "CKW95.EXE"), _read(game_dir, "MESSAGE.CK")
+    exe, d = read_file(game_dir, "CKW95.EXE"), read_file(game_dir, "MESSAGE.CK")
     starts = list(struct.unpack_from("<12I", exe, MSG_TABLE_VA - DATA_VA + DATA_OFF)) + [len(d)]
     out = {}
     for sec in range(12):
@@ -138,7 +125,7 @@ def biographies(msgs, scenarios, out):
         name, _, years = head.rpartition(" ")
         born, _, died = years.partition("∼")
         rows.append([pid, name, born, died, "yes" if pid in ids else "", _text(msgs[bio_id(pid)])])
-    _write_csv(os.path.join(out, "biographies.csv"), ["id", "name", "born", "died", "has_record", "text"], rows)
+    write_csv(os.path.join(out, "biographies.csv"), ["id", "name", "born", "died", "has_record", "text"], rows)
     return len(rows)
 
 
@@ -191,19 +178,15 @@ def places(game_dir, out_dir):
 
 def tables(scenarios, out):
     s1 = scenarios[1]
-    _write_csv(os.path.join(out, "scenarios.csv"), ["scenario", "year", "title", "intro"],
-               [[k, sc["year"], sc["title"], sc["intro"]] for k, sc in scenarios.items()])
-    _write_csv(os.path.join(out, "regions.csv"), ["id", "name", "kind", "culture", "c"],
-               [[r["id"], r["name"], r["kind"], r["culture"], r["c"]] for r in s1["regions"]])
-    _write_csv(os.path.join(out, "products.csv"), ["index", "name", "a", "b", "c", "x"],
-               [[i, p["name"], p["a"], p["b"], p["c"], " ".join(map(str, p["x"]))]
+    write_csv(os.path.join(out, "scenarios.csv"), ["scenario", "year", "title", "intro"], [[k, sc["year"], sc["title"], sc["intro"]] for k, sc in scenarios.items()])
+    write_csv(os.path.join(out, "regions.csv"), ["id", "name", "kind", "culture", "c"], [[r["id"], r["name"], r["kind"], r["culture"], r["c"]] for r in s1["regions"]])
+    write_csv(os.path.join(out, "products.csv"), ["index", "name", "a", "b", "c", "x"], [[i, p["name"], p["a"], p["b"], p["c"], " ".join(map(str, p["x"]))]
                 for i, p in enumerate(s1["products"])])
     treasures = {}
     for k, sc in scenarios.items():
         for t in sc["treasures"]:
             treasures.setdefault(t["id"], [t["name"], t["category"], {}])[2][k] = t["b"]
-    _write_csv(os.path.join(out, "treasures.csv"), ["id", "name", "category", "b_s1", "b_s2", "b_s3", "b_s4"],
-               [[i, n, c, *[b.get(k, "") for k in range(1, 5)]] for i, (n, c, b) in sorted(treasures.items())])
+    write_csv(os.path.join(out, "treasures.csv"), ["id", "name", "category", "b_s1", "b_s2", "b_s3", "b_s4"], [[i, n, c, *[b.get(k, "") for k in range(1, 5)]] for i, (n, c, b) in sorted(treasures.items())])
     rows, crows, rel, cit, men, women = [], [], [], [], [], []
     for k, sc in scenarios.items():
         names = [m["name"] for m in sc["men"]]  # rulers, fathers, husbands... are indexes into the men list
@@ -234,18 +217,15 @@ def tables(scenarios, out):
         for w in sc["women"]:
             women.append([k, w["id"], w["name"], s1["regions"][w["region"]]["name"], who(w["husband"]), w["culture"],
                           w["x22"], w["face"]])
-    _write_csv(os.path.join(out, "units.csv"), ["scenario", "index", "class", "a", "b", "c", "d", "name"], rows)
-    _write_csv(os.path.join(out, "countries.csv"), ["scenario", "index", "id", "name", "ruler_id", "ruler"], crows)
-    _write_csv(os.path.join(out, "relations.csv"), ["scenario", "a", "b", "value"], rel)
-    _write_csv(os.path.join(out, "cities.csv"),
-               ["scenario", "index", "id", "name", "owner", "size", "v0", "v1", "v2", "v3", "v4", "x", "y", "culture",
+    write_csv(os.path.join(out, "units.csv"), ["scenario", "index", "class", "a", "b", "c", "d", "name"], rows)
+    write_csv(os.path.join(out, "countries.csv"), ["scenario", "index", "id", "name", "ruler_id", "ruler"], crows)
+    write_csv(os.path.join(out, "relations.csv"), ["scenario", "a", "b", "value"], rel)
+    write_csv(os.path.join(out, "cities.csv"), ["scenario", "index", "id", "name", "owner", "size", "v0", "v1", "v2", "v3", "v4", "x", "y", "culture",
                 "levels", "treasures", "flags"], cit)
-    _write_csv(os.path.join(out, "persons.csv"),
-               ["scenario", "index", "id", "name", "region", "city", "father", "grandfather", "born", "served", "affinity", "政治",
+    write_csv(os.path.join(out, "persons.csv"), ["scenario", "index", "id", "name", "region", "city", "father", "grandfather", "born", "served", "affinity", "政治",
                 "戰鬥", "智謀", "忠誠", "merit", *APTITUDES, "skills", "skills_hex", "status", "status_b3", "status_b7",
                 "face", "appear_year", "appear_city"], men)
-    _write_csv(os.path.join(out, "women.csv"),
-               ["scenario", "id", "name", "region", "husband", "culture", "x22", "face"], women)
+    write_csv(os.path.join(out, "women.csv"), ["scenario", "id", "name", "region", "husband", "culture", "x22", "face"], women)
     return len(crows), len(cit), len(men), len(women)
 
 

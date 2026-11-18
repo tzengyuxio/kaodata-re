@@ -20,10 +20,13 @@ import struct
 
 import click
 
-import biography
 import ls11
 import sango
 from kaodata_export import SAN14PK_WIN_GAIJI, kana_to_hiragana
+from places_export import _gaiji
+import kaodata_export as K
+from wiki_stats import _pick
+from biography import split_marked
 
 # scenario header (before the LWC block): +0x14 description, +0x1A6 title (17 UTF-16 chars), +0x1C8 u16 year,
 # +0x1CA mode (1 normal, 2 tutorial, 4 決戦制覇), +0x1CE file number, +0x1D3 1 historical / 0 hypothetical
@@ -83,7 +86,6 @@ def _city_areas(game_dir):
     """{所在 value: places export id}: cities 1-51 (the city's own area), gates 52-61 (by name)"""
     import json
     _, tc = _decode(os.path.join(game_dir, "0010_TC", "fixdataex.s14"))
-    from places_export import SAN14_AREAS
     out = {}
     for i in range(1, 344):
         city = tc[SAN14_AREAS + 65 * i + 36]
@@ -143,7 +145,7 @@ def _person_names(game_dir):
                         gaiji.setdefault(("JP", x), y)
                     if 0xE000 <= ord(y) <= 0xF8FF and not 0xE000 <= ord(x) <= 0xF8FF:
                         gaiji.setdefault(("TC", y), x)
-    for c, v in biography.SAN14_BIO_GAIJI.items():
+    for c, v in SAN14_BIO_GAIJI.items():
         gaiji.setdefault(("TC", c), v)
 
     def text(lang, t):
@@ -281,3 +283,145 @@ def main(game_dir):
 
 if __name__ == "__main__":
     main()
+
+
+##############################################################################
+# 三國志14 PK (Steam 872410): 0010_TC/fixdataex.s14 and 0010_JP/fixdataex.s14 (one LWC block, UTF-16LE). 地方
+# from 0x8 (20 bytes), 州 from 0x100 (32 bytes, +30 地方), cities from 0x3E8 (52 x 53 bytes; 1-46 cities, 47-51
+# 異民族; +52 州). 地區 (the places) from 0x24824, 65 bytes, 1-343: +0 name, +10 reading (JP), +36 city, +37 u16
+# seat cell (x = n % 220, y = n / 220), +47 eight u16 neighbour 地區 (0 empty). 地區 have no kind field: the terrain code of
+# the seat cell in 0000/MapEx.bin (220 x 220 x 16 bytes after a 4-byte header, +4) tells 15 府, 16 都市, 17 關,
+# 18 港 apart.
+SAN14_AREAS, SAN14_MAP = 0x24824, 220
+
+
+SAN14_LEVELS = {15: "府", 16: "都市", 17: "關", 18: "港"}
+
+
+SAN14_TC_GAIJI = {0xE030: "坂"}  # 長坂 (the JP file has 坂)
+
+
+# one-way neighbours in the game data itself (TC and JP alike): 羌, added by the PK, lists 陰平, which does not
+# list it back
+SAN14_ONE_WAY = {(341, 302): "羌（PK 新增）的相鄰有陰平，陰平的相鄰沒有羌，遊戲資料（繁中、日文版都一樣）本身就是單向的。"}
+PLACES_ONE_WAY = set(SAN14_ONE_WAY)  # for places-export's adjacency check
+
+
+def places(game_dir, out_dir):
+    from ls11 import lwc_decode
+
+    def load(lang):
+        with open(os.path.join(game_dir, f"0010_{lang}", "fixdataex.s14"), "rb") as f:
+            d = f.read()
+        return lwc_decode(d[d.index(b"LWC\x1a"):])
+
+    tc, jp = load("TC"), load("JP")
+    with open(os.path.join(game_dir, "0000", "MapEx.bin"), "rb") as f:
+        mp = f.read()
+
+    def s(d, o, n):
+        return d[o:o + 2 * n].decode("utf-16le").split("\0")[0]
+
+    def names(o, n):
+        t, j = _gaiji(s(tc, o, n), SAN14_TC_GAIJI), s(jp, o, n)
+        if len(t) == len(j):  # the JP gaiji read off the TC name
+            j = "".join(b if 0xE000 <= ord(a) < 0xF900 else a for a, b in zip(j, t))
+        return t, j
+
+    regions = [s(tc, 0x8 + 20 * k, 10) for k in range(12)]
+    states = [(s(tc, 0x100 + 32 * k, 6), regions[tc[0x100 + 32 * k + 30]]) for k in range(23)]
+    city_state = {c: states[tc[0x3E8 + 53 * c + 52]] for c in range(1, 52)}
+    areas = []
+    for i in range(1, 344):
+        o = SAN14_AREAS + 65 * i
+        tile = struct.unpack_from("<H", tc, o + 37)[0]
+        areas.append((i, *names(o, 5), s(jp, o + 10, 10), tc[o + 36], tile, SAN14_LEVELS[mp[4 + 16 * tile + 4]],
+                      [a for a in struct.unpack_from("<8H", tc, o + 47) if a]))
+    city_area = {city: i for i, _, _, _, city, _, level, _ in areas if level == "都市"}
+    rows = []
+    for i, name, name_ja, reading, city, tile, level, adjacent in areas:
+        state, region = city_state[city]
+        row = {"id": i, "name": name}
+        if name_ja != name:
+            row["nameJa"] = name_ja
+        row.update({"reading": reading, "level": level, "province": state, "region": region})
+        if level != "都市":
+            row["parentCity"] = city_area[city]
+        row.update({"adjacent": adjacent, "pos": {"x": tile % SAN14_MAP, "y": tile // SAN14_MAP, "grid": "square",
+                                                  "w": SAN14_MAP, "h": SAN14_MAP}})
+        notes = ["地區沒有種類欄位，level 是看治所那一格的地形碼分的（都市、關、港、府四種）。"]
+        if city >= 47 and level == "都市":
+            notes.append("異民族（遊戲的都市表 47–51 號）。")
+        notes.append("州、地方照所屬都市。pos 是治所在 220 × 220 格大地圖上的位置。"
+                     "沒有戰場圖，戰鬥在大地圖上打。")
+        notes += [n for pair, n in SAN14_ONE_WAY.items() if i in pair]
+        row["notes"] = "".join(notes)
+        rows.append(row)
+    return rows
+
+
+def stats(game_dir):
+    path_ja, path_tc = (os.path.join(game_dir, n) for n in K.SAN14PK_WIN_SCENARIOS)
+    ja, tc = sango.load_san14_persons(path_ja), sango.load_san14_persons(path_tc, "TC")
+    # names as the builder writes them: gaiji read off the other language's name
+    gaiji = dict(K.SAN14PK_WIN_GAIJI)
+    for a, b in zip(ja, tc):
+        for f in ("surname", "given"):
+            if len(a[f]) == len(b[f]):
+                for x, y in zip(a[f], b[f]):
+                    if 0xE000 <= ord(x) <= 0xF8FF and not 0xE000 <= ord(y) <= 0xF8FF:
+                        gaiji.setdefault(("JP", x), y)
+    chars = {a["id"]: "".join(gaiji.get(("JP", c), c) for c in a["surname"] + a["given"]) for a in ja}
+    return _pick(sango.load_san14_stats(path_ja), sango.SAN14_STATS, chars)
+
+
+# 三國志14 PK: 0001_TC/msgdata.bin is zp1 (as 三國志13), an archive whose item 0 holds an XL string table (item 0,
+# UTF-16LE, offsets from 0x18); the biography of person n is string 386 + n. Same layout as 三國志13 with
+# "^05<U+E020>^00" before 演義 and "^03<U+E009>^00" before 史實. Gaiji: U+E000 伷, E001 璝, E005 儁, E00B 崖 (珠崖),
+# E00C 喁, E030 坂, and E004 for both 衜 (羊衜) and 𩅦 (孫𩅦; the Japanese text has a code of its own)
+SAN14_MSGDATA = "0001_TC/msgdata.bin"
+
+
+SAN14_BIO = 386
+
+
+SAN14_BIO_GAIJI = {"\ue000": "伷", "\ue001": "璝", "\ue004": "衜", "\ue005": "儁", "\ue00b": "崖", "\ue00c": "喁",
+                   "\ue030": "坂"}
+
+
+def san14_strings(game_dir) -> list[str]:
+    with open(os.path.join(game_dir, SAN14_MSGDATA), "rb") as f:
+        b = sango.san13_unzip(f.read())
+    x = sango.san13_items(sango.san13_items(b)[0])[0]
+    assert x[:2] == b"XL"
+    rows, size = struct.unpack_from("<2H", x, 8)
+    out = []
+    for r in range(rows):
+        o = 0x18 + struct.unpack_from("<I", x, 0x18 + r * size)[0]
+        e = o
+        while x[e:e + 2] != b"\0\0":
+            e += 2
+        out.append(x[o:e].decode("utf-16-le"))
+    return out
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    strings = san14_strings(game_dir)
+    out = {}
+    for n in range(sango.SAN14_PERSON_COUNT):
+        t = strings[SAN14_BIO + n].replace("孫\ue004", "孫𩅦")
+        t = t.replace("\n^05\ue020^00", "\0").replace("\n^03\ue009^00", "\0")
+        t = "".join(SAN14_BIO_GAIJI.get(c, c) for c in t)
+        assert "^" not in t and not any(0xE000 <= ord(c) <= 0xF8FF for c in t), (n, t)
+        out[n] = split_marked(t)
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    from kaodata_export import SAN14PK_WIN_GAIJI, SAN14PK_WIN_SCENARIOS
+    gaiji = {**SAN14_BIO_GAIJI, **{c: v for (lang, c), v in SAN14PK_WIN_GAIJI.items() if lang == "TC"}}
+    persons = sango.load_san14_persons(os.path.join(game_dir, SAN14PK_WIN_SCENARIOS[1]), "TC")
+    return {p["id"]: "".join(gaiji.get(c, c) for c in p["surname"] + p["given"]) for p in persons}
+
+
+BIO_LANG = "zh-Hant"  # biography.py: the 列傳 are read from the Chinese release

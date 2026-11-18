@@ -13,7 +13,6 @@ under --out as eventcg/, items/, kamon/, events/, rekidai/ and banners/ (notes/n
   header size + the row's u32). Text marks: ESC C A/B/C ... ESC C Z colour a person / clan / place, written here as
   {A}…{Z}.
 """
-import csv
 import hashlib
 import os
 import re
@@ -21,7 +20,8 @@ import struct
 from collections import Counter
 
 import click
-from PIL import Image
+from common import read_file, write_csv
+from gfx import gt1g_texture
 
 STILL = "RES/res_still.bin"
 # res_still.bin entries -> output folder (all pictures are named NNNN.png by cell)
@@ -110,84 +110,51 @@ def cells(d: bytes, base: int):
             yield i, w, h, d[o:o + s]
 
 
-BCN = {0x59: 1, 0x5B: 3}
-
-
-def texture(t: bytes, w: int, h: int) -> Image.Image:
-    """The first texture of a GT1G0600 set, cropped to w x h."""
-    assert t[:8] == b"GT1G0600", t[:8]
-    heads = struct.unpack_from("<I", t, 0x0C)[0]
-    o = heads + struct.unpack_from("<I", t, heads)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    tw, th = 1 << (dim & 15), 1 << (dim >> 4)
-    p = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    if fmt in BCN:
-        im = Image.frombytes("RGBA", (tw, th), t[p:], "bcn", BCN[fmt])
-    elif fmt == 0x01:
-        im = Image.frombytes("RGBA", (tw, th), t[p:p + 4 * tw * th])
-    else:
-        raise ValueError(f"texture format {fmt:#x}")
-    return im.crop((0, 0, w, h))
-
-
-def _read(game_dir, rel) -> bytes:
-    with open(os.path.join(game_dir, rel), "rb") as f:
-        return f.read()
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
 def save_cells(d: bytes, base: int, folder: str) -> list[tuple]:
     """Every picture of a picture LINK as folder/NNNN.png; rows (cell, file, w, h, sha1 of the packed cell)."""
     os.makedirs(folder, exist_ok=True)
     rows = []
     for i, w, h, c in cells(d, base):
         name = f"{i:04d}.png"
-        texture(unpack(c), w, h).save(os.path.join(folder, name))
+        gt1g_texture(unpack(c)).crop((0, 0, w, h)).save(os.path.join(folder, name))
         rows.append((i, name, w, h, hashlib.sha1(c).hexdigest()[:12]))
     return rows
 
 
 def eventcg(game_dir, out) -> int:
     rows = []
-    d = _read(game_dir, STILL)
+    d = read_file(game_dir, STILL)
     top = link(d)
     for e, folder in STILL_SETS:
         rows += [(folder, STILL, e) + r[:4] for r in save_cells(d, top[e][0], os.path.join(out, folder))]
     for rel, e, folder in EXTRA_STILLS:
-        x = _read(game_dir, rel)
+        x = read_file(game_dir, rel)
         rows += [(folder, rel, e) + r[:4] for r in save_cells(x, link(x)[e][0], os.path.join(out, folder))]
-    _csv(os.path.join(out, "eventcg", "index.csv"), ["folder", "source", "entry", "cell", "file", "w", "h"], rows)
+    write_csv(os.path.join(out, "eventcg", "index.csv"), ["folder", "source", "entry", "cell", "file", "w", "h"], rows)
     return len(rows)
 
 
 def banners(game_dir, out) -> int:
     n = 0
     for rel, e, folder in BANNERS:
-        x = _read(game_dir, rel)
+        x = read_file(game_dir, rel)
         n += len(save_cells(x, link(x)[e][0], os.path.join(out, folder)))
     return n
 
 
 def rekidai(game_dir, out) -> int:
-    d = _read(game_dir, STILL)
+    d = read_file(game_dir, STILL)
     top = link(d)
     rows = []
     for e, game in REKIDAI.items():
         r = save_cells(d, top[e][0], os.path.join(out, "rekidai", f"{e:02d}_{game}"))
         rows.append((e, f"{e:02d}_{game}", game, len(r)))
-    _csv(os.path.join(out, "rekidai", "index.csv"), ["entry", "folder", "series_guess", "faces"], rows)
+    write_csv(os.path.join(out, "rekidai", "index.csv"), ["entry", "folder", "series_guess", "faces"], rows)
     return sum(r[3] for r in rows)
 
 
 def strings(game_dir, lang, name, table=0) -> list[str]:
-    d = unpack(_read(game_dir, MSG.format(lang, name)))
+    d = unpack(read_file(game_dir, MSG.format(lang, name)))
     o, s = struct.unpack_from("<2I", d, 4 + 8 * table)
     b = d[o:o + s]
     assert b[:2] == b"XL"
@@ -210,18 +177,18 @@ def items(game_dir, out) -> int:
     names, names_tc = strings(game_dir, "JP", "msgdata"), strings(game_dir, "TC", "msgdata")
     desc, desc_tc = strings(game_dir, "JP", "msgire"), strings(game_dir, "TC", "msgire")
     assert len(desc) == ITEM_COUNT
-    d = _read(game_dir, STILL)
+    d = read_file(game_dir, STILL)
     pics = {r[0]: r for r in save_cells(d, link(d)[ITEM_PICTURES][0], os.path.join(out, "items", "kahou"))}
     cell = [ITEM_PICTURE.get(k, k) for k in range(ITEM_COUNT)]
     rows = [(k, names[ITEM_NAMES + k], names_tc[ITEM_NAMES + k], f"kahou/{pics[cell[k]][1]}", desc[k], desc_tc[k])
             for k in range(ITEM_COUNT)]
-    _csv(os.path.join(out, "items", "kahou.csv"), ["id", "name", "nameZh", "picture", "description",
+    write_csv(os.path.join(out, "items", "kahou.csv"), ["id", "name", "nameZh", "picture", "description",
                                                   "descriptionZh"], rows)
     return ITEM_COUNT
 
 
 def kamon(game_dir, out) -> int:
-    d, pk = _read(game_dir, GRP), _read(game_dir, PK)
+    d, pk = read_file(game_dir, GRP), read_file(game_dir, PK)
     top, pk_top = link(d), link(pk)
     rows = {}
     for e, style in KAMON_SETS:
@@ -235,8 +202,7 @@ def kamon(game_dir, out) -> int:
     for r in rows.values():
         if common[1] > 1 and r[3] == common[0]:
             r[2] = (r[2] + " placeholder").strip()  # the 「欠」 picture of unused slots
-    _csv(os.path.join(out, "kamon", "index.csv"), ["kamon", "file", "notes", "sha1"],
-         [r for _, r in sorted(rows.items())])
+    write_csv(os.path.join(out, "kamon", "index.csv"), ["kamon", "file", "notes", "sha1"], [r for _, r in sorted(rows.items())])
     return sum(1 for r in rows.values() if "placeholder" not in r[2])
 
 
@@ -245,7 +211,7 @@ def event_titles(game_dir) -> dict[int, set[int]]:
     cell per cut set) starts with u32 event number, u32 title."""
     out = {}
     for rel in EVENT_FILES:
-        d = _read(game_dir, rel)
+        d = read_file(game_dir, rel)
         for o, s in link(d):
             if s:
                 number, title = struct.unpack_from("<2I", unpack(d[o:o + s]), 0)
@@ -261,9 +227,8 @@ def events(game_dir, out) -> int:
     rows = [(k, TITLES + k, ja[TITLES + k], ja[TITLES + READING + k], tc[TITLES + k],
              " ".join(map(str, sorted(numbers.get(k, ())))))
             for k in range(TITLE_ROWS) if ja[TITLES + k] and not TITLE_DUMMY.match(ja[TITLES + k])]
-    _csv(os.path.join(out, "events", "titles.csv"), ["title", "row", "name", "reading", "nameZh", "events"], rows)
-    _csv(os.path.join(out, "events", "msgev.csv"), ["row", "ja", "zh"],
-         [(i, text(a), text(b)) for i, (a, b) in enumerate(zip(ja, tc)) if a or b])
+    write_csv(os.path.join(out, "events", "titles.csv"), ["title", "row", "name", "reading", "nameZh", "events"], rows)
+    write_csv(os.path.join(out, "events", "msgev.csv"), ["row", "ja", "zh"], [(i, text(a), text(b)) for i, (a, b) in enumerate(zip(ja, tc)) if a or b])
     return len(rows)
 
 

@@ -11,12 +11,16 @@ face): a tribe's officers share a face and only the first is kept), id = record 
 import csv
 import os
 import struct
-import unicodedata
 
 import click
 
 import san9_extras
 import sango
+from common import fold_kana, u16
+import unicodedata
+from places_export import PLACE_GAIJI
+import kaodata_export as K
+from wiki_stats import _pick
 
 # chunk prsn: 800 x 134 (records 0-699 used). +0 u32 flags (bit 0 female), +14 u16 face, +18 登場年, +20 生年 (u16,
 # year - 130), +22 仕官 (year - 130, 0 none), +24 所在 (place id of the places export: city 0-49, bldg + 50),
@@ -61,10 +65,6 @@ def _chunks(path):
     return out
 
 
-def _u16(b, o):
-    return struct.unpack_from("<H", b, o)[0]
-
-
 def _records(c, spec):
     tag, size, count = spec
     return [c[tag][size * k:size * (k + 1)] for k in range(count)]
@@ -81,8 +81,8 @@ def scenarios(game_dir):
     out = []
     for n, name in enumerate(sango.SAN9_SCENARIOS, 1):
         c = _chunks(os.path.join(game_dir, name))
-        assert _u16(c[b"head"], 20) == n - 1
-        days = _u16(c[b"head"], 24)
+        assert u16(c[b"head"], 20) == n - 1
+        days = u16(c[b"head"], 24)
         out.append((n, name, c, YEAR0 + days // 360, days % 360 // 30 + 1))
     return out
 
@@ -98,17 +98,12 @@ def _people(game_dir):
     return out
 
 
-def _kana(s):
-    s = unicodedata.normalize("NFKC", s)
-    return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in s)
-
-
 def _owner(c, place):
     """force owning a place id (city +28, bldg +12), or None"""
     if place < 50:
-        f = _u16(_records(c, CITIES)[place], 28)
+        f = u16(_records(c, CITIES)[place], 28)
     elif place < 250:
-        f = _u16(_records(c, BUILDINGS)[place - 50], 12)
+        f = u16(_records(c, BUILDINGS)[place - 50], 12)
     else:
         return None
     return None if f == 0xFFFF else f
@@ -122,7 +117,7 @@ def persons(game_dir):
     recs = _records(main, (PRSN, SIZE, COUNT))
     children = {}
     for i in people:
-        parent = _u16(recs[i], 46)
+        parent = u16(recs[i], 46)
         if parent in people:
             children.setdefault(parent, []).append(i)
     rows = []
@@ -132,21 +127,21 @@ def persons(game_dir):
         row = {"id": i, "name": zh[i]}
         if zh[i] != ja:
             row["nameJa"] = ja
-        row["reading"] = _kana(kana)
-        row["born"] = YEAR0 + _u16(r, 20)
-        row["debut"] = YEAR0 + _u16(r, 18)
+        row["reading"] = fold_kana(kana)
+        row["born"] = YEAR0 + u16(r, 20)
+        row["debut"] = YEAR0 + u16(r, 18)
         if any(stats.values()):
             row["stats"] = stats
         row["more"] = {"性別": "女" if r[0] & 1 else "男",
                        "性格": TEMPERS[r[54]] if r[54] < 4 else r[54],
                        **{f"{k}熟練": v for k, v in zip(SKILLED, struct.unpack_from("<9H", r, 56))}}
-        row["hidden"] = {"寿命": r[40], "相性": _u16(r, 48), "義理": r[50], "野望": r[52]}
+        row["hidden"] = {"寿命": r[40], "相性": u16(r, 48), "義理": r[50], "野望": r[52]}
         bits = struct.unpack_from("<I", r, 128)[0]
         heihou = [h for k, h in enumerate(HEIHOU) if bits >> k & 1]
         if heihou:
             row["skills"] = {"兵法": heihou}
-        rel = {"clan": _u16(r, 44)}
-        parent = _u16(r, 46)
+        rel = {"clan": u16(r, 44)}
+        parent = u16(r, 46)
         if parent in people:
             rel["father"] = [parent]
         if i in children:
@@ -155,21 +150,21 @@ def persons(game_dir):
         row["scenarios"] = []
         for n, _, c, year, _ in scens:
             sr = c[PRSN][SIZE * i:SIZE * (i + 1)]
-            code, place = _u16(sr, 28), _u16(sr, 24)
+            code, place = u16(sr, 28), u16(sr, 24)
             if code == 9:  # not an officer in any scenario
                 continue
             e = {"scenario": n, "year": year, "status": STATUS.get(code, str(code))}
             if code in (0, 1, 2, 3):
                 force = _owner(c, place)
-                ruler = None if force is None else _u16(_records(c, FORCES)[force], 18)
+                ruler = None if force is None else u16(_records(c, FORCES)[force], 18)
                 if ruler in people:
                     e["lord"] = ruler
-                if _u16(sr, 38) != 0xFFFF:
-                    e["loyalty"] = _u16(sr, 38)
+                if u16(sr, 38) != 0xFFFF:
+                    e["loyalty"] = u16(sr, 38)
             if code not in (7, 8) and place < 250:
                 e["location"] = place
             if code in (6, 7):
-                e["debut"] = YEAR0 + _u16(sr, 18)
+                e["debut"] = YEAR0 + u16(sr, 18)
             row["scenarios"].append(e)
         if not row["scenarios"]:
             del row["scenarios"]
@@ -193,10 +188,77 @@ def main(game_dir):
         w = csv.writer(f)
         w.writerow(["scenario", "file", "title", "year", "month", "rulers"])
         for n, name, c, year, month in scenarios(game_dir):
-            rulers = [people[r] for r in (_u16(f, 18) for f in _records(c, FORCES)) if r != 0xFFFF]
+            rulers = [people[r] for r in (u16(f, 18) for f in _records(c, FORCES)) if r != 0xFFFF]
             w.writerow([n, name, titles[n - 1], year, month, " ".join(rulers)])
     print(out)
 
 
 if __name__ == "__main__":
     main()
+
+
+##############################################################################
+# 三國志IX PK: names in M_MsgPK.s9 (LS11) part 0, items split by 05 05 05, (name, reading) pairs: 136-165 the 14
+# 州 and 異民, 166-439 the 137 named places of the 200 bldg slots, 721-820 the 45 cities and 5 異民族; 959-975 the
+# 17 facility kinds. D_Sce001.S9 (RIFF S9SC): `city` 50 x 56 bytes (+22 u16 州, +44/+46 x, y), `bldg` 200 x 28
+# bytes (+6 u16 kind = fbld index, 0xFFFF a name only; +14 u16 city; +18/+20 x, y). No battle maps: battles are
+# on the 200 x 200 map (`squa`).
+SAN9_KIND_LEVEL = {0: "都市", 1: "港", 2: "関", 3: "関", 4: "関"}  # fbld index -> level (2-4 are 3 grades of 関)
+
+
+def places(game_dir, out_dir):
+    import ls11
+    with open(os.path.join(game_dir, "D_Sce001.S9"), "rb") as f:
+        sce = f.read()
+
+    def chunk(tag):
+        i = sce.index(tag)
+        return sce[i + 8:i + 8 + struct.unpack_from("<I", sce, i + 4)[0]]
+
+    with open(os.path.join(game_dir, "M_MsgPK.s9"), "rb") as f:
+        msg = ls11.ls11_decode_parts(f.read())[0].split(b"\x05\x05\x05")
+    gaiji = {**sango.SAN9_GAIJI, **PLACE_GAIJI}
+
+    def text(i):
+        return "".join(gaiji.get(ord(c), c) for c in msg[i].decode("cp932")).strip()
+
+    def reading(i):
+        return unicodedata.normalize("NFKC", msg[i][2:-2].decode("cp932"))
+
+    states = [text(136 + 2 * k) for k in range(15)]
+    kinds = [text(959 + k) for k in range(17)]
+    city, bldg = chunk(b"city"), chunk(b"bldg")
+    rows = []
+    for k in range(50):
+        state, x, y = (struct.unpack_from("<H", city, 56 * k + o)[0] for o in (22, 44, 46))
+        row = {"id": k, "name": text(721 + 2 * k), "reading": reading(722 + 2 * k),
+               "level": "都市" if k < 45 else "異民族", "province": states[state],
+               "pos": {"x": x, "y": y, "grid": "square", "w": 200, "h": 200},
+               "notes": "沒有戰場圖，野戰、攻城都在 200 × 200 格的大地圖上打。沒有相鄰表。"}
+        if k >= 45:
+            row["uncertain"] = ["level"]
+            row["notes"] += "「異民族」是這邊的稱呼（州表裡寫「異民」）。"
+        rows.append(row)
+    for k in range(137):
+        kind, parent, x, y = (struct.unpack_from("<H", bldg, 28 * k + o)[0] for o in (6, 14, 18, 20))
+        row = {"id": 50 + k, "name": text(166 + 2 * k), "reading": reading(167 + 2 * k),
+               "level": SAN9_KIND_LEVEL.get(kind, kinds[kind] if kind < 17 else "地名"), "parentCity": parent,
+               "pos": {"x": x, "y": y, "grid": "square", "w": 200, "h": 200},
+               "notes": "號碼是 bldg 區塊的序號＋50。所屬都市是 bldg +14。"}
+        if kind == 0xFFFF:
+            row["uncertain"] = ["level"]
+            row["notes"] += "這一筆只有地名、沒有設施，「地名」是這邊的分類。"
+        rows.append(row)
+    return rows
+
+
+def stats(game_dir):
+    # the builder's characters: persons minus roles 693-699, deduplicated by (name, face)
+    chars, seen = {}, set()
+    for p in sango.load_san9_persons(game_dir):
+        if p["id"] in K.SAN9PK_WIN_ROLES or (p["name"], p["face"]) in seen:
+            continue
+        seen.add((p["name"], p["face"]))
+        chars[p["id"]] = p["name"]
+    rows = [r[1:] for r in sango.load_san9_stats(game_dir) if r[0] == sango.SAN9_SCENARIOS[0]]
+    return _pick(rows, sango.SAN9_STATS, chars)

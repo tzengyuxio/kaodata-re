@@ -10,21 +10,17 @@ father's slot; 1000+ a group of brothers with no father in the game, 0xFFFF none
 冷静 8-10, 勇猛 11-13, +0x36 字, +0x48 身分 (San7WPK.exe pointer table 0x40FFA0: 君主 太守 軍師 一般 在野 未発見 待機
 死亡), +0x49 faction (255 none), +0x4A city (= places id), +0x4B 武力 知力 政治 魅力, +0x53 忠誠, +0x59 相性."""
 import os
-import struct
 
 import sango
 import san7_extras
-import wiki_stats
 from kaodata_export import kana_to_hiragana
+from common import u16
+from places_export import PLACE_GAIJI, _bmp_png, _gaiji, _reading
 
 DATASET = "san7pk-win"
 STATUS = ("君主", "太守", "軍師", "一般", "在野", "未発見", "待機", "死亡")
 TRAITS = [("義理", 0, 4), ("野望", 4, 4), ("冷静", 8, 3), ("勇猛", 11, 3)]  # (name, first bit, bits) of +0x12
 WAITING, DEAD, NO_FACTION = 6, 7, 255
-
-
-def _u16(b, o):
-    return struct.unpack_from("<H", b, o)[0]
 
 
 def _zh_courtesy(zh_dir):
@@ -35,7 +31,7 @@ def _zh_courtesy(zh_dir):
         d = sango.decode_san7_scenario(exe, f.read(), san7_extras.ZH_TABLES)
     out = {}
     for o in range(sango.SAN7_PERSONS, sango.SAN7_PERSONS + 620 * sango.SAN7_PERSON_SIZE, sango.SAN7_PERSON_SIZE):
-        pid = _u16(d, o)
+        pid = u16(d, o)
         if pid != 0xFFFF:
             out[pid] = d[o + 0x36:o + 0x3C].split(b"\0")[0].decode("cp950").strip()
     return out
@@ -52,9 +48,9 @@ def _scenarios(game_dir):
         recs = {}
         for k in range(620):
             r = d[sango.SAN7_PERSONS + k * sango.SAN7_PERSON_SIZE:][:sango.SAN7_PERSON_SIZE]
-            if _u16(r, 0) != 0xFFFF:
+            if u16(r, 0) != 0xFFFF:
                 recs[k] = r
-        out.append((_u16(d, 0x1A), _u16(d, 0x1C), recs))
+        out.append((u16(d, 0x1A), u16(d, 0x1C), recs))
     return out
 
 
@@ -64,17 +60,17 @@ def persons(game_dir):
     courtesy = _zh_courtesy(zh_dir)
     ja = sango.load_san7_persons(game_dir)
     assert set(zh) == set(ja) == set(courtesy)
-    stats = {i: st for i, _, st in wiki_stats.stats_san7pk_win(game_dir)}
+    by_id = {i: st for i, _, st in stats(game_dir)}
     scen = _scenarios(game_dir)
     # every scenario has the 520 officers in the same slots
-    slot_of = {_u16(r, 0): k for k, r in scen[0][2].items()}
-    assert all({_u16(r, 0): k for k, r in recs.items()} == slot_of for _, _, recs in scen)
+    slot_of = {u16(r, 0): k for k, r in scen[0][2].items()}
+    assert all({u16(r, 0): k for k, r in recs.items()} == slot_of for _, _, recs in scen)
     id_of = {k: i for i, k in slot_of.items()}
     first = scen[0][2]
-    father = {i: id_of[_u16(first[k], 0x10)] for i, k in slot_of.items() if _u16(first[k], 0x10) in id_of}
-    group = {i: _u16(first[k], 0x10) for i, k in slot_of.items() if 1000 <= _u16(first[k], 0x10) < 0xFFFF}
+    father = {i: id_of[u16(first[k], 0x10)] for i, k in slot_of.items() if u16(first[k], 0x10) in id_of}
+    group = {i: u16(first[k], 0x10) for i, k in slot_of.items() if 1000 <= u16(first[k], 0x10) < 0xFFFF}
     # 血縁番号: the slot of the clan's head (everyone else points at himself); kept only when shared, as the head's id
-    clan = {i: _u16(first[k], 0xE) for i, k in slot_of.items()}
+    clan = {i: u16(first[k], 0xE) for i, k in slot_of.items()}
     shared = {c for c in clan.values() if list(clan.values()).count(c) > 1}
     children = {}
     for c, p in father.items():
@@ -91,9 +87,9 @@ def persons(game_dir):
         if courtesy[i]:
             row["courtesy"] = courtesy[i]
         row["reading"] = kana_to_hiragana(kana)
-        row["born"] = _u16(r, 4)
-        row["stats"] = stats[i]
-        bits = _u16(r, 0x12)
+        row["born"] = u16(r, 4)
+        row["stats"] = by_id[i]
+        bits = u16(r, 0x12)
         row["hidden"] = {"相性": r[0x59], **{n: bits >> b & (1 << w) - 1 for n, b, w in TRAITS}}
         rel = {}
         if i in father:
@@ -116,7 +112,7 @@ def persons(game_dir):
             st = p[0x48]
             e = {"scenario": number, "year": year, "status": STATUS[st]}
             if st == WAITING:
-                e["debut"] = _u16(p, 2)
+                e["debut"] = u16(p, 2)
             elif st != DEAD:
                 e["location"] = p[0x4A]
                 if p[0x49] != NO_FACTION:
@@ -124,7 +120,7 @@ def persons(game_dir):
                     if st != 0:
                         e["loyalty"] = p[0x53]
             v = dict(zip(sango.SAN7_STATS, p[0x4B:0x4F]))
-            if v != stats[i]:
+            if v != by_id[i]:
                 e["stats"] = v
             out.append(e)
         row["scenarios"] = out
@@ -139,3 +135,78 @@ def persons(game_dir):
             row["notes"] = "".join(notes)
         rows.append(row)
     return rows
+
+
+##############################################################################
+# 三國志VII PK: D_Sn001.s7 (sango.decode_san7_scenario; the 12 scenarios agree) 54 cities from 0x160FC (0x60
+# bytes: name +0 6, reading +6 8, six neighbours +0x0E, road kinds +0x14, battlefields +0x1A, slot for slot) and
+# 192 battlefields from 0x157C8 (10 bytes: name 8, G_YMap number +8). The field battle of a city attacked from
+# its j-th neighbour is its j-th battlefield (the PK 歷史戰役 D_Camp*.s7 agree). G_YMap00-29.s7 are 1944 x 768
+# 8-bit BMPs. Place ids here: cities 0-53, battlefield b is 54 + b.
+SAN7_CITIES, SAN7_FIELDS = 0x160FC, 0x157C8
+
+
+SAN7_ROADS = {0: "陸路", 1: "山路", 2: "渡河", 3: "海路", 4: "棧道"}  # guessed from the maps
+
+
+def places(game_dir, out_dir):
+    with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
+        exe = f.read()
+    with open(os.path.join(game_dir, "D_Sn001.s7"), "rb") as f:
+        sc = sango.decode_san7_scenario(exe, f.read())
+    gaiji = {**sango.SAN7_GAIJI, **PLACE_GAIJI}
+
+    def s(b):
+        return _gaiji(b.split(b"\0")[0].decode("cp932").strip(), gaiji)
+
+    fields = [(s(sc[SAN7_FIELDS + 10 * b:][:8]), sc[SAN7_FIELDS + 10 * b + 8]) for b in range(192)]
+    cities = [sc[SAN7_CITIES + 0x60 * k:][:0x60] for k in range(54)]
+    for m in sorted({m for _, m in fields}):
+        _bmp_png(os.path.join(game_dir, f"G_YMap{m:02d}.s7"), out_dir, f"G_YMap{m:02d}.png")
+    users = {}
+    for b, (_, m) in enumerate(fields):
+        users.setdefault(m, []).append(54 + b)
+    rows = []
+    for k, r in enumerate(cities):
+        maps, adjacent, odd = [], [], []  # odd: (slot, battlefield) with no neighbour
+        for j in range(6):
+            nb, road, b = r[0x0E + j], r[0x14 + j], r[0x1A + j]
+            if nb != 0xFF:
+                adjacent.append(nb)
+                if b != 0xFF:
+                    maps.append({"file": f"G_YMap{fields[b][1]:02d}.png", "role": "野戰", "from": nb})
+            elif b != 0xFF:
+                odd.append((j, b))
+        notes = "野戰圖是「守方都市第 j 格鄰城來犯，用守方第 j 格的戰場」，PK 歷史戰役的攻守方對得上。" \
+                "沒有各都市專用的攻城圖（攻城用共用素材拼成）。"
+        for j, b in odd:
+            notes += f"第 {j + 1} 格有戰場（{fields[b][0]}）但沒有鄰城，遊戲資料本身如此，沒有輸出。"
+        rows.append({"id": k, "name": s(r[:6]), "reading": _reading(r[6:0x0E]), "level": "都市", "adjacent": adjacent,
+                     "battlemaps": maps, "notes": notes})
+    owners = {}
+    for k, r in enumerate(cities):
+        for j in range(6):
+            if r[0x1A + j] != 0xFF and r[0x0E + j] != 0xFF:
+                owners.setdefault(r[0x1A + j], []).append((k, r[0x0E + j], r[0x14 + j]))
+    for b, (name, m) in enumerate(fields):
+        row = {"id": 54 + b, "name": name, "level": "戰場", "battlemaps": [{"file": f"G_YMap{m:02d}.png", "role": "野戰"}],
+               "uncertain": ["level"]}
+        shared = [x for x in users[m] if x != 54 + b]
+        if shared:
+            row["battlemaps"][0]["sharedWith"] = shared
+        uses = "、".join(f"{s(cities[a][:6])}←{s(cities[n][:6])}" for a, n, _ in owners.get(b, []))
+        row["notes"] = ("戰場的號碼是遊戲的戰場號＋54。「戰場」是這邊的分類；名稱多是関或古戰場。"
+                        + (f"用到的戰線（守方←攻方）：{uses}。" if uses else "沒有都市用到這個戰場。")
+                        + (f"路的種類推定是{SAN7_ROADS.get(owners[b][0][2], '不明')}。" if b in owners else ""))
+        rows.append(row)
+    return rows
+
+
+def stats(game_dir):
+    # build_san7pk_win: id = officer id over all 12 scenarios; values differ between scenarios for a few officers,
+    # so take the first scenario in SAN7_SCENARIOS order that has the officer
+    first = {}
+    for _, _, pid, name, *v in sango.load_san7_stats(game_dir):
+        first.setdefault(pid, (name, v))
+    names = sango.load_san7_persons(game_dir)
+    return [(pid, names[pid][0], dict(zip(sango.SAN7_STATS, first[pid][1]))) for pid in sorted(names)]

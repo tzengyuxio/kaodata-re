@@ -11,6 +11,7 @@ from PIL import Image
 import ls11
 from kaodata_export import NOBU6PK_PC98_ALIASES, nobu6pk_pc98_face
 from koei_games import NOBU6_PC98_GAIJI, _nobu6_pc98_text
+from common import fold_kana, u16
 
 # SNDATA.N6P part (one per scenario, 60848 bytes; tables numbered from 1): +0xB7 start year - 1454
 PEOPLE, NAMES, CASTLES, CASTLE_POS, DAIMYO, PROVINCES = 0xAE2, 0x6C8E, 0x91F6, 0xAD8C, 0xC5CA, 0xCBFA
@@ -35,10 +36,6 @@ MAP_PALETTE, WORLD_FILE = 0x28CBE, "MAINMAP-spring.png"
 BIO_LANG = "ja"
 
 
-def _u16(b, o):
-    return b[o] | b[o + 1] << 8
-
-
 def _name(rec):
     return _nobu6_pc98_text(rec[:7].split(b"\0")[0]) + _nobu6_pc98_text(rec[7:14].split(b"\0")[0])
 
@@ -58,7 +55,7 @@ def _ids(game_dir):
     for sc, wait in zip(_parts(game_dir, "SNDATA.N6P"), _parts(game_dir, "TAIKI.N6P")):
         for rec, _ in _records(sc, wait):
             name = _name(rec)
-            names.setdefault(_u16(rec, 14), NOBU6PK_PC98_ALIASES.get(name, name))
+            names.setdefault(u16(rec, 14), NOBU6PK_PC98_ALIASES.get(name, name))
     codes = {}
     for face, name in names.items():
         codes[nobu6pk_pc98_face(face, table)] = name
@@ -88,16 +85,11 @@ def _records(sc, wait):
 def _entries(game_dir):
     out = {}
     for k, part in enumerate(_parts(game_dir, "BFILE.N6P")[1:]):
-        n = _u16(part, 0) // 2
+        n = u16(part, 0) // 2
         offs = list(struct.unpack_from(f"<{n}H", part, 0)) + [len(part)]
         for j in range(n // 2):
             out[50 * k + j] = (part[offs[2 * j]:offs[2 * j + 1]], part[offs[2 * j + 1]:offs[2 * j + 2]])
     return out
-
-
-def _kana(s, hiragana):
-    s = unicodedata.normalize("NFKC", s)
-    return "".join(chr(ord(c) - 0x60) if hiragana and "ァ" <= c <= "ヶ" else c for c in s) if hiragana else s
 
 
 def _bio_text(b):
@@ -114,7 +106,7 @@ def _bio_text(b):
             while j < len(b) and 0xA1 <= b[j] <= 0xDF:
                 j += 1
             run = b[i:j].decode("cp932")
-            out.append(("ヶ" if run == "ｹ" else _kana(run, False)) if katakana else _kana(run, True))
+            out.append(("ヶ" if run == "ｹ" else fold_kana(run, katakana=True)) if katakana else fold_kana(run))
             i = j
         else:
             n = 2 if 0x81 <= b[i] <= 0x9F or 0xE0 <= b[i] <= 0xFC else 1
@@ -148,17 +140,17 @@ def persons(game_dir):
     for s, (sc, wait) in enumerate(scenarios):
         year = 1454 + sc[0xB7]
         people = _records(sc, wait)
-        slot_id = {slot: face_id[_u16(rec, 14)] for rec, (_, slot, _) in people if slot}
-        lords = {k + 1: slot_id.get(_u16(sc, DAIMYO + 22 * k)) for k in range(72)}
+        slot_id = {slot: face_id[u16(rec, 14)] for rec, (_, slot, _) in people if slot}
+        lords = {k + 1: slot_id.get(u16(sc, DAIMYO + 22 * k)) for k in range(72)}
         for rec, (r, slot, arrival) in people:
-            i = face_id[_u16(rec, 14)]
-            flags = _u16(rec, 0x10)
+            i = face_id[u16(rec, 14)]
+            flags = u16(rec, 0x10)
             state, rank = STATES[flags & 0xF], RANKS[flags >> 4 & 0xF]
             entry = {"scenario": s + 1, "year": year}
-            lord = _u16(r, 0x15) if arrival is None else _u16(arrival, 3)
+            lord = u16(r, 0x15) if arrival is None else u16(arrival, 3)
             if lords.get(lord) is not None:
                 entry["lord"] = lords[lord]
-            where = _u16(r, 0x19) if arrival is None else _u16(arrival, 1)
+            where = u16(r, 0x19) if arrival is None else u16(arrival, 1)
             if 1 <= where <= 214:
                 entry["location"] = where
             entry["status"] = state
@@ -169,19 +161,19 @@ def persons(game_dir):
             if arrival is not None:
                 entry["debut"] = 1454 + arrival[0]
             if i not in rows:
-                apt = _u16(r, 0x2B)
+                apt = u16(r, 0x2B)
                 row = {"id": i, "name": names[i]}
-                if _u16(rec, 14) in entries:
-                    _, reading, _, died = _header(entries[_u16(rec, 14)][0])
+                if u16(rec, 14) in entries:
+                    _, reading, _, died = _header(entries[u16(rec, 14)][0])
                     row["reading"] = reading
                     if died:
                         row["died"] = died
                 row["born"] = 1454 + r[0x23]
-                row["stats"] = {label: r[6 + k] * _u16(r, 9 + 2 * k) // 1000
+                row["stats"] = {label: r[6 + k] * u16(r, 9 + 2 * k) // 1000
                                 for k, label in enumerate(("政治", "戦闘", "智謀"))}
                 row["stats"].update(魅力=r[0xF], 野望=r[0x10])
                 row["more"] = {"政才": "CBA"[r[0x28] & 3], "戦才": "CBA"[r[0x28] >> 2 & 3],
-                               "智才": "CBA"[r[0x28] >> 4 & 3], "勲功": _u16(r, 0x12), "仕官": r[0x21]}
+                               "智才": "CBA"[r[0x28] >> 4 & 3], "勲功": u16(r, 0x12), "仕官": r[0x21]}
                 job = JOBS[r[0x2A] >> 4 & 7] if (r[0x2A] >> 4 & 7) < len(JOBS) else None
                 if job:
                     row["more"]["職業"] = job
@@ -197,8 +189,8 @@ def persons(game_dir):
                 row["scenarios"] = []
                 row["_first"] = year
                 rows[i] = row
-                if _u16(r, 0x24) != 0xFFFF:
-                    father_of[i] = _u16(r, 0x24)
+                if u16(r, 0x24) != 0xFFFF:
+                    father_of[i] = u16(r, 0x24)
             if r[0x22] != 0xFF:
                 couples.setdefault((s, r[0x22]), set()).add(i)
             rows[i]["scenarios"].append(entry)
@@ -350,7 +342,7 @@ def places(game_dir, out_dir):
     years = [1454 + d[0xB7] for d in scenarios]
     names = [[_nobu6_pc98_text(d[CASTLES + 33 * k + 8:][:9].split(b"\0")[0]) for k in range(214)] for d in scenarios]
     provinces = [_nobu6_pc98_text(sc[PROVINCES + 25 * n:][:7].split(b"\0")[0]) for n in range(74)]
-    province_of = [_u16(sc, CASTLE_POS + 8 * k) for k in range(214)]
+    province_of = [u16(sc, CASTLE_POS + 8 * k) for k in range(214)]
     pos = [(sc[CASTLE_POS + 8 * k + 6], sc[CASTLE_POS + 8 * k + 7]) for k in range(214)]
     region = [next(r for r, first in reversed(REGIONS) if n >= first) for n in range(74)]
     adj = _roads(game_dir, pos)

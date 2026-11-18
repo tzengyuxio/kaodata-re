@@ -5,10 +5,8 @@ notes/genchou.md「國與大地圖」「人物欄位」.
 Addresses are PC-98 MAIN.EXE: MZ header 0x4200, DGROUP at image 0x37B20 (file 0x3BD20). GENDATA<n>.DAT is read
 whole to DS:0x42, so a GENDATA offset + 0x42 is its DS address.
 """
-import csv
 import os
 import struct
-import unicodedata
 
 import click
 from PIL import Image
@@ -16,6 +14,7 @@ from PIL import Image
 from koei_games import koei_tw_name
 from koei_stats import GENCHOU_GRADES
 from san3 import world_band
+from common import cstr, read_file, write_dict_csv
 
 DGROUP = 0x3BD20  # MAIN.EXE file offset of DS:0
 # GENDATA (PC-98 / DOS): (offset, record size, records)
@@ -72,7 +71,7 @@ EVENT_NAMES = [("疫病", "✅ code"), ("砂嵐", "✅ code"), ("寒波", "✅ c
 def pack_pictures(game_dir):
     """[(offset, image)] of PACKDATA.DAT, in file order, up to the first part that is not a picture"""
     from nobu4_extras import decode_pack, _image
-    data, exe = _read(game_dir, "PACKDATA.DAT"), _read(game_dir, "MAIN.EXE")
+    data, exe = read_file(game_dir, "PACKDATA.DAT"), read_file(game_dir, "MAIN.EXE")
     pal = palette(exe, 0)[:24]
     pal = [tuple(pal[i:i + 3]) for i in range(0, 24, 3)]
     out, off = [], 0
@@ -96,14 +95,14 @@ def _recolour(im, pal):
 
 def region_pictures(game_dir, pics=None):
     """the 47 region pictures by table index: 蒙古篇 region k at k, 世界篇 country k at 14 + k"""
-    exe = _read(game_dir, "MAIN.EXE")
+    exe = read_file(game_dir, "MAIN.EXE")
     by_off = dict(pics or pack_pictures(game_dir))
     return [by_off[struct.unpack_from("<I", exe, DGROUP + REGION_PICTURES + 4 * k)[0]] for k in range(47)]
 
 
 def pictures(game_dir, dos_dir, out):
     """eventcg/, ordo/ and regions/ with a CSV each"""
-    exe = _read(game_dir, "MAIN.EXE")
+    exe = read_file(game_dir, "MAIN.EXE")
     pics = pack_pictures(game_dir)
     by_off = dict(pics)
     events = [(o, im) for o, im in pics if im.size != (152, 304) and im.size != (128, 64)]
@@ -116,7 +115,7 @@ def pictures(game_dir, dos_dir, out):
         rows.append({"file": f"pack{k:02d}.png", "offset": hex(o), "width": im.width, "height": im.height,
                      "name": EVENT_NAMES[k][0], "evidence": EVENT_NAMES[k][1],
                      "seasons": " ".join(SEASONS[s] for s in PACK_SEASONS[k]) if k < len(PACK_SEASONS) else ""})
-    _write_csv(os.path.join(out, "eventcg", "pack.csv"), rows)
+    write_dict_csv(os.path.join(out, "eventcg", "pack.csv"), rows)
     cultures = _strings(exe, CULTURES)
     os.makedirs(os.path.join(out, "ordo"), exist_ok=True)
     rows = []
@@ -129,7 +128,7 @@ def pictures(game_dir, dos_dir, out):
             rows.append({"file": f"{g:02d}-{s}.png", "group": g, "stage": s, "offset": hex(o),
                          "culture": cultures[g] if g < 8 else "",
                          "face": ORDO_SPECIAL.get(g, "")})
-    _write_csv(os.path.join(out, "ordo", "ordo.csv"), rows)
+    write_dict_csv(os.path.join(out, "ordo", "ordo.csv"), rows)
     mongolia, world = region_names(game_dir, dos_dir)
     os.makedirs(os.path.join(out, "regions"), exist_ok=True)
     rows = []
@@ -138,17 +137,8 @@ def pictures(game_dir, dos_dir, out):
         by_off[o].save(os.path.join(out, "regions", f"{k:02d}.png"))  # same as region_pictures()[k]
         rows.append({"file": f"{k:02d}.png", "map": "mongolia" if k < 14 else "world",
                      "country": k if k < 14 else k - 14, "name": ja, "nameZh": zh, "offset": hex(o)})
-    _write_csv(os.path.join(out, "regions", "regions.csv"), rows)
+    write_dict_csv(os.path.join(out, "regions", "regions.csv"), rows)
     return len(events), len(pics) - len(events) - 47, 47
-
-
-def _read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
-def _ja(raw):
-    return unicodedata.normalize("NFKC", raw.split(b"\0")[0].decode("cp932")).strip()
 
 
 def _zh(raw):
@@ -172,8 +162,8 @@ def _records(data, table):
 
 def region_names(game_dir, dos_dir):
     """(ja, zh) names: ZNAME.DAT 17-byte records; [0] the 14 Mongolian regions, [1] the 33 world countries."""
-    ja, zh = _read(game_dir, "ZNAME.DAT"), _read(dos_dir, "ZNAME.DAT")
-    names = [(_ja(ja[17 * k:][:17]), _zh(zh[17 * k:][:17])) for k in range(len(ja) // 17)]
+    ja, zh = read_file(game_dir, "ZNAME.DAT"), read_file(dos_dir, "ZNAME.DAT")
+    names = [(cstr(ja[17 * k:][:17], nfkc=True).strip(), _zh(zh[17 * k:][:17])) for k in range(len(ja) // 17)]
     return names[:14], names[ZNAME_WORLD:ZNAME_WORLD + 33]
 
 
@@ -193,7 +183,7 @@ def palette(exe, season):
 
 
 def render_map(game_dir, which, season=0):
-    data, exe = _read(game_dir, "MAPDATA.DAT"), _read(game_dir, "MAIN.EXE")
+    data, exe = read_file(game_dir, "MAPDATA.DAT"), read_file(game_dir, "MAIN.EXE")
     im = Image.new("P", (640, 400))
     for i, off in enumerate(MAPS[which]):
         im.paste(world_band(data[off:]), (0, 200 * i))
@@ -212,8 +202,8 @@ def maps(game_dir, out):
 
 def scenario(game_dir, dos_dir, sc):
     """(countries, factions) rows of GENDATA<sc>."""
-    exe = _read(game_dir, "MAIN.EXE")
-    gen, gen_zh = _read(game_dir, f"GENDATA{sc}.DAT"), _read(dos_dir, f"GENDATA{sc}.DAT")
+    exe = read_file(game_dir, "MAIN.EXE")
+    gen, gen_zh = read_file(game_dir, f"GENDATA{sc}.DAT"), read_file(dos_dir, f"GENDATA{sc}.DAT")
     cultures, climates, products, units = (_strings(exe, t) for t in (CULTURES, CLIMATES, PRODUCTS, UNITS))
     world = gen[STAGE] != 0
     names = region_names(game_dir, dos_dir)[world]
@@ -224,7 +214,7 @@ def scenario(game_dir, dos_dir, sc):
         if not f[:16].strip(b"\0") or f[21] & 0x80:
             continue
         capital, ruler = struct.unpack_from("<HH", f, 17)
-        factions.append({"scenario": sc, "faction": k, "name": _ja(f[:16]), "nameZh": _zh(fz[:16]),
+        factions.append({"scenario": sc, "faction": k, "name": cstr(f[:16], nfkc=True).strip(), "nameZh": _zh(fz[:16]),
                          "capital": (capital - 0xBC4) // 49, "ruler": (ruler - 0x44) // 27,
                          "culture": cultures[f[21] & 7]})
     countries = []
@@ -249,12 +239,12 @@ def scenario(game_dir, dos_dir, sc):
 
 
 def persons(game_dir, dos_dir, sc):
-    exe = _read(game_dir, "MAIN.EXE")
+    exe = read_file(game_dir, "MAIN.EXE")
     cultures, ranks = _strings(exe, CULTURES), _strings(exe, RANKS)
-    gen, gen_zh = _read(game_dir, f"GENDATA{sc}.DAT"), _read(dos_dir, f"GENDATA{sc}.DAT")
+    gen, gen_zh = read_file(game_dir, f"GENDATA{sc}.DAT"), read_file(dos_dir, f"GENDATA{sc}.DAT")
     rows = []
     for i, (m, mz) in enumerate(zip(_records(gen, MEN), _records(gen_zh, MEN))):
-        name = _ja(m[:17])
+        name = cstr(m[:17], nfkc=True).strip()
         if not name or m[24] & 0x80:
             continue
         g = GENCHOU_GRADES
@@ -267,7 +257,7 @@ def persons(game_dir, dos_dir, sc):
             "重病": m[24] >> 6 & 1, "+24 bits 2-5": m[24] >> 2 & 15, "face": f"{m[25] | m[26] << 8:04X}",
             "placeholder": int(name in PLACEHOLDERS)})
     for i, (w, wz) in enumerate(zip(_records(gen, WOMEN), _records(gen_zh, WOMEN))):
-        name = _ja(w[:17])
+        name = cstr(w[:17], nfkc=True).strip()
         if not name:
             continue
         rows.append({"scenario": sc, "table": "women", "index": i, "name": name, "nameZh": _zh(wz[:17]),
@@ -309,16 +299,6 @@ def places(game_dir, out_dir):
             rows.append(row)
     return rows
 
-def _write_csv(path, rows):
-    header = []
-    for r in rows:
-        header += [k for k in r if k not in header]
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, header)
-        w.writeheader()
-        w.writerows(rows)
-
-
 @click.command()
 @click.option("--game-dir", required=True, help="games/genchou-pc98")
 @click.option("--dos-dir", default=None, help="games/genchou-dos (Chinese names); default <game-dir>/../genchou-dos")
@@ -333,9 +313,9 @@ def genchou_extras(game_dir, dos_dir, out):
         countries += c
         factions += f
         people += persons(game_dir, dos_dir, sc)
-    _write_csv(os.path.join(out, "countries.csv"), countries)
-    _write_csv(os.path.join(out, "factions.csv"), factions)
-    _write_csv(os.path.join(out, "persons.csv"), people)
+    write_dict_csv(os.path.join(out, "countries.csv"), countries)
+    write_dict_csv(os.path.join(out, "factions.csv"), factions)
+    write_dict_csv(os.path.join(out, "persons.csv"), people)
     n = maps(game_dir, os.path.join(out, "map"))
     print(f"{len(countries)} countries, {len(factions)} factions, {len(people)} people in 4 scenarios, {n} maps")
     e, o, r = pictures(game_dir, dos_dir, out)

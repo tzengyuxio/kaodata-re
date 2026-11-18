@@ -1,39 +1,12 @@
 """Persons for koei-wiki in the koei-persons/1 format (koei-wiki docs/persons-format.mkdn): one JSONL line per person in
 <out>/<dataset>.jsonl. id is the kaodata person id of the dataset. Each game's reader is a module wiki_<game>.py with
 persons(game_dir) -> [row]; where the fields come from is in that game's notes/<game>.md「人物欄位」."""
-import importlib
 import json
 import os
 
 import click
 
-# dataset -> module with persons(game_dir)
-DATASETS = {"nobu2-pc88": "wiki_nobu2", "nobu3-pc98": "wiki_nobu3", "nobu4-pc98": "wiki_nobu4",
-            "nobu5pk-win": "wiki_nobu5", "nobu5pk-pc98": "wiki_nobu5_pc98", "nobu6pk-pc98": "wiki_nobu6", "nobu7pk-win": "wiki_nobu7",
-            "nobu8pk-win": "wiki_nobu8", "nobu9pk-win": "wiki_nobu9", "nobu10pk-win": "wiki_nobu10",
-            "nobu11pk-win": "wiki_nobu11", "nobu12pk-win": "wiki_nobu12", "nobu13pk-win": "wiki_nobu13", "nobu14pk-win": "wiki_nobu14", "nobu15pk-win": "wiki_nobu15", "nobu16pk-win": "wiki_nobu16",
-            "san8pk-win": "wiki_san8", "san9pk-win": "wiki_san9", "san10pk-win": "wiki_san10", "san11pk-win": "wiki_san11",
-            "san12pk-win": "wiki_san12", "san13pk-win": "wiki_san13",
-            "san14pk-win": "wiki_san14",
-            "genghis-pc98": "wiki_genghis", "genchou-pc98": "wiki_genchou", "genghis4pk-win": "wiki_genghis4",
-            "genpei-pc98": "wiki_genpei",
-            "ishin-pc98": "wiki_ishin", "koukai-pc98": "wiki_koukai", "koukai2-pc98": "wiki_koukai2",
-            "koukai3-win": "wiki_koukai3",
-            "san1-pc98": "wiki_san1", "san2-pc98": "wiki_san2", "san3-pc98": "wiki_san3",
-            "san4pk-pc98": "wiki_san4", "san5pk-pc98": "wiki_san5",
-            "san6pk-win": "wiki_san6", "san7pk-win": "wiki_san7",
-            "suikoden-dos": "wiki_suikoden", "kouryuuki-dos": "wiki_kouryuuki",
-            "koukai4pk-win": "wiki_koukai4", "koukaigd-win": "wiki_koukaigd",
-            "lempe-dos": "wiki_lempe", "ishin2-win": "wiki_ishin2",
-            "taikoh-pc98": "wiki_taikoh", "taikoh2-pc98": "wiki_taikoh2",
-            "taikoh3-win": "wiki_taikoh3", "taikoh4-win": "wiki_taikoh4", "taikoh5dx-win": "wiki_taikoh5",
-            "eiketsu3-win": "wiki_eiketsu3", "eiketsu4-win": "wiki_eiketsu4",
-            "tk-pc98": "wiki_tk", "tk2pk-pc98": "wiki_tk2", "tk3pk-pc98": "wiki_tk3",
-            "liberty-pc98": "wiki_liberty", "europe-pc98": "wiki_europe",
-            "royal-pc98": "wiki_royal",
-            "eiketsu-dos": "wiki_eiketsu", "eiketsu-pc98": "wiki_eiketsu",
-            "koumei-win": "wiki_koumei", "eiketsu5-win": "wiki_eiketsu5"}
-
+from wiki_datasets import datasets, module
 
 def family_of(name, surnames):
     """familyName: the longest stored surname that starts name, or None (koei-persons/1: never guessed from the
@@ -73,7 +46,7 @@ def check(rows, places):
 
 
 @click.command()
-@click.argument("dataset", type=click.Choice(list(DATASETS)))
+@click.argument("dataset", type=click.Choice(datasets("persons")))
 @click.option("--game-dir", "game_dir", required=True)
 @click.option("--out", "out", required=True, help="輸出目錄（寫 <dataset>.jsonl）")
 @click.option("--places", "places_dir", default=None, help="地點匯出的目錄（檢查 scenarios[].location 用）")
@@ -83,7 +56,7 @@ def persons_export(dataset, game_dir, out, places_dir):
     dekoei.py persons-export nobu8pk-win --game-dir ../games/nobu8pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
     """
     os.makedirs(out, exist_ok=True)
-    rows = [{"dataset": dataset, **r} for r in importlib.import_module(DATASETS[dataset]).persons(game_dir)]
+    rows = [{"dataset": dataset, **r} for r in module(dataset, "persons").persons(game_dir)]
     with open(os.path.join(out, f"{dataset}.jsonl"), "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

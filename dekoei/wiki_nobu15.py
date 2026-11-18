@@ -19,6 +19,7 @@ import struct
 
 import ls11
 from nobu15_extras import _n15a
+from common import u16
 
 SCENARIOS = ["02", "03", "04", "05", "06", "07", "08", "10", "11", "12", "13", "14"]  # PK; 01 is the tutorial
 MAIN = "02"
@@ -48,6 +49,9 @@ GAIJI = {"TC": {0xA24C: "瀞", 0xA263: "雫", 0xA265: "籾", 0xA268: "簗", 0xA2
          "JP": {0x84A1: "誾"}}
 DUMMY = ("ダミーダミー", "")
 
+
+# places-export: adjacencies that are one-way in the game data (東海 lists 甲信; 甲信 lists 北陸 twice instead)
+PLACES_ONE_WAY = {(2006, 2004)}
 
 def text(b, lang):
     b = b.split(b"\0")[0]
@@ -110,10 +114,6 @@ def surnames(data, lang):
     return out
 
 
-def _u16(t, o):
-    return struct.unpack_from("<H", t, o)[0]
-
-
 def lords(data, people, end, lang):
     """{勢力 id: (name, 当主 slot)}; a record is accepted when its 当主's +11 is that 勢力"""
     stop = data.index(struct.pack("<2I", 1 + 1, 147), end)
@@ -146,7 +146,7 @@ def _castles(data, lang):
         r = data[base + size * k:base + size * (k + 1)]
         name = text(r[:26], lang)
         if name:
-            out[_u16(r, 28)] = name
+            out[u16(r, 28)] = name
     return out
 
 
@@ -236,10 +236,10 @@ def persons(game_dir):
     main = recs[MAIN]
     people = [k for k, r in enumerate(main) if r[0] not in DUMMY]
     known = set(people)
-    fathers = {k: _u16(main[k][3], 4) for k in people}
+    fathers = {k: u16(main[k][3], 4) for k in people}
     table = skill_table(game_dir)
     growth = [text(r[:15], "JP") for r in _records(fixdata(game_dir, "JP"), GROWTH)]
-    mothers = {k: _u16(main[k][3], 74) for k in people}
+    mothers = {k: u16(main[k][3], 74) for k in people}
     rows = []
     for k in people:
         name_ja, reading, lists, t = main[k]
@@ -254,7 +254,7 @@ def persons(game_dir):
             row["familyName"] = family
             if ja_family[k][1] and reading.startswith(ja_family[k][1]) and ja_family[k][1] != reading:
                 row["familyReading"] = ja_family[k][1]
-        row.update({"born": _u16(t, 32), "died": _u16(t, 36), "stats": dict(zip(STATS, t[81:86]))})
+        row.update({"born": u16(t, 32), "died": u16(t, 36), "stats": dict(zip(STATS, t[81:86]))})
         row["more"] = {"野心": t[AMBITION_AT]}
         if t[SHI_AT] in SHI:
             row["more"]["志"] = SHI[t[SHI_AT]]
@@ -274,32 +274,32 @@ def persons(game_dir):
         siblings = [j for j in people if j != k and f != 0xFFFF and fathers[j] == f]
         if siblings:
             relations["siblings"] = siblings
-        spouses = list(dict.fromkeys(_u16(recs[s][k][3], 8) for s in SCENARIOS))
+        spouses = list(dict.fromkeys(u16(recs[s][k][3], 8) for s in SCENARIOS))
         spouses = [v for v in spouses if v in known]
         if spouses:
             relations["spouse"] = spouses
-        relations["clan"] = _u16(t, 22)
+        relations["clan"] = u16(t, 22)
         row["relations"] = relations
         row["scenarios"] = []
         for s in SCENARIOS:
             year, _ = scen[s]
             ts = recs[s][k][3]
-            st, force, loc = ts[39], ts[11], _u16(ts, 18)
+            st, force, loc = ts[39], ts[11], u16(ts, 18)
             sc = {"scenario": int(s), "year": year}
             if st in STATUS:
                 if st == 7 and force in lord[s]:
                     sc["lord"] = lord[s][force][1]
                 sc["status"] = "大名" if sc.get("lord") == k else STATUS[st]
-                if _u16(ts, 14) == 3:
+                if u16(ts, 14) == 3:
                     sc["location"] = loc
-            elif st in (0, 1) and _u16(ts, 34) >= year:
+            elif st in (0, 1) and u16(ts, 34) >= year:
                 sc["status"] = "未登場"
-                sc["debut"] = _u16(ts, 34)
+                sc["debut"] = u16(ts, 34)
             else:
                 continue
             row["scenarios"].append(sc)
         names = list(dict.fromkeys(recs[s][k][0] for s in SCENARIOS if recs[s][k][0] != name_ja))
-        adoptive = _u16(t, 6)
+        adoptive = u16(t, 6)
         row["uncertain"] = ["relations.mother", "relations.spouse", "relations.clan", "scenarios.status",
                             "scenarios.debut"]
         row["notes"] = ("名字與固定欄位取劇本 02（1545）的日文版，name 用繁中版同一槽；scenarios 是 PK 的 12 個劇本。"
@@ -326,7 +326,7 @@ def house_names(game_dir, lang="JP"):
         _, _, data = scenario(game_dir, s, lang)
         people, end = persons_raw(data, lang)
         for name, lord in lords(data, people, end, lang).values():
-            c = count.setdefault(_u16(people[lord][3], 22), {})
+            c = count.setdefault(u16(people[lord][3], 22), {})
             c[name] = c.get(name, 0) + 1
     return {h: sorted(c, key=lambda n: (-c[n], len(n))) for h, c in count.items()}
 
@@ -340,7 +340,7 @@ def house_surnames(game_dir, lang="JP"):
         q = p + 90
         for _ in range(4):
             q += 4 + 2 * struct.unpack_from("<I", data, q)[0]
-        h = _u16(data, q + 22)
+        h = u16(data, q + 22)
         if sei and sei != DUMMY[0][:3]:
             c = count.setdefault(h, {})
             c[sei] = c.get(sei, 0) + 1

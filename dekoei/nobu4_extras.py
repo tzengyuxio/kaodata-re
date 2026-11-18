@@ -9,7 +9,6 @@ the MAIN.EXE string table. Formats and evidence: notes/nobu4.md「事件、插�
   game seeks block * 512, DOS 0x8404); OPEN.DAT and ENDING.DAT images follow each other.
 - OUGICHAK.DAT and KAIGA.DAT are raw 3bpp (3 bytes per 8 pixels, utils.to_3bpp_indexes order, drawn by DOS 0x286A).
 """
-import csv
 import os
 import struct
 
@@ -18,6 +17,7 @@ from PIL import Image
 
 import koei_games
 import utils
+from common import read_file, write_csv
 
 # colour of VGA plane bits (plane 0 = bit 0) in the PC-98 game screens (captures guest os_031/032: event stills)
 MAIN_PALETTE = [(0, 0, 0), (0, 0, 207), (0, 255, 0), (0, 255, 255), (255, 0, 0), (255, 0, 207), (255, 255, 0),
@@ -121,20 +121,8 @@ def _raw_image(data, width, palette=MAIN_PALETTE):
                   palette)
 
 
-def _write_csv(path, header, rows):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
-def _read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
 def event_stills(game_dir, out):
-    data = _read(game_dir, "PACKDATA.DAT")
+    data = read_file(game_dir, "PACKDATA.DAT")
     os.makedirs(out, exist_ok=True)
     rows = []
     for block, (file, name, where, evidence) in EVENT_STILLS.items():
@@ -142,14 +130,13 @@ def event_stills(game_dir, out):
         _image(pic, MAIN_PALETTE).save(os.path.join(out, f"{file}.png"))
         rows.append([f"{file}.png", name, w, h, f"PACKDATA.DAT block {block} (0x{block * 512:X}, {used} bytes)",
                      where, evidence])
-    _write_csv(os.path.join(out, "index.csv"), ["file", "name", "width", "height", "source", "shown by", "evidence"],
-               rows)
+    write_csv(os.path.join(out, "index.csv"), ["file", "name", "width", "height", "source", "shown by", "evidence"], rows)
     return len(rows)
 
 
 def sequence(game_dir, name, palette, out, names=None):
     """OPEN.DAT / ENDING.DAT: pictures one after the other until a header is not a picture."""
-    data = _read(game_dir, name)
+    data = read_file(game_dir, name)
     os.makedirs(out, exist_ok=True)
     rows, pos = [], 0
     while pos < len(data) - 4:
@@ -163,12 +150,12 @@ def sequence(game_dir, name, palette, out, names=None):
         label = OPEN_DAIMYO[k - 14] if names and k >= 14 else ""
         rows.append([file, label, w, h, f"{name} 0x{pos:X} ({used} bytes)"])
         pos += used
-    _write_csv(os.path.join(out, "index.csv"), ["file", "daimyo", "width", "height", "source"], rows)
+    write_csv(os.path.join(out, "index.csv"), ["file", "daimyo", "width", "height", "source"], rows)
     return len(rows), pos
 
 
 def fans(game_dir, out):
-    data = _read(game_dir, "OUGICHAK.DAT")
+    data = read_file(game_dir, "OUGICHAK.DAT")
     os.makedirs(out, exist_ok=True)
     rows = []
     for s, season in enumerate(SEASONS):
@@ -177,7 +164,7 @@ def fans(game_dir, out):
             file = f"{season}-{f}.png"
             _raw_image(data[o:o + FAN_BYTES], 96).save(os.path.join(out, file))
             rows.append([file, season, f, f"OUGICHAK.DAT 0x{o:X}"])
-    _write_csv(os.path.join(out, "index.csv"), ["file", "season", "frame", "source"], rows)
+    write_csv(os.path.join(out, "index.csv"), ["file", "season", "frame", "source"], rows)
     return len(rows)
 
 
@@ -195,13 +182,13 @@ def _item_name(raw):
 
 
 def items(game_dir, out):
-    data = _read(game_dir, "OUGICHAK.DAT")
+    data = read_file(game_dir, "OUGICHAK.DAT")
     os.makedirs(os.path.join(out, "pictures"), exist_ok=True)
     base = 20 * FAN_BYTES
     for k in range(15):
         o = base + k * TEA_PICTURE_BYTES
         _raw_image(data[o:o + TEA_PICTURE_BYTES], 48).save(os.path.join(out, "pictures", f"tea-{k:02d}.png"))
-    kaiga = _read(game_dir, "KAIGA.DAT")
+    kaiga = read_file(game_dir, "KAIGA.DAT")
     for k, painter in enumerate(PAINTERS):
         rec = kaiga[k * PAINTING_BYTES:(k + 1) * PAINTING_BYTES]
         # 30 columns of 8 pixels, each 152 rows of 3 bytes (DOS 0x30A30 draws one column per call)
@@ -212,7 +199,7 @@ def items(game_dir, out):
             im.paste(col, (8 * c, 0))
         im.save(os.path.join(out, "pictures", f"painting-{k}.png"))
     rows = []
-    scenarios = [_read(game_dir, f"SNDATA{n}.CIM") for n in (1, 2, 3)]
+    scenarios = [read_file(game_dir, f"SNDATA{n}.CIM") for n in (1, 2, 3)]
     for k in range(TEA_COUNT):
         recs = [s[TEA_RECORDS + 16 * k:][:16] for s in scenarios]
         kind = recs[0][15] & 7
@@ -227,15 +214,14 @@ def items(game_dir, out):
     header = ["id", "name", "kind"]
     for n in (1, 2, 3):
         header += [f"value_s{n}", f"holder_s{n}", f"picture_s{n}"]
-    _write_csv(os.path.join(out, "chaki.csv"), header, rows)
-    _write_csv(os.path.join(out, "paintings.csv"), ["file", "painter", "source"],
-               [[f"pictures/painting-{k}.png", p, f"KAIGA.DAT 0x{k * PAINTING_BYTES:X}"] for k, p in enumerate(PAINTERS)])
+    write_csv(os.path.join(out, "chaki.csv"), header, rows)
+    write_csv(os.path.join(out, "paintings.csv"), ["file", "painter", "source"], [[f"pictures/painting-{k}.png", p, f"KAIGA.DAT 0x{k * PAINTING_BYTES:X}"] for k, p in enumerate(PAINTERS)])
     return len(rows)
 
 
 def strings(game_dir, out):
     """All Shift-JIS strings of MAIN.EXE's data segment (DGROUP at image 0x37990), with their DS offsets."""
-    d = _read(game_dir, "MAIN.EXE")
+    d = read_file(game_dir, "MAIN.EXE")
     seg = d[struct.unpack_from("<H", d, 8)[0] * 16 + 0x37990:]
     rows, o = [], 0
     while o < len(seg):
@@ -252,7 +238,7 @@ def strings(game_dir, out):
                 rows.append([f"0x{o:04X}", text])
         o = e + 1
     os.makedirs(out, exist_ok=True)
-    _write_csv(os.path.join(out, "strings.csv"), ["ds_offset", "text"], rows)
+    write_csv(os.path.join(out, "strings.csv"), ["ds_offset", "text"], rows)
     return len(rows)
 
 

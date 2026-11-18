@@ -173,7 +173,7 @@
 
 ### 列伝
 
-`dekoei.py biography nobu11pk-win --game-dir ../games/nobu11pk-win --out ../export/koei-wiki/nobu11pk-win.jsonl`（`wiki_nobu11.bios`）：1100 段，`kind` 是 單段，`lang` 是 ja。
+`dekoei.py biography nobu11pk-win --game-dir ../games/nobu11pk-win --out ../export/koei-wiki`（`wiki_nobu11.bios`）：1100 段，`kind` 是 單段，`lang` 是 ja。
 
 - ✅ code：對應照 `CBushou::GetRetsuden`（見上面「列伝」）。
 - 本文是 4 行接起來的，拿掉了行尾字面上的 `\n`。

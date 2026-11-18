@@ -15,6 +15,7 @@ from PIL import Image
 import genpei
 import genpei_extras as gx
 import kaodata_export as ke
+from common import cstr
 
 DATASET = "genpei-pc98"
 SCENARIO_YEARS = [(1180, 10), (1183, 7), (1184, 10), (1185, 10)]
@@ -33,7 +34,7 @@ def _blocks(game_dir):
 
 
 def _name(g):
-    return gx.sjis(g[0:7]).rstrip(" ") + gx.sjis(g[14:19]).rstrip(" ")
+    return cstr(g[0:7], errors="replace").rstrip(" ") + cstr(g[14:19], errors="replace").rstrip(" ")
 
 
 def persons(game_dir):
@@ -42,8 +43,8 @@ def persons(game_dir):
     C = [gx.recs(b, gx.CLANS, 20, gx.N_CLANS) for b in blocks]
     R = [gx.recs(b, gx.RANKS, 19, gx.N_RANKS) for b in blocks]
     T = [gx.recs(b, gx.TREASURES, 18, gx.N_TREASURES) for b in blocks]
-    rank = [[gx.sjis(r[0:13]) for r in rs] for rs in R]
-    treasure = [[gx.sjis(t[0:11]) for t in ts] for ts in T]
+    rank = [[cstr(r[0:13], errors="replace") for r in rs] for rs in R]
+    treasure = [[cstr(t[0:11], errors="replace") for t in ts] for ts in T]
 
     def items(k, g):
         return [treasure[k][t] for t in gx.chain(gx.u16(g, 0x3A), lambda x: gx.u16(T[k][x], 0x0B))]
@@ -55,8 +56,8 @@ def persons(game_dir):
     father = {i: by_face[k] for i, k in enumerate(kin) if k in by_face}
     rows = []
     for i, g in enumerate(G0):
-        surname, given = gx.sjis(g[0:7]).rstrip(" "), gx.sjis(g[14:19]).rstrip(" ")
-        sk, gk = (ke.kana_to_hiragana(gx.sjis(g[o:o + 7]).rstrip(" ")) for o in (7, 19))
+        surname, given = cstr(g[0:7], errors="replace").rstrip(" "), cstr(g[14:19], errors="replace").rstrip(" ")
+        sk, gk = (ke.kana_to_hiragana(cstr(g[o:o + 7], errors="replace").rstrip(" ")) for o in (7, 19))
         npc = i >= 390
         # 390-399 keep the whole name in the surname field, the reading running on into the given name's field
         row = {"id": i, "name": surname + given, "reading": sk + gk if npc else f"{sk} {gk}".strip()}
@@ -142,7 +143,7 @@ def places(game_dir, out_dir):
     blocks = _blocks(game_dir)
     P = [gx.recs(b, gx.PLACES, 76, gx.N_PLACES) for b in blocks]
     C = [gx.recs(b, gx.CLANS, 20, gx.N_CLANS) for b in blocks]
-    regions = [gx.sjis(r[0:6]) for r in gx.recs(blocks[0], gx.REGIONS, 9, gx.N_REGIONS)]
+    regions = [cstr(r[0:6], errors="replace") for r in gx.recs(blocks[0], gx.REGIONS, 9, gx.N_REGIONS)]
     nodes, edges = _map(game_dir)
     node_of = {i: gx.u16(p, 0x4A) for i, p in enumerate(P[0])}
     assert all(gx.u16(P[k][i], 0x4A) == node_of[i] for k in range(4) for i in range(gx.N_PLACES))
@@ -151,8 +152,8 @@ def places(game_dir, out_dir):
         adjacent = [a for a in (gx.u16(p, 0x12 + 2 * j) for j in range(7)) if a >= 0]
         assert all(gx.u16(P[k][i], 0x12 + 2 * j) == gx.u16(p, 0x12 + 2 * j) for k in range(4) for j in range(7))
         n = nodes[node_of[i]]
-        row = {"id": i, "name": gx.sjis(p[0:9]).rstrip(" "),
-               "reading": ke.kana_to_hiragana(gx.sjis(p[9:18]).rstrip(" ")), "level": "拠点",
+        row = {"id": i, "name": cstr(p[0:9], errors="replace").rstrip(" "),
+               "reading": ke.kana_to_hiragana(cstr(p[9:18], errors="replace").rstrip(" ")), "level": "拠点",
                "region": regions[gx.u16(p, 0x26)], "adjacent": adjacent,
                "pos": {"x": gx.u16(n, 0) + gx.NODE_CX, "y": gx.u16(n, 2) + gx.NODE_CY, "grid": "pixel",
                        "w": WORLD_W, "h": WORLD_H}}

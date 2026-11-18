@@ -14,7 +14,6 @@
   - 0x1E00: 246 tiles of 16 x 16 (128 bytes) for map bytes 10-255; bytes below 10 use tile 0 (0x5527).
   - 0x9900: 13 overlays of 48 x 32, colour 0 transparent (0x558E).
 """
-import csv
 import os
 import shutil
 import unicodedata
@@ -25,6 +24,7 @@ from PIL import Image
 
 import pklite
 from koei_games import koei_tw_name
+from common import write_csv
 
 W, H = 55, 44
 DGROUP = 0x3A870
@@ -35,14 +35,6 @@ PC98_GAIJI = {0xEBE9: "陘", 0xEBD6: "淄", 0xEBE7: "滎", 0xEBEB: "睢", 0xEBC6
               0xEBEA: "邾"}
 SEASONS = ["spring", "summer", "autumn", "winter"]
 PASSABLE = (10, 11)
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def grid(game_dir, n):
@@ -104,7 +96,7 @@ def place_table(game_dir, pc98_dir, img, out):
                          raw.hex(" "), " ".join(rows[j][1] for j in a)))
     if out is None:
         return out_rows
-    _csv(f"{out}/places.csv", ["id", "name_zh", "name_ja", "kana", "kind", "x", "y", "code_s1", "code_s2",
+    write_csv(f"{out}/places.csv", ["id", "name_zh", "name_ja", "kana", "kind", "x", "y", "code_s1", "code_s2",
                                "code_s3", "code_s4", "raw_14_16", "adjacent_guess"], out_rows)
     return rows, grids[0]
 

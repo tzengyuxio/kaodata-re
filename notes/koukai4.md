@@ -72,7 +72,7 @@ cd dekoei
 
 ### 圖：*.dk4（GT1G）
 
-- 每張貼圖：byte 1 格式（0x59 BC1、0x5B BC3、0x01 RGBA8），byte 2 是 log2 尺寸（低 4 bit 寬、高 4 bit 高），+8 u32 額外檔頭大小，像素接在額外檔頭之後；byte 2 為 0 時尺寸是額外檔頭（0x14 bytes）+0x14、+0x18 的 u32。✅ code（每張的像素大小剛好等於到下一張的距離；`Chip.DK4` 的 512×2048 地圖塊照「低 4 bit＝寬」排才正確）
+- 每張貼圖：byte 1 格式（0x59 BC1、0x5B BC3、0x01 每點 4 byte，依序 B、G、R、A；2026-11-18 以前當成 RGBA 讀，紅藍對調），byte 2 是 log2 尺寸（低 4 bit 寬、高 4 bit 高），+8 u32 額外檔頭大小，像素接在額外檔頭之後；byte 2 為 0 時尺寸是額外檔頭（0x14 bytes）+0x14、+0x18 的 u32。✅ code（每張的像素大小剛好等於到下一張的距離；`Chip.DK4` 的 512×2048 地圖塊照「低 4 bit＝寬」排才正確）
   - 原本 `koei_games.load_koukai4_win_bustups` 一律讀 +0x14／+0x18，只對 `bustup.dk4` 這種額外檔頭 0x14 的檔成立。
 - 全部的圖列在 `pictures.csv`（來源檔、序號、寬高、格式、輸出路徑）。
 
@@ -85,7 +85,7 @@ cd dekoei
 | `eventcg/goldroad*/` | `GoldRoad.dk4`、`GoldRoadAnimeJP/TC.dk4` | 6＋30×2 | 黃金航路的畫面與動畫格（日、繁中各一套） |
 | `eventcg/portrait/` | `Portrait.dk4` | 84 | 576×800 的全身立繪（kaodata 沒收） |
 | `eventcg/opening/`、`startup/`、`title_jp/`、`title_tc/`、`search/` | `FirstGrp`、`startup`、`TitleJP/TC`、`Search` | 43＋1＋9＋9＋10 | 開場、標題、探索 |
-| `towns/` | `TownGrp.DK4` | 62 | 1920×1080 的港町、設施背景（RGBA8）🟡 |
+| `towns/` | `TownGrp.DK4` | 62 | 1920×1080 的港町、設施背景（format 0x01，BGRA）🟡 |
 | `items/pictures/`、`pictures_small/` | `Item56.dk4`、`Item32.dk4` | 231＋231 | 道具圖，序號＝道具記錄號 ✅ cross（0 カボチャの種→種子、47 聖剣エクスカリバー→劍） |
 | `tables/goods_pictures/`、`_small/` | `TItem48.dk4`、`TItem24.dk4` | 105＋105 | 交易品圖，序號＝交易品記錄號 🟡（數量相同） |
 | `ships/` | `ship`、`StlShip`、`DeckShip`、`DeckScrn`、`Gun` | 72＋34＋17＋50＋6 | 船的 sprite、圖示、甲板圖、砲 🟡 |

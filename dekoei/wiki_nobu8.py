@@ -2,11 +2,11 @@
 列伝. SCEDA00-09.NB8 (koei_games.nobu8_win_data removes the XOR) hold the 10 scenarios; BFILEMSG.NB8 the 列伝. The
 fields come from the data only (no code read): notes/nobu8.md「人物欄位（全部）」「地理」「koei-wiki 匯出」."""
 import os
-import struct
 
 import koei_games
 import ls11
 from wiki_nobu7 import _bio_index, biographies
+from common import u16
 
 PERSONS, COUNT, SIZE = koei_games.NOBU8_WIN_OFFICERS
 PEOPLE = 900  # 0-899 are the kaodata characters; 900-917 the generic 姫武将 / 一向一揆 slots and dummies
@@ -38,13 +38,9 @@ def _rec(data, k):
     return data[PERSONS + SIZE * k:][:SIZE]
 
 
-def _u16(r, o):
-    return struct.unpack_from("<H", r, o)[0]
-
-
 def _ids(data):
     """{officer id: record index}"""
-    return {_u16(_rec(data, k), 166): k for k in range(COUNT)}
+    return {u16(_rec(data, k), 166): k for k in range(COUNT)}
 
 
 def _bios(game_dir):
@@ -80,7 +76,7 @@ def persons(game_dir):
     def person(v):
         return v if v < PEOPLE else None
 
-    fathers = {i: _u16(_rec(main, ids[i]), 168) for i in range(PEOPLE)}
+    fathers = {i: u16(_rec(main, ids[i]), 168) for i in range(PEOPLE)}
     rows = []
     for i in range(PEOPLE):
         r = _rec(main, ids[i])
@@ -95,27 +91,27 @@ def persons(game_dir):
             row["died"] = bio[3]
             notes.append("歿年取自列伝的標頭（記錄裡沒有歿年）。")
         row["stats"] = {"政治": r[218], "戦闘": r[219], "采配": r[221], "知謀": r[220]}
-        row["more"] = {"勲功": _u16(r, 176)}
+        row["more"] = {"勲功": u16(r, 176)}
         row["hidden"] = {"相性": r[209], "義理": r[223]}
         row["aptitude"] = {a: GRADES[(r[184 + j // 2] >> (4 * (j % 2))) & 15] for j, a in enumerate(ARMS)}
         tactics = [t for b, t in enumerate(TACTICS) if r[187] >> b & 1]
         if tactics:
             row["skills"] = {"戦法": tactics}
         relations = {}
-        father = person(_u16(r, 168))
+        father = person(u16(r, 168))
         if father is not None:
             relations["father"] = [father]
         children = [j for j, f in fathers.items() if person(f) == i]
         if children:
             relations["children"] = children
-        siblings = [j for j, f in fathers.items() if j != i and f != 0xFFFF and f == _u16(r, 168)]
+        siblings = [j for j, f in fathers.items() if j != i and f != 0xFFFF and f == u16(r, 168)]
         if siblings:
             relations["siblings"] = siblings
         if r[222] != 0xFF:
             relations["clan"] = r[222]
         if relations:
             row["relations"] = relations
-        adoptive = person(_u16(r, 170))
+        adoptive = person(u16(r, 170))
         if adoptive is not None:
             notes.append(f"養父（+170）：{_name(main, ids[adoptive])}（id {adoptive}）。")
         jobs = [t for b, t in enumerate(JOBS) if r[179] >> b & 1]
@@ -124,11 +120,11 @@ def persons(game_dir):
         row["scenarios"] = []
         for s, data in enumerate(scenarios):
             rs = _rec(data, all_ids[s][i])
-            castle = _u16(rs, 232)
+            castle = u16(rs, 232)
             if castle == 0xFFFF:
                 continue
             sc = {"scenario": s + 1, "year": YEARS[s], "location": castle}
-            lord = _u16(rs, 236)
+            lord = u16(rs, 236)
             if lord != 0xFFFF and person(lord) is not None:
                 sc["lord"] = lord
             sc["loyalty"] = rs[224]

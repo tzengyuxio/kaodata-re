@@ -6,6 +6,7 @@ checksums.json; the checksums
 come from the reference renderer below, which implements spec §6.
 """
 import bisect
+import concurrent.futures
 import hashlib
 import io
 import json
@@ -32,6 +33,8 @@ import san2
 import san3
 import sango
 import utils
+from gfx import decode_planar
+from common import read_file
 
 FORMAT = "kaodata/1"
 TRANSPARENT = 255
@@ -220,6 +223,17 @@ def revision() -> str:
                           cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
 
 
+def read_inputs(game_dir: str, names) -> dict[str, bytes]:
+    """The bytes of each input file of a builder, by name."""
+    return {n: read_file(game_dir, n) for n in names}
+
+
+def source(files: dict[str, bytes], names) -> dict:
+    """The meta "source": this repo's revision and the sha1 of each input file."""
+    return {"producer": "kaodata-re", "revision": revision(),
+            "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in names]}
+
+
 def webp_images(meta: dict, blobs: list[bytes]) -> tuple[dict, list[bytes]]:
     """The full-colour images moved to "file" images (spec §5): (meta, the files' RGBA in image order). Every image
     must be full-colour; any alpha is kept, and a pixel with alpha 0 is stored as 0, 0, 0, 0."""
@@ -262,6 +276,11 @@ def write_arts(out_dir: str, meta: dict, files: list[bytes]) -> dict:
     return {**meta, "images": images, "arts": arts, "portraits": portraits}
 
 
+def _save_webp(job) -> None:
+    path, w, h, px = job
+    Image.frombytes("RGBA", (w, h), px).save(path, lossless=True, quality=100, method=6, exact=True)
+
+
 def write_dataset(out_dir: str, meta: dict, blobs: list[bytes], webp: bool = False) -> None:
     """With `webp`, the full-colour images are written as lossless WebP files instead of blobs. A builder's
     `artFiles` (BASE pictures, `art_webp`) are written to art/ (`write_arts`)."""
@@ -274,9 +293,10 @@ def write_dataset(out_dir: str, meta: dict, blobs: list[bytes], webp: bool = Fal
         sums = {"algo": "sha256-rgba", "entries": {k: hashlib.sha256(rgba[img]).hexdigest()
                                                    for k, img in webp_entries(meta)}}
         os.makedirs(os.path.join(out_dir, "faces"), exist_ok=True)
-        for ref, px in zip(meta["images"], rgba):
-            Image.frombytes("RGBA", (ref["w"], ref["h"]), px).save(os.path.join(out_dir, ref["file"]), lossless=True,
-                                                                  quality=100, method=6, exact=True)
+        # each file is encoded on its own (about 0.5 s at method 6), so in parallel: the same bytes, several times faster
+        jobs = [(os.path.join(out_dir, ref["file"]), ref["w"], ref["h"], px) for ref, px in zip(meta["images"], rgba)]
+        with concurrent.futures.ProcessPoolExecutor() as pool:
+            list(pool.map(_save_webp, jobs, chunksize=16))
         with open(os.path.join(out_dir, "dataset.json"), "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
         with open(os.path.join(out_dir, "checksums.json"), "w", encoding="utf-8") as f:
@@ -455,10 +475,7 @@ def san2_jp_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
 
 
 def build_san2_jp(game_dir: str, platform: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN2_JP_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN2_JP_INPUTS)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     variants = []
@@ -493,8 +510,7 @@ def build_san2_jp(game_dir: str, platform: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": f"san2-{platform.lower()}", "game": "SAN2", "platform": platform,
         "title": {"ja": "三國志II", "zh": "三國志II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN2_JP_INPUTS]},
+        "source": source(files, SAN2_JP_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": platform.lower(), "label": platform, "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
@@ -515,10 +531,7 @@ SAN2_PC88_INPUTS = ["KAODATA.DAT"] + [f"SNDATA{i}.CIM" for i in range(1, 7)] + [
 
 
 def build_san2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN2_PC88_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN2_PC88_INPUTS)
     kao = files["KAODATA.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -558,8 +571,7 @@ def build_san2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san2-pc88", "game": "SAN2", "platform": "PC88",
         "title": {"ja": "三國志II", "zh": "三國志II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN2_PC88_INPUTS]},
+        "source": source(files, SAN2_PC88_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
@@ -576,10 +588,7 @@ def build_san2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     return meta, [bytes(b) for b in store.blobs]
 
 def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN2_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN2_INPUTS)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     variants = []
@@ -617,8 +626,7 @@ def build_san2(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san2-dos", "game": "SAN2", "platform": "DOS",
         "title": {"ja": "三國志II", "zh": "三國志II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN2_INPUTS]},
+        "source": source(files, SAN2_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
@@ -680,7 +688,7 @@ SAN3_PORTRAIT_GROUPS = {
 def san3_pixels(raw: bytes, opaque: bool) -> tuple[int, int, bytes]:
     """3bpp planar rows (24 bytes each, byte k = bit k); 0 -> 255 unless opaque."""
     h = len(raw) // 24
-    px = genpei.decode_planar(raw, 0, 64, h, 3)
+    px = decode_planar(raw, 0, 64, h, 3)
     return 64, h, bytes(c if opaque or c else TRANSPARENT for c in px)
 
 
@@ -700,10 +708,7 @@ def san3_characters(game_dir: str, pc98: bool = False, x68: bool = False) -> lis
 def build_san3(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
     """pc98=True: the PC-98 version; x68=True with it: the X68000 version."""
     inputs = SAN3_X68_INPUTS if x68 else SAN3_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     variants = []
@@ -741,8 +746,7 @@ def build_san3(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[di
         "format": FORMAT, "id": "san3-x68" if x68 else "san3-pc98" if pc98 else "san3-dos", "game": "SAN3",
         "platform": "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "三國志III", "zh": "三國志III"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": SAN3_X68_PALETTE} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": SAN3_PC98_PALETTE} if pc98 else
@@ -775,10 +779,7 @@ SAN3_WIN_NOTES = {"鍾進": "劇本資料誤用曹宇的臉；他自己的臉見
 
 
 def build_san3_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN3_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN3_WIN_INPUTS)
     store = ImageStore(["portraits.bin", "portraits2.bin"])
 
     # all 256 colours are used, but colour 0 is the magenta key: it fills the empty cells and is one stray pixel
@@ -824,8 +825,7 @@ def build_san3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san3-win", "game": "SAN3", "platform": "WIN",
         "title": {"ja": "三國志III", "zh": "三國志III"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN3_WIN_INPUTS]},
+        "source": source(files, SAN3_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -893,10 +893,7 @@ SAN4_PC98_PORTRAIT_NAMES = {250: "華佗", 251: "馬鈞", 252: "司馬徽", 253:
 
 def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dict, list[bytes]]:
     inputs = SAN4PK_INPUTS if pk else SAN4_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     # PK: the picker faces borrowed from 三國志III / 水滸伝 go in their own blob
     store = ImageStore(["pixels.bin", "portraits.bin"] + (["extra.bin"] if pk else []))
 
@@ -920,10 +917,10 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
     for i, name in (SAN4_PC98_PORTRAIT_NAMES if pc98 else SAN4_PORTRAIT_NAMES).items():
         portraits[i]["name"] = name
     if pk:
-        shown = [bytes(genpei.decode_planar(files["KAODATAP.S4"], i * 1920, 64, 80, 3)) for i in range(SAN4PK_SHOWN)]
+        shown = [bytes(decode_planar(files["KAODATAP.S4"], i * 1920, 64, 80, 3)) for i in range(SAN4PK_SHOWN)]
         portraits += [{"img": store.add(64, 80, px, blob=1), "code": f"{i:04X}", "group": "水滸傳檔案"}
                       for i, px in enumerate(shown) if i >= len(faces)]
-        picker = [bytes(genpei.decode_planar(files["KAODATA2.S4"], i * 1920, 64, 80, 3))
+        picker = [bytes(decode_planar(files["KAODATA2.S4"], i * 1920, 64, 80, 3))
                   for i in range(len(files["KAODATA2.S4"]) // 1920)]
         extra = [px for px in picker if px not in shown[len(faces):]]
         extra = list(zip(extra, SAN4PK_EXTRA_NAMES if pc98 else SAN4PK_DOS_EXTRA_NAMES, SAN4PK_EXTRA_GROUPS,
@@ -968,8 +965,7 @@ def build_san4(game_dir: str, pc98: bool = False, pk: bool = False) -> tuple[dic
         "game": "SAN4PK" if pk else "SAN4", "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "三國志IV with パワーアップキット", "zh": "三國志IV 威力加強版"} if pk else
                  {"ja": "三國志IV", "zh": "三國志IV"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN4_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": SAN4_PALETTE}],
@@ -1020,10 +1016,7 @@ SAN5_FACES = 733  # faces in the base game's KAODATA.S5; the PK appends 733-782 
 def build_san5pk(game_dir: str, pc98: bool = False, pk: bool = True) -> tuple[dict, list[bytes]]:
     """pk=False: the base game (PC-98 only), without KAOEX.S5 and the PK faces 733-782."""
     inputs = SAN5PK_INPUTS if pk else SAN5_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     # KAOEX.S5 (borrowed faces) goes in its own blob
     store = ImageStore(["portraits.bin", "extra.bin"] if pk else ["portraits.bin"])
 
@@ -1064,8 +1057,7 @@ def build_san5pk(game_dir: str, pc98: bool = False, pk: bool = True) -> tuple[di
         "game": "SAN5PK" if pk else "SAN5", "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "三國志V with パワーアップキット", "zh": "三國志V 威力加強版"} if pk
         else {"ja": "三國志V", "zh": "三國志V"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN5PK_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": SAN5PK_PALETTE}],
@@ -1125,10 +1117,7 @@ def san1_rows(pic: bytes, face: int, rows: tuple[int, int], dos: bool) -> tuple[
 
 def build_san1(game_dir: str, dos: bool = False) -> tuple[dict, list[bytes]]:
     inputs = SAN1_DOS_INPUTS if dos else SAN1_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     pic = files["PICDATA.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -1165,8 +1154,7 @@ def build_san1(game_dir: str, dos: bool = False) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san1-dos" if dos else "san1-pc98", "game": "SAN1", "platform": "DOS" if dos else "PC98",
         "title": {"ja": "三國志", "zh": "三國志"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "ega", "label": "EGA", "colors": SAN1_DOS_PALETTE} if dos else
                      {"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE}],
@@ -1209,10 +1197,7 @@ SAN1_X68_NOTES = dict.fromkeys(["程昱", "曹丕"], "遊戲資料中程昱和�
 
 
 def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN1_X68_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN1_X68_INPUTS)
     remap = bytearray(range(256))
     remap[255] = SAN1_X68_WHITE
     kao = files["KAODATA"].translate(remap)
@@ -1257,8 +1242,7 @@ def build_san1_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san1-x68", "game": "SAN1", "platform": "X68",
         "title": {"ja": "三國志", "zh": "三國志"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN1_X68_INPUTS]},
+        "source": source(files, SAN1_X68_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors}],
         "blobs": store.names,
@@ -1286,10 +1270,7 @@ SAN1_PC88_GROUP_PARTS = {8: 3}
 
 
 def build_san1_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN1_PC88_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN1_PC88_INPUTS)
     disk_b = pc88.d88_image(files["DISK_B.D88"])
     sn1 = pc88.cpm_files(pc88.d88_image(files["DISK_A.D88"]))["SN1.EXT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
@@ -1324,8 +1305,7 @@ def build_san1_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san1-pc88", "game": "SAN1", "platform": "PC88",
         "title": {"ja": "三國志", "zh": "三國志"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN1_PC88_INPUTS]},
+        "source": source(files, SAN1_PC88_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
@@ -1362,10 +1342,7 @@ def build_suikoden_pc98(game_dir: str, pc88: bool = False, x68: bool = False) ->
     """pc88=True: the PC-88 version (KAODATA.DAT: 258 64x40 faces, B, R, G per 8 pixels; 19-byte person records).
     x68=True: the X68000 version."""
     inputs = SUIKODEN_PC88_INPUTS if pc88 else SUIKODEN_X68_INPUTS if x68 else SUIKODEN_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     if pc88:
@@ -1396,8 +1373,7 @@ def build_suikoden_pc98(game_dir: str, pc88: bool = False, x68: bool = False) ->
         "format": FORMAT, "id": "suikoden-pc88" if pc88 else "suikoden-x68" if x68 else "suikoden-pc98",
         "game": "SUIKODEN", "platform": "PC88" if pc88 else "X68" if x68 else "PC98",
         "title": {"ja": "水滸伝・天命の誓い", "zh": "水滸傳・天命之誓"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
                      {"id": "x68", "label": "X68", "colors": SAN2_JP_PALETTE} if x68 else
@@ -1458,15 +1434,12 @@ def build_lempe(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[d
     x68=True: the X68000 version (its own full-height faces, the PC-88 names)."""
     inputs = LEMPE_X68_INPUTS if x68 else LEMPE_INPUTS
     kana = pc88 or x68
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAODATA.DAT"]
     if x68:
-        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+        portraits = [{"img": store.add(64, 80, bytes(decode_planar(kao, i, 64, 80, 3))),
                       "code": f"{i // 1920:04X}"} for i in range(0, len(kao), 1920)]
     else:
         portraits = [{"img": store.add(*san2_pixels(kao[i:i + SAN2_FACE], True)), "code": f"{i // SAN2_FACE:04X}"}
@@ -1500,8 +1473,7 @@ def build_lempe(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[d
         "format": FORMAT, "id": "lempe-pc88" if pc88 else "lempe-x68" if x68 else "lempe-dos", "game": "LEMPE",
         "platform": "PC88" if pc88 else "X68" if x68 else "DOS",
         "title": {"ja": "ランペルール", "zh": "拿破崙"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
                      {"id": "x68", "label": "X68000", "colors": ISHIN_PC98_PALETTE} if x68 else
@@ -1526,10 +1498,7 @@ SUIKODEN_DOS_NAME_HISTORICAL = {47: "朱仝", 56: "褚亨", 115: "黃文燁", 12
 
 
 def build_suikoden_dos(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SUIKODEN_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SUIKODEN_DOS_INPUTS)
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAOIBM.DAT"]
@@ -1552,8 +1521,7 @@ def build_suikoden_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "suikoden-dos", "game": "SUIKODEN", "platform": "DOS",
         "title": {"ja": "水滸伝・天命の誓い", "zh": "水滸傳・天命之誓"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SUIKODEN_DOS_INPUTS]},
+        "source": source(files, SUIKODEN_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE}],
         "blobs": store.names,
@@ -1588,14 +1556,11 @@ KOURYUUKI_PC98_PALETTE = 0x48116
 
 def build_kouryuuki_dos(game_dir: str, x68: bool = False, pc98: bool = False) -> tuple[dict, list[bytes]]:
     inputs = KOURYUUKI_PC98_INPUTS if pc98 else KOURYUUKI_X68_INPUTS if x68 else KOURYUUKI_DOS_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAO.KR1"]
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+    portraits = [{"img": store.add(64, 80, bytes(decode_planar(kao, i, 64, 80, 3))),
                   "code": f"{i // KOURYUUKI_DOS_FACE:04X}"} for i in range(0, len(kao), KOURYUUKI_DOS_FACE)]
     for i, group in (KOURYUUKI_X68_PORTRAIT_GROUPS if x68 or pc98 else KOURYUUKI_DOS_PORTRAIT_GROUPS).items():
         portraits[i]["group"] = group
@@ -1629,8 +1594,7 @@ def build_kouryuuki_dos(game_dir: str, x68: bool = False, pc98: bool = False) ->
         "format": FORMAT, "id": "kouryuuki-pc98" if pc98 else "kouryuuki-x68" if x68 else "kouryuuki-dos",
         "game": "KOURYUUKI", "platform": "PC98" if pc98 else "X68" if x68 else "DOS",
         "title": {"ja": "項劉記", "zh": "項劉記"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": palettes,
         "blobs": store.names,
@@ -1682,10 +1646,7 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False,
     PC-88 style names). pc98=True: the PC-98 version (DOS faces, all scenarios readable)."""
     inputs = (EUROPE_PC88_INPUTS if pc88 else EUROPE_X68_INPUTS if x68 else EUROPE_PC98_INPUTS if pc98
               else EUROPE_DOS_INPUTS)
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     if pc88:
@@ -1698,7 +1659,7 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False,
                                                   os.path.join(game_dir, "MAIN.COM"))
     elif x68:
         face = files["FACE.DAT"][:EUROPE_X68_FACES * EUROPE_DOS_FACE]
-        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+        portraits = [{"img": store.add(64, 80, bytes(decode_planar(face, i, 64, 80, 3))),
                       "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
         for i, (group, name) in EUROPE_X68_PORTRAITS.items():
             portraits[i].update(group=group, **({"name": name} if name else {}))
@@ -1710,7 +1671,7 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False,
                    for w in struct.unpack_from(">8I", files["MAIN.Z"], EUROPE_X68_PALETTE)]
     elif pc98:
         face = files["FACE.DAT"]
-        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+        portraits = [{"img": store.add(64, 80, bytes(decode_planar(face, i, 64, 80, 3))),
                       "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
         for i, (group, name) in EUROPE_X68_PORTRAITS.items():
             portraits[i].update(group=group, **({"name": name} if name else {}))
@@ -1720,7 +1681,7 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False,
                    for w in struct.unpack_from("<8H", files["MAIN.EXE"], EUROPE_PC98_PALETTE)]
     else:
         face = files["FACE.DAT"]
-        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(face, i, 64, 80, 3))),
+        portraits = [{"img": store.add(64, 80, bytes(decode_planar(face, i, 64, 80, 3))),
                       "code": f"{i // EUROPE_DOS_FACE:04X}"} for i in range(0, len(face), EUROPE_DOS_FACE)]
         for i, group in EUROPE_DOS_PORTRAIT_GROUPS.items():
             portraits[i]["group"] = group
@@ -1734,8 +1695,7 @@ def build_europe_dos(game_dir: str, pc88: bool = False, x68: bool = False,
         "format": FORMAT, "id": "europe-pc88" if pc88 else "europe-x68" if x68 else "europe-pc98" if pc98 else "europe-dos",
         "game": "EUROPE", "platform": "PC88" if pc88 else "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "ヨーロッパ戦線", "zh": "歐陸戰線"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE} if pc88 else
                      {"id": "x68", "label": "X68000", "colors": colours} if x68 else
@@ -1775,10 +1735,7 @@ def build_liberty_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
     sides, supply, specials, historical = ((LIBERTY_PC98_SIDES, LIBERTY_PC98_SUPPLY, LIBERTY_PC98_PORTRAITS, {}) if pc98
                                            else (LIBERTY_DOS_SIDES, LIBERTY_DOS_SUPPLY, LIBERTY_DOS_PORTRAITS,
                                                  LIBERTY_DOS_NAME_HISTORICAL))
-    files = {}
-    for name in LIBERTY_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, LIBERTY_DOS_INPUTS)
     store = ImageStore(["portraits.bin"])
 
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"}
@@ -1804,8 +1761,7 @@ def build_liberty_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
         "format": FORMAT, "id": "liberty-pc98" if pc98 else "liberty-dos", "game": "LIBERTY",
         "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "独立戦争 Liberty or Death", "zh": "獨立戰爭"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in LIBERTY_DOS_INPUTS]},
+        "source": source(files, LIBERTY_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": LIBERTY_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": LIBERTY_DOS_PALETTE}],
@@ -1856,10 +1812,7 @@ def build_koukai_dos(game_dir: str, pc98: bool = False, pc88: bool = False) -> t
     (the DOS KAO.PUT, Japanese names and labels as PC-98)."""
     scale, pixels = (2, san2_jp_pixels) if pc98 else (1, san2_pixels)
     ja = pc98 or pc88
-    files = {}
-    for name in KOUKAI_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, KOUKAI_DOS_INPUTS)
     kao = files["KAO.PUT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -1901,8 +1854,7 @@ def build_koukai_dos(game_dir: str, pc98: bool = False, pc88: bool = False) -> t
         "format": FORMAT, "id": "koukai-pc98" if pc98 else "koukai-pc88" if pc88 else "koukai-dos", "game": "KOUKAI",
         "platform": "PC98" if pc98 else "PC88" if pc88 else "DOS",
         "title": {"ja": "大航海時代", "zh": "大航海時代"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI_DOS_INPUTS]},
+        "source": source(files, KOUKAI_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE} if pc98 else
                      {"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
@@ -1990,10 +1942,7 @@ def build_genghis_dos(game_dir: str, pc88: bool = False, pc98: bool = False) -> 
     people tables differ; both Japanese versions use the digital 8 colours."""
     nec = pc88 or pc98
     inputs = GENGHIS_DOS_INPUTS + (GENGHIS_NAME_ZH_INPUTS if pc98 else [])
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     mon = files["MONTER.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
     cache = {}
@@ -2042,8 +1991,7 @@ def build_genghis_dos(game_dir: str, pc88: bool = False, pc98: bool = False) -> 
         "format": FORMAT, "id": "genghis-pc98" if pc98 else "genghis-pc88" if pc88 else "genghis-dos",
         "game": "GENGHIS", "platform": "PC98" if pc98 else "PC88" if pc88 else "DOS",
         "title": {"ja": "蒼き狼と白き牝鹿・ジンギスカン", "zh": "蒼狼與白鹿・成吉思汗"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": SAN2_JP_PALETTE} if pc98 else
                      {"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE} if pc88 else
@@ -2104,10 +2052,7 @@ def genghis_x68_face(pak: bytes, start: int, end: int) -> bytes:
 
 
 def build_genghis_x68(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in GENGHIS_X68_INPUTS + GENGHIS_NAME_ZH_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, GENGHIS_X68_INPUTS + GENGHIS_NAME_ZH_INPUTS)
     main = files["JINMAIN.Z"]
     remap = bytearray(range(256))
     remap[255] = GENGHIS_X68_WHITE
@@ -2195,10 +2140,7 @@ NOBU3_DOS_PRINCESSES = range(157, 177)  # marriage: 0x9D + rand(20)
 
 
 def build_nobu3_dos(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU3_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU3_DOS_INPUTS)
     kao = files["KAODATA.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -2236,8 +2178,7 @@ def build_nobu3_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu3-dos", "game": "NOBU3", "platform": "DOS",
         "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_DOS_INPUTS]},
+        "source": source(files, NOBU3_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "ega", "label": "EGA", "colors": SAN2_PALETTE},
                      {"id": "mono", "label": "Mono", "colors": NOBU3_DOS_MONO}],
@@ -2307,10 +2248,7 @@ def nobu4_win_bitmap(data: bytes) -> Image.Image:
 
 
 def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU4_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU4_WIN_INPUTS)
     store = ImageStore(["portraits.bin", "portraits2.bin"])
 
     # Facedata: the 311 KAODATA faces repainted; Mondata: 4 head types x 8 tops x 8 bottoms, each drawn whole
@@ -2361,8 +2299,7 @@ def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu4-win", "game": "NOBU4", "platform": "WIN", "opaque": True,
         "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_WIN_INPUTS]},
+        "source": source(files, NOBU4_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -2376,12 +2313,9 @@ def build_nobu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
 def build_nobu4_dos(game_dir: str, pc98: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
     """pc98=True: the PC-98 version (Shift-JIS names, PC-98 palette and plane order); x68=True with it: the X68000
     version (the PC-98 data with its own palette)."""
-    pixels = (lambda raw: bytes(genpei.decode_planar(raw, 0, 64, len(raw) // 24, 3))) if pc98 else \
+    pixels = (lambda raw: bytes(decode_planar(raw, 0, 64, len(raw) // 24, 3))) if pc98 else \
         (lambda raw: bytes(utils.to_3bpp_indexes(raw)))
-    files = {}
-    for name in NOBU4_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU4_DOS_INPUTS)
     mon = files["MONDATA.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -2432,8 +2366,7 @@ def build_nobu4_dos(game_dir: str, pc98: bool = False, x68: bool = False) -> tup
         "format": FORMAT, "id": "nobu4-x68" if x68 else "nobu4-pc98" if pc98 else "nobu4-dos", "game": "NOBU4",
         "platform": "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_DOS_INPUTS]},
+        "source": source(files, NOBU4_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": NOBU4_X68_PALETTE} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": NOBU4_PC98_PALETTE} if pc98 else
@@ -2467,10 +2400,7 @@ NOBU4_PC88_PRINCESSES = range(275, 285)
 
 
 def build_nobu4_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU4_PC88_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU4_PC88_INPUTS)
     kao = files["KAODATA.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -2516,8 +2446,7 @@ def build_nobu4_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu4-pc88", "game": "NOBU4", "platform": "PC88",
         "title": {"ja": "信長の野望・武将風雲録", "zh": "信長之野望・武將風雲錄"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU4_PC88_INPUTS]},
+        "source": source(files, NOBU4_PC88_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE}],
         "blobs": store.names,
@@ -2567,13 +2496,10 @@ def build_taikoh_dos(game_dir: str, pc98: bool = False, x68: bool = False) -> tu
     """pc98=True: the Japanese PC-98 original. The same KAO/HIME/MONTA.PUT, drawn byte 0/1/2 to the B/R/G planes
     (byte k = bit k); the same B, R, G table at DGROUP 0x7E96 (MAIN.EXE 0x61D8) on the analog palette.
     x68=True (with pc98): the X68000 version, PC-98 data with MAIN.Z in place of MAIN.EXE."""
-    pixels = (lambda raw: bytes(genpei.decode_planar(raw, 0, 64, len(raw) // 24, 3))) if pc98 else \
+    pixels = (lambda raw: bytes(decode_planar(raw, 0, 64, len(raw) // 24, 3))) if pc98 else \
         (lambda raw: bytes(utils.to_3bpp_indexes(raw)))
     inputs = TAIKOH_X68_INPUTS if x68 else TAIKOH_DOS_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     mon = files["MONTA.PUT"]
@@ -2643,8 +2569,7 @@ def build_taikoh_dos(game_dir: str, pc98: bool = False, x68: bool = False) -> tu
         "format": FORMAT, "id": "taikoh-x68" if x68 else "taikoh-pc98" if pc98 else "taikoh-dos", "game": "TAIKOH",
         "platform": "X68" if x68 else "PC98" if pc98 else "DOS",
         "title": {"ja": "太閤立志伝", "zh": "太閤立志傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68000", "colors": colours} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": colours} if pc98 else
@@ -2697,10 +2622,7 @@ def progen_pc98_pixels(data: bytes, width: int, rows: int) -> bytes:
 
 
 def build_progen_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in PROGEN_PC98_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, PROGEN_PC98_INPUTS)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     kao = files["KAO.LZW"]
@@ -2749,8 +2671,7 @@ def build_progen_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "progen-pc98", "game": "PROGEN", "platform": "PC98",
         "title": {"ja": "プロジェネター"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in PROGEN_PC98_INPUTS]},
+        "source": source(files, PROGEN_PC98_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colours}],
         "blobs": store.names,
@@ -2791,10 +2712,7 @@ ROYAL_X68_ANALOG = 0x2DEBC
 def build_royal_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple[dict, list[bytes]]:
     """pc88=True: the PC-88 version (200-line faces, digital colours only); x68=True: the X68000 version."""
     inputs = ROYAL_PC88_INPUTS if pc88 else ROYAL_X68_INPUTS if x68 else ROYAL_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAODATA.DAT"]
@@ -2803,7 +2721,7 @@ def build_royal_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tu
                       "code": f"{i // ROYAL_PC88_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC88_FACE)]
         lords, units = koei_games.load_royal_pc98_names(os.path.join(game_dir, "SNDATA1.CIM"), pc88=True)
     else:
-        portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i, 64, 80, 3))),
+        portraits = [{"img": store.add(64, 80, bytes(decode_planar(kao, i, 64, 80, 3))),
                       "code": f"{i // ROYAL_PC98_FACE:04X}"} for i in range(0, len(kao), ROYAL_PC98_FACE)]
         lords, units = koei_games.load_royal_x68_names(os.path.join(game_dir, "MAIN.Z")) if x68 else \
             koei_games.load_royal_pc98_names(os.path.join(game_dir, "MAIN.EXE"))
@@ -2836,8 +2754,7 @@ def build_royal_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tu
         "format": FORMAT, "id": "royal-pc88" if pc88 else "royal-x68" if x68 else "royal-pc98", "game": "ROYAL",
         "platform": "PC88" if pc88 else "X68" if x68 else "PC98",
         "title": {"ja": "ロイヤルブラッド", "zh": "魔法皇冠"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": palettes,
         "blobs": store.names,
@@ -2873,10 +2790,7 @@ ININDOU_X68_PALETTE = 0x9A514 - 0x514DE
 
 def build_inindou(game_dir: str, x68: bool = False, pc88: bool = False) -> tuple[dict, list[bytes]]:
     inputs = ININDOU_X68_INPUTS if x68 else ININDOU_PC88_INPUTS if pc88 else ININDOU_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     main = files[inputs[2]]
     store = ImageStore(["portraits.bin"])
 
@@ -2911,8 +2825,7 @@ def build_inindou(game_dir: str, x68: bool = False, pc88: bool = False) -> tuple
         "format": FORMAT, "id": "inindou-x68" if x68 else "inindou-pc88" if pc88 else "inindou-pc98",
         "game": "ININDOU", "platform": "X68" if x68 else "PC88" if pc88 else "PC98",
         "title": {"ja": "伊忍道 打倒信長", "zh": "伊忍道 打倒信長"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
                      {"id": "pc88", "label": "PC88", "colors": colors} if pc88 else
@@ -2975,10 +2888,7 @@ def ishin_pc88_record(rec: bytes) -> bytes:
 def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[bytes]]:
     """pc88=True: the PC-88 version (the first platform)."""
     inputs = ISHIN_PC88_INPUTS if pc88 else ISHIN_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["pixels.bin", "portraits.bin"])
     kao, mon = files["KAODAT.DAT"], files["MONDAT.DAT"]
     if pc88:
@@ -2992,7 +2902,7 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
 
     portraits = []
     for i in range(0, len(kao) if pc88 else ISHIN_PC98_MASK, ISHIN_PC98_FACE):
-        px = [c if m else 0 for c, m in zip(genpei.decode_planar(kao, i, 48, 40, 3), mask)]
+        px = [c if m else 0 for c, m in zip(decode_planar(kao, i, 48, 40, 3), mask)]
         face = i // ISHIN_PC98_FACE
         code = f"FF{face:02X}000000" if pc88 else f"FF{face:02X}00000000"
         portraits.append({"img": doubled(px, 40, 1), **({} if face == crowd else {"code": code})})
@@ -3000,7 +2910,7 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
     if pc88:
         ykao = files["YKAO.DAT"]
         for i in range(0, len(ykao), ISHIN_PC98_FACE):
-            portraits.append({"img": doubled(genpei.decode_planar(ykao, i, 48, 40, 3), 40, 1), "group": "遊郭の娘"})
+            portraits.append({"img": doubled(decode_planar(ykao, i, 48, 40, 3), 40, 1), "group": "遊郭の娘"})
 
     # composite parts; the corners the mask clears are colour 0 in the background and left out of the others
     none = store.add(1, 1, bytes([TRANSPARENT]))
@@ -3009,11 +2919,11 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
         items = []
         for k in range(count):
             if slot == "back":
-                px = genpei.decode_planar(mon, offset + k * ISHIN_PC98_FACE, 48, 40, 3)
+                px = decode_planar(mon, offset + k * ISHIN_PC98_FACE, 48, 40, 3)
                 items.append(doubled([c if m else 0 for c, m in zip(px, mask)], 40))
                 continue
             o = offset + k * rows * 24
-            pic = genpei.decode_planar(mon, o + rows * 6, 48, rows, 3)
+            pic = decode_planar(mon, o + rows * 6, 48, rows, 3)
             keep = [mon[o + i // 8] >> (7 - i % 8) & 1 for i in range(48 * rows)]
             for dy in ISHIN_PC98_SHIFTS if shift is not None else [0]:
                 top = y + dy  # a kept pixel with colour is colour 7 in both parts that have one, so OR = copy
@@ -3083,8 +2993,7 @@ def build_ishin_pc98(game_dir: str, pc88: bool = False) -> tuple[dict, list[byte
         "format": FORMAT, "id": "ishin-pc88" if pc88 else "ishin-pc98", "game": "ISHIN",
         "platform": "PC88" if pc88 else "PC98",
         "title": {"ja": "維新の嵐", "zh": "維新之嵐"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": ISHIN_PC98_PALETTE} if pc88 else
                      {"id": "pc98", "label": "PC98", "colors": ISHIN_PC98_PALETTE}],
@@ -3129,34 +3038,31 @@ ISHIN_X68_OPTIONAL = {"collar", "hair", "beard"}  # the count is "none", the las
 
 
 def build_ishin_x68(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in ISHIN_X68_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, ISHIN_X68_INPUTS)
     store = ImageStore(["pixels.bin", "portraits.bin"])
     kao, mon = files["KAODAT.DAT"], files["MONDAT.DAT"]
 
     portraits = []
     for face in range(len(kao) // ISHIN_X68_FACE):
-        img = store.add(48, 80, bytes(genpei.decode_planar(kao, face * ISHIN_X68_FACE, 48, 80, 3)), 1)
+        img = store.add(48, 80, bytes(decode_planar(kao, face * ISHIN_X68_FACE, 48, 80, 3)), 1)
         portraits.append({"img": img, **({} if face == ISHIN_X68_CROWD else {"code": f"FF{face:02X}000000"})})
     portraits[ISHIN_X68_CROWD]["group"] = "一般人物"
     ykao = files["YKAO.DAT"]
     for i in range(0, len(ykao), ISHIN_PC98_FACE):
-        px = genpei.decode_planar(ykao, i, 48, 40, 3)
+        px = decode_planar(ykao, i, 48, 40, 3)
         doubled = bytes(c for r in range(40) for _ in range(2) for c in px[r * 48:r * 48 + 48])
         portraits.append({"img": store.add(48, 80, doubled, 1), "group": "遊郭の娘"})
 
     # a masked-off pixel is the picture's colour (OR onto 0); a kept one shows through unless the picture has a
     # colour, which only happens with colour 7, so OR = copy there too
     none = store.add(1, 1, bytes([TRANSPARENT]))
-    parts = {"back": {"items": [store.add(48, 80, bytes(genpei.decode_planar(mon, k * ISHIN_X68_FACE, 48, 80, 3)))
+    parts = {"back": {"items": [store.add(48, 80, bytes(decode_planar(mon, k * ISHIN_X68_FACE, 48, 80, 3)))
                                 for k in range(ISHIN_X68_LAYERS["head"][3] // ISHIN_X68_FACE)]}}
     for slot, (_, _, count, mask, mask_step, pic, pic_step, mask_rows, pic_rows, y) in ISHIN_X68_LAYERS.items():
         items = []
         for k in range(count):
             m = mask + k * mask_step
-            colours = genpei.decode_planar(mon, pic + k * pic_step, 48, pic_rows, 3) if pic else []
+            colours = decode_planar(mon, pic + k * pic_step, 48, pic_rows, 3) if pic else []
             px = []
             for i in range(48 * mask_rows):
                 c = colours[i] if i < len(colours) else 0
@@ -3189,8 +3095,7 @@ def build_ishin_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "ishin-x68", "game": "ISHIN", "platform": "X68",
         "title": {"ja": "維新の嵐", "zh": "維新之嵐"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ISHIN_X68_INPUTS]},
+        "source": source(files, ISHIN_X68_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68000", "colors": ISHIN_PC98_PALETTE}],
         "blobs": store.names,
@@ -3226,10 +3131,7 @@ ISHIN2_WIN_PER_BLOB = 305  # about 0.9 MB compressed
 
 
 def build_ishin2_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in ISHIN2_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, ISHIN2_WIN_INPUTS)
     faces = ls11.ls11_decode_parts(files["FACE.I2"])
     w, h = ISHIN2_WIN_FACE
     assert all(len(px) == w * h for px in faces)
@@ -3278,8 +3180,7 @@ def build_ishin2_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "ishin2-win", "game": "ISHIN2", "platform": "WIN",
         "title": {"ja": "維新の嵐 幕末志士伝", "zh": "維新之嵐 幕末志士傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in ISHIN2_WIN_INPUTS]},
+        "source": source(files, ISHIN2_WIN_INPUTS),
         "display": {"scale": 3},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -3309,10 +3210,7 @@ def build_tk_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple
     """pc88=True: the PC-88 version (its own 48x32 faces, line-doubled; the PC-98 name records).
     x68=True: the X68000 version (its own 56x72 faces; the PC-98 names in 20-byte records)."""
     inputs = TK_PC88_INPUTS if pc88 else TK_X68_INPUTS if x68 else TK_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     if pc88:
@@ -3321,12 +3219,12 @@ def build_tk_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple
                      for i in range(TK_PC98_ARMY + 2)]
     elif x68:
         pic = files["RENPIC.DAT"]
-        portraits = [{"img": store.add(56, 72, bytes(genpei.decode_planar(pic, i * TK_X68_FACE, 56, 72, 3)))}
+        portraits = [{"img": store.add(56, 72, bytes(decode_planar(pic, i * TK_X68_FACE, 56, 72, 3)))}
                      for i in range(TK_PC98_ARMY + 2)]
     else:
         pic = files["RENPIC.DAT"]
         # the 288 bytes after the 42 faces are 32x24 icons (0x12410)
-        portraits = [{"img": store.add(40, 48, bytes(genpei.decode_planar(pic, i * TK_PC98_FACE, 40, 48, 3)))}
+        portraits = [{"img": store.add(40, 48, bytes(decode_planar(pic, i * TK_PC98_FACE, 40, 48, 3)))}
                      for i in range(TK_PC98_ARMY + 2)]
     for i in (TK_PC98_ARMY, TK_PC98_ARMY + 1):
         portraits[i].update(group="陸軍", name="陸軍参謀")
@@ -3341,8 +3239,7 @@ def build_tk_pc98(game_dir: str, pc88: bool = False, x68: bool = False) -> tuple
         "format": FORMAT, "id": "tk-pc88" if pc88 else "tk-x68" if x68 else "tk-pc98", "game": "TK",
         "platform": "PC88" if pc88 else "X68" if x68 else "PC98",
         "title": {"ja": "提督の決断", "zh": "提督之決斷"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": TK_PC98_PALETTE} if pc88 else
                      {"id": "x68", "label": "X68000", "colors": TK_PC98_PALETTE} if x68 else
@@ -3370,10 +3267,7 @@ TK2_PC98_OTHERS = {99: "M.L.ケソン", 100: "ホー・チ・ミン", 101: "加�
 
 def build_tk2_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     inputs = ["KAO.TK2", "PACK.LZW", "GRDATA", "SJDATA"] if pk else TK2_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     # the PK disk's PACK.LZW replaces main.exe and ardata (two Allied names fixed) when installed over the base game
     if pk:
         pack = ls11.lw11_decode_files(files["PACK.LZW"])
@@ -3383,7 +3277,7 @@ def build_tk2_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     store = ImageStore(["portraits.bin"])
 
     kao = files["KAO.TK2"]
-    portraits = [{"img": store.add(48, 64, bytes(genpei.decode_planar(kao, i, 48, 64, 3)))}
+    portraits = [{"img": store.add(48, 64, bytes(decode_planar(kao, i, 48, 64, 3)))}
                  for i in range(0, len(kao), TK2_PC98_FACE)]
     for i, name in TK2_PC98_OTHERS.items():
         portraits[i].update(group="事件人物", name=name)
@@ -3401,8 +3295,7 @@ def build_tk2_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
         "format": FORMAT, "id": "tk2pk-pc98" if pk else "tk2-pc98", "game": "TK2PK" if pk else "TK2", "platform": "PC98",
         "title": {"ja": "提督の決断II パワーアップキット", "zh": "提督之決斷II 威力加強版"} if pk
         else {"ja": "提督の決断II", "zh": "提督之決斷II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
@@ -3443,22 +3336,9 @@ TK3_PC98_STAFF = {181: "日本軍参謀", 182: "アメリカ軍参謀",
                   **{191 + i: "アメリカ軍" + s for i, s in enumerate(["作戦参謀", "砲術参謀", "航空参謀", "航海参謀", "情報参謀", "補給参謀"])}}
 
 
-def tk3_pc98_face(data: bytes) -> bytes:
-    """64x80, 4 planes interleaved per byte: byte (y * 8 + x // 8) * 4 + q is plane q, MSB = leftmost."""
-    out = bytearray(64 * 80)
-    for i in range(64 * 80 // 8):
-        planes = data[i * 4:i * 4 + 4]
-        for b in range(8):
-            out[i * 8 + b] = sum(((p >> (7 - b)) & 1) << q for q, p in enumerate(planes))
-    return bytes(out)
-
-
 def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     inputs = TK3PK_PC98_INPUTS if pk else TK3_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     exe = files["MAIN.EXE"]
     store = ImageStore(["portraits.bin"])
 
@@ -3466,7 +3346,7 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     base_faces = len(faces)
     if pk:
         faces += ls11.ls11_decode_parts(files["KAODATA2.TK3"])
-    portraits = [{"img": store.add(64, 80, tk3_pc98_face(data))} for data in faces]
+    portraits = [{"img": store.add(64, 80, bytes(decode_planar(data, 0, 64, 80, 4)))} for data in faces]
     for i in TK3_PC98_REGISTERED:
         portraits[i]["group"] = "登録軍人"
     for i, name in {**TK3_PC98_EVENT_PEOPLE, **(TK3PK_PC98_EVENT_PEOPLE if pk else {})}.items():
@@ -3502,8 +3382,7 @@ def build_tk3_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
         "format": FORMAT, "id": "tk3pk-pc98" if pk else "tk3-pc98", "game": "TK3PK" if pk else "TK3", "platform": "PC98",
         "title": {"ja": "提督の決断III パワーアップキット", "zh": "提督之決斷III 威力加強版"} if pk
         else {"ja": "提督の決断III", "zh": "提督之決斷III"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
@@ -3566,10 +3445,7 @@ NOBU5_WIN_BLOBS = ["portraits.bin", "extra.bin"]
 
 
 def build_nobu5pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU5_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU5_WIN_INPUTS)
     store = ImageStore(NOBU5_WIN_BLOBS)
 
     dibs = {rid: data for rid, data in utils.pe_resources(files["Kao.dll"], 2)}
@@ -3614,8 +3490,7 @@ def build_nobu5pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu5pk-win", "game": "NOBU5PK", "platform": "WIN",
         "title": {"ja": "信長の野望・覇王伝 with パワーアップキット", "zh": "信長之野望・霸王傳 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU5_WIN_INPUTS]},
+        "source": source(files, NOBU5_WIN_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -3629,10 +3504,7 @@ def build_nobu5pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
 def build_nobu5_pc98(game_dir: str, x68: bool = False, pk: bool = False) -> tuple[dict, list[bytes]]:
     """pk=True: the PC-98 with パワーアップキット (faces 929-1066 and scenarios 0 and 4 marked pk, as nobu5pk-win)."""
     inputs = NOBU5_PC98PK_INPUTS if pk else NOBU5_X68_INPUTS if x68 else NOBU5_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     exe = ls11.cz11_decode(files["MAIN.Z"]) if x68 else files["MAIN.EXE"]
     store = ImageStore(NOBU5_WIN_BLOBS if pk else ["portraits.bin"])
 
@@ -3695,8 +3567,7 @@ def build_nobu5_pc98(game_dir: str, x68: bool = False, pk: bool = False) -> tupl
         "game": "NOBU5PK" if pk else "NOBU5", "platform": "X68" if x68 else "PC98",
         "title": {"ja": "信長の野望・覇王伝 with パワーアップキット", "zh": "信長之野望・霸王傳 威力加強版"} if pk else
                  {"ja": "信長の野望・覇王伝", "zh": "信長之野望・霸王傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": colors}],
@@ -3829,10 +3700,7 @@ def nobu_pc98_face(data: bytes) -> bytes:
 
 def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]:
     inputs = NOBU6PK_PC98_INPUTS if pk else NOBU6_PC98_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     exe = files["MAINPK.EXE" if pk else "MAIN.EXE"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
     heights_at, eyes_at, mouth_at, palette_at = (
@@ -3850,7 +3718,7 @@ def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]
         for k, slot in enumerate(NOBU6_PC98_SLOTS):
             h = heights[k]
             if k < 2:
-                items = [store.add(64, h, bytes(genpei.decode_planar(mon[6 * t + k], i * h * 24, 64, h, 3)))
+                items = [store.add(64, h, bytes(decode_planar(mon[6 * t + k], i * h * 24, 64, h, 3)))
                          for i in range(4)]
             else:
                 # kept screen pixels are transparent; the 3 kept pixels with colour (type 3 mouth 0) are the
@@ -3858,7 +3726,7 @@ def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]
                 mask, pic = mon[6 * t + 2 * k - 2], mon[6 * t + 2 * k - 1]
                 items = []
                 for i in range(4):
-                    px = genpei.decode_planar(pic, i * h * 24, 64, h, 3)
+                    px = decode_planar(pic, i * h * 24, 64, h, 3)
                     items.append(store.add(64, h, bytes(
                         TRANSPARENT if mask[i * h * 8 + j // 8] >> (7 - j % 8) & 1 and not c else c
                         for j, c in enumerate(px))))
@@ -3906,8 +3774,7 @@ def build_nobu6_pc98(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]
         "format": FORMAT, "id": "nobu6pk-pc98" if pk else "nobu6-pc98", "game": "NOBU6PK" if pk else "NOBU6", "platform": "PC98",
         "title": {"ja": "信長の野望・天翔記 with パワーアップキット", "zh": "信長之野望・天翔記 威力加強版"} if pk else
         {"ja": "信長の野望・天翔記", "zh": "信長之野望・天翔記"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
@@ -4040,10 +3907,7 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False, dos
     if not dos:
         inputs = inputs + [f"dos/{n}" for n in GENCHOU_PC88_INPUTS[2:]]
     full = x68 or pc98 or dos
-    files = {}
-    for name in inputs + ([] if full else ["VERSION"]):
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs + ([] if full else ["VERSION"]))
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     if full:
@@ -4133,8 +3997,7 @@ def build_genchou_pc88(game_dir: str, x68: bool = False, pc98: bool = False, dos
         "format": FORMAT, "id": "genchou-dos" if dos else "genchou-pc98" if pc98 else "genchou-x68" if x68 else "genchou-pc88",
         "game": "GENCHOU", "platform": "DOS" if dos else "PC98" if pc98 else "X68" if x68 else "PC88",
         "title": {"ja": "蒼き狼と白き牝鹿・元朝秘史", "zh": "蒼狼與白鹿・元朝秘史"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": [
                          "#" + "".join(f"{files['MAIN.EXE'][GENCHOU_PC98_PALETTE + 3 * c + k] * 17:02x}" for k in (1, 2, 0))
@@ -4175,10 +4038,7 @@ NOBU2_PC88_NAME_HISTORICAL = {"別所長冶": "別所長治"}
 
 
 def build_nobu2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU2_PC88_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU2_PC88_INPUTS)
     disk_b = pc88.d88_image(files["DISK_B.D88"])
     data50s = pc88.cpm_files(pc88.d88_image(files["DISK_A.D88"]))["DATA50S.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
@@ -4210,8 +4070,7 @@ def build_nobu2_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu2-pc88", "game": "NOBU2", "platform": "PC88",
         "title": {"ja": "信長の野望・全国版", "zh": "信長之野望・全國版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU2_PC88_INPUTS]},
+        "source": source(files, NOBU2_PC88_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": NOBU2_PC88_PALETTE}],
         "blobs": store.names,
@@ -4243,10 +4102,7 @@ NOBU2_DOS_NAMES = (0x1760, 0x19A8)  # DATA50S.DAT: 53 surnames, then 53 given na
 
 
 def build_nobu2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU2_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU2_DOS_INPUTS)
     pic = files["PICDATA.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -4284,8 +4140,7 @@ def build_nobu2_dos(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu2-dos", "game": "NOBU2", "platform": "DOS",
         "title": {"ja": "信長の野望・全国版", "zh": "信長之野望・全國版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU2_DOS_INPUTS]},
+        "source": source(files, NOBU2_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "ega", "label": "EGA", "colors": ega}, {"id": "mono", "label": "Mono", "colors": mono}],
         "blobs": store.names,
@@ -4322,10 +4177,7 @@ NOBU2_X68_PALETTES = 0x706EC - 0x4FFDE  # ODAMAIN.Z: colours 8-15 for the lords,
 
 
 def build_nobu2_x68(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU2_X68_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU2_X68_INPUTS)
     kao = files["KAO.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -4363,8 +4215,7 @@ def build_nobu2_x68(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu2-x68", "game": "NOBU2", "platform": "X68",
         "title": {"ja": "信長の野望・全国版", "zh": "信長之野望・全國版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU2_X68_INPUTS]},
+        "source": source(files, NOBU2_X68_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors}],
         "blobs": store.names,
@@ -4393,10 +4244,7 @@ NOBU3_PC98_PALETTE = TK_PC98_PALETTE
 
 
 def build_nobu3_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU3_PC98_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU3_PC98_INPUTS)
     kao = files["ORGKAO1.DAT"] + files["ORGKAO2.DAT"] + files["ORGKAO3.DAT"]
     mon = files["MONKAO.DAT"]
     store = ImageStore(["pixels.bin", "portraits.bin"])
@@ -4409,11 +4257,11 @@ def build_nobu3_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes
             size = rows * 48
             o = v * NOBU3_PC98_SET + 2 * offset
             parts[slot] = {"at": [0, 2 * row], "items": [
-                store.add(64, 2 * rows, bytes(genpei.decode_planar(mon, o + i * size, 64, 2 * rows, 3)))
+                store.add(64, 2 * rows, bytes(decode_planar(mon, o + i * size, 64, 2 * rows, 3)))
                 for i in range(4)]}
         variants.append({"id": str(v), "label": f"類型 {v}", "parts": parts})
 
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(kao, i * sango.SAN5_FACE, 64, 80, 3)), blob=1),
+    portraits = [{"img": store.add(64, 80, bytes(decode_planar(kao, i * sango.SAN5_FACE, 64, 80, 3)), blob=1),
                   "code": f"{i:04X}"} for i in range(NOBU3_DOS_PORTRAITS)]
     for i in NOBU3_DOS_PRINCESSES:  # MAIN.EXE 0x10CBE: marriage shows 0x9D + rand(20)
         portraits[i]["group"] = "姫"
@@ -4436,8 +4284,7 @@ def build_nobu3_pc98(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes
         "format": FORMAT, "id": "nobu3-x68" if x68 else "nobu3-pc98", "game": "NOBU3",
         "platform": "X68" if x68 else "PC98",
         "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_PC98_INPUTS]},
+        "source": source(files, NOBU3_PC98_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": NOBU3_PC98_PALETTE} if x68 else
                      {"id": "pc98", "label": "PC98", "colors": NOBU3_PC98_PALETTE}],
@@ -4467,10 +4314,7 @@ NOBU3_WIN_KAO2_NOTE = "結婚時從姫的 22 張臉隨機選一張，最後兩�
 
 
 def build_nobu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU3_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU3_WIN_INPUTS)
     store = ImageStore(["portraits.bin", "portraits2.bin"])
 
     # palette.nb3 part 1 is the face palette (B, R, G); the faces use 98 colours, neither 0 nor 255
@@ -4506,8 +4350,7 @@ def build_nobu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu3-win", "game": "NOBU3", "platform": "WIN",
         "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_WIN_INPUTS]},
+        "source": source(files, NOBU3_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -4526,10 +4369,7 @@ NOBU3_PC88_NAME_HISTORICAL = {"河野道宣": "河野通宣", "河野道直": "�
 
 
 def build_nobu3_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU3_PC88_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU3_PC88_INPUTS)
     kao = files["KAODATA.DAT"]  # the same file as nobu3-dos
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
@@ -4568,8 +4408,7 @@ def build_nobu3_pc88(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu3-pc88", "game": "NOBU3", "platform": "PC88",
         "title": {"ja": "信長の野望・戦国群雄伝", "zh": "信長之野望・戰國群雄傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU3_PC88_INPUTS]},
+        "source": source(files, NOBU3_PC88_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc88", "label": "PC88", "colors": SAN2_JP_PALETTE}],
         "blobs": store.names,
@@ -4623,10 +4462,7 @@ def build_taikoh2_win(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
     decode = koei_games._taikoh2_pc98_sjis if pc98 else koei_games._big5
     deleted = TAIKOH2_PC98_DELETED if pc98 else TAIKOH2_WIN_DELETED
     historical = TAIKOH2_PC98_NAME_HISTORICAL if pc98 else TAIKOH2_WIN_NAME_HISTORICAL
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     def face(data: bytes) -> int:  # u16 width, u16 height, then 3-bit NPK
@@ -4678,8 +4514,7 @@ def build_taikoh2_win(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
         "format": FORMAT, "id": "taikoh2-pc98" if pc98 else "taikoh2-win", "game": "TAIKOH2",
         "platform": "PC98" if pc98 else "WIN",
         "title": {"ja": "太閤立志伝II", "zh": "太閤立志傳II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colours} if pc98 else
                      {"id": "win", "label": "Windows", "colors": colours}],
@@ -4711,10 +4546,7 @@ TAIKOH3_WIN_LOOKS = {0: [276, 277], 230: [278]}
 
 
 def build_taikoh3_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in TAIKOH3_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, TAIKOH3_WIN_INPUTS)
     start, w, h, count = TAIKOH3_WIN_FACES
     store = ImageStore(["portraits.bin"])
     portraits = []
@@ -4749,8 +4581,7 @@ def build_taikoh3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "taikoh3-win", "game": "TAIKOH3", "platform": "WIN",
         "title": {"ja": "太閤立志伝III", "zh": "太閤立志傳III"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH3_WIN_INPUTS]},
+        "source": source(files, TAIKOH3_WIN_INPUTS),
         "display": {"scale": 3},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -4778,10 +4609,7 @@ TAIKOH4_WIN_SCENARIO_NAMES = "SNR3.TR_"  # the latest of the three (names such a
 
 
 def build_taikoh4_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in TAIKOH4_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, TAIKOH4_WIN_INPUTS)
     store = ImageStore(["portraits.bin", "palettes.bin"])
     palettes, palette_index, portraits, index = bytearray(), {}, [], {}
     for name, base in (("FACE0.TG4", 0), ("FACE1.TG4", TAIKOH4_WIN_LOOKS)):
@@ -4821,8 +4649,7 @@ def build_taikoh4_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "taikoh4-win", "game": "TAIKOH4", "platform": "WIN", "opaque": True,
         "title": {"ja": "太閤立志伝IV", "zh": "太閤立志傳IV"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH4_WIN_INPUTS]},
+        "source": source(files, TAIKOH4_WIN_INPUTS),
         "display": {"scale": 3},
         "palettes": [],
         "portraitPalettes": {"blob": 1},
@@ -4850,10 +4677,7 @@ TAIKOH5DX_WIN_PER_BLOB = 17  # about 1 MB compressed
 
 
 def build_taikoh5dx_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in TAIKOH5DX_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, TAIKOH5DX_WIN_INPUTS)
     faces = koei_games.load_taikoh5_win_faces(os.path.join(game_dir, "MINIFACE.G1T"))
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // TAIKOH5DX_WIN_PER_BLOB + 1)]
     store = ImageStore(blobs)
@@ -4903,8 +4727,7 @@ def build_taikoh5dx_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "taikoh5dx-win", "game": "TAIKOH5DX", "platform": "WIN",
         "title": {"ja": "太閤立志伝V DX", "zh": "太閤立志傳V DX"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in TAIKOH5DX_WIN_INPUTS]},
+        "source": source(files, TAIKOH5DX_WIN_INPUTS),
         "display": {"scale": 1},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
@@ -4931,10 +4754,7 @@ KOUKAI4PK_WIN_PER_BLOB = 10  # about 1 MB compressed
 
 
 def build_koukai4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in KOUKAI4PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, KOUKAI4PK_WIN_INPUTS)
     faces = koei_games.load_koukai4_win_bustups(os.path.join(game_dir, "bustup.dk4"))
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // KOUKAI4PK_WIN_PER_BLOB + 1)]
     store = ImageStore(blobs)
@@ -4989,8 +4809,7 @@ def build_koukai4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "koukai4pk-win", "game": "KOUKAI4PK", "platform": "WIN",
         "title": {"ja": "大航海時代IV with パワーアップキット HD Version", "zh": "大航海時代IV 威力加強版 HD Version"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI4PK_WIN_INPUTS]},
+        "source": source(files, KOUKAI4PK_WIN_INPUTS),
         "display": {"scale": 1},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
@@ -5022,10 +4841,7 @@ AIR_PC98_PALETTE = 0x40582
 def build_air(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     sheets = AIR_FACES + ([] if x68 else [(AIR_PC98_UNUSED, "未使用")])
     inputs = [name for name, _ in sheets] + ["AM.Z" if x68 else "AM98.EXE"]
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     # no face codes or person names: each sheet is loaded as a picture
@@ -5049,8 +4865,7 @@ def build_air(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
         "format": FORMAT, "id": "air-x68" if x68 else "air-pc98", "game": "AIR",
         "platform": "X68" if x68 else "PC98",
         "title": {"ja": "エアーマネージメント 大空に賭ける", "zh": "航空霸業"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
                      {"id": "analog", "label": "類比 RGB", "colors": colors}],
@@ -5082,14 +4897,11 @@ AIR2_PC98_PALETTE = 0x458AC
 
 def build_air2_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]]:
     inputs = [name for name, _ in AIR2_DOS_FACES] + (["AM2PC98.EXE"] if pc98 else [])
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     # no face codes or person names: each sheet is loaded by file
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(files[name], i + 16, 64, 80, 4))),
+    portraits = [{"img": store.add(64, 80, bytes(decode_planar(files[name], i + 16, 64, 80, 4))),
                   "group": AIR2_PC98_GROUPS[group] if pc98 else group}
                  for name, group in AIR2_DOS_FACES for i in range(0, len(files[name]), AIR2_DOS_FACE)]
     if pc98:
@@ -5102,8 +4914,7 @@ def build_air2_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[bytes]
     meta = {
         "format": FORMAT, "id": "air2-pc98" if pc98 else "air2-dos", "game": "AIR2", "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "エアーマネジメントII 航空王をめざせ", "zh": "航空霸業II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [palette],
         "blobs": store.names,
@@ -5130,10 +4941,7 @@ LEADING_X68_PALETTE = 0x53F4A - 0x514DE
 
 def build_leading(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
     inputs = [name for name, _ in LEADING_FACES] + ["LC.Z" if x68 else "LC.EXE"]
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     # no face codes or person names: each sheet is loaded as a picture
@@ -5153,8 +4961,7 @@ def build_leading(game_dir: str, x68: bool = False) -> tuple[dict, list[bytes]]:
         "format": FORMAT, "id": "leading-x68" if x68 else "leading-pc98", "game": "LEADING",
         "platform": "X68" if x68 else "PC98",
         "title": {"ja": "リーディングカンパニー", "zh": "龍頭企業"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "x68", "label": "X68", "colors": colors} if x68 else
                      {"id": "analog", "label": "類比 RGB", "colors": colors}],
@@ -5179,10 +4986,7 @@ TOPMAN2_PALETTE = 0x62F5E
 
 def build_topman2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     inputs = [name for name, _, _ in TOPMAN2_FACES] + ["TOP2.EXE"]
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(["portraits.bin"])
 
     portraits, counts = [], Counter()
@@ -5204,8 +5008,7 @@ def build_topman2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "topman2-pc98", "game": "TOPMAN2", "platform": "PC98",
         "title": {"ja": "トップマネジメントII", "zh": "頂尖經營者II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": colors}],
         "blobs": store.names,
@@ -5245,10 +5048,7 @@ def mahjong_pc98_name(raw: bytes) -> str:
 
 
 def build_mahjong_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in MAHJONG_PC98_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, MAHJONG_PC98_INPUTS)
     disk = files["SYSTEM.HDM"]
     store = ImageStore(["portraits.bin"])
 
@@ -5274,8 +5074,7 @@ def build_mahjong_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "mahjong-pc98", "game": "MAHJONG", "platform": "PC98",
         "title": {"ja": "麻雀大会", "zh": "麻雀大會"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in MAHJONG_PC98_INPUTS]},
+        "source": source(files, MAHJONG_PC98_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": MAHJONG_PC98_PALETTE}],
         "blobs": store.names,
@@ -5317,10 +5116,7 @@ WINNING2PK_PC98_HUMAN2_OTHERS = [6, *range(11, 42), 47]
 
 
 def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in WINNING2PK_PC98_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, WINNING2PK_PC98_INPUTS)
     human, human2, main = files["HUMAN.DAT"], files["HUMAN2.DAT"], files["MAIN.EXE"]
     store = ImageStore(["portraits.bin"])
 
@@ -5470,8 +5266,7 @@ def build_winning2pk_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "winning2pk-pc98", "game": "WINNING2PK", "platform": "PC98",
         "title": {"ja": "ウイニングポスト2 Plus with パワーアップキット", "zh": "賽馬大亨2 Plus 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in WINNING2PK_PC98_INPUTS]},
+        "source": source(files, WINNING2PK_PC98_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "analog", "label": "類比 RGB",
                       "colors": ["#" + "".join(f"{v * 17:02x}" for v in (pal[i + 1], pal[i + 2], pal[i]))
@@ -5504,10 +5299,7 @@ CELT_DOS_EN_NAMES = 0x34A92
 
 def build_celt_win(game_dir: str, dos: bool = False) -> tuple[dict, list[bytes]]:
     inputs = CELT_DOS_INPUTS if dos else CELT_WIN_INPUTS
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     # the Windows names of the files
     files = {os.path.basename(k) if k.startswith("GDT/") else k: v for k, v in files.items()}
     if dos:
@@ -5597,10 +5389,7 @@ SAN6PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "portra
 
 
 def build_san6pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN6PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN6PK_WIN_INPUTS)
     store = ImageStore(SAN6PK_WIN_BLOBS)
 
     persons = sango.load_san6_persons(game_dir)
@@ -5633,8 +5422,7 @@ def build_san6pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san6pk-win", "game": "SAN6PK", "platform": "WIN",
         "title": {"ja": "三國志VI with パワーアップキット", "zh": "三國志VI 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN6PK_WIN_INPUTS]},
+        "source": source(files, SAN6PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [{"id": "win", "label": "Windows", "colors": sango.load_san6_palette(os.path.join(game_dir, "PALETTE.S6"))}],
         "blobs": store.names,
@@ -5663,10 +5451,7 @@ SAN7PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "portra
 
 
 def build_san7pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN7PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN7PK_WIN_INPUTS)
     store = ImageStore(SAN7PK_WIN_BLOBS)
 
     # colour 255 is used; the key colour 0 is not, so 255 moves to 0
@@ -5690,8 +5475,7 @@ def build_san7pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san7pk-win", "game": "SAN7PK", "platform": "WIN",
         "title": {"ja": "三國志VII with パワーアップキット", "zh": "三國志VII 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN7PK_WIN_INPUTS]},
+        "source": source(files, SAN7PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -5723,10 +5507,7 @@ SAN8PK_WIN_NAME_HISTORICAL = {"田与": "田予"}  # 与 for 豫 (予 in Japanes
 
 
 def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN8PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN8PK_WIN_INPUTS)
     store = ImageStore(SAN8PK_WIN_BLOBS)
 
     # p_main entry 4: 256 x RGBX; colour 255 is used and the key colour 0 is not, so 255 moves to 0
@@ -5779,8 +5560,7 @@ def build_san8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san8pk-win", "game": "SAN8PK", "platform": "WIN",
         "title": {"ja": "三國志VIII with パワーアップキット", "zh": "三國志VIII 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN8PK_WIN_INPUTS]},
+        "source": source(files, SAN8PK_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -5810,10 +5590,7 @@ SAN9PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "extra.
 
 
 def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN9PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN9PK_WIN_INPUTS)
     store = ImageStore(SAN9PK_WIN_BLOBS)
 
     # colour 255 is used and the key colour 0 (green) is not, so 255 moves to 0
@@ -5857,8 +5634,7 @@ def build_san9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san9pk-win", "game": "SAN9PK", "platform": "WIN",
         "title": {"ja": "三國志IX with パワーアップキット", "zh": "三國志IX 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN9PK_WIN_INPUTS]},
+        "source": source(files, SAN9PK_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": [normal[255]] + normal[1:255]},
                      {"id": "sepia", "label": "懷舊", "colors": [sepia[255]] + sepia[1:255]}],
@@ -5894,10 +5670,7 @@ SAN10PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "portraits3.bin", "extra
 
 
 def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN10PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN10PK_WIN_INPUTS)
     store = ImageStore(SAN10PK_WIN_BLOBS)
 
     # every face has its own 256-colour palette; the faces do not use the key colour 0, so 255 moves to 0
@@ -5957,8 +5730,7 @@ def build_san10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san10pk-win", "game": "SAN10PK", "platform": "WIN",
         "title": {"ja": "三國志X with パワーアップキット", "zh": "三國志X 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN10PK_WIN_INPUTS]},
+        "source": source(files, SAN10PK_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [],
         "portraitPalettes": {"blob": SAN10PK_WIN_BLOBS.index("palettes.bin")},
@@ -5987,10 +5759,7 @@ SAN11PK_WIN_NAME_HISTORICAL = {"贏政": "嬴政"}
 
 
 def build_san11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN11PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN11PK_WIN_INPUTS)
     faces = sango.load_san11_small_faces(os.path.join(game_dir, sango.SAN11_FACE_FILE))
     codes = sorted(faces)
     blob_names = ["portraits.bin"] + [f"portraits{n}.bin" for n in range(2, -(-len(codes) // SAN11PK_WIN_PER_BLOB) + 1)]
@@ -6044,8 +5813,7 @@ def build_san11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san11pk-win", "game": "SAN11PK", "platform": "WIN",
         "title": {"ja": "三國志11 with パワーアップキット", "zh": "三國志11 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN11PK_WIN_INPUTS]},
+        "source": source(files, SAN11PK_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [],
         "rgbaBlobs": list(range(len(blob_names))),
@@ -6083,10 +5851,7 @@ KOUMEI_WIN_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "劉貴": "劉璝", "粱
 
 
 def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in KOUMEI_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, KOUMEI_WIN_INPUTS)
     store = ImageStore(["portraits.bin"])
     faces = ls11.ls11_decode_parts(files["KAO.E2"])
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
@@ -6135,8 +5900,7 @@ def build_koumei_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "koumei-win", "game": "KOUMEI", "platform": "WIN",
         "title": {"ja": "三國志孔明伝", "zh": "三國志孔明傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUMEI_WIN_INPUTS]},
+        "source": source(files, KOUMEI_WIN_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": sango.load_koumei_palette(os.path.join(game_dir, "PALET.E2"))}],
         "blobs": store.names,
@@ -6170,10 +5934,7 @@ def build_eiketsu_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
     """pc98=True: the Japanese PC-98 original (Shift-JIS names, PC-98 palette)."""
     troops, folk, historical = ((EIKETSU_PC98_TROOPS, EIKETSU_PC98_FOLK, EIKETSU_PC98_NAME_HISTORICAL) if pc98 else
                                 (EIKETSU_DOS_TROOPS, EIKETSU_DOS_FOLK, EIKETSU_DOS_NAME_HISTORICAL))
-    files = {}
-    for name in EIKETSU_DOS_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, EIKETSU_DOS_INPUTS)
     store = ImageStore(["portraits.bin"])
     faces = koei_games.load_eiketsu_dos_faces(os.path.join(game_dir, "FACEDAT.R3"))
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
@@ -6203,8 +5964,7 @@ def build_eiketsu_dos(game_dir: str, pc98: bool = False) -> tuple[dict, list[byt
         "format": FORMAT, "id": "eiketsu-pc98" if pc98 else "eiketsu-dos", "game": "EIKETSU",
         "platform": "PC98" if pc98 else "DOS",
         "title": {"ja": "三國志英傑伝", "zh": "三國志英傑傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU_DOS_INPUTS]},
+        "source": source(files, EIKETSU_DOS_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": EIKETSU_PC98_PALETTE} if pc98 else
                      {"id": "vga", "label": "VGA", "colors": EIKETSU_DOS_PALETTE}],
@@ -6247,10 +6007,7 @@ KOUKAIGD_WIN_EXTRA_FACES = {"加斯帕爾•比利": 138, "長谷平藏": 141}
 
 
 def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in KOUKAIGD_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, KOUKAIGD_WIN_INPUTS)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     mon = files["Monkao.dat"]
@@ -6259,13 +6016,13 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
         parts = {}
         for slot, (_, offset, size, count, row, _, _) in KOUKAIGD_WIN_SLOTS.items():
             base = KOUKAIGD_WIN_PARTS + v * KOUKAIGD_WIN_TYPE + offset
-            items = [store.add(64, size // 24, bytes(genpei.decode_planar(mon, base + i * size, 64, size // 24, 3)))
+            items = [store.add(64, size // 24, bytes(decode_planar(mon, base + i * size, 64, size // 24, 3)))
                      for i in range(count)]
             parts[slot] = {"at": [0, row], "items": items}
         variants.append({"id": str(v), "label": f"類型 {v + 1}", "parts": parts})
 
     kao = ls11.ls11_decode_parts(files["Kao.lzw"])[:KOUKAIGD_WIN_PORTRAITS]
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(p, 0, 64, 80, 3)), blob=1), "code": f"{i:04X}"}
+    portraits = [{"img": store.add(64, 80, bytes(decode_planar(p, 0, 64, 80, 3)), blob=1), "code": f"{i:04X}"}
                  for i, p in enumerate(kao)]
 
     def face(code, variant=0):
@@ -6306,8 +6063,7 @@ def build_koukaigd_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "koukaigd-win", "game": "KOUKAIGD", "platform": "WIN",
         "title": {"ja": "大航海時代外伝", "zh": "大航海時代外傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAIGD_WIN_INPUTS]},
+        "source": source(files, KOUKAIGD_WIN_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": KOUKAIGD_WIN_PALETTE}],
         "blobs": store.names,
@@ -6342,10 +6098,7 @@ KOUKAI2_PC98_EVENT_FACES = {18: "フェレロ公爵", 19: "フェレロ公爵夫
 
 
 def build_koukai2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in KOUKAI2_PC98_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, KOUKAI2_PC98_INPUTS)
     store = ImageStore(["pixels.bin", "portraits.bin"])
 
     kao = files["KAO.LZW"]
@@ -6354,13 +6107,13 @@ def build_koukai2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
         parts = {}
         for slot, (_, offset, size, count, row, _, _) in KOUKAIGD_WIN_SLOTS.items():
             base = KOUKAIGD_WIN_PARTS + v * KOUKAIGD_WIN_TYPE + offset
-            items = [store.add(64, size // 24, bytes(genpei.decode_planar(kao, base + i * size, 64, size // 24, 3)))
+            items = [store.add(64, size // 24, bytes(decode_planar(kao, base + i * size, 64, size // 24, 3)))
                      for i in range(count)]
             parts[slot] = {"at": [0, row], "items": items}
         variants.append({"id": str(v), "label": label, "parts": parts})
 
     faces = ls11.ls11_decode_parts(kao)[:KOUKAI2_PC98_PORTRAITS]
-    portraits = [{"img": store.add(64, 80, bytes(genpei.decode_planar(p, 0, 64, 80, 3)), blob=1), "code": f"{i:04X}"}
+    portraits = [{"img": store.add(64, 80, bytes(decode_planar(p, 0, 64, 80, 3)), blob=1), "code": f"{i:04X}"}
                  for i, p in enumerate(faces)]
 
     mates, events, tavern = koei_games.load_koukai2_pc98_people(os.path.join(game_dir, "DATA1.LZW"))
@@ -6384,8 +6137,7 @@ def build_koukai2_pc98(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "koukai2-pc98", "game": "KOUKAI2", "platform": "PC98",
         "title": {"ja": "大航海時代II", "zh": "大航海時代II"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI2_PC98_INPUTS]},
+        "source": source(files, KOUKAI2_PC98_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "pc98", "label": "PC98", "colors": KOUKAI2_PC98_PALETTE}],
         "blobs": store.names,
@@ -6415,10 +6167,7 @@ KOUKAI3_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "female.bin", "extra.bin
 
 
 def build_koukai3_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in KOUKAI3_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, KOUKAI3_WIN_INPUTS)
     store = ImageStore(KOUKAI3_WIN_BLOBS)
     exe = os.path.join(game_dir, "CDS95.EXE.pec2bac")
     persons = koei_games.load_koukai3_win_persons(exe)
@@ -6452,8 +6201,7 @@ def build_koukai3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "koukai3-win", "game": "KOUKAI3", "platform": "WIN",
         "title": {"ja": "大航海時代III Costa del Sol", "zh": "大航海時代III"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in KOUKAI3_WIN_INPUTS]},
+        "source": source(files, KOUKAI3_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": [f"#{r:02X}{g:02X}{b:02X}" for r, g, b in colours]}],
         "blobs": store.names,
@@ -6483,10 +6231,7 @@ def build_nobu7_win(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]
     """pk=True: the Japanese Steam version with PK."""
     inputs = NOBU7PK_WIN_INPUTS if pk else NOBU7_WIN_INPUTS
     kao_name, pal_name, sn_name = inputs
-    files = {}
-    for name in inputs:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, inputs)
     store = ImageStore(NOBU7_WIN_BLOBS)
 
     kao = files[kao_name]
@@ -6519,8 +6264,7 @@ def build_nobu7_win(game_dir: str, pk: bool = False) -> tuple[dict, list[bytes]]
         "platform": "WIN",
         "title": {"ja": "信長の野望・将星録 with パワーアップキット", "zh": "信長之野望・將星錄 威力加強版"} if pk else
                  {"ja": "信長の野望・将星録", "zh": "信長之野望・將星錄"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in inputs]},
+        "source": source(files, inputs),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -6551,10 +6295,7 @@ NOBU9PK_WIN_PER_BLOB = 105  # about 1 MB compressed
 
 
 def build_nobu9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU9PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU9PK_WIN_INPUTS)
     pal = files["palette.NB9"]
     colors = [f"#{pal[56 + 4 * c]:02x}{pal[55 + 4 * c]:02x}{pal[54 + 4 * c]:02x}" for c in range(255)]
 
@@ -6617,8 +6358,7 @@ def build_nobu9pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu9pk-win", "game": "NOBU9PK", "platform": "WIN",
         "title": {"ja": "信長の野望・嵐世記 with パワーアップキット", "zh": "信長之野望・嵐世記 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU9PK_WIN_INPUTS]},
+        "source": source(files, NOBU9PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -6643,10 +6383,7 @@ NOBU10PK_WIN_PER_BLOB = 105  # about 1 MB compressed
 
 
 def build_nobu10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU10PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU10PK_WIN_INPUTS)
     kao = files["KAOCG.NBX"]
     count, = struct.unpack_from("<I", kao)
     base = 4 + 44 * count
@@ -6698,8 +6435,7 @@ def build_nobu10pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu10pk-win", "game": "NOBU10PK", "platform": "WIN",
         "title": {"ja": "信長の野望・蒼天録 with パワーアップキット", "zh": "信長之野望・蒼天錄 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU10PK_WIN_INPUTS]},
+        "source": source(files, NOBU10PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [],
         "portraitPalettes": {"blob": len(blobs)},
@@ -6722,10 +6458,7 @@ NOBU8PK_WIN_PER_BLOB = 105  # about 1 MB compressed
 
 
 def build_nobu8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU8PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU8PK_WIN_INPUTS)
     pal = files["palette.nb8"]
     assert struct.unpack_from("<2H", pal) == (0x300, 256)
     colors = [f"#{pal[4 + 4 * c]:02x}{pal[5 + 4 * c]:02x}{pal[6 + 4 * c]:02x}" for c in range(255)]  # 255 = transparent
@@ -6763,8 +6496,7 @@ def build_nobu8pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu8pk-win", "game": "NOBU8PK", "platform": "WIN",
         "title": {"ja": "信長の野望・烈風伝 with パワーアップキット", "zh": "信長之野望・烈風傳 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU8PK_WIN_INPUTS]},
+        "source": source(files, NOBU8PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [{"id": "win", "label": "Windows", "colors": colors}],
         "blobs": store.names,
@@ -6790,10 +6522,7 @@ NOBU11PK_WIN_PER_BLOB = 105  # about 1 MB compressed
 
 
 def build_nobu11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU11PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU11PK_WIN_INPUTS)
     kao = files["KAO_M.N11"]
     assert kao[:4] == b"F11N"
     count, = struct.unpack_from("<I", kao, 4)
@@ -6862,8 +6591,7 @@ def build_nobu11pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu11pk-win", "game": "NOBU11PK", "platform": "WIN",
         "title": {"ja": "信長の野望・天下創世 with パワーアップキット", "zh": "信長之野望・天下創世 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU11PK_WIN_INPUTS]},
+        "source": source(files, NOBU11PK_WIN_INPUTS),
         "display": {"scale": 2},
         "opaque": True,
         "palettes": [],
@@ -6892,10 +6620,7 @@ NOBU12PK_WIN_PER_BLOB = 105  # about 1 MB compressed
 
 
 def build_nobu12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU12PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU12PK_WIN_INPUTS)
     kao = files["KAO_M.N12"]
     assert kao[:4] == b"F11N"
     count, = struct.unpack_from("<I", kao, 4)
@@ -6967,8 +6692,7 @@ def build_nobu12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu12pk-win", "game": "NOBU12PK", "platform": "WIN",
         "title": {"ja": "信長の野望・革新 with パワーアップキット", "zh": "信長之野望・革新 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU12PK_WIN_INPUTS]},
+        "source": source(files, NOBU12PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [],
         "portraitPalettes": {"blob": len(blobs) + 1},
@@ -6999,10 +6723,7 @@ NOBU13PK_WIN_PER_BLOB = 31  # about 1 MB compressed
 
 
 def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in NOBU13PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, NOBU13PK_WIN_INPUTS)
     faces = koei_games.load_nobu13_win_kao(os.path.join(game_dir, "KAO_M.N13"))
     blobs = [f"portraits{k + 1 if k else ''}.bin" for k in range((len(faces) - 1) // NOBU13PK_WIN_PER_BLOB + 1)]
     store = ImageStore(blobs)
@@ -7068,8 +6789,7 @@ def build_nobu13pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "nobu13pk-win", "game": "NOBU13PK", "platform": "WIN",
         "title": {"ja": "信長の野望・天道 with パワーアップキット", "zh": "信長之野望・天道 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in NOBU13PK_WIN_INPUTS]},
+        "source": source(files, NOBU13PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
@@ -7102,10 +6822,7 @@ SAN12PK_WIN_PER_BLOB = 25
 
 
 def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in SAN12PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, SAN12PK_WIN_INPUTS)
     faces = sango.load_san12_faces(game_dir)
     with open(SAN12PK_WIN_BOXES) as f:
         boxes = json.load(f)["faces"]
@@ -7178,8 +6895,7 @@ def build_san12pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "san12pk-win", "game": "SAN12PK", "platform": "WIN",
         "title": {"ja": "三國志12 with パワーアップキット", "zh": "三國志12 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in SAN12PK_WIN_INPUTS]},
+        "source": source(files, SAN12PK_WIN_INPUTS),
         "display": {"scale": 2},
         "palettes": [],
         "rgbaBlobs": list(range(len(blobs))),
@@ -7475,10 +7191,7 @@ EIKETSU3_WIN_BLOBS = ["portraits.bin", "extra.bin"]
 
 
 def build_eiketsu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in EIKETSU3_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, EIKETSU3_WIN_INPUTS)
     faces = ls11.ls11_decode_parts(files["KAO.E3"])
     records = koei_games.load_eiketsu3_win_persons(os.path.join(game_dir, "DATA.E3"))
 
@@ -7530,8 +7243,7 @@ def build_eiketsu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "eiketsu3-win", "game": "EIKETSU3", "platform": "WIN",
         "title": {"ja": "毛利元就 誓いの三矢", "zh": "毛利元就傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU3_WIN_INPUTS]},
+        "source": source(files, EIKETSU3_WIN_INPUTS),
         "display": {"scale": 4},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -7560,10 +7272,7 @@ EIKETSU4_WIN_NAME_HISTORICAL = {"神原康政": "榊原康政", "北田具教": 
 
 
 def build_eiketsu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in EIKETSU4_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, EIKETSU4_WIN_INPUTS)
     store = ImageStore(["portraits.bin"])
     faces = ls11.ls11_decode_parts(files["KAO.E4"])
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
@@ -7604,8 +7313,7 @@ def build_eiketsu4_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "eiketsu4-win", "game": "EIKETSU4", "platform": "WIN",
         "title": {"ja": "織田信長伝", "zh": "織田信長傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU4_WIN_INPUTS]},
+        "source": source(files, EIKETSU4_WIN_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -7635,10 +7343,7 @@ EIKETSU5_WIN_NAME_HISTORICAL = {"沙摩可": "沙摩柯", "費褘": "費禕"}
 
 
 def build_eiketsu5_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in EIKETSU5_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, EIKETSU5_WIN_INPUTS)
     store = ImageStore(["portraits.bin"])
     faces = ls11.ls11_decode_parts(files["FACE.E5"])
     portraits = [{"img": store.add(64, 80, px), "code": f"{i:04X}"} for i, px in enumerate(faces)]
@@ -7682,8 +7387,7 @@ def build_eiketsu5_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "eiketsu5-win", "game": "EIKETSU5", "platform": "WIN",
         "title": {"ja": "三國志曹操伝", "zh": "三國志曹操傳"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in EIKETSU5_WIN_INPUTS]},
+        "source": source(files, EIKETSU5_WIN_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": colours}],
         "blobs": store.names,
@@ -7711,10 +7415,7 @@ GENGHIS4PK_WIN_BLOBS = ["portraits.bin", "portraits2.bin", "female.bin"]
 
 
 def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
-    files = {}
-    for name in GENGHIS4PK_WIN_INPUTS:
-        with open(os.path.join(game_dir, name), "rb") as f:
-            files[name] = f.read()
+    files = read_inputs(game_dir, GENGHIS4PK_WIN_INPUTS)
 
     sheets, cells, blank = [], [], set()  # cells: (sex, face, pixels)
     for sex, (name, cols, _) in enumerate(GENGHIS4PK_WIN_SHEETS):
@@ -7762,8 +7463,7 @@ def build_genghis4pk_win(game_dir: str) -> tuple[dict, list[bytes]]:
     meta = {
         "format": FORMAT, "id": "genghis4pk-win", "game": "GENGHIS4PK", "platform": "WIN",
         "title": {"ja": "チンギスハーン・蒼き狼と白き牝鹿IV パワーアップキット", "zh": "成吉思汗 蒼狼與白鹿IV 威力加強版"},
-        "source": {"producer": "kaodata-re", "revision": revision(),
-                   "inputs": [{"path": n, "sha1": hashlib.sha1(files[n]).hexdigest()} for n in GENGHIS4PK_WIN_INPUTS]},
+        "source": source(files, GENGHIS4PK_WIN_INPUTS),
         "display": {"scale": 6},
         "palettes": [{"id": "win", "label": "Windows", "colors": [f"#{r:02X}{g:02X}{b:02X}" for r, g, b in colours]}],
         "blobs": store.names,

@@ -20,11 +20,12 @@ import struct
 from multiprocessing import Pool
 
 import click
-from PIL import Image
 
 import ls11
 import wiki_nobu14 as W
-from nobu15_extras import _cells, _csv, _read, placeholders
+from nobu15_extras import _cells, _read, _save_cell, placeholders
+from common import write_csv
+from gfx import gt1g_texture
 
 RES = ("RES_PK", "res_grp.bin")
 FACES = [(31, "240"), (32, "large")]
@@ -37,7 +38,6 @@ PICTURE_SETS = [
 KAHOU = 8  # 54 x 140x140 + 54 x 32x32
 KAMON, KAMON_CELL, KAMON_COLS = 9, 72, 28  # one 2048x1024 atlas, 72x72 cells in rows of 28
 FACE_BLOCKS = [(9500, 3896), (9000, 3878), (7400, 2281)]  # (first face number, its slot); below 2000 slot = number
-BC = {0x06: 1, 0x07: 2, 0x08: 3, 0x59: 1, 0x5B: 3}
 EVENT_SIZE, STEPS, STEP0, STEP = 47108, 0xB8, 0xBC, 0xB8
 TITLE_REC = 56
 
@@ -49,29 +49,6 @@ def face_slot(n):
         if first <= n < first + 100:
             return slot + n - first
     return None
-
-
-def _texture(t):
-    assert t[:8] == b"GT1G0600", t[:8]
-    o, = struct.unpack_from("<I", t, 0x0C)
-    o += struct.unpack_from("<I", t, o)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    w, h = 1 << (dim & 15), 1 << (dim >> 4)
-    p = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    if fmt in BC:
-        n = BC[fmt]
-        return Image.frombytes("RGBA", (w, h), t[p:p + w * h // (2 if n == 1 else 1)], "bcn", n)
-    assert fmt == 1, hex(fmt)
-    return Image.frombytes("RGBA", (w, h), t[p:p + 4 * w * h], "raw", "BGRA")
-
-
-def _save_cell(job):
-    data, rect, dst = job
-    if data[:4] == b"LWC\x1a":
-        data = ls11.lwc_decode(data)
-    x, y, w, h = rect
-    _texture(data).crop((x, y, x + w, y + h)).save(dst)
-    return dst
 
 
 def _dump(link, folder, jobs, cells=None):
@@ -118,12 +95,12 @@ def faces(game_dir, out, jobs):
             nums = [(0, {"織田信長": names[0]["織田信長"]})]
         rows.append([k, " ".join(f for f in filled[k]), " ".join(str(n) for n, _ in nums),
                      "、".join(f"{name}（{' '.join(sorted(sc))}）" for _, who in nums for name, sc in who.items())])
-    _csv(os.path.join(out, "faces", "index.csv"), ["slot", "sizes", "face_numbers", "persons"], rows)
+    write_csv(os.path.join(out, "faces", "index.csv"), ["slot", "sizes", "face_numbers", "persons"], rows)
     rekidai = []
     for entry in REKIDAI:
         for k, w, h in _dump(_read(res, entry), os.path.join(out, "faces", "rekidai", f"{entry}"), jobs):
             rekidai.append([f"rekidai/{entry}/{k:04d}.png", entry, k, w, h])
-    _csv(os.path.join(out, "faces", "rekidai.csv"), ["file", "entry", "cell", "width", "height"], rekidai)
+    write_csv(os.path.join(out, "faces", "rekidai.csv"), ["file", "entry", "cell", "width", "height"], rekidai)
     unresolved = sorted(n for n in names if face_slot(n) is None)
     return len(rows), len(rekidai), unresolved
 
@@ -135,7 +112,7 @@ def kamon(game_dir, out):
     [(_, _, data)] = list(_cells(link))
     if data[:4] == b"LWC\x1a":
         data = ls11.lwc_decode(data)
-    atlas, folder = _texture(data), os.path.join(out, "kamon")
+    atlas, folder = gt1g_texture(data), os.path.join(out, "kamon")
     os.makedirs(folder, exist_ok=True)
     cells = []
     for k in range(KAMON_COLS * (atlas.height // KAMON_CELL)):
@@ -156,7 +133,7 @@ def kamon(game_dir, out):
             rows.append([k, f"{k:04d}.png", surnames[k] + "家", "", "推定：該血族武將最常見的姓"])
         else:
             rows.append([k, f"{k:04d}.png", "", "", ""])
-    _csv(os.path.join(folder, "index.csv"), ["kamon", "file", "name", "other_names", "source"], rows)
+    write_csv(os.path.join(folder, "index.csv"), ["kamon", "file", "name", "other_names", "source"], rows)
     return len(cells), sum(1 for r in rows if r[2]), len(empty)
 
 
@@ -219,7 +196,7 @@ def events(game_dir, out):
             rows.append([eid, title, year if year >= 0 else "", count,
                          " ".join(str(b) for b in sorted({st["bg"] for st in steps if st["bg"] >= 0})),
                          "、".join(names[p] for p in people if names[p])])
-    _csv(os.path.join(dst, "index.csv"), ["id", "title", "year", "steps", "backgrounds", "persons"], rows)
+    write_csv(os.path.join(dst, "index.csv"), ["id", "title", "year", "steps", "backgrounds", "persons"], rows)
     return len(rows), sum(1 for r in rows if r[1])
 
 
@@ -235,7 +212,7 @@ def items(game_dir, out, jobs):
         _, _, sub, grade, kind, flags = raw[r["id"]]
         rows.append([r["id"], r["name"], kind, r["kind"], grade, sub, f"pictures/{sub:04d}.png",
                      f"pictures/{sub + 54:04d}.png", flags, r["description"]])
-    _csv(os.path.join(dst, "kahou.csv"), ["id", "name", "kind_id", "kind", "grade", "subkind", "picture", "icon",
+    write_csv(os.path.join(dst, "kahou.csv"), ["id", "name", "kind_id", "kind", "grade", "subkind", "picture", "icon",
                                           "flags", "description"], rows)
     return len(rows)
 
@@ -259,7 +236,7 @@ def nobu14_extras(game_dir, out, jobs):
     for entry, folder in PICTURE_SETS:
         for k, w, h in _dump(_read(res, entry), os.path.join(out, "eventcg", folder), work):
             index.append([f"{folder}/{k:04d}.png", folder, k, w, h, f"RES_PK/res_grp.bin {entry}"])
-    _csv(os.path.join(out, "eventcg", "index.csv"), ["file", "set", "cell", "width", "height", "source"], index)
+    write_csv(os.path.join(out, "eventcg", "index.csv"), ["file", "set", "cell", "width", "height", "source"], index)
     click.echo(f"eventcg: {len(index)}")
     with Pool(jobs) as pool:
         for k, _ in enumerate(pool.imap_unordered(_save_cell, work, chunksize=4), 1):

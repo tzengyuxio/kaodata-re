@@ -10,13 +10,17 @@ The people are the kaodata san11pk-win characters: records 0-849 minus the empty
 """
 import csv
 import os
-import struct
 
 import click
 
 import sango
 from kaodata_export import SAN11PK_WIN_EMPTY, SAN11PK_WIN_ROLES, SAN11PK_WIN_SCENARIOS, kana_to_hiragana
 from san9_extras import zh_text
+from common import read_file, u16
+import struct
+from places_export import _gaiji
+import kaodata_export as K
+from wiki_stats import _pick
 
 START, SIZE, COUNT = sango.SAN11_PERSONS
 ZH_START = 17760
@@ -44,15 +48,6 @@ ARMIES, ARMY_SIZE, ARMY_COUNT, TRIBES = 0x257F9, 8, 47, range(42, 47)
 SKILLS = 0x5210, 93  # Scenario.s11 特技 table: +0 name 5
 
 
-def _u16(b, o):
-    return struct.unpack_from("<H", b, o)[0]
-
-
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def _zh_dir(game_dir):
     return os.path.join(game_dir, "..", "steam", "628070-tchinese", "depot", "media", "scenario")
 
@@ -61,8 +56,8 @@ def scenarios(game_dir):
     """[(number, file, data, year, month, title)]"""
     out = []
     for n, name in enumerate(SAN11PK_WIN_SCENARIOS, 1):
-        d = _read(os.path.join(game_dir, name))
-        out.append((n, name, d, _u16(d, 0x5B), d[0x5D], d[0x5F:0x70].split(b"\0")[0].decode("cp932")))
+        d = read_file(os.path.join(game_dir, name))
+        out.append((n, name, d, u16(d, 0x5B), d[0x5D], d[0x5F:0x70].split(b"\0")[0].decode("cp932")))
     return out
 
 
@@ -83,7 +78,7 @@ def _rulers(d):
 
 
 def _skills(game_dir):
-    d = _read(os.path.join(game_dir, "Scenario.s11"))
+    d = read_file(os.path.join(game_dir, "Scenario.s11"))
     start, size = SKILLS
     return [d[start + size * k:][:5].split(b"\0")[0].decode("cp932") for k in range(100)]
 
@@ -96,17 +91,17 @@ def persons(game_dir):
     people = [i for i in range(COUNT) if i not in empty]
     assert all(ja[i]["sex"] in (0, 1) for i in people)
     ids = set(people)
-    zh = _read(os.path.join(_zh_dir(game_dir), "SCEN000.s11"))
+    zh = read_file(os.path.join(_zh_dir(game_dir), "SCEN000.s11"))
     skills = _skills(game_dir)
     rulers = [(n, d, year, _rulers(d)) for n, _, d, year, _, _ in scens]
     sworn, children = {}, {}
     for i in people:
         r = _record(main, i)
-        if _u16(r, 0x48) in ids:
-            sworn.setdefault(_u16(r, 0x48), []).append(i)
+        if u16(r, 0x48) in ids:
+            sworn.setdefault(u16(r, 0x48), []).append(i)
         for o in (0x41, 0x43):
-            if _u16(r, o) in ids:
-                children.setdefault(_u16(r, o), []).append(i)
+            if u16(r, o) in ids:
+                children.setdefault(u16(r, o), []).append(i)
     rows = []
     for i in people:
         r, z, p = _record(main, i), zh[ZH_START + SIZE * i:ZH_START + SIZE * (i + 1)], ja[i]
@@ -121,7 +116,7 @@ def persons(game_dir):
         if courtesy:
             row["courtesy"] = courtesy
         row["reading"] = kana_to_hiragana(p["kana"])
-        row["born"], row["died"], row["debut"] = _u16(r, 0x3A), _u16(r, 0x3C), _u16(r, 0x38)
+        row["born"], row["died"], row["debut"] = u16(r, 0x3A), u16(r, 0x3C), u16(r, 0x38)
         row["stats"] = dict(zip(sango.SAN11_STATS, r[0x71:0x76]))
         row["more"] = {"性別": "女" if r[0x37] else "男"}
         row["hidden"] = {"相性": r[0x4A], "死因": DEATHS[r[0x3E]] if r[0x3E] < 2 else r[0x3E], "義理": r[0x7E],
@@ -132,20 +127,20 @@ def persons(game_dir):
             row["skills"] = {"特技": [skills[r[0x7C]]]}
         rel = {}
         for key, o in (("father", 0x41), ("mother", 0x43), ("spouse", 0x46)):
-            if _u16(r, o) in ids:
-                rel[key] = [_u16(r, o)]
+            if u16(r, o) in ids:
+                rel[key] = [u16(r, o)]
         if i in children:
             rel["children"] = sorted(children[i])
-        group = sworn.get(_u16(r, 0x48), [])
+        group = sworn.get(u16(r, 0x48), [])
         if len(group) > 1:
             rel["sworn"] = sorted(x for x in group if x != i)
-        if _u16(r, 0x3F) in ids:
-            rel["clan"] = _u16(r, 0x3F)
+        if u16(r, 0x3F) in ids:
+            rel["clan"] = u16(r, 0x3F)
         if rel:
             row["relations"] = rel
         game = {}
-        liked = [_u16(r, 0x4B + 2 * k) for k in range(5)]
-        hated = [_u16(r, 0x55 + 2 * k) for k in range(5)]
+        liked = [u16(r, 0x4B + 2 * k) for k in range(5)]
+        hated = [u16(r, 0x55 + 2 * k) for k in range(5)]
         if any(x in ids for x in liked):
             game["親愛武将"] = [x for x in liked if x in ids]
         if any(x in ids for x in hated):
@@ -155,7 +150,7 @@ def persons(game_dir):
         row["scenarios"] = []
         for n, d, year, ruler in rulers:
             s = _record(d, i)
-            code, army, place = s[0x64], s[0x5F], _u16(s, 0x60)
+            code, army, place = s[0x64], s[0x5F], u16(s, 0x60)
             if code == 0xFF:
                 continue
             e = {"scenario": n, "year": year, "status": STATUS.get(code, str(code))}
@@ -166,7 +161,7 @@ def persons(game_dir):
             if code not in (6, 8) and place < 87:
                 e["location"] = place
             if code in (6, 7):
-                e["debut"] = _u16(s, 0x38)
+                e["debut"] = u16(s, 0x38)
             row["scenarios"].append(e)
         if not row["scenarios"]:
             del row["scenarios"]
@@ -189,8 +184,8 @@ def main(game_dir):
         w = csv.writer(f)
         w.writerow(["scenario", "file", "title", "titleZh", "year", "month", "rulers"])
         for n, name, d, year, month, title in scenarios(game_dir):
-            zh = _read(os.path.join(_zh_dir(game_dir), "SCEN000.s11" if n == 1 else name))
-            assert _u16(zh, 0x5B) == year
+            zh = read_file(os.path.join(_zh_dir(game_dir), "SCEN000.s11" if n == 1 else name))
+            assert u16(zh, 0x5B) == year
             rulers = sorted({v for v in _rulers(d).values() if v is not None},
                             key=lambda v: next(k for k, x in _rulers(d).items() if x == v))
             w.writerow([n, name, title, zh_text(zh[0x5F:0x70].split(b"\0")[0]), year, month,
@@ -200,3 +195,78 @@ def main(game_dir):
 
 if __name__ == "__main__":
     main()
+
+
+##############################################################################
+# 三國志11 PK (Steam 628070): media/scenario/Scenario.s11 (cp932): 42 cities from 0x5A (25 bytes: name 5,
+# reading 13, +18 州, +19 six neighbour cities FF-padded), then 45 関 / 港 (26 bytes: name 7, reading 19; 42-51
+# 関, 52-86 港), 12 州 from 0x906 (0x2C bytes: name 5, +38 地方), 6 地方 from 0xB16 (0x12 bytes). 関 and 港 have
+# no city field: parentCity is the city whose territory shares the longest border with theirs on the 200 x 200
+# map SHEX0008 (media/san11pkres.bin item 4791, 11 bytes a cell, +1 territory).
+SAN11_EXTRA_GAIJI = {0xE02D: "鄴", 0xE020: "邳", 0xE00B: "兗", 0xE02A: "涪", 0xE030: "鄱"}  # from the readings
+
+
+SAN11_SHEX_ITEM, SAN11_MAP = 4791, 200
+
+
+def san11_borders(path):
+    """{territory: Counter(other territory: border cells)} of SHEX0008."""
+    from collections import Counter, defaultdict
+    with open(path, "rb") as f:
+        f.seek(0x10 + 8 * SAN11_SHEX_ITEM)
+        offset, size = struct.unpack("<II", f.read(8))
+        f.seek(offset)
+        d = f.read(size)
+    assert d[:8] == b"SHEX0008"
+    n = SAN11_MAP
+    terr = d[8 + 1::11][:n * n]
+    border = defaultdict(Counter)
+    for y in range(n):
+        for x in range(n):
+            a = terr[y * n + x]
+            for dx, dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+                if 0 <= x + dx < n and 0 <= y + dy < n:
+                    b = terr[(y + dy) * n + x + dx]
+                    if a != b:
+                        border[a][b] += 1
+                        border[b][a] += 1
+    return border
+
+
+def places(game_dir, out_dir):
+    with open(os.path.join(game_dir, "Scenario.s11"), "rb") as f:
+        sc = f.read()
+    gaiji = {**sango.SAN11_GAIJI, **SAN11_EXTRA_GAIJI}
+
+    def s(b):
+        return _gaiji(b.split(b"\0")[0].decode("cp932"), gaiji)
+
+    regions = [s(sc[0xB16 + 0x12 * k:][:5]) for k in range(6)]
+    states = [(s(sc[0x906 + 0x2C * k:][:5]), regions[sc[0x906 + 0x2C * k + 38]]) for k in range(12)]
+    border = san11_borders(os.path.join(game_dir, "san11pkres.bin"))
+    rows = []
+    for i in range(42):
+        r = sc[0x5A + 25 * i:][:25]
+        state, region = states[r[18]]
+        rows.append({"id": i, "name": s(r[:5]), "reading": s(r[5:18]), "level": "都市", "province": state,
+                     "region": region, "adjacent": [b for b in r[19:25] if b != 0xFF]})
+    for k in range(45):
+        i = 42 + k
+        r = sc[0x474 + 26 * k:][:26]
+        city = next(c for c, _ in border[i].most_common() if c < 42)
+        rows.append({"id": i, "name": s(r[:7]), "reading": s(r[7:26]), "level": "関" if i < 52 else "港",
+                     "parentCity": city, "province": rows[city]["province"], "region": rows[city]["region"],
+                     "uncertain": ["parentCity", "province", "region"],
+                     "notes": "関、港沒有所屬都市的欄位，parentCity 是大地圖上和它的領地接壤最長的都市（推定），"
+                              "州、地方照那個都市。関、港沒有相鄰表。"})
+    for row in rows:
+        row["notes"] = row.get("notes", "") + "沒有戰場圖，野戰、攻城都在 200 × 200 格的大地圖上打。"
+    return rows
+
+
+def stats(game_dir):
+    sce = os.path.join(game_dir, K.SAN11PK_WIN_SCENARIOS[0])
+    empty = {i for r in K.SAN11PK_WIN_EMPTY for i in r}
+    chars = {p["id"]: p["name"] for p in sango.load_san11_persons(sce)
+             if p["id"] not in empty and p["id"] not in K.SAN11PK_WIN_ROLES}
+    return _pick(sango.load_san11_stats(sce), sango.SAN11_STATS, chars)

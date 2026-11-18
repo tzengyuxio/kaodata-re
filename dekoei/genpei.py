@@ -8,6 +8,7 @@ from utils import (
     unpack_npk,
     unpack_npk_3bits,
 )
+from gfx import decode_planar
 
 # Colours come from Mainpal.pld (load_mainpal); the colour tables measured from
 # screenshots that used to be here did not match it (see notes/genpei.md).
@@ -240,21 +241,6 @@ def load_mainpal(data: bytes, index: int = 0) -> list[tuple[int, int, int]]:
     """Mainpal.pld: 48-byte sets of 16 colours, one 4-bit value per byte in B, R, G order."""
     pal = data[index * 48:(index + 1) * 48]
     return [(pal[i * 3 + 1] * 0x11, pal[i * 3 + 2] * 0x11, pal[i * 3] * 0x11) for i in range(16)]
-
-
-def decode_planar(data: bytes, offset: int, w: int, h: int, planes: int) -> bytearray:
-    """Byte-interleaved planes: every `planes` bytes hold 8 pixels, byte k = bit k, MSB leftmost."""
-    out = bytearray(w * h)
-    pos = offset
-    for i in range(w * h // 8):
-        for p in range(planes):
-            b = data[pos + p]
-            if b:
-                for k in range(8):
-                    if b & (0x80 >> k):
-                        out[i * 8 + k] |= 1 << p
-        pos += planes
-    return out
 
 
 def apply_mask(px: bytearray, data: bytes, offset: int) -> bytearray:

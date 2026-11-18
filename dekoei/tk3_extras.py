@@ -4,7 +4,7 @@ written under --out (notes/koei-games.md「提督の決断III」「事件、插�
 Pictures
 - Almost every *.TK3 picture file is LS11 with one headerless picture per part: 4 bpp, 4 planes interleaved per
   byte (byte 4 * (y * w / 8 + x / 8) + q is plane q, MSB leftmost), the same layout as the faces
-  (kaodata_export.tk3_pc98_face). The width is not stored: it comes from the game code where traced (FIXED below)
+  (gfx.decode_planar with 4 planes). The width is not stored: it comes from the game code where traced (FIXED below)
   and otherwise from a row-similarity search checked by eye (WIDTHS, run-length coded).
 - Files that are not LS11 (HMAPGRP, HMAPVGRP, HEX*) are the same 4 bpp layout without compression.
 - DIRGRP.TK3 is 19 1 bpp masks (the 方面 of the Pacific map); BINDATA.TK3 0x312 has their x, y, w, h.
@@ -39,6 +39,7 @@ from genpei_extras import npk_chunks, npk_unpack
 from koei_games import tk3_pc98_messages
 from ls11 import ls11_decode_parts
 from tk3_cards import FONT, write_cards
+from common import cstr, write_dict_csv
 
 MAIN_PALETTE = 0x3E6BA  # MAIN.EXE (PK), set by root 0x2A6C4
 OPEN_PALETTE = 0x99B0  # OPEN.EXE, the title picture (OPEN part 45 matches the title screenshot)
@@ -216,11 +217,6 @@ def dirgrp(game_dir, pacific, pal):
 
 # ---------------------------------------------------------------------------------------------------- tables
 
-def cstr(b):
-    import unicodedata
-    return unicodedata.normalize("NFKC", b.split(b"\0", 1)[0].decode("cp932", "replace"))
-
-
 def msg(messages, mid):
     return messages[mid // 1000][mid % 1000]
 
@@ -233,7 +229,7 @@ def ships(exe, messages):
         flags = r[34]
         link = struct.unpack_from("<H", r, 32)[0]
         rows.append({
-            "record": i + 1, "name": cstr(r[:12]), "艦型": msg(messages, M_CLASS + r[31]),
+            "record": i + 1, "name": cstr(r[:12], errors="replace", nfkc=True), "艦型": msg(messages, M_CLASS + r[31]),
             "国籍": msg(messages, M_NATION + r[13] - 1), "艦種": msg(messages, M_SHIP_KIND + (flags & 15)),
             "改装型": "○" if flags & 0x40 else "", "改装先": "" if link == 0xFFFF else link,
             "主砲": f"{msg(messages, M_CALIBRE + r[16])}cm{msg(messages, M_MOUNT + (main >> 4))}砲 {main & 15}基"
@@ -258,7 +254,7 @@ def aircraft(exe, messages, base=AIRCRAFT, perf=AIR_PERF):
         kind = r[21]
         abilities = p[11]
         rows.append({
-            "record": i, "name": cstr(r[:12]), "国籍": msg(messages, M_NATION + r[13] - 1),
+            "record": i, "name": cstr(r[:12], errors="replace", nfkc=True), "国籍": msg(messages, M_NATION + r[13] - 1),
             "軍籍": "海軍" if kind & 1 else "陸軍",
             "艦上/水上": "艦上" if abilities & 1 else "水上" if abilities & 2 else "",
             "機種": msg(messages, M_AIR_KIND + ((kind >> 1) & 7)),
@@ -278,7 +274,7 @@ def tanks(exe, messages):
     for i in range(N_TANKS):
         r = exe[TANKS + i * TANK_SIZE:TANKS + (i + 1) * TANK_SIZE]
         cost, steel, u17 = struct.unpack_from("<3H", r, 13)
-        rows.append({"record": i, "name": cstr(r[:11]), "国籍": msg(messages, M_NATION + r[11] - 1),
+        rows.append({"record": i, "name": cstr(r[:11], errors="replace", nfkc=True), "国籍": msg(messages, M_NATION + r[11] - 1),
                      "戦闘力": r[19], "生産費": cost, "鉄鋼量": steel, "u17": u17,
                      "picture": f"ssgrp/{i:03d}.png", "raw": r[11:].hex(" ")})
     return rows
@@ -289,7 +285,7 @@ def new_weapons(exe, messages):
     for i in range(N_NEW_WEAPONS):
         r = exe[NEW_WEAPONS + i * NEW_WEAPON_SIZE:NEW_WEAPONS + (i + 1) * NEW_WEAPON_SIZE]
         ind, arm, air, ship, info = struct.unpack_from("<5H", r, 11)
-        rows.append({"record": i, "name": cstr(r[:11]), "工業": ind, "兵器": arm, "航空": air, "艦船": ship,
+        rows.append({"record": i, "name": cstr(r[:11], errors="replace", nfkc=True), "工業": ind, "兵器": arm, "航空": air, "艦船": ship,
                      "情報": info, "説明": msg(messages, M_NEW_WEAPON_TEXT + i).replace("\n", ""),
                      "picture": f"hkgrp/{i:03d}.png"})
     return rows
@@ -308,7 +304,7 @@ def scenario_diffs(game_dir, exe):
                     a = data[blk * SN_BLOCK + sn + k * size:][:size]
                     b = exe[base + k * size:][:size]
                     if a != b:
-                        name = cstr(exe[AIRCRAFT + k * AIRCRAFT_SIZE:][:12]) if table != "ship" else cstr(b[:12])
+                        name = cstr(exe[AIRCRAFT + k * AIRCRAFT_SIZE:][:12], errors="replace", nfkc=True) if table != "ship" else cstr(b[:12], errors="replace", nfkc=True)
                         rows.append({"file": f, "block": blk, "table": table, "record": k, "name": name,
                                      "main": b.hex(" "), "scenario": a.hex(" ")})
     return rows
@@ -334,13 +330,6 @@ def eventseq(data, messages):
         rows.append({"sequence": k, "picture_ids": " ".join(map(str, pics)),
                      "files": " ".join(event_picture(v) for v in pics), "title": " / ".join(titles)})
     return rows
-
-
-def write_csv(path, rows):
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0]))
-        w.writeheader()
-        w.writerows(rows)
 
 
 # ---------------------------------------------------------------------------------------------------- command
@@ -440,17 +429,17 @@ def tk3_extras(game_dir, out, font, captures):
         im.save(os.path.join(ev, f"sopen_{i:03d}.png"))
     message = read("MESSAGE.TK3")
     messages = [tk3_pc98_messages(message, p) for p in range(len(ls11_decode_parts(message)))]
-    write_csv(os.path.join(ev, "eventseq.csv"), eventseq(read("EVENTSEQ.TK3"), messages))
+    write_dict_csv(os.path.join(ev, "eventseq.csv"), eventseq(read("EVENTSEQ.TK3"), messages))
 
     # weapon tables and cards
     tables = os.path.join(out, "tables")
     os.makedirs(tables, exist_ok=True)
     rows = [ships(exe, messages), aircraft(exe, messages), tanks(exe, messages), new_weapons(exe, messages)]
     for fn, r in zip(("ships.csv", "aircraft.csv", "tanks.csv", "new_weapons.csv"), rows):
-        write_csv(os.path.join(tables, fn), r)
+        write_dict_csv(os.path.join(tables, fn), r)
     diffs = scenario_diffs(game_dir, exe)
     if diffs:
-        write_csv(os.path.join(tables, "scenario_diffs.csv"), diffs)
+        write_dict_csv(os.path.join(tables, "scenario_diffs.csv"), diffs)
     print(f"tables: {', '.join(str(len(r)) for r in rows)} rows, {len(diffs)} scenario differences")
     font = os.path.expanduser(font)
     if os.path.exists(font) and os.path.isdir(captures):

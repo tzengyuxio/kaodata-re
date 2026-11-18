@@ -9,6 +9,7 @@ import os
 import struct
 
 import click
+from common import u16
 
 
 def _rows(extract, name):
@@ -324,7 +325,7 @@ def items_nobu6pk_pc98(extract, game_dir):
             h = struct.unpack_from("<H", sc, e.ITEMS + e.ITEM_SIZE * i + 0xF)[0]
             if h != 0xFFFF:
                 rec = sc[w.NAMES + 18 * (h - 1):][:18]
-                holders.setdefault(i + 1, []).append({"scenario": s + 1, "person": face_id[w._u16(rec, 14)]})
+                holders.setdefault(i + 1, []).append({"scenario": s + 1, "person": face_id[u16(rec, 14)]})
     out = []
     for r in _rows(extract, "kahou.csv"):
         i = int(r["id"])
@@ -414,7 +415,7 @@ def items_nobu11pk_win(extract, game_dir):
         db = w._database(os.path.join(game_dir, "scenario"), n)
         persons = w._persons(db)
         for k in range(e.KAHOU_COUNT):
-            serial = w._u16(db, e.KAHOU + e.KAHOU_SIZE * k + 57)
+            serial = u16(db, e.KAHOU + e.KAHOU_SIZE * k + 57)
             if serial == 0xFFFF:
                 continue
             if serial in e.FACTION_SERIALS:

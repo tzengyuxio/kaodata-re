@@ -15,7 +15,6 @@ File names come from the executables' (u32 string pointer, u32 1) tables: San13_
 San13PK_jp.exe for pk/ entries < 1524 and San13PK_kr.exe for the rest (the per-language data), San13PK_sc.exe entry
 1873 + i for pk/DATA0_2.S13 entry i (Simplified Chinese data).
 """
-import csv
 import json
 import os
 import struct
@@ -24,6 +23,8 @@ import zlib
 import click
 
 from sango import san13_items, san13_strings, san13_unzip
+from common import write_csv
+from gfx import gt1g_texture
 
 CONTAINERS = [("base", "DATA0.S13", "DATA1.S13"), ("pk", "pk/DATA0.S13", "pk/DATA1.S13"),
               ("pk2", "pk/DATA0_2.S13", "pk/DATA1_2.S13")]
@@ -51,7 +52,7 @@ EVENT_TITLES = 20503, 20600  # 桃園の誓い, 美女連環の計・前編 … 
 # world map textures (pk/ entry, texture k of its GT1G0600): the 3D map's ground is drawn from these
 # texture 1: 4096 x 4096 DXT1 colour (spring and summer are the same bytes; the seasons differ in the tile atlas)
 GROUND = {"spring": 487, "summer": 491, "autumn": 495, "winter": 499}
-GROUND_MAIN = 486  # texture 2: 4096 x 4096 RGBA8 place-id map, id = (R - 2) / 5 * 50 + (G - 2) / 5; 500 = outside
+GROUND_MAIN = 486  # texture 2: 4096 x 4096 BGRA8 (format 0x01) place-id map, id = (B - 2) / 5 * 50 + (G - 2) / 5; 500 = outside
 TITLE = 1267  # parts_10_shoki, texture 0: a 2048 x 2048 BC3 atlas with the title screen's map at (0, 0, 1920, 1080)
 XL_TYPES = {0: "I", 1: "i", 2: "h", 3: "B", 4: "i", 5: "H", 6: "b", 7: "f"}
 
@@ -144,19 +145,6 @@ def kind(name, mg):
     return {"GT1G0600": "texture", "XL": "table", "_M1G6300": "3d model"}.get(mg, "other")
 
 
-def texture(t, w, h):
-    """The first texture of a GT1G0600 (DXT1 or BC3), cropped to w x h, as RGBA."""
-    from PIL import Image
-    table = struct.unpack_from("<I", t, 0x0C)[0]
-    o = table + struct.unpack_from("<I", t, table)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    tw, th = 1 << (dim & 15), 1 << (dim >> 4)
-    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    n, bpp = {6: (1, 8), 8: (3, 16)}[fmt]
-    im = Image.frombytes("RGBA", (tw, th), t[start:start + tw * th * bpp // 16], "bcn", n)
-    return im.crop((0, 0, w, h))
-
-
 def xl_rows(b):
     assert b[:2] == b"XL"
     cols, rows, size, header = struct.unpack_from("<4H", b, 6)
@@ -221,40 +209,18 @@ def zh_items(game_dir) -> dict[int, tuple[str, str]]:
             for i in range(ITEM_COUNT)}
 
 
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
-def g1t_texture(t, k):
-    """Texture k (its top mip) of a GT1G0600 as RGBA: format 1 RGBA8, 6 DXT1, 8 BC3."""
-    from PIL import Image
-    table = struct.unpack_from("<I", t, 0x0C)[0]
-    o = table + struct.unpack_from("<I", t, table + 4 * k)[0]
-    fmt, dim = t[o + 1], t[o + 2]
-    w, h = 1 << (dim & 15), 1 << (dim >> 4)
-    start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-    if fmt == 1:
-        return Image.frombytes("RGBA", (w, h), t[start:start + w * h * 4])
-    n, bpp = {6: (1, 8), 8: (3, 16)}[fmt]
-    return Image.frombytes("RGBA", (w, h), t[start:start + w * h * bpp // 16], "bcn", n)
-
-
 def worldmap(pk, out, places=None):
     """The strategic map textures to out/worldmap/; places (koei-wiki places jsonl) names the regions."""
     os.makedirs(os.path.join(out, "worldmap"), exist_ok=True)
     index = []
     for season, i in GROUND.items():
-        g1t_texture(pk[i], 1).convert("RGB").save(os.path.join(out, "worldmap", f"ground_{season}.png"))
+        gt1g_texture(pk[i], 1).convert("RGB").save(os.path.join(out, "worldmap", f"ground_{season}.png"))
         index.append([f"ground_{season}.png", "4096x4096", "pk", i, 1, "✅ code: DXT1 texture of the 3D map ground"])
-    im = g1t_texture(pk[GROUND_MAIN], 2).convert("RGB")
+    im = gt1g_texture(pk[GROUND_MAIN], 2).convert("RGB")
     im.save(os.path.join(out, "worldmap", "regions.png"))
     index.append(["regions.png", "4096x4096", "pk", GROUND_MAIN, 2,
                   "✅ cross: ids = koei-wiki place ids, 261 of 266 pos inside their own region"])
-    g1t_texture(pk[TITLE], 0).crop((0, 0, 1920, 1080)).convert("RGB").save(
+    gt1g_texture(pk[TITLE], 0).crop((0, 0, 1920, 1080)).convert("RGB").save(
         os.path.join(out, "worldmap", "title_map.png"))
     index.append(["title_map.png", "1920x1080", "pk", TITLE, 0, "🟡 code: crop from the atlas by eye"])
     write_csv(os.path.join(out, "worldmap", "index.csv"),
@@ -264,11 +230,11 @@ def worldmap(pk, out, places=None):
         with open(places, encoding="utf-8") as f:
             names = {p["id"]: p for p in map(json.loads, f)}
     rows = []
-    for n, (r, g, _) in sorted(im.getcolors(1 << 16), key=lambda c: ((c[1][0] - 2) // 5 * 50 + (c[1][1] - 2) // 5)):
-        rid = (r - 2) // 5 * 50 + (g - 2) // 5
+    for n, (_, g, b) in sorted(im.getcolors(1 << 16), key=lambda c: ((c[1][2] - 2) // 5 * 50 + (c[1][1] - 2) // 5)):
+        rid = (b - 2) // 5 * 50 + (g - 2) // 5
         p = names.get(rid, {})
-        rows.append([rid, r, g, n, p.get("name", ""), p.get("level", "")])
-    write_csv(os.path.join(out, "worldmap", "regions.csv"), ["id", "r", "g", "pixels", "name", "level"], rows)
+        rows.append([rid, b, g, n, p.get("name", ""), p.get("level", "")])
+    write_csv(os.path.join(out, "worldmap", "regions.csv"), ["id", "b", "g", "pixels", "name", "level"], rows)
     return len(index), len(rows)
 
 
@@ -288,7 +254,7 @@ def san13_extras(game_dir, out):
             if name.startswith(prefix):
                 file = f"{group}/{os.path.basename(name).split('.')[0]}.png"
                 os.makedirs(os.path.join(out, "eventcg", group), exist_ok=True)
-                texture(pk[i], w, h).save(os.path.join(out, "eventcg", file))
+                gt1g_texture(pk[i]).crop((0, 0, w, h)).save(os.path.join(out, "eventcg", file))
                 index.append([file, group, w, h, "pk", i, name, "✅ code: GT1G texture, crop = content bbox"])
                 extracted[("pk", i)] = f"eventcg/{file}"
     write_csv(os.path.join(out, "eventcg", "index.csv"),
@@ -313,7 +279,7 @@ def san13_extras(game_dir, out):
     pictures = san13_items(pk[ITEM_PICTURES])
     os.makedirs(os.path.join(out, "items", "pictures"), exist_ok=True)
     for k, t in enumerate(pictures):
-        texture(san13_unzip(t), 240, 240).save(os.path.join(out, "items", "pictures", f"{k:03d}.png"))
+        gt1g_texture(san13_unzip(t)).crop((0, 0, 240, 240)).save(os.path.join(out, "items", "pictures", f"{k:03d}.png"))
     extracted[("pk", ITEM_PICTURES)] = "items/pictures"
     extracted[("pk", SCENARIO_BS)] = "items/items.csv (table 7 only)"
 

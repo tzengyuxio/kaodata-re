@@ -22,6 +22,7 @@ import unicodedata
 from PIL import Image
 
 from ls11 import ls11_decode_parts
+from gfx import decode_planar
 
 EXPAND = [0x00, 0x10, 0x20, 0x30, 0x45, 0x55, 0x65, 0x75, 0x8A, 0x9A, 0xAA, 0xBA, 0xCF, 0xDF, 0xEF, 0xFF]  # DOSBox-X
 W, H = 640, 400
@@ -221,13 +222,7 @@ def template(captures, rect, ignore=()):
 
 
 def planar(data, w, h):
-    out = bytearray(w * h)
-    for i in range(w * h // 8):
-        p = data[4 * i:4 * i + 4]
-        for b in range(8):
-            s = 7 - b
-            out[8 * i + b] = sum(((p[q] >> s) & 1) << q for q in range(4))
-    return Image.frombytes("P", (w, h), bytes(out))
+    return Image.frombytes("P", (w, h), bytes(decode_planar(data, 0, w, h, 4)))
 
 
 def fmt(raw, *values):

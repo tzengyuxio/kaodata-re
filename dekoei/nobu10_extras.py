@@ -16,7 +16,6 @@ message file, the big map and the other picture sets, written under --out (notes
   ESC K / ESC H switch the script, 0x02 x y is a variable, 0x04 .. 0x05 0x05 0x05 a condition, 0x05 0x05 0x05 ends.
 """
 import collections
-import csv
 import os
 import re
 import struct
@@ -26,6 +25,7 @@ from PIL import Image
 
 import ls11
 import wiki_nobu10 as w
+from common import cstr, read_file, write_csv
 
 ITEMS, ITEM_SIZE, ITEM_COUNT = 0x8E6C2, 61, 460
 # RETSUDEN.NBX (name, description) pairs after the officers' 列伝: (first entry, count, file)
@@ -69,11 +69,6 @@ PICTURES = [
 ]
 
 
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def pictures(data):
     """PIL images of every entry of an NBX picture container."""
     n, = struct.unpack_from("<I", data)
@@ -109,7 +104,7 @@ def write_pictures(data_dir, out):
     for name, folder in PICTURES:
         os.makedirs(os.path.join(out, folder), exist_ok=True)
         n = 0
-        for i, im in enumerate(pictures(_read(os.path.join(data_dir, name)))):
+        for i, im in enumerate(pictures(read_file(os.path.join(data_dir, name)))):
             im.save(os.path.join(out, folder, f"{i:04d}.png"))
             n += 1
         counts[folder] = n
@@ -120,7 +115,7 @@ def big_maps(data_dir, out):
     """GMAP1 / GMAP2 stitched, and GMAP_POS's 250 castle points drawn on a copy of GMAP1."""
     sizes = []
     for name in ("GMAP1.NBX", "GMAP2.NBX"):
-        tiles = list(pictures(_read(os.path.join(data_dir, name))))
+        tiles = list(pictures(read_file(os.path.join(data_dir, name))))
         rows = [tiles[i:i + GMAP_COLUMNS] for i in range(0, len(tiles), GMAP_COLUMNS)]
         wd, h = sum(t.width for t in rows[0]), sum(r[0].height for r in rows)
         im = Image.new("RGB", (wd, h))
@@ -134,7 +129,7 @@ def big_maps(data_dir, out):
         im.save(os.path.join(out, "map", name.replace(".NBX", ".png").lower()))
         sizes.append(im.size)
         if name == "GMAP1.NBX":
-            pos = _read(os.path.join(data_dir, "GMAP_POS.NBX"))
+            pos = read_file(os.path.join(data_dir, "GMAP_POS.NBX"))
             for k in range(250):
                 x, y = struct.unpack_from("<2I", pos, 8 * k)
                 for dx in range(-4, 5):
@@ -171,14 +166,6 @@ def _title(raw):
     return re.sub(r"[\x00-\x1f]", "", w.kana_text(name)).strip(), w.kana_text(reading) if reading else ""
 
 
-def _write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        cw = csv.writer(f)
-        cw.writerow(header)
-        cw.writerows(rows)
-
-
 def tables(retsuden, out):
     """官位, 役職 and 城 descriptions; returns the 家宝 (name, description) list."""
     counts = {}
@@ -189,7 +176,7 @@ def tables(retsuden, out):
             name, reading = _title(retsuden[first + 2 * k])
             rows.append([k, name, reading, _desc(retsuden[first + 2 * k + 1])])
         if path:
-            _write_csv(os.path.join(out, path), ["id", "name", "reading", "description"], rows)
+            write_csv(os.path.join(out, path), ["id", "name", "reading", "description"], rows)
             counts[path] = len(rows)
         else:
             kahou = rows
@@ -201,13 +188,12 @@ def items(scenarios, kahou_text, out):
     rows = []
     for k in range(ITEM_COUNT):
         r = first[ITEMS + ITEM_SIZE * k:][:ITEM_SIZE]
-        name = w._text(r[:13])
+        name = cstr(r[:13])
         # the 列伝 file spells 10 names differently (壷／壺, 本願寺文琳／本能寺文琳, 影秀／鞍切景秀): kept as name_retsuden
         other = kahou_text[k][1] if kahou_text[k][1] != name else ""
-        rows.append([k, name, other, w.kana_text(w._text(r[13:47])), r[50], KINDS[r[50]], f"{GRADES[r[51]]}等級", r[52],
+        rows.append([k, name, other, w.kana_text(cstr(r[13:47])), r[50], KINDS[r[50]], f"{GRADES[r[51]]}等級", r[52],
                      ORIGINS[r[53]], r[54], r[55], r[56], r[57], r[60], kahou_text[k][3]])
-    _write_csv(os.path.join(out, "items/kahou.csv"),
-               ["id", "name", "name_retsuden", "reading", "kind_id", "kind", "grade", "picture", "origin", "u54", "u55",
+    write_csv(os.path.join(out, "items/kahou.csv"), ["id", "name", "name_retsuden", "reading", "kind_id", "kind", "grade", "picture", "origin", "u54", "u55",
                 "u56", "u57", "flags", "description"], rows)
     held = []
     for n in sorted(scenarios, key=lambda n: (int(scenarios[n][0x2C:0x30]), n)):
@@ -217,10 +203,9 @@ def items(scenarios, kahou_text, out):
             r = d[ITEMS + ITEM_SIZE * k:][:ITEM_SIZE]
             h, = struct.unpack_from("<H", r, 58)
             if h < w.PEOPLE:
-                held.append([n, int(d[0x2C:0x30]), k, w._text(r[:13]), h,
+                held.append([n, int(d[0x2C:0x30]), k, cstr(r[:13]), h,
                              w._name(officers[h]) if h in officers else ""])
-    _write_csv(os.path.join(out, "items/holders.csv"),
-               ["scenario", "year", "item", "name", "holder", "holder_name"], held)
+    write_csv(os.path.join(out, "items/holders.csv"), ["scenario", "year", "item", "name", "holder", "holder_name"], held)
     return len(rows), len(held)
 
 
@@ -232,20 +217,20 @@ def kamon(scenarios, out):
             if serial >= w.PEOPLE:
                 continue
             clan, = struct.unpack_from("<H", r, 67)
-            surnames[clan][w._text(r[:9])] += 1
+            surnames[clan][cstr(r[:9])] += 1
             if r[52] == 6:
                 daimyo[clan].add(w._name(r))
     rows = [[k, " ".join(s for s, _ in surnames[k].most_common(3)), " ".join(sorted(daimyo[k]))]
             for k in sorted(surnames) if k < KAMON_CLANS]
-    _write_csv(os.path.join(out, "kamon/clans.csv"), ["kamon", "surnames", "daimyo"], rows)
+    write_csv(os.path.join(out, "kamon/clans.csv"), ["kamon", "surnames", "daimyo"], rows)
     return len(rows)
 
 
 def messages(data_dir, out):
-    rows = [[i, _plain(raw)] for i, raw in enumerate(_entries(_read(os.path.join(data_dir, "MESSAGE.NBX"))))]
-    _write_csv(os.path.join(out, "events/messages.csv"), ["id", "text"], rows)
-    names = [s.decode("cp932", "replace") for s in _read(os.path.join(data_dir, "NEB_TEXT.NBX")).split(b"\0") if s]
-    _write_csv(os.path.join(out, "events/neb_text.csv"), ["id", "text"], list(enumerate(names)))
+    rows = [[i, _plain(raw)] for i, raw in enumerate(_entries(read_file(os.path.join(data_dir, "MESSAGE.NBX"))))]
+    write_csv(os.path.join(out, "events/messages.csv"), ["id", "text"], rows)
+    names = [s.decode("cp932", "replace") for s in read_file(os.path.join(data_dir, "NEB_TEXT.NBX")).split(b"\0") if s]
+    write_csv(os.path.join(out, "events/neb_text.csv"), ["id", "text"], list(enumerate(names)))
     return len(rows), len(names)
 
 
@@ -255,11 +240,11 @@ def messages(data_dir, out):
 def nobu10_extras(game_dir, out):
     """信長の野望・蒼天録 PK: event pictures, 家宝, 家紋, 官位 / 役職 / 城 texts, messages, the big map and sprites."""
     data_dir = os.path.join(game_dir, "DATA")
-    scenarios = {n: _read(os.path.join(game_dir, "Scenario", f"SCEDAT{n}.NBX")) for n in w.SCENARIOS}
+    scenarios = {n: read_file(os.path.join(game_dir, "Scenario", f"SCEDAT{n}.NBX")) for n in w.SCENARIOS}
     for folder, n in write_pictures(data_dir, out).items():
         click.echo(f"{folder}: {n}")
     click.echo(f"map/gmap1.png, gmap2.png: {big_maps(data_dir, out)}")
-    kahou_text, counts = tables(_entries(_read(os.path.join(data_dir, "RETSUDEN.NBX"))), out)
+    kahou_text, counts = tables(_entries(read_file(os.path.join(data_dir, "RETSUDEN.NBX"))), out)
     for path, n in counts.items():
         click.echo(f"{path}: {n}")
     n, held = items(scenarios, kahou_text, out)

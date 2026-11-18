@@ -307,7 +307,7 @@ LS11，1597 段：
 ```sh
 ../.venv/bin/python dekoei.py places-export nobu6pk-pc98 --game-dir ../games/nobu6pk-pc98 --out ../export/koei-wiki/places
 ../.venv/bin/python dekoei.py persons-export nobu6pk-pc98 --game-dir ../games/nobu6pk-pc98 --out ../export/koei-wiki/persons --places ../export/koei-wiki/places
-../.venv/bin/python dekoei.py biography nobu6pk-pc98 --game-dir ../games/nobu6pk-pc98 --out ../export/koei-wiki/nobu6pk-pc98.jsonl
+../.venv/bin/python dekoei.py biography nobu6pk-pc98 --game-dir ../games/nobu6pk-pc98 --out ../export/koei-wiki
 ```
 
 `games/nobu6pk-pc98/` 另外要 `BFILE.N6P`、`MAINMAP.NB6`（從 `games/archives/pc98/disks/nobu6pk-pc98/hdi/TENSHOU/` 硬連結）。

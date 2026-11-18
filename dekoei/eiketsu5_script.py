@@ -16,7 +16,6 @@ File layout (EKD5.EXE 0x410293 load, 0x4100c1 block selection, 0x4105c8 / 0x4108
   string, others u16 (0x418417). Op 01 runs the next command as a test (or op 03 = else) and then a nested
   (u16 len, body) block.
 """
-import csv
 import glob
 import os
 import struct
@@ -24,6 +23,7 @@ import struct
 import click
 
 from koei_games import load_eiketsu5_win_persons
+from common import write_dict_csv
 
 # op -> (name, parameter types, evidence). Types come from the handlers' calls to 0x418417 (dispatch table
 # 0x41114f, handler list in notes/eiketsu5.md); names marked "code" were read from the handler, "cross" match the
@@ -497,13 +497,6 @@ def stage_file(s):
     return f"{'S' if s & 1 else 'R'}_{s // 2:02d}"
 
 
-def write_csv(path, rows, header):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
-        w.writeheader()
-        w.writerows(rows)
-
-
 def draw_battle(map_png, units, out_png):
     from PIL import Image, ImageDraw
     im = Image.open(map_png).convert("RGB")
@@ -545,14 +538,11 @@ def scenario(game_dir, out):
                     stages.append({"file": fname, "scene": si, "block": bi, "at": f"{c.at:05x}",
                                    "to": stage_file(c.params[0] + 1), "trigger": trigger_text(names, conds),
                                    "if": "; ".join(fmt_cmd(names, t) for t in tests)})
-    write_csv(os.path.join(out, "battles.csv"), battles,
-              ["battle", "name", "map", "turns", "enemy_level", "target_person", "lose_person", "victory", "defeat"])
-    write_csv(os.path.join(out, "deploy.csv"), deploy,
-              ["battle", "side", "slot", "person", "name", "x", "y", "facing", "hidden", "appears", "level",
+    write_dict_csv(os.path.join(out, "battles.csv"), battles, ["battle", "name", "map", "turns", "enemy_level", "target_person", "lose_person", "victory", "defeat"])
+    write_dict_csv(os.path.join(out, "deploy.csv"), deploy, ["battle", "side", "slot", "person", "name", "x", "y", "facing", "hidden", "appears", "level",
                "ai_mode", "ai", "ai_target", "flag2"])
-    write_csv(os.path.join(out, "events.csv"), events,
-              ["file", "scene", "block", "at", "kind", "participants", "text", "detail", "label", "trigger"])
-    write_csv(os.path.join(out, "stages.csv"), stages, ["file", "scene", "block", "at", "to", "trigger", "if"])
+    write_dict_csv(os.path.join(out, "events.csv"), events, ["file", "scene", "block", "at", "kind", "participants", "text", "detail", "label", "trigger"])
+    write_dict_csv(os.path.join(out, "stages.csv"), stages, ["file", "scene", "block", "at", "to", "trigger", "if"])
     maps = os.path.join(game_dir, "extract", "battlemap")
     if os.path.isdir(maps):
         os.makedirs(os.path.join(out, "battle"), exist_ok=True)

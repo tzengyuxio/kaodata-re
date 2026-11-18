@@ -10,16 +10,16 @@ written under --out (notes/koukai2.md「港口、交易品、道具、地圖」)
 - KAO.LZW parts 128–255: 48x48 3bpp pictures; 0–84 discoveries, 85–127 items (0x55 + item +0xF).
 - WORLDMAP.LZW: three LS11 parts of 720 x 1080 cells (2160 x 1080 in all), see world().
 """
-import csv
 import os
 import struct
 
 import click
 from PIL import Image, ImageDraw
 
-from genpei import decode_planar
+from gfx import decode_planar
 from kaodata_export import KOUKAI2_PC98_PALETTE
 from ls11 import ls11_decode_parts, lw11_decode_files
+from common import cstr, write_csv
 
 DS = 0x39F00  # MAIN.EXE file offset of DS:0
 STATE_DS = 0xCEC  # DS address of DATA1.LZW part 15
@@ -41,10 +41,6 @@ def ds_strings(exe, table, n, encoding="cp932"):
         e = exe.index(b"\0", DS + p)
         out.append(exe[DS + p:e].decode(encoding))
     return out
-
-
-def cstr(b, encoding="cp932"):
-    return b.split(b"\0", 1)[0].decode(encoding, "replace")
 
 
 def message(data, i, encoding="cp932"):
@@ -93,14 +89,6 @@ def world(parts):
     return g, special
 
 
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
 class Labels:
     """The name lists one game version needs."""
 
@@ -133,13 +121,13 @@ def write_tables(st, colony, item_mes, lb: Labels, out, lay):
     rename = lay.get("rename", {})
     encoding, item_size, item_name = lay["encoding"], lay["item_size"], lay["item_name"]
     PORTS, PORT_STATE, MARKETS, ITEMS = lay["ports"], lay["port_state"], lay["markets"], lay["items"]
-    item_names = [cstr(st[ITEMS + item_size * i:ITEMS + item_size * i + item_name], encoding) for i in range(N_ITEMS)]
+    item_names = [cstr(st[ITEMS + item_size * i:ITEMS + item_size * i + item_name], encoding, errors="replace") for i in range(N_ITEMS)]
     ports = []
     rows = []
     for k in range(N_PORTS):
         o = PORTS + 22 * k
         x, y = struct.unpack_from("<HH", st, o)
-        name, flags = cstr(st[o + 4:o + 0x15], encoding), st[o + 0x15]
+        name, flags = cstr(st[o + 4:o + 0x15], encoding, errors="replace"), st[o + 0x15]
         ports.append((x, y, name))
         row = [k, name, x, y, flags & 7, lb.nations[flags & 7] if flags & 7 < 6 else "", f"{flags:02X}"]
         if k < N_REAL_PORTS:
@@ -155,14 +143,13 @@ def write_tables(st, colony, item_mes, lb: Labels, out, lay):
                     " ".join(shop), market, lb.markets[market], b34, b35,
                     lb.drinks[drink], lb.drink_prices[drink]] + list(st[s + 37:s + lay["port_state_size"]])
         rows.append(row)
-    _csv(os.path.join(out, "tables", "ports.csv"), [rename.get(h, h) for h in
+    write_csv(os.path.join(out, "tables", "ports.csv"), [rename.get(h, h) for h in
          ["id", "name", "x", "y", "nation", "nation_name", "flags", "economy", "economy_acc", "industry",
           "industry_acc", "support", "price_rates", "specialty", "specialty_price", "specialty_level", "area",
           "shop_items", "market", "market_name", "b34", "b35", "drink", "drink_price"]
          + [f"b{i}" for i in range(37, lay["port_state_size"])]], rows)
 
-    _csv(os.path.join(out, "tables", "goods.csv"), ["id", "name", "category", "category_name"],
-         [[g, n, lb.category(g), lb.categories[lb.category(g)]] for g, n in enumerate(lb.goods)])
+    write_csv(os.path.join(out, "tables", "goods.csv"), ["id", "name", "category", "category_name"], [[g, n, lb.category(g), lb.categories[lb.category(g)]] for g, n in enumerate(lb.goods)])
 
     sell, slots = [], []
     for m in range(N_MARKETS):
@@ -174,46 +161,42 @@ def write_tables(st, colony, item_mes, lb: Labels, out, lay):
             g = st[o + 110 + i]
             if g != 0xFF:
                 slots.append([m, lb.markets[m], i, g, lb.goods[g], buy[i], st[o + 119 + i]])
-    _csv(os.path.join(out, "tables", "market_sell.csv"), ["market", "market_name", "good", "good_name", "price"], sell)
-    _csv(os.path.join(out, "tables", "market_goods.csv"),
-         ["market", "market_name", "slot", "good", "good_name", "base_price", "level"], slots)
+    write_csv(os.path.join(out, "tables", "market_sell.csv"), ["market", "market_name", "good", "good_name", "price"], sell)
+    write_csv(os.path.join(out, "tables", "market_goods.csv"), ["market", "market_name", "slot", "good", "good_name", "base_price", "level"], slots)
 
-    _csv(os.path.join(out, "tables", "drinks.csv"), ["id", "name", "price"],
-         [[i, n, lb.drink_prices[i]] for i, n in enumerate(lb.drinks)])
+    write_csv(os.path.join(out, "tables", "drinks.csv"), ["id", "name", "price"], [[i, n, lb.drink_prices[i]] for i, n in enumerate(lb.drinks)])
 
     rows = []
     for t in range(lay["n_ship_types"]):
         o = lay["ship_types"] + 12 * t
         b0, dur, turn, power, crew10, sailors, cargo, guns, b9, price = struct.unpack_from("<6BH2BH", st, o)
         sample = lay["ships"] + 22 * (40 + t)
-        rows.append([t, cstr(st[sample:sample + 15], encoding), dur, turn, power, crew10 * 10, sailors, cargo, guns,
+        rows.append([t, cstr(st[sample:sample + 15], encoding, errors="replace"), dur, turn, power, crew10 * 10, sailors, cargo, guns,
                      price, b0, b9])
-    _csv(os.path.join(out, "tables", "ships.csv"), [rename.get(h, h) for h in
+    write_csv(os.path.join(out, "tables", "ships.csv"), [rename.get(h, h) for h in
          ["id", "name", "durability", "turning", "propulsion", "max_crew", "min_sailors", "capacity", "max_guns",
           "price_base", "b0", "b9"]], rows)
 
     rows = []
     for i in range(N_ITEMS):
         o = ITEMS + item_size * i
-        name = cstr(st[o:o + item_name], encoding)
+        name = cstr(st[o:o + item_name], encoding, errors="replace")
         pic, power, kind = st[o + lay["item_picture"]], st[o + lay["item_power"]], st[o + lay["item_kind"]]
         price = struct.unpack_from("<H", st, o + lay["item_price"])[0]
         rows.append([i, name, kind & 0xF, lb.item_kinds[kind & 0xF], power, price, lay["item_picture_base"] + pic,
-                     cstr(item_mes[145 * i:145 * (i + 1)], encoding).replace("\n", " ")])
-    _csv(os.path.join(out, "tables", "items.csv"),
-         ["id", "name", "kind", "kind_name", "power", "price", "picture", "description"], rows)
+                     cstr(item_mes[145 * i:145 * (i + 1)], encoding, errors="replace").replace("\n", " ")])
+    write_csv(os.path.join(out, "tables", "items.csv"), ["id", "name", "kind", "kind_name", "power", "price", "picture", "description"], rows)
 
     discoveries, rows = [], []
     for i in range(N_DISCOVERIES):
         c = colony[177 * i:177 * (i + 1)]
         x, y, b4, value, kind = struct.unpack_from("<HHBBB", st, lay["places"] + 7 * i)
-        name = cstr(c[:lay["colony_name"]], encoding)
+        name = cstr(c[:lay["colony_name"]], encoding, errors="replace")
         if (x, y) not in ((0, 0), (1, 0)):
             discoveries.append((x, y, name))
         rows.append([i, name, kind & 7, lb.discovery_kinds[kind & 7], x, y, value, b4, c[lay["colony_picture"]],
-                     cstr(c[lay["colony_text"]:], encoding).replace("\n", " ")])
-    _csv(os.path.join(out, "tables", "discoveries.csv"),
-         ["id", "name", "kind", "kind_name", "x", "y", "value", "b4", "picture", "description"], rows)
+                     cstr(c[lay["colony_text"]:], encoding, errors="replace").replace("\n", " ")])
+    write_csv(os.path.join(out, "tables", "discoveries.csv"), ["id", "name", "kind", "kind_name", "x", "y", "value", "b4", "picture", "description"], rows)
     return ports, discoveries
 
 

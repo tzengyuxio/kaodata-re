@@ -7,7 +7,6 @@ notes/genghis.md「國與大地圖」「人物欄位」「事件、插圖、道�
 
 MDATA.CIM (蒙古篇) / SDATA.CIM (世界篇) are loaded at DS:0x36 of MAIN.EXE (DGROUP 0x1CE9), so DS = file + 0x36.
 """
-import csv
 import os
 import struct
 
@@ -15,6 +14,7 @@ import click
 from PIL import Image, ImageDraw
 
 from koei_games import koei_tw_name, load_genghis_dos_people
+from common import cstr, u16, write_dict_csv
 
 SCENARIOS = (("mongol", "MDATA.CIM", "MMAP.PAK", "MHEXMAP.DAT"), ("world", "SDATA.CIM", "SMAP.PAK", "SHEXMAP.DAT"))
 GOODS = ["毛皮", "絹", "宝石", "貴金属", "医薬品", "木工品", "陶磁器", "ガラス", "織物", "香料", "食糧"]  # DS:0x4382
@@ -35,14 +35,6 @@ PERSONALITY = {0: "気分しだい", 1: "いつでもＯＫ", 2: "絶対拒否"}
 STATUS = {0x64: "本国", 0x65: "将軍統治", 0x66: "0x66"}
 # the four families (heir and child groups 0-3) of the selectable rulers, by ruler slot 【推】from the names
 FAMILY_RULERS = {"mongol": [0], "world": [0, 6, 10, 18]}
-
-
-def sjis(raw: bytes) -> str:
-    return raw.split(b"\0")[0].decode("cp932")
-
-
-def u16(data, off):
-    return struct.unpack_from("<H", data, off)[0]
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -110,7 +102,7 @@ def double(img):
 
 def countries(data: bytes, zh_names: list[str]):
     n = data[0x1CF]
-    names = [sjis(data[0x3A + 15 * k:0x3A + 15 * k + 15]) for k in range(n)]
+    names = [cstr(data[0x3A + 15 * k:0x3A + 15 * k + 15]) for k in range(n)]
     rows = []
     for k in range(n):
         rec = data[COUNTRY_TABLE + COUNTRY_SIZE * k:COUNTRY_TABLE + COUNTRY_SIZE * (k + 1)]
@@ -119,7 +111,7 @@ def countries(data: bytes, zh_names: list[str]):
         ruler = (u16(rec, 0x51) - 0x20A) // LORD_SIZE
         units = [(rec[2 * i], rec[2 * i + 1]) for i in range(10)]
         row_ = {"no": k + 1, "name": names[k], "nameZh": zh_names[k],
-                "ruler": sjis(data[LORD_TABLE + LORD_SIZE * ruler:][:15]),
+                "ruler": cstr(data[LORD_TABLE + LORD_SIZE * ruler:][:15]),
                 "neighbours": " ".join(str(b + 1) for b in adj[7:] if b != 0xFF),
                 "neighbourNames": "、".join(names[b] for b in adj[7:] if b != 0xFF),
                 "特産品": GOODS[goods], "picture": f"PICDATA {u16(data, 4 + 2 * k) & 0x7FFF:#04x}",
@@ -148,7 +140,7 @@ def hexmaps(path, scenario, names):
 def persons(data: bytes, dos, scenario):
     rows = []
     zh = {kind: [n for n, _ in people] for kind, people in dos.items()}
-    rulers = [sjis(data[LORD_TABLE + LORD_SIZE * k:][:15]) for k in range(27)]
+    rulers = [cstr(data[LORD_TABLE + LORD_SIZE * k:][:15]) for k in range(27)]
     for kind, (off, groups, gsize, n, size) in PERSON_TABLES.items():
         seen = 0
         for g in range(groups):
@@ -158,7 +150,7 @@ def persons(data: bytes, dos, scenario):
                 if not r[0]:
                     continue
                 row = {"scenario": scenario, "kind": kind, "group": g if groups > 1 else "", "slot": i,
-                       "name": sjis(r[:15]), "nameZh": zh[kind][seen]}
+                       "name": cstr(r[:15]), "nameZh": zh[kind][seen]}
                 seen += 1
                 if groups > 1:
                     fam = FAMILY_RULERS[scenario]
@@ -218,16 +210,6 @@ def places(game_dir, out_dir):
             rows.append(row)
     return rows
 
-def write_csv(path, rows):
-    keys = []
-    for r in rows:
-        keys += [k for k in r if k not in keys]
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, keys)
-        w.writeheader()
-        w.writerows(rows)
-
-
 @click.command(help="ジンギスカン（PC-98）的國、人物、大地圖與圖片")
 @click.option("--game-dir", required=True, help="PC-98 遊戲目錄（另需 dos/ 的中文版 MDATA.CIM、SDATA.CIM）")
 @click.option("--out", required=True, help="輸出目錄")
@@ -256,9 +238,9 @@ def genghis_extras(game_dir, out):
             draw.rectangle((x - 1, y - 1, x + 13, y + 15), fill=(0, 0, 0))
             draw.text((x + 1, y + 2), str(r["no"]), fill=(255, 255, 0))
         lab.save(os.path.join(out, "map", pak.replace(".PAK", "-labelled.png")))
-    write_csv(os.path.join(out, "countries.csv"), all_countries)
-    write_csv(os.path.join(out, "hexmaps.csv"), all_hex)
-    write_csv(os.path.join(out, "persons.csv"), all_persons)
+    write_dict_csv(os.path.join(out, "countries.csv"), all_countries)
+    write_dict_csv(os.path.join(out, "hexmaps.csv"), all_hex)
+    write_dict_csv(os.path.join(out, "persons.csv"), all_persons)
     count = 0
     for name in ("PACDATA.DAT", "PICDATA.DAT", "ENDDATA.DAT", "OPEN.DAT"):
         for block, img in pak_archive(os.path.join(game_dir, name)):

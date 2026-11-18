@@ -3,13 +3,13 @@ import csv
 import click
 import unicodedata
 import re
-import genpei
 from ls11 import *
 from rich.table import Table
 from PIL import ImageFile
 from utils import *
 from koei_person import *
 from itertools import chain
+from gfx import decode_planar, gt1g_count, gt1g_texture
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # for KOUKAI3 palette file
 
 
@@ -37,42 +37,14 @@ def eiketsu_face(face_file, out_dir, prefix):
     os.makedirs(out_dir, exist_ok=True)
     with open(face_file, 'rb') as f:
         if f.read(4) != b'LS11':
-            print('Not LS11 file: DOS version?')
-            f.seek(0)
-            count = 240
-            offset_infos = []
-            for _ in range(count):
-                # offset 這部分沒問題
-                #   後來發現這部分 offset 跟 SAN4 KAODATA 一樣 340*6 之後開始頭像資料
-                #   (340 張頭像, 每個 offset info 6 bytes)
-                #   SAN4 KAODATA 的資料是以 0x04000500 開頭，這是圖像尺寸，很有可能與 npk_3bits 相同
-                offset = int.from_bytes(f.read(4), LITTLE_ENDIAN)
-                size = int.from_bytes(f.read(2), LITTLE_ENDIAN)
-                offset_infos.append((offset, size))
-            for i in range(3):
-                offset, size = offset_infos[i]
-                f.seek(offset)
-                data = f.read(size)
-                print(f'#{i} offset={offset} size={size}')
-                # 如何解析 這部分仍是一團謎
-                #   每一段 data 開頭都有類似的 7bytes: 02540850 003303
-                #   推測可能是某種固定 header 經過壓縮，所以開頭 7 bytes 都一致
-                #   但如果是 NPK 經過 LS11 壓縮，又沒有字典可查
-                #   可能要把這段 data 寫成檔案試著用各種方式解壓看看
-                # begin - unknown how to unpack
-                color_indexed_data = unpack_npk(data[8:], face_w)
-                image = Image.new('RGB', (face_w, face_h), BGCOLOR)
-                for px_index, color_index in enumerate(color_indexed_data):
-                    if px_index >= face_w * face_h:
-                        break
-                    y, x = divmod(px_index, face_w)
-                    c = palette[color_index]
-                    image.putpixel((x, y), c)
-                # end - unknown how to unpack
+            # DOS / PC-98 FACEDAT.R3: TF-DCE images (load_eiketsu_dos_faces, same as the kaodata builder)
+            images = []
+            for px in load_eiketsu_dos_faces(face_file):
+                image = Image.new('RGB', (face_w, face_h))
+                image.putdata([palette[c] for c in px])
                 images.append(image)
-            # save single faces
-            images = {str(i): img for i, img in enumerate(images)} if isinstance(images, list) else images
-            save_single_images(images, out_dir, prefix)
+            save_index_image(images, face_w, face_h, 16, f'{out_dir}/{prefix}00-INDEX.png')
+            save_single_images({str(i): img for i, img in enumerate(images)}, out_dir, prefix)
             return
         f.seek(0)
         npks = ls11_decode_parts(f.read(), print_only=False)
@@ -82,7 +54,7 @@ def eiketsu_face(face_file, out_dir, prefix):
             # raw = list(npk_data[0x10:0x30])
             # color_data = [struct.unpack('<h', bytes(raw[i:i+2]))[0] for i in range(0, len(raw), 2)]
             # palette = [conv_palette(p) for p in color_data]
-            color_indexed_data = unpack_npk(npk_data[0x30:], width)
+            color_indexed_data = unpack_npk(npk_data[0x30:], width, height)
             image = Image.new('RGB', (width, height), BGCOLOR)
             for px_index, color_index in enumerate(color_indexed_data):
                 y, x = divmod(px_index, width)
@@ -240,17 +212,28 @@ EIKETSU_PC98_GAIJI = dict(zip(
     "瓚昱彧郃蒯蔡傕汜詡鄧龐鷙畯闞玠邢禕琬郝琦琮璝褚釭邈"))
 
 
+def eiketsu_pc98_text(raw: bytes) -> str:
+    """Shift-JIS with KOEI gaiji EB xx (EIKETSU_PC98_GAIJI; unknown ones become 〓)."""
+    raw, out, i = raw.split(b"\0")[0], [], 0
+    while i < len(raw):
+        if raw[i] == 0xEB and i + 1 < len(raw):
+            out.append(EIKETSU_PC98_GAIJI.get(raw[i + 1], "〓"))
+            i += 2
+        elif raw[i] >= 0x81 and i + 1 < len(raw) and not 0xA0 <= raw[i] <= 0xDF:
+            out.append(raw[i:i + 2].decode("cp932", "replace"))
+            i += 2
+        else:
+            out.append(raw[i:i + 1].decode("cp932", "replace"))
+            i += 1
+    return "".join(out).strip()
+
+
 def load_eiketsu_pc98_persons(bakdata) -> list[tuple[str, int]]:
     """As load_eiketsu_dos_persons, for the PC-98 BAKDATA.R3."""
     with open(bakdata, "rb") as f:
         data = f.read()
     start, count, size = EIKETSU_DOS_PERSONS
-
-    def name(raw: bytes) -> str:
-        raw = raw.split(b"\0")[0]
-        return "".join(EIKETSU_PC98_GAIJI[raw[i + 1]] if raw[i] == 0xEB else raw[i:i + 2].decode("cp932")
-                       for i in range(0, len(raw), 2)).strip()
-    return [(name(data[o:o + 6]), data[o + 14]) for o in range(start, start + count * size, size)]
+    return [(eiketsu_pc98_text(data[o:o + 6]), data[o + 14]) for o in range(start, start + count * size, size)]
 
 
 def load_eiketsu_dos_persons(bakdata) -> list[tuple[str, int]]:
@@ -606,7 +589,21 @@ def ishin2():
 @click.option('--out_dir', 'out_dir', default='_output', help='output directory')
 @click.option('--prefix', 'prefix', default='', help='filename prefix of output files')
 def ishin2_face(face_file, out_dir, prefix):
-    pass
+    """FACE.I2 (LS11 parts), palette from ISHIN2.EXE in the same directory, as the kaodata builder (build_ishin2_win)."""
+    import kaodata_export as K
+    with open(face_file, 'rb') as f:
+        faces = ls11_decode_parts(f.read())
+    with open(os.path.join(os.path.dirname(face_file), 'ISHIN2.EXE'), 'rb') as f:
+        pal = f.read()[K.ISHIN2_WIN_PALETTE:K.ISHIN2_WIN_PALETTE + 64 * 3]
+    palette = [0, 0, 0] * 172 + list(pal)
+    w, h = K.ISHIN2_WIN_FACE
+    images = []
+    for px in faces:
+        im = Image.new('P', (w, h))
+        im.putdata(bytes(px))
+        im.putpalette(palette)
+        images.append(im.convert('RGB'))
+    output_images(images, out_dir, prefix)
 
 
 ishin2.add_command(ishin2_face, 'face')
@@ -691,21 +688,27 @@ GENGHIS_TABLES = {"ruler": (0x2E2, 1, 0, 27, 43, 0x27), "family": (0x76C, 4, 205
                   "woman": (0x1E8A, 1, 0, 40, 34, 0x1C)}
 
 
+def genghis_slots(tables, kind):
+    """(group, index, offset) of every record slot of one kind of a GENGHIS_*_TABLES layout."""
+    off, groups, gsize, n, size, _ = tables[kind]
+    for g in range(groups):
+        for i in range(n):
+            yield g, i, off + g * gsize + i * size
+
+
 def load_genghis_dos_people(cim) -> dict[str, list[tuple[str, list[int]]]]:
     """(name, face codes) per kind, in table order; women have three faces (normal, smile, cry)."""
     with open(cim, 'rb') as f:
         data = f.read()
     out = {}
-    for kind, (off, groups, gsize, n, size, face) in GENGHIS_TABLES.items():
+    for kind, (*_, face) in GENGHIS_TABLES.items():
         out[kind] = []
-        for g in range(groups):
-            for i in range(n):
-                o = off + g * gsize + i * size
-                if data[o]:
-                    faces = 3 if kind == "woman" else 1
-                    out[kind].append((koei_tw_name(data[o:o + 20]),
-                                      [int.from_bytes(data[o + face + 2 * j:o + face + 2 * j + 2], 'little')
-                                       for j in range(faces)]))
+        for _, _, o in genghis_slots(GENGHIS_TABLES, kind):
+            if data[o]:
+                faces = 3 if kind == "woman" else 1
+                out[kind].append((koei_tw_name(data[o:o + 20]),
+                                  [int.from_bytes(data[o + face + 2 * j:o + face + 2 * j + 2], 'little')
+                                   for j in range(faces)]))
     return out
 
 
@@ -736,19 +739,17 @@ def load_genghis_pc88_people(cim, x68=False, pc98=False) -> dict[str, list[tuple
     with open(cim, 'rb') as f:
         data = f.read()
     out = {}
-    for kind, (off, groups, gsize, n, size, face) in (GENGHIS_X68_TABLES if x68 else GENGHIS_PC98_TABLES if pc98
-                                                       else GENGHIS_PC88_TABLES).items():
+    tables = GENGHIS_X68_TABLES if x68 else GENGHIS_PC98_TABLES if pc98 else GENGHIS_PC88_TABLES
+    for kind, (*_, face) in tables.items():
         out[kind] = []
-        for g in range(groups):
-            for i in range(n):
-                o = off + g * gsize + i * size
-                if data[o]:
-                    faces = 3 if kind == "woman" else 1
-                    step = 4 if x68 else 2
-                    out[kind].append((unicodedata.normalize("NFKC", data[o:o + (15 if x68 else face)]
-                                                            .split(b'\0')[0].decode('cp932')).replace(" ", ""),
-                                      [int.from_bytes(data[o + face + step * j:o + face + step * j + 2],
-                                                      'big' if x68 else 'little') for j in range(faces)]))
+        for _, _, o in genghis_slots(tables, kind):
+            if data[o]:
+                faces = 3 if kind == "woman" else 1
+                step = 4 if x68 else 2
+                out[kind].append((unicodedata.normalize("NFKC", data[o:o + (15 if x68 else face)]
+                                                        .split(b'\0')[0].decode('cp932')).replace(" ", ""),
+                                  [int.from_bytes(data[o + face + step * j:o + face + step * j + 2],
+                                                  'big' if x68 else 'little') for j in range(faces)]))
     return out
 
 def load_nobu3_dos_people(game_dir) -> list[list[tuple[str, int]]]:
@@ -987,7 +988,8 @@ def koukai3():
 
 
 @click.option('-f', '--face', 'face_file', help="頭像檔案", required=True)
-@click.option('-p', '--palette', 'palette_file', default='cds95FaceHeader.bmp', help="色盤檔案")
+@click.option('-p', '--palette', 'palette_file', default=None,
+              help="色盤檔案（cds95FaceHeader.bmp）；不給就讀同目錄 CDS95.EXE.pec2bac 的頭像色盤")
 @click.option('--out_dir', 'out_dir', default='_output', help='output directory')
 @click.option('--prefix', 'prefix', default='', help='filename prefix of output files')
 @click.command(help='顏 CG 解析')
@@ -996,6 +998,13 @@ def koukai3_face(face_file, palette_file, out_dir, prefix):
     ./dekoei.py koukai3 face --face kao/KOUKAI3_FEMALE.CDS --palette kao/cds95FaceHeader.bmp
     ./dekoei.py koukai3 face --face kao/KOUKAI3_MALE.CDS --palette kao/cds95FaceHeader.bmp
     """
+    if palette_file is None:
+        # colours 10-73 of the face palette, as the kaodata builder (build_koukai3_win)
+        exe = os.path.join(os.path.dirname(face_file), 'CDS95.EXE.pec2bac')
+        palette = [(0, 0, 0)] * 10 + load_koukai3_win_face_palette(exe)
+        palette += [(0, 0, 0)] * (256 - len(palette))
+        extract_images(face_file, 80, 96, palette, out_dir, prefix)
+        return
     # load palette
     palette_img = Image.open(palette_file)
     # palette_img.mode: "P"
@@ -1065,22 +1074,24 @@ NOBU7_WIN_GAIJI = {bytes.fromhex("eb9feba0eba1"): "長宗我部", bytes.fromhex(
                    bytes.fromhex("eba3eba4eba5"): "五右衛門", bytes.fromhex("eba6eba4eba5"): "又右衛門"}
 
 
+def nobu7_win_text(b: bytes, encoding: str) -> str:
+    """A NUL-terminated name field of the Sndata*.nb7 records, with the gaiji of NOBU7_WIN_GAIJI."""
+    b = b.split(b"\0")[0]
+    return NOBU7_WIN_GAIJI.get(b) or b.decode(encoding)
+
+
 def load_nobu7_win_persons(path, encoding="big5") -> list[tuple[int, str, str, int]]:
     """(person id, surname, given name, face) of one Sndata*.nb7 scenario. encoding "cp932": the Japanese
     version (Steam with PK)."""
     with open(path, "rb") as f:
         data = f.read()
-
-    def text(b):
-        b = b.split(b"\0")[0]
-        return NOBU7_WIN_GAIJI.get(b) or b.decode(encoding)
-
     start, count, size = NOBU7_WIN_PERSONS
     persons = []
     for o in range(start, start + count * size, size):
         face, = struct.unpack_from("<H", data, o + 0x1C)
         pid, = struct.unpack_from("<H", data, o + 0x50)
-        persons.append((pid, text(data[o:o + 8]), text(data[o + 8:o + 16]), face))
+        persons.append((pid, nobu7_win_text(data[o:o + 8], encoding), nobu7_win_text(data[o + 8:o + 16], encoding),
+                        face))
     return persons
 
 # NOBU10 PK (蒼天録 with PK, Win, Steam): Scenario/SCEDAT??.NBX (not packed, Shift-JIS) hold 1991 officer records
@@ -1410,20 +1421,13 @@ def load_nobu13_win_kao(path) -> list[tuple[int, int, bytes]]:
         offset, size = struct.unpack_from("<2I", data, 0x20 + 8 * i)
         x, y, w, h = struct.unpack_from("<4H", data, rects + 12 * i)
         assert data[offset:offset + 8] == b"GT1G0600" and (x, y) == (0, 0)
-        side = int(((size - 0x38) // 4) ** 0.5)
-        rgba = bytearray()
-        for row in range(h):
-            bgra = data[offset + 0x38 + row * side * 4:offset + 0x38 + (row * side + w) * 4]
-            px = bytearray(bgra)
-            px[0::4], px[2::4] = bgra[2::4], bgra[0::4]
-            rgba += px
-        faces.append((w, h, bytes(rgba)))
+        rgba = gt1g_texture(data[offset:offset + size]).crop((0, 0, w, h)).tobytes()
+        faces.append((w, h, rgba))
     return faces
 
 # TAIKOH5DX (太閤立志伝V DX, Win): data/TDATA/MINIFACE.G1T is an 'MRLK' archive (u32 count at +4, (u32 offset,
 # u32 size) pairs from +8) of 'GT1G' textures; the texture header is at +0x24: byte 1 the format (0x59 BC1,
 # 0x5B BC3), byte 2 log2 height << 4 | log2 width, u32 +8 the size of the extra header the pixels follow
-TAIKOH5_WIN_BCN = {0x59: 1, 0x5B: 3}
 # data/CMENU/SNR/SNR?_{JP,SC,TW}.TR5 are 'ILNK' archives (u32 count at +4, u32 offsets from +8); part 16 holds 1304
 # person records of 24 bytes (surname 9, given name 9, u16 kind, u16 face, u16 other face), part 15 the readings of
 # the first 1244 in 44-byte records (half-width katakana surname 10, given name 11)
@@ -1437,21 +1441,15 @@ TAIKOH5_WIN_TW_GAIJI = {0xFDA2: "惣", 0xFDA3: "梶", 0xFDA4: "畠", 0xFDA5: "�
 
 def load_taikoh5_win_faces(path) -> list[tuple[int, int, bytes]]:
     """(width, height, RGBA) of every texture of a TAIKOH5DX .G1T archive."""
-    from PIL import Image
     with open(path, "rb") as f:
         data = f.read()
     assert data[:4] == b"MRLK"
     count, = struct.unpack_from("<I", data, 4)
     faces = []
     for i in range(count):
-        offset, _ = struct.unpack_from("<2I", data, 8 + 8 * i)
-        assert data[offset:offset + 4] == b"GT1G"
-        h = offset + 0x24
-        n = TAIKOH5_WIN_BCN[data[h + 1]]
-        w, ht = 1 << (data[h + 2] & 15), 1 << (data[h + 2] >> 4)
-        start = h + 8 + struct.unpack_from("<I", data, h + 8)[0]
-        size = w * ht // 2 if n == 1 else w * ht
-        faces.append((w, ht, Image.frombytes("RGBA", (w, ht), data[start:start + size], "bcn", n).tobytes()))
+        offset, size = struct.unpack_from("<2I", data, 8 + 8 * i)
+        im = gt1g_texture(data[offset:offset + size])
+        faces.append((im.width, im.height, im.tobytes()))
     return faces
 
 
@@ -1495,7 +1493,6 @@ def _taikoh5_win_part(path, k) -> bytes:
 # u32 count at +16; the table holds u32 texture offsets relative to it); each texture header has byte 1 the format
 # (0x59 BC1, 0x5B BC3), u32 +8 the size of the extra header the pixels follow, and the u32 width and height at
 # +0x14 and +0x18 of the texture.
-KOUKAI4_WIN_BCN = {0x59: 1, 0x5B: 3}
 # World0.dll (無印) / World1.dll (PK) hold 235 person records of 56 bytes from the record of the first protagonist:
 # three name pointers (given, family, middle), +0x26 sex (1 female), +0x2B bustup.dk4 face
 KOUKAI4_WIN_PERSON = 56
@@ -1504,19 +1501,13 @@ KOUKAI4_WIN_PERSONS = 235
 
 def load_koukai4_win_bustups(path) -> list[tuple[int, int, bytes]]:
     """(width, height, RGBA) of every texture of a KOUKAI4PK GT1G texture set."""
-    from PIL import Image
     with open(path, "rb") as f:
         data = f.read()
     assert data[:4] == b"GT1G"
-    table, count = struct.unpack_from("<2I", data, 12)
     faces = []
-    for offset in struct.unpack_from(f"<{count}I", data, table):
-        h = table + offset
-        n = KOUKAI4_WIN_BCN[data[h + 1]]
-        w, ht = struct.unpack_from("<2I", data, h + 0x14)
-        start = h + 8 + struct.unpack_from("<I", data, h + 8)[0]
-        size = w * ht // 2 if n == 1 else w * ht
-        faces.append((w, ht, Image.frombytes("RGBA", (w, ht), data[start:start + size], "bcn", n).tobytes()))
+    for k in range(gt1g_count(data)):
+        im = gt1g_texture(data, k)
+        faces.append((im.width, im.height, im.tobytes()))
     return faces
 
 
@@ -2947,7 +2938,7 @@ def gdt_images(data: bytes, big: bool = False) -> list[tuple[int, int, bytes]]:
                     out.append(out[-back])
             assert p == len(src)
             src = bytes(out)
-        images.append((w, h, bytes(genpei.decode_planar(src, 0, w, h, 4))))
+        images.append((w, h, bytes(decode_planar(src, 0, w, h, 4))))
         o += 16 + size
     return images
 

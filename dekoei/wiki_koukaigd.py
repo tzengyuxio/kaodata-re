@@ -19,6 +19,7 @@ from kaodata_export import KOUKAIGD_WIN_EXTRA_FACES, KOUKAIGD_WIN_II_HEROES
 from koei_stats import KOUKAIGD_NATIONS, KOUKAIGD_SKILLS, KOUKAIGD_STATS
 from koukaigd_extras import GD_LAYOUT, fixed, gd_labels
 from ls11 import ls11_decode_parts
+from common import cstr, read_file
 
 DATASET = "koukaigd-win"
 WORLD_W, WORLD_H = 2160, 1080  # Worldmap.lzw cells (= 大航海時代II); port +0 / +2 are in these cells
@@ -27,13 +28,8 @@ KINGS = range(10, 16)  # event records 10-15 (瑪努埃爾1世 ... 耐普爾總�
 PROTAGONISTS = ("米蘭塔", "薩爾巴多爾")
 
 
-def _read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
 def _port_names(sd):
-    return [x.cstr(sd[GD_LAYOUT["ports"] + 22 * k + 4:][:17], "big5") for k in range(x.N_PORTS)]
+    return [cstr(sd[GD_LAYOUT["ports"] + 22 * k + 4:][:17], "big5", errors="replace") for k in range(x.N_PORTS)]
 
 
 def _mate(r, ranks):
@@ -49,7 +45,7 @@ def _mate(r, ranks):
 
 
 def persons(game_dir):
-    exe, sd = _read(game_dir, "koukaiGD.exe"), _read(game_dir, "Sdata.dat")
+    exe, sd = read_file(game_dir, "koukaiGD.exe"), read_file(game_dir, "Sdata.dat")
     ranks = fixed(exe, *RANKS)
     ports = _port_names(sd)
     names = kg.load_koukaigd_win_mates(os.path.join(game_dir, "koukaiGD.exe"))
@@ -131,11 +127,11 @@ def persons(game_dir):
 
 
 def places(game_dir, out_dir):
-    exe, sd = _read(game_dir, "koukaiGD.exe"), _read(game_dir, "Sdata.dat")
+    exe, sd = read_file(game_dir, "koukaiGD.exe"), read_file(game_dir, "Sdata.dat")
     lb = gd_labels(exe)
     world = os.path.join(out_dir, "world")
     os.makedirs(world, exist_ok=True)
-    g, _ = x.world(ls11_decode_parts(_read(game_dir, "Worldmap.lzw")))
+    g, _ = x.world(ls11_decode_parts(read_file(game_dir, "Worldmap.lzw")))
     img = Image.new("RGB", (WORLD_W, WORLD_H))
     img.putdata([(40, 70, 140) if v else (120, 160, 90) for line in g for v in line])
     img.save(os.path.join(world, "world.png"))

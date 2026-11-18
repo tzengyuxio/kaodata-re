@@ -17,7 +17,6 @@ Formats and evidence: notes/san4.md「事件、插圖、道具」.
   0x0A line break, 05 05 05 end of message, 01 xx .. control codes (kept as {xx:hex}).
 """
 import contextlib
-import csv
 import io
 import re
 import json
@@ -31,6 +30,8 @@ import biography
 import ls11
 import sango
 from utils import unpack_npk
+from common import write_csv
+from gfx import decode_planar
 
 MAIN_PALETTE = 0x4E736  # MAIN.EXE (PK), 16 x (B, R, G) nibbles
 ITEMS = 1421  # SNDATA.S4 part offset of the item table
@@ -223,13 +224,6 @@ def zh_text(m: bytes) -> str:
 
 def messages(path):
     return [biography.offset_table(p, False) for p in ls11.ls11_decode_parts(open(path, "rb").read())]
-
-
-def write_csv(path, header, rows):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def export_pictures(game_dir, out):
@@ -480,12 +474,6 @@ def export_cities(game_dir, out):
     return len(rows)
 
 
-def planar_bytes(data: bytes, w: int, h: int) -> list[int]:
-    """4 planes interleaved per byte: every 4 bytes are planes 0-3 of the same 8 pixels."""
-    return [sum((data[(y * w // 8 + x // 8) * 4 + k] >> (7 - x % 8) & 1) << k for k in range(4))
-            for y in range(h) for x in range(w)]
-
-
 def tile_strip(data: bytes, cols=16) -> tuple[int, int, list[int]]:
     tiles = city_tiles(data)
     rows = (len(tiles) + cols - 1) // cols
@@ -508,9 +496,9 @@ def export_ui(game_dir, out):
             return ls11.ls11_decode_parts(f.read())
     items = []
     higrp, newgrp = parts("HIGRP.S4"), parts("NEWGRP.S4")
-    items += [(f"HIGRP {k}", paint(96, 96, planar_bytes(higrp[k], 96, 96), pal)) for k in range(13)]
-    items += [(f"NEWGRP {k}", paint(240, 160, planar_bytes(newgrp[k], 240, 160), pal)) for k in (2, 3, 4)]
-    items += [(f"NEWGRP {k}", paint(112, 112, planar_bytes(newgrp[k], 112, 112), pal)) for k in (6, 7, 8)]
+    items += [(f"HIGRP {k}", paint(96, 96, decode_planar(higrp[k], 0, 96, 96, 4), pal)) for k in range(13)]
+    items += [(f"NEWGRP {k}", paint(240, 160, decode_planar(newgrp[k], 0, 240, 160, 4), pal)) for k in (2, 3, 4)]
+    items += [(f"NEWGRP {k}", paint(112, 112, decode_planar(newgrp[k], 0, 112, 112, 4), pal)) for k in (6, 7, 8)]
     for k, p in enumerate(parts("HUNIT.S4")):
         items.append((f"HUNIT {k}", paint(*tile_strip(p), pal)))
     with open(os.path.join(game_dir, "HWGRP.S4"), "rb") as f:

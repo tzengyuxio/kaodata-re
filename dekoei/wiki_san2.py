@@ -12,6 +12,9 @@ import struct
 import kaodata_export as ke
 import san2
 from san_person import s2_format, s2_format_taiki
+from common import u16
+from PIL import Image
+from places_export import BATTLE, _areas, _save, _text
 
 DATASET = "san2-pc98"
 SIZE, PERSONS, SLOTS, BASE = 43, 0x16, 255, 88
@@ -21,10 +24,6 @@ HIDDEN = [(7, "義理"), (8, "人徳"), (9, "野望"), (15, "相性")]
 # the DOS Chinese version gives 31 張顗 the name of 310 張嶷; the PC-98 name is right, so name takes the historical
 # spelling instead (notes/san2.md)
 ZH_OTHER_PERSON = {31}
-
-
-def u16(b, o):
-    return int.from_bytes(b[o:o + 2], "little")
 
 
 def _scenario(d):
@@ -156,3 +155,148 @@ def persons(game_dir):
             row["notes"] = "".join(notes)
         rows.append(row)
     return rows
+
+
+##############################################################################
+# 三國志II PC-98: 41 州 with numbers only; adjacency from san2.SAN2_PROVINCE_HEX (checked against the
+# HEXDATA.DAT deployment layer). The names are borrowed from 三国志ツクール: its sample scenario (LINKDATA item
+# 151) has 41 州 records in the same order with the same adjacency (notes/santsukuru.md「範例劇本」).
+SANTSUKURU_ITEM, SANTSUKURU_PROVINCES = 151, 0x125FD  # first 州 record (0x40 bytes, name at +0x30)
+
+
+SANTSUKURU_GAIJI = {0xF06D: "鄴", 0xF060: "邳", 0xF070: "鄱"}  # read off the place names
+
+
+def santsukuru_provinces(game_dir):
+    """[(name, x, y, [neighbour 0-based])] of the 41 州 of the 三国志ツクール sample scenario."""
+    with open(os.path.join(game_dir, "LINKDATA.IDX"), "rb") as f:
+        f.seek(32 * SANTSUKURU_ITEM)
+        offset, _, stored, _ = struct.unpack("<4Q", f.read(32))
+    with open(os.path.join(game_dir, "LINKDATA0.BIN"), "rb") as f:
+        f.seek(offset)
+        data = f.read(stored)
+    out = []
+    for k in range(41):
+        r = data[SANTSUKURU_PROVINCES + 0x40 * k:][:0x40]
+        assert r[0x29] == k
+        x, y = struct.unpack_from("<HH", r, 0x1D)
+        out.append((_text(r[0x30:0x40], SANTSUKURU_GAIJI), x, y, [b for b in r[0x23:0x29] if b != 0xFF]))
+    return out
+
+
+# MAPDATA.DAT: the left panel of the main screen, 296 x 400, 3 planes interleaved per 8 pixels (111 bytes a row,
+# bit 0 B, bit 1 R, bit 2 G; the first 44400 bytes); all 400 rows match the capture main_000.raw1.png, where the
+# white 州 are filled with the owners' colours. The game's 州 numbers are drawn on it. Each 州 is one white area;
+# SAN2_MAP_POS is the point of each 州 (1-41) farthest from its border, picked by reading the numbers.
+SAN2_MAP, SAN2_MAP_W, SAN2_MAP_H, SAN2_WHITE = "MAPDATA.DAT", 296, 400, 7
+
+
+SAN2_MAP_POS = [(268, 44), (212, 86), (170, 79), (142, 88), (145, 111), (198, 126), (190, 115), (250, 122),
+                (210, 141), (170, 134), (136, 130), (110, 122), (66, 157), (60, 104), (40, 94), (230, 157),
+                (211, 171), (220, 182), (185, 211), (145, 207), (142, 232), (168, 299), (130, 261), (249, 188),
+                (272, 259), (245, 271), (224, 277), (214, 219), (106, 208), (75, 179), (108, 253), (90, 257),
+                (52, 213), (52, 277), (18, 312), (36, 333), (200, 326), (156, 317), (151, 346), (110, 276),
+                (94, 332)]
+
+
+def san2_world_map(game_dir):
+    with open(os.path.join(game_dir, SAN2_MAP), "rb") as f:
+        d = f.read()
+    px = bytearray(SAN2_MAP_W * SAN2_MAP_H)
+    for y in range(SAN2_MAP_H):
+        for x in range(SAN2_MAP_W):
+            o, bit = y * 111 + x // 8 * 3, 7 - x % 8
+            px[y * SAN2_MAP_W + x] = sum(((d[o + k] >> bit) & 1) << k for k in range(3))
+    im = Image.frombytes("P", (SAN2_MAP_W, SAN2_MAP_H), bytes(px))
+    im.putpalette([255 * ((c >> b) & 1) for c in range(8) for b in (1, 2, 0)])
+    return im
+
+
+def world_check(game_dir, rows):
+    """Each 州 pos is on a white area of its own, and the areas touch (across a border of up to 8 px) exactly as
+    the adjacency says."""
+    im = san2_world_map(game_dir)
+    w, h = im.size
+    lab = _areas(im, SAN2_WHITE)
+    area = {lab[r["pos"]["y"] * w + r["pos"]["x"]]: r["id"] for r in rows}
+    checked, bad = len(rows), [f"{r['id']}: pos not on a white area" for r in rows
+                               if not lab[r["pos"]["y"] * w + r["pos"]["x"]]]
+    if len(area) != len(rows):
+        bad.append("two 州 share a white area")
+    touch = set()
+    for y in range(h):
+        for x in range(w):
+            a = area.get(lab[y * w + x])
+            if a is None:
+                continue
+            for dx in range(-4, 5):
+                for dy in range(-4, 5):
+                    u, v = x + dx, y + dy
+                    b = area.get(lab[v * w + u]) if 0 <= u < w and 0 <= v < h else None
+                    if b and b != a:
+                        touch.add((a, b))
+    for r in rows:
+        checked += 1
+        if sorted(b for a, b in touch if a == r["id"]) != r["adjacent"]:
+            bad.append(f"{r['id']}: map neighbours differ from adjacent")
+    return checked, bad
+
+
+def places(game_dir, out_dir):
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    san2_world_map(game_dir).save(os.path.join(out_dir, "world", "MAPDATA.png"))
+    maps, _ = san2.render_san2_battle_maps(os.path.join(game_dir, "HEXDATA.DAT"))
+    _save(maps, out_dir, [f"{n:02d}.png" for n in range(1, 42)])
+    where = {qr: k + 1 for k, qr in enumerate(san2.SAN2_PROVINCE_HEX)}
+    borrowed = santsukuru_provinces(os.path.join(game_dir, "..", "santsukuru-win"))
+    rows = []
+    for k, (q, r) in enumerate(san2.SAN2_PROVINCE_HEX):
+        adjacent = sorted(where[q + dq, r + dr] for dq, dr in san2.HEX_DIRS if (q + dq, r + dr) in where)
+        name, _, _, tsukuru = borrowed[k]
+        assert sorted(n + 1 for n in tsukuru) == adjacent, k + 1
+        rows.append({"id": k + 1, "name": None, "nameBorrowed": {"name": name, "from": "santsukuru-win"},
+                     "level": "州", "adjacent": adjacent,
+                     "battlemaps": [{"file": f"{k + 1:02d}.png", "role": BATTLE}],
+                     "pos": {"x": SAN2_MAP_POS[k][0], "y": SAN2_MAP_POS[k][1], "grid": "pixel", "w": SAN2_MAP_W,
+                             "h": SAN2_MAP_H},
+                     "uncertain": ["battlemaps"],
+                     "notes": "州只有號碼，借用的名字來自三国志ツクール範例劇本（41 州的順序與相鄰關係和本作相同）。"
+                              "pos 是大地圖 world/MAPDATA.png（296×400）上這一州白色區塊裡離州界最遠的點。"
+                              "從哪個鄰州進攻只換布陣位置、不換地圖，沒在遊戲裡確認。"})
+    return rows
+
+
+# 三國志II PC-98: SNDATA1-6.CIM (0x16 header, s2_format records, face at +26) then TAIKI.DAT (6-byte header,
+# s2_format_taiki: 3 bytes in front); 知力 武力 魅力 at +4-6 (TAIKI +7-9). The builder (load_san2_jp_persons) keeps
+# the first record of each face code, so the values are that record's
+SAN2_STATS = ["知力", "武力", "魅力"]
+
+
+def stats(game_dir):
+    out, seen = [], set()
+
+    def add(rec, face_at, stats_at):
+        if rec[face_at + 2:face_at + 6] == bytes(4):
+            return False
+        face = int.from_bytes(rec[face_at:face_at + 2], "little")
+        if face not in seen:
+            seen.add(face)
+            out.append(dict(zip(SAN2_STATS, rec[stats_at:stats_at + 3])))
+        return True
+
+    size = struct.calcsize(s2_format)
+    for n in range(1, 7):
+        with open(os.path.join(game_dir, f"SNDATA{n}.CIM"), "rb") as f:
+            d = f.read()
+        for i in range(215):
+            if not add(d[0x16 + i * size:0x16 + (i + 1) * size], 26, 4):
+                break
+    with open(os.path.join(game_dir, "TAIKI.DAT"), "rb") as f:
+        d = f.read()
+    size = struct.calcsize(s2_format_taiki)
+    for i in range(420):
+        if not add(d[6 + i * size:6 + (i + 1) * size], 29, 7):
+            break
+    names = san2.load_san2_jp_persons(game_dir, False)
+    assert len(names) == len(out)
+    return [(i, name, s) for i, ((_, name), s) in enumerate(zip(names, out))]

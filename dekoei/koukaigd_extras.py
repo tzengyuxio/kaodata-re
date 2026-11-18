@@ -21,8 +21,9 @@ import struct
 
 import click
 
-from koukai2_extras import Labels, _csv, cstr, write_map, write_pictures, write_tables
+from koukai2_extras import Labels, write_map, write_pictures, write_tables
 from ls11 import ls11_decode_parts
+from common import cstr, write_csv
 
 DATA = 0x401000  # .data: VA - file offset
 
@@ -58,14 +59,14 @@ def write_gd_tables(exe, st, lb: Labels, out):
     rows = []
     for g in range(15):
         rows.append([g] + list(struct.unpack_from("<6i", exe, AFFINITY - DATA + 24 * g)))
-    _csv(os.path.join(out, "tables", "affinity.csv"), ["group"] + lb.nations[:6], rows)
+    write_csv(os.path.join(out, "tables", "affinity.csv"), ["group"] + lb.nations[:6], rows)
     rows = []
     for k in range(11):
         for slot, t in enumerate(exe[SHIPYARDS - DATA + 8 * k:SHIPYARDS - DATA + 8 * k + 8]):
             if t != 0xFF:
                 sample = GD_LAYOUT["ships"] + 22 * (40 + t)
-                rows.append([k, slot, t, cstr(st[sample:sample + 15], "big5")])
-    _csv(os.path.join(out, "tables", "shipyards.csv"), ["shipyard", "slot", "ship_type", "ship_name"], rows)
+                rows.append([k, slot, t, cstr(st[sample:sample + 15], "big5", errors="replace")])
+    write_csv(os.path.join(out, "tables", "shipyards.csv"), ["shipyard", "slot", "ship_type", "ship_name"], rows)
 
 
 @click.command("koukaigd-extras")

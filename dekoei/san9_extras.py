@@ -4,10 +4,8 @@
 See notes/san9.md「事件、插圖、道具」. Usage (from dekoei/):
     dekoei.py san9-extras --game-dir ../games/san9pk-win --out ../games/san9pk-win/extract
 """
-import csv
 import os
 import struct
-import unicodedata
 from collections import Counter
 
 import click
@@ -15,6 +13,7 @@ from PIL import Image
 
 import ls11
 from sango import SAN9_GAIJI, SAN9_PERSONS, SAN9_SCENARIOS, load_san9_persons, san9_faces
+from common import fold_kana, write_csv
 
 # Picture files G_*.s9 ("palettes first"): u32 palette count, count x (BITMAPINFOHEADER 40 bytes + 256 x R G B X),
 # u32 size of the picture block, then pictures of a 16-byte header (u32 size incl. header, u32 stride (= width),
@@ -132,10 +131,7 @@ def text(b):
 
     def flush():
         if run:
-            s = unicodedata.normalize("NFKC", bytes(run).decode("cp932"))
-            if mode == "H":
-                s = "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in s)
-            out.append(s)
+            out.append(fold_kana(bytes(run).decode("cp932"), katakana=mode != "H"))
             run.clear()
 
     while i < len(b):
@@ -176,14 +172,6 @@ def text(b):
     while s.endswith("\n---\n"):
         s = s[:-5]
     return s
-
-
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def load_pictures(path):

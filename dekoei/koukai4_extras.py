@@ -35,7 +35,6 @@ landing places, the scenario dialogue and the message file, written under --out 
   the sea transparent); drawn over the sea texture (texture 4) as map/world.png. Map units are 1/16 cell: the
   全世界 area of DK4HD_jp.exe 0x14058c590 is 0, 0, 40000, 20000. Only with the pictures.
 """
-import csv
 import os
 import re
 import struct
@@ -44,8 +43,9 @@ import click
 from PIL import Image, ImageDraw
 
 import koei_games
+from common import u32, write_csv
+from gfx import gt1g_count, gt1g_header, texture_image
 
-BCN = {0x59: 1, 0x5B: 3}
 # (file, folder); {lang} = JP / TC
 PICTURES = [
     *[(f"EventBG{i}.dk4", f"eventcg/bg{i}") for i in range(1, 9)], ("EventBGEX.dk4", "eventcg/bgex"),
@@ -109,28 +109,11 @@ MAP_SCALE = 4  # world.png: pixels per cell, so a map position in pixels is unit
 
 def textures(data):
     """(index, format, width, height, pixel bytes) of a GT1G texture set."""
-    table, count = struct.unpack_from("<2I", data, 12)
-    offsets = struct.unpack_from(f"<{count}I", data, table)
-    ends = [table + o for o in offsets[1:]] + [len(data)]
-    for i, o in enumerate(offsets):
-        h = table + o
-        fmt, size = data[h + 1], data[h + 2]
-        extra, = struct.unpack_from("<I", data, h + 8)
-        if size == 0 and extra >= 0x14:
-            w, ht = struct.unpack_from("<2I", data, h + 0x14)
-        else:
-            w, ht = 1 << (size & 15), 1 << (size >> 4)
-        yield i, fmt, w, ht, data[h + 8 + extra:ends[i]]
-
-
-def decode(fmt, w, h, px):
-    if fmt in BCN:
-        n = BCN[fmt]
-        return Image.frombytes("RGBA", (w, h), px[:w * h // 2 if n == 1 else w * h], "bcn", n)
-    if fmt == 0x01:
-        return Image.frombytes("RGBA", (w, h), px[:w * h * 4])
-    raise ValueError(f"texture format {fmt:#x}")
-
+    table, n = u32(data, 12), gt1g_count(data)
+    ends = [table + u32(data, table + 4 * k) for k in range(1, n)] + [len(data)]
+    for i in range(n):
+        fmt, w, h, start = gt1g_header(data, i)
+        yield i, fmt, w, h, data[start:ends[i]]
 
 def write_pictures(game_dir, out):
     rows = []
@@ -143,9 +126,9 @@ def write_pictures(game_dir, out):
                 data = f.read()
             for i, fmt, w, h, px in textures(data):
                 rel = os.path.join(os.path.relpath(dst, out), f"{i:03d}.png")
-                decode(fmt, w, h, px).save(os.path.join(out, rel))
+                texture_image(fmt, w, h, px).save(os.path.join(out, rel))
                 rows.append([os.path.basename(path), i, w, h, f"{fmt:#04x}", rel])
-    _csv(os.path.join(out, "pictures.csv"), ["file", "index", "width", "height", "format", "png"], rows)
+    write_csv(os.path.join(out, "pictures.csv"), ["file", "index", "width", "height", "format", "png"], rows)
     return len(rows)
 
 
@@ -251,8 +234,7 @@ def tables(game_dir, out):
                      struct.unpack_from("<H", rec, 0x46)[0], facilities(rec), influence(rec),
                      *struct.unpack_from("<2H", rec, 0x52), *struct.unpack_from("<2I", rec, 0x58), market2(rec),
                      facilities(pk), influence(pk), *struct.unpack_from("<2H", pk, 0x52)])
-    _csv(os.path.join(out, "tables", "ports.csv"),
-         ["id", "name", "nameZh", "x1", "y1", "x2", "y2", "b36", "market (good:price:?)", "rest", "pkMarket",
+    write_csv(os.path.join(out, "tables", "ports.csv"), ["id", "name", "nameZh", "x1", "y1", "x2", "y2", "b36", "market (good:price:?)", "rest", "pkMarket",
           "pkRest (when different)", "mapX", "mapY", "anchorMapX", "anchorMapY", "center", "zone", "b26", "u16_46",
           "facilities", "influence (force:%)", "u16_52", "u16_54", "u32_58", "u32_5C", "market2 (flag:price:rate)",
           "pkFacilities", "pkInfluence", "pkU16_52", "pkU16_54"], rows)
@@ -299,8 +281,7 @@ def tables(game_dir, out):
                      f"items/pictures/{i:03d}.png", *extra(jp.data, o), *extra(w1.data, s1 + i * ITEM_SIZE),
                      *effect(kind, post), flags(jp.data[o + 0x19]), flags(w1.data[s1 + i * ITEM_SIZE + 0x19]),
                      text["JP"](ITEM_TEXT + i), text["TC"](ITEM_TEXT + i)])
-    _csv(os.path.join(out, "items", "items.csv"),
-         ["id", "name", "nameZh", "kind", "kindCode", "price", "post", "power", "x", "y", "region", "shop", "b19",
+    write_csv(os.path.join(out, "items", "items.csv"), ["id", "name", "nameZh", "kind", "kindCode", "price", "post", "power", "x", "y", "region", "shop", "b19",
           "pkX", "pkY", "pkRegion", "pkShop", "pkB19", "picture", "area", "mapX", "mapY", "pkArea", "pkMapX",
           "pkMapY", "room", "postName", "ability", "flags", "pkFlags", "description", "descriptionZh"], rows)
     counts["items"] = n
@@ -346,7 +327,7 @@ def tables(game_dir, out):
         h = ["id", "name", "nameZh", *header]
         if fname == "goods":
             h += ["picture"]
-        _csv(os.path.join(out, "tables", f"{fname}.csv"), h + ["rest"], rows)
+        write_csv(os.path.join(out, "tables", f"{fname}.csv"), h + ["rest"], rows)
         counts[fname] = n
     return counts
 
@@ -406,13 +387,12 @@ def events(game_dir, out):
         for (b, kind, who, ja), (_, _, _, zh) in zip(lines["JP"], lines["TC"]):
             rows.append([k, b, "" if kind else who, speaker("JP", kind, who), ja, zh])
         total += len(lines["JP"])
-    _csv(os.path.join(out, "events", "scenario.csv"), ["scenario", "script", "speaker", "speakerName", "ja", "zh"],
-         rows)
+    write_csv(os.path.join(out, "events", "scenario.csv"), ["scenario", "script", "speaker", "speakerName", "ja", "zh"], rows)
     for lang, enc in LANGS:
         rows = [[b, i, s.decode(enc, "replace").lstrip(" ")]
                 for b, blk in enumerate(_blocks(os.path.join(game_dir, lang, "mesfile.dk4")))
                 for i, s in enumerate(blk.split(b"\0")) if s.strip(b" ")]
-        _csv(os.path.join(out, "text", f"mesfile_{lang.lower()}.csv"), ["block", "index", "text"], rows)
+        write_csv(os.path.join(out, "text", f"mesfile_{lang.lower()}.csv"), ["block", "index", "text"], rows)
     return total
 
 
@@ -439,7 +419,7 @@ def world_map(game_dir, out, ports=None):
     im.save(os.path.join(out, "map", "world_cells.png"))
 
     with open(os.path.join(game_dir, "Chip.DK4"), "rb") as f:
-        tex = [decode(fmt, w, h, px) for _, fmt, w, h, px in textures(f.read())]
+        tex = [texture_image(fmt, w, h, px) for _, fmt, w, h, px in textures(f.read())]
     chip, sea = tex[0], tex[4].convert("RGB")
     s = MAP_SCALE
     sea = sea.resize((s * 16, s * 16), Image.BOX)
@@ -465,14 +445,6 @@ def world_map(game_dir, out, ports=None):
             x, y = x // 4, y // 4
             d.ellipse((x - 3, y - 3, x + 3, y + 3), outline=(255, 0, 0), width=2)
         small.save(os.path.join(out, "map", "world_ports.png"))
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 @click.command("koukai4-extras")

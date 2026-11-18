@@ -9,6 +9,7 @@ import genchou_extras as ge
 import kaodata_export as ke
 import koei_games
 from koei_stats import GENCHOU_GRADES
+from common import cstr, read_file
 
 ABILITIES = ["政治力", "戦闘力", "指揮力", "魅力"]
 BLOCK, MAN, CHILD = koei_games.GENCHOU_PC88_BLOCK, 27, 23  # USDATA: 351-byte blocks of 8 men and 5 子嗣
@@ -34,7 +35,7 @@ def persons(game_dir):
     name_zh = {i: ke.GENCHOU_DOS_NAMES.get(k[1], k[1]) for k, i in zh_ids.items()}
     historical = {i: ke.GENCHOU_DOS_NAME_HISTORICAL.get(n, n) for i, n in name_zh.items()}
     split = ke.GENCHOU_PC88_SPLIT
-    exe = ge._read(game_dir, "MAIN.EXE")
+    exe = read_file(game_dir, "MAIN.EXE")
     cultures, ranks = ge._strings(exe, ge.CULTURES), ge._strings(exe, ge.RANKS)
 
     def pid(sc, woman, name):
@@ -49,7 +50,7 @@ def persons(game_dir):
         return p
 
     for sc in range(1, 5):
-        gen = ge._read(game_dir, f"GENDATA{sc}.DAT")
+        gen = read_file(game_dir, f"GENDATA{sc}.DAT")
         records = [r for r in ge._records(gen, ge.MEN)]
         base = 100 if sc == 1 else 0
         rows = ge.persons(game_dir, ext_dir, sc)
@@ -87,11 +88,11 @@ def persons(game_dir):
                     siblings.setdefault(i, set()).add(rulers[r["faction"]])
                     siblings.setdefault(rulers[r["faction"]], set()).add(i)
             p["scenarios"].append(s)
-        us = ge._read(game_dir, f"USDATA{sc}.DAT")
+        us = read_file(game_dir, f"USDATA{sc}.DAT")
         for b in range(0, len(us) - BLOCK + 1, BLOCK):
             for k in range(8):
                 m = us[b + k * MAN:][:MAN]
-                name = ge._ja(m[:17])
+                name = cstr(m[:17], nfkc=True).strip()
                 if not name:
                     continue
                 i = pid(sc, False, name)
@@ -104,7 +105,7 @@ def persons(game_dir):
                 p["scenarios"].append({"scenario": sc, "status": "登場武將"})
             for k in range(5):
                 c = us[b + 8 * MAN + k * CHILD:][:CHILD]
-                name = ge._ja(c[:17])
+                name = cstr(c[:17], nfkc=True).strip()
                 if not name or not int.from_bytes(c[CHILD - 2:], "little"):
                     continue
                 key = (False, name, (name, sc) in split)

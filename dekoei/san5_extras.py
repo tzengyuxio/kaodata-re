@@ -16,7 +16,6 @@ Formats and evidence: notes/san5.md「事件、插圖、道具」. MAIN.EXE addr
 - MESSAGE.S5 (LS11, 56 parts of a u16 count and u16 offsets): Shift-JIS with half-width kana shown as hiragana,
   01 22 line attribute, 01 xx + 2 bytes control, 02 + 2 bytes variable, 0A line break, 05 05 05 end of a variant.
 """
-import csv
 import json
 import os
 import re
@@ -29,6 +28,8 @@ import biography
 import ls11
 import sango
 from utils import unpack_npk
+from common import read_file, write_csv
+from san4_extras import join_marks
 
 DGROUP = 0x51250  # MAIN.EXE (PK) file offset of DGROUP
 PALETTE = DGROUP + 0x910  # 16 x (B, R, G)
@@ -91,29 +92,17 @@ def image(im, pal):
     return im.convert("RGB")
 
 
-def read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
-def write_csv(path, header, rows):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
 def pictures(game_dir):
     """(file name, group, name, source, evidence, image) of the named pictures."""
-    main = read(game_dir, "MAIN.EXE")
+    main = read_file(game_dir, "MAIN.EXE")
     pal, shifted = palette(main), palette(main, shift=8)
     out = []
-    for k, p in enumerate(ls11.ls11_decode_parts(read(game_dir, "ESTL.S5"))):
+    for k, p in enumerate(ls11.ls11_decode_parts(read_file(game_dir, "ESTL.S5"))):
         out.append((f"estl-{k:02d}", "事件", ESTL_NAMES[k], f"ESTL.S5 #{k}",
                     "圖 ✅ code（0x1a41e，240×160、3 面）；名稱 🟡 看圖", image(rcp(p, 240, 160, 3), shifted)))
     # IKKIHAI.S5 (MAIN.EXE 0x8c0e0): 640 x 400 from two 320 x 400 halves; with the 624 x 116 bands (y 160, 276) it is
     # the 武術大会 version; the other pieces frame the 800 x 600 screen
-    d = read(game_dir, "IKKIHAI.S5")
+    d = read_file(game_dir, "IKKIHAI.S5")
 
     def part(o, w, h):
         return image(rcp(d[o:], w, h), pal)
@@ -136,19 +125,19 @@ def pictures(game_dir):
              "✅ code（0x8c0e0，條件 DGROUP 0x2a00）；用途 🟡", hall),
             ("ikkihai-800x600", "一騎討ち", "一騎討ち（800×600 畫面框）", "IKKIHAI.S5 0x0–0xFF00、0x32500、0x35700",
              "各塊 ✅ code；中央與下框的位置 🟡", big)]
-    b = read(game_dir, "BUDOUKAI.S5")
+    b = read_file(game_dir, "BUDOUKAI.S5")
     out.append(("budoukai", "武術大會", "武術大會對戰表", "BUDOUKAI.S5 0", "✅ code（0xbcdd8，328×312）",
                 image(rcp(b, 328, 312), pal)))
-    m = read(game_dir, "IMODE.S5")  # four 320 x 200 quarters (MAIN.EXE 0xafd54): (0,0) (0,200) (320,0) (320,200)
+    m = read_file(game_dir, "IMODE.S5")  # four 320 x 200 quarters (MAIN.EXE 0xafd54): (0,0) (0,200) (320,0) (320,200)
     title = Image.new("RGB", (640, 400))
     for k, (x, y) in enumerate([(0, 0), (0, 200), (320, 0), (320, 200)]):
         title.paste(image(rcp(m[32000 * k:], 320, 200), pal), (x, y))
     out.append(("imode", "一騎討ちモード", "一騎討ちモード標題", "IMODE.S5 0–0x1F3FF",
                 "排法 ✅ code（0xafd54）；色盤 🟡（只用色 1–4、8，可能另有色盤）；用途 🟡", title))
-    f = read(game_dir, "FMAP.S5")
+    f = read_file(game_dir, "FMAP.S5")
     out.append(("fmap", "地圖", "勢力分布圖", "FMAP.S5 0", "讀取 ✅ code（0x18b4f，64800 bytes）；360×360 🟡 看圖",
                 image(rcp(f, 360, 360), pal)))
-    c = read(game_dir, "CANMB.S5")
+    c = read_file(game_dir, "CANMB.S5")
     n = struct.unpack_from("<H", c)[0]
     for k, (w, name) in enumerate(CANMB_SCENES):
         o, size = struct.unpack_from("<IH", c, 2 + 6 * k)
@@ -170,16 +159,16 @@ def export_pictures(game_dir, out):
 def export_maps(game_dir, out):
     """The main map, 800 x 592: 16 colours with the 4 season groups, and the 256-colour version (PC-9821)."""
     os.makedirs(out, exist_ok=True)
-    main = read(game_dir, "MAIN.EXE")
-    d = read(game_dir, "MAINMAP.S5")
+    main = read_file(game_dir, "MAIN.EXE")
+    d = read_file(game_dir, "MAINMAP.S5")
     idx = Image.new("P", (800, 592))
     for k in range(50):
         idx.paste(plane_seq(d[k * 4736:], 16, 592), (16 * k, 0))
-    d = read(game_dir, "MAP256.S5")
+    d = read_file(game_dir, "MAP256.S5")
     idx256 = Image.new("P", (800, 592))
     for k in range(50):
         idx256.paste(Image.frombytes("P", (16, 592), d[k * 9472:(k + 1) * 9472]), (16 * k, 0))
-    pal256 = read(game_dir, "PAL256.S5")
+    pal256 = read_file(game_dir, "PAL256.S5")
     rows = []
     for s in range(4):
         image(idx, palette(main, s)).save(os.path.join(out, f"mainmap-{s}.png"))
@@ -217,10 +206,10 @@ def kaodata_ids(game_dir):
 
 def export_items(game_dir, out, dos_dir=None):
     os.makedirs(os.path.join(out, "pictures"), exist_ok=True)
-    main = read(game_dir, "MAIN.EXE")
-    zh = read(dos_dir, "MAIN.EXE") if dos_dir else None
+    main = read_file(game_dir, "MAIN.EXE")
+    zh = read_file(dos_dir, "MAIN.EXE") if dos_dir else None
     pal = palette(main)
-    pics = read(game_dir, "ITEM.S5")
+    pics = read_file(game_dir, "ITEM.S5")
     for k in range(len(pics) // 3200):
         image(rcp(pics[3200 * k:], 80, 80), pal).save(os.path.join(out, "pictures", f"{k:02d}.png"))
     parts = sango.san5_parts(os.path.join(game_dir, "SNDATA.S5"))
@@ -246,22 +235,6 @@ def export_items(game_dir, out, dos_dir=None):
 
 
 KATA = "。「」、・をぁぃぅぇぉゃゅょっーあいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわん゛゜"
-VOICED = {**{a: b for a, b in zip("かきくけこさしすせそたちつてとはひふへほ", "がぎぐげござじずぜぞだぢづでどばびぶべぼ")}, "う": "ゔ"}
-SEMI = {a: b for a, b in zip("はひふへほ", "ぱぴぷぺぽ")}
-
-
-def join_marks(s):
-    out = []
-    for c in s:
-        if c == "゛" and out and out[-1] in VOICED:
-            out[-1] = VOICED[out[-1]]
-        elif c == "゜" and out and out[-1] in SEMI:
-            out[-1] = SEMI[out[-1]]
-        else:
-            out.append(c)
-    return "".join(out)
-
-
 def text(m, glyph):
     """MESSAGE.S5 message -> text with control codes kept as {xx:hex} / {V:hex}; glyph(2 bytes) -> str."""
     out, i = [], 0
@@ -369,14 +342,14 @@ def sheet(items, path):
 
 def export_fragments(game_dir, out):
     os.makedirs(out, exist_ok=True)
-    pal = palette(read(game_dir, "MAIN.EXE"))
+    pal = palette(read_file(game_dir, "MAIN.EXE"))
 
     def raw(name, w):
-        d = read(game_dir, name)
+        d = read_file(game_dir, name)
         return strip(image(rcp(d, w, len(d) * 2 // w), pal))
     sheet([(f"{n} (w {w})", raw(n, w)) for n, w in UI], os.path.join(out, "ui.png"))
     sprites = [(f"{n} (w {w})", raw(n, w)) for n, w in SPRITES]
-    c = read(game_dir, "CANMA.S5")
+    c = read_file(game_dir, "CANMA.S5")
     n = struct.unpack_from("<H", c)[0]
     cels = []
     for k in range(n):
@@ -438,13 +411,13 @@ def export_open_end(game_dir, out):
         im.save(os.path.join(out, folder, fname + ".png"))
         rows.append([f"{folder}/{fname}.png", group, name, source, f"{im.width}x{im.height}", ev])
 
-    pl = read(game_dir, "OPENPLD.S5")
-    o1 = read(game_dir, "OPEN1.S5")
+    pl = read_file(game_dir, "OPENPLD.S5")
+    o1 = read_file(game_dir, "OPEN1.S5")
     b1 = npk_blocks(o1, (0x357D0,))
-    o2, o3 = read(game_dir, "OPEN2.S5"), read(game_dir, "OPEN3.S5")
-    mono = [read(game_dir, f"OPMONO{s}.S5") for s in ("", "2", "3")]
+    o2, o3 = read_file(game_dir, "OPEN2.S5"), read_file(game_dir, "OPEN3.S5")
+    mono = [read_file(game_dir, f"OPMONO{s}.S5") for s in ("", "2", "3")]
     b3 = npk_blocks(o3, (0xC0F6, 0xE26C))
-    tt = read(game_dir, "OPTITLE.S5")
+    tt = read_file(game_dir, "OPTITLE.S5")
     bt = npk_blocks(tt)
 
     def half(d, o):
@@ -485,8 +458,8 @@ def export_open_end(game_dir, out):
     os.makedirs(os.path.join(out, "fragments"), exist_ok=True)
     thumbs(cels, 8).save(os.path.join(out, "fragments", "opening-cels.png"))
 
-    ep = read(game_dir, "EDPAL.S5")
-    e2, e3, e4, scr = (read(game_dir, f) for f in ("END2.S5", "END3.S5", "END4.S5", "ENDSCR.S5"))
+    ep = read_file(game_dir, "EDPAL.S5")
+    e2, e3, e4, scr = (read_file(game_dir, f) for f in ("END2.S5", "END3.S5", "END4.S5", "ENDSCR.S5"))
     ed = [
         ("01", place((512, 320), (rcp(e2, 512, 160), (0, 0)), (rcp(e2[0xA000:], 512, 160), (0, 160))),
          14, "都城鳥瞰", "END2 0+0xA000（2 × 0xA000，0x5A0A）；EDPAL #14（0x5AAD）", "✅ code（位置、色盤）；512 寬由大小推 🟡"),

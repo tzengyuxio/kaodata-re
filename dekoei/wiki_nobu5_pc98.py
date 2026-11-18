@@ -24,6 +24,7 @@ import kaodata_export as K
 import koei_games as G
 from persons_export import family_of
 from wiki_nobu5 import LIFESPAN, PROVINCE_BASE, STATS, _name
+from common import u16
 
 BASE_YEAR = 1453
 DAIMYO, CITIES = 0x122, 0x50F8
@@ -45,10 +46,6 @@ MAP_CASTLES, MAP_SEASONS = 0x43870 + 0x114, 0x47596
 NOBU5_WORLD_FILE = "M_CHIKEI-spring.png"
 
 
-def _u16(b, o):
-    return int.from_bytes(b[o:o + 2], "little")
-
-
 def _load(game_dir):
     def read(name):
         with open(os.path.join(game_dir, name), "rb") as f:
@@ -67,7 +64,7 @@ def _scenario(sn):
     """(file offset of the family name -> person record, daimyo number -> offset) of a SN*.NB5 file."""
     people = {o: sn[o:o + 39] for o in range(G.NOBU5_PC98_PEOPLE, G.NOBU5_PC98_PEOPLE + G.NOBU5_PC98_SLOTS * 39, 39)
               if sn[o]}
-    daimyo = {d: _u16(sn, DAIMYO + 39 * d) - 0x40 for d in range(64) if _u16(sn, DAIMYO + 39 * d) - 0x40 in people}
+    daimyo = {d: u16(sn, DAIMYO + 39 * d) - 0x40 for d in range(64) if u16(sn, DAIMYO + 39 * d) - 0x40 in people}
     return people, daimyo
 
 
@@ -84,7 +81,7 @@ def _ids(sns, sts):
     ids, names = {}, {}
     for n in K.NOBU5_WIN_ORDER:
         people, _ = _scenario(sns[n])
-        for name, face in [(_person_name(p), _u16(p, 29)) for p in people.values()] + \
+        for name, face in [(_person_name(p), u16(p, 29)) for p in people.values()] + \
                 G.load_nobu5_pc98_arrivals(sts[n]):
             if face not in ids:
                 ids[face], names[face] = len(ids), K.NOBU5_WIN_ALIASES.get(name, name)
@@ -122,10 +119,10 @@ def _surnames(sns, sts):
     out = {}
     for n in K.NOBU5_WIN_ORDER:
         for p in _scenario(sns[n])[0].values():
-            out.setdefault(_u16(p, 29), set()).add(G._nobu5_pc98_name(p[:7]))
+            out.setdefault(u16(p, 29), set()).add(G._nobu5_pc98_name(p[:7]))
         st = sts[n]
         for o in range(0, len(st) - 29, 30):
-            out.setdefault(_u16(st, o + 26), set()).add(G._nobu5_pc98_name(st[o + 4:o + 11]))
+            out.setdefault(u16(st, o + 26), set()).add(G._nobu5_pc98_name(st[o + 4:o + 11]))
     return out
 
 
@@ -155,10 +152,10 @@ def persons(game_dir):
     entries = {}  # face -> {scenario: entry}
     for n in K.NOBU5_WIN_ORDER:
         people, daimyo = _scenario(sns[n])
-        lord_face = {d: _u16(people[o], 29) for d, o in daimyo.items()}
+        lord_face = {d: u16(people[o], 29) for d, o in daimyo.items()}
         rulers = set(daimyo.values())
         for o, p in people.items():
-            face = _u16(p, 29)
+            face = u16(p, 29)
             row(face, BASE_YEAR + p[14], p[15:20], p[20], p[28], p[23])
             e = {"scenario": n + 1, "year": years[n],
                  "status": "大名" if o in rulers else "浪人" if p[21] == 0xFF else "家臣", "location": p[24]}
@@ -167,7 +164,7 @@ def persons(game_dir):
                 e["loyalty"] = p[27]
             entries.setdefault(face, {})[n] = e
         for a in _arrivals(sts[n]):
-            face = _u16(a, 26)
+            face = u16(a, 26)
             r = row(face, BASE_YEAR + a[18], a[19:24], a[24], a[25], a[1])
             r.setdefault("debut", BASE_YEAR + a[0])
             e = {"scenario": n + 1, "year": years[n], "status": "後登場", "debut": BASE_YEAR + a[0]}
@@ -238,7 +235,7 @@ def world_map(game_dir):
 
 
 def _castle_cells(exe):
-    base = _u16(exe, 8) * 16
+    base = u16(exe, 8) * 16
     return [tuple(exe[base + MAP_CASTLES + 2 * k:base + MAP_CASTLES + 2 * k + 2]) for k in range(173)]
 
 

@@ -199,7 +199,7 @@
 | 檔案 | 來源 | 內容 | 可信度 |
 |---|---|---|---|
 | `ground_color.png` | `FieldEditor4.rdb` bin14 0x3720000 的 `GT1G4600` 第 2 張 | 4096×4096 BC3，整張大地圖的地面底色（六角格、道路、城的圓點看得出來） | 🟡 code：用途是看圖推的 |
-| `hex_terrain.png` | `RRPreview.rdb` 0x7F0000 的 `GT1G0500` | 8192×8192 RGBA8，地圖編輯器的六角格地形預覽（黃色是大河、灰是山、綠是林、紅褐色、藍色線是道路或河），顏色對哪種地形沒解 | 🟡 code |
+| `hex_terrain.png` | `RRPreview.rdb` 0x7F0000 的 `GT1G0500` | 8192×8192，format 0x01（B、G、R、A，同信長16），地圖編輯器的六角格地形預覽：每格寫著地形字（平、森、砂、川、街、府、港、低／中／高、険、山…），砂是褐、川是淺藍、街是黃、森是綠 | 🟡 code：色序看格內的字判斷（當 RGBA 讀時砂變深藍、川變黃，2026-11-18 改成 BGRA） |
 | `map_cover.png` | `ScreenLayout.rdb` sprite `map_cover` | 4000×3000，大地圖外圍的手繪底圖（中間挖空給 3D 地圖） | ✅ code |
 
 - 位置是 PK 下載（depot 1427650，`notes/steam.md`）的 `.rdb.bin` 位移；KTID 沒進 `san14_entries` 的回傳值，換版本要重找。

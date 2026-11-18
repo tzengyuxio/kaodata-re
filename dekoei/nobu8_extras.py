@@ -15,7 +15,6 @@ history chronicle, the maps and the sprite sets, written under --out (notes/nobu
 - The 年表: Nobunaga8WPK.exe .rdata file offset 0x446F98, records of 8 bytes (u16 index, u16 year * 16 + month,
   u32 VA of the title string) until the index breaks.
 """
-import csv
 import os
 import struct
 
@@ -26,6 +25,7 @@ import koei_games
 import ls11
 import nobu7_extras as n7
 import wiki_nobu8 as w
+from common import read_file, write_csv
 
 ITEMS, ITEM_SIZE, ITEM_COUNT = 0x3B33C, 0x28, 350
 KANI, KANI_SIZE, KANI_COUNT = 0x3E9EC, 0x1E, 250
@@ -75,13 +75,8 @@ BMPS = [("Title.nb8", "eventcg/title/title.png"), ("TitleC.NB8", "eventcg/title/
         ("WarMapM.nb8", "map/warmap_m.png"), ("WarMapS.nb8", "map/warmap_s.png")]
 
 
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def palette(game_dir):
-    p = _read(os.path.join(game_dir, "palette.nb8"))
+    p = read_file(os.path.join(game_dir, "palette.nb8"))
     return b"".join(p[4 + 4 * c:7 + 4 * c] for c in range(256))
 
 
@@ -91,7 +86,7 @@ def write_pictures(game_dir, out, pal):
         d = os.path.join(out, folder)
         os.makedirs(d, exist_ok=True)
         n = 0
-        for i, (wd, h, px) in enumerate(n7.pictures(_read(os.path.join(game_dir, name)))):
+        for i, (wd, h, px) in enumerate(n7.pictures(read_file(os.path.join(game_dir, name)))):
             im = Image.frombytes("P", (wd, h), px)
             im.putpalette(pal)
             if transparent and min(px) < 10:
@@ -131,12 +126,10 @@ def items(out, scenarios, names):
         lost = ["1" if d[o + 0x14] & 1 else "" for d in scenarios]
         rows.append([i, _name14(main, o), kind, KINDS[kind], grade, pic, f"{pic:04d}.png", value, f"{flags:02x}",
                      amount, v17, f"{bits:02x}", v0e, *holders, "".join("x" if x else "." for x in lost)])
-    _csv(os.path.join(out, "items", "kahou.csv"),
-         ["no", "name", "kind", "kind_name", "grade", "picture", "file", "value_s10", "flags_s10", "effect_amount",
+    write_csv(os.path.join(out, "items", "kahou.csv"), ["no", "name", "kind", "kind_name", "grade", "picture", "file", "value_s10", "flags_s10", "effect_amount",
           "v17", "effect_bits", "v0e_s10", *[f"holder_s{k + 1:02d}" for k in range(len(scenarios))],
           "lost_by_scenario"], rows)
-    _csv(os.path.join(out, "items", "kinds.csv"), ["kind", "name", "special_effect", "items"],
-         [[k, n, SPECIAL.get(n, ""), sum(1 for r in rows if r[2] == k)] for k, n in enumerate(KINDS)])
+    write_csv(os.path.join(out, "items", "kinds.csv"), ["kind", "name", "special_effect", "items"], [[k, n, SPECIAL.get(n, ""), sum(1 for r in rows if r[2] == k)] for k, n in enumerate(KINDS)])
     return len(rows), sum(1 for r in rows for h in r[13:13 + len(scenarios)] if h)
 
 
@@ -148,20 +141,18 @@ def kani(out, scenarios, names):
         value = struct.unpack_from("<H", main, o + 0xE)[0]
         holders = [_holder(struct.unpack_from("<H", d, o + 0x10)[0], ns) for d, ns in zip(scenarios, names)]
         rows.append([i, _name14(main, o), main[o + 0x13], value, *holders])
-    _csv(os.path.join(out, "tables", "kani.csv"),
-         ["no", "name", "rank", "value_s10", *[f"holder_s{k + 1:02d}" for k in range(len(scenarios))]], rows)
+    write_csv(os.path.join(out, "tables", "kani.csv"), ["no", "name", "rank", "value_s10", *[f"holder_s{k + 1:02d}" for k in range(len(scenarios))]], rows)
     sho = []
     for i in range(KANSHOKU_COUNT):
         o = KANSHOKU + KANSHOKU_SIZE * i
         sho.append([i, _name14(main, o), main[o + 0x11],
                     *[struct.unpack_from("<H", d, o + 0xE)[0] for d in scenarios]])
-    _csv(os.path.join(out, "tables", "kanshoku.csv"),
-         ["no", "name", "rank", *[f"v0e_s{k + 1:02d}" for k in range(len(scenarios))]], sho)
+    write_csv(os.path.join(out, "tables", "kanshoku.csv"), ["no", "name", "rank", *[f"v0e_s{k + 1:02d}" for k in range(len(scenarios))]], sho)
     return len(rows), sum(1 for r in rows for h in r[4:] if h), len(sho)
 
 
 def chronicle(game_dir, out):
-    exe = _read(os.path.join(game_dir, "Nobunaga8WPK.exe"))
+    exe = read_file(os.path.join(game_dir, "Nobunaga8WPK.exe"))
     rows = []
     o = CHRONICLE
     while True:
@@ -171,24 +162,16 @@ def chronicle(game_dir, out):
         f = va - IMAGE_BASE - RDATA_VA + RDATA_RAW
         rows.append([idx, date >> 4, date & 15, exe[f:exe.index(b"\0", f)].decode("cp932")])
         o += 8
-    _csv(os.path.join(out, "events", "chronicle.csv"), ["index", "year", "month", "title"], rows)
+    write_csv(os.path.join(out, "events", "chronicle.csv"), ["index", "year", "month", "title"], rows)
     return len(rows)
 
 
 def texts(game_dir, out):
-    parts = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "MESSAGE.NB8")))
+    parts = ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "MESSAGE.NB8")))
     rows = [[k, i, n7.clean(x.decode("cp932", "replace"))] for k in range(len(parts))
             for i, x in enumerate(n7.w.message_strings(parts[k]))]
-    _csv(os.path.join(out, "events", "messages.csv"), ["part", "index", "text"], rows)
+    write_csv(os.path.join(out, "events", "messages.csv"), ["part", "index", "text"], rows)
     return len(parts), len(rows)
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        wr = csv.writer(f)
-        wr.writerow(header)
-        wr.writerows(rows)
 
 
 @click.command("nobu8-extras")

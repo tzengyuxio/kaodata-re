@@ -908,7 +908,7 @@ dekoei.add_command(koumei)  # 孔明傳
 dekoei.add_command(eiketsu5)  # 曹操傳
 dekoei.add_command(europe)
 dekoei.add_command(ishin)  # 維新之嵐
-# dekoei.add_command(ishin2)  # 維新之嵐2
+dekoei.add_command(ishin2)  # 維新之嵐2
 dekoei.add_command(kohryuki)
 dekoei.add_command(koukai)
 dekoei.add_command(koukai2)
@@ -919,7 +919,6 @@ dekoei.add_command(suikoden)
 dekoei.add_command(taikoh)  # 太閤立志傳
 dekoei.add_command(tk2)
 dekoei.add_command(winning)
-# dekoei.add_command(air2)  # 航空霸業II
 dekoei.add_command(genpei)  # 源平合戰
 dekoei.add_command(liberty)  # 獨立戰爭
 dekoei.add_command(celt)  # 魔眼邪神
@@ -973,8 +972,16 @@ dekoei.add_command(tk3_extras, "tk3-extras")  # 提督の決断III PK 插圖、�
 dekoei.add_command(eiketsu_scenario, "eiketsu-scenario")  # 英傑傳 劇本腳本：戰場、部署、事件
 dekoei.add_command(koumei_scenario, "koumei-scenario")  # 孔明傳 劇本腳本：戰場、部署、事件
 dekoei.add_command(eiketsu5_scenario, "eiketsu5-scenario")  # 曹操傳 劇本腳本：戰場、部署、事件、跳關
-# dekoei.add_command(genghis)  # 成吉思汗
-# dekoei.add_command(genchoh)  # 元朝秘史
+
+# The per-game face / person subcommands predate the export commands (export, persons-export, koei-person,
+# nobu-person); kept working, but marked legacy in the help.
+for _group in dekoei.commands.values():
+    if isinstance(_group, click.Group):
+        for _name in ("face", "person"):
+            if _name in _group.commands:
+                _cmd = _group.commands[_name]
+                _cmd.short_help = f"[legacy] {_cmd.get_short_help_str()}"
+                _cmd.help = f"[legacy] {_cmd.help or ''}"
 
 if __name__ == '__main__':
     dekoei()

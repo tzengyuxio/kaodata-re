@@ -11,7 +11,7 @@
   - `VERSION.S5`：「三國志V中文版／1996/06/27／光榮軟件有限公司」。
 - 頭像和人物資料沒看到修改跡象：
   - `KAODATA.S5`（1996-06-17）和 `KAODATAP.S5` 逐 byte 相同，日期是原廠的。
-  - `SNDATA.S5` 的劇本 offset 和 `gadgets.get_san5_name_list`（作者自己那份 SAN5）寫死的 offset 一致。
+  - `SNDATA.S5` 的劇本 offset 和 `legacy/gadgets.py` 的 `get_san5_name_list`（作者自己那份 SAN5）寫死的 offset 一致。
   - 不過手上沒有官方原檔，無法逐 byte 比對。
 - `MAIN.EXE` 改過（日期 2000-03-11）：
   - 附有 `CRACK.TXT`（Martin Wu 的光碟檢查破解）：0x14533 75→EB、0x1A7BF 00→01、0x98DAA 75→EB。

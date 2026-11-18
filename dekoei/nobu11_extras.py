@@ -18,7 +18,6 @@ written under --out (notes/nobu11.md「事件、插圖、道具」).
 - msg/*.n11 (N11F): u32 end of the script; the script is tokens split by ',\\n', each a type byte, ',' and an
   argument; from the end the strings XOR 97 9E 79 E9 (wiki_nobu11._bio_entries). Jump arguments count tokens.
 """
-import csv
 import glob
 import json
 import os
@@ -28,6 +27,7 @@ import click
 from PIL import Image
 
 import wiki_nobu11 as w
+from common import cstr, u16, write_csv
 
 KAHOU, KAHOU_SIZE, KAHOU_COUNT = 0x226AE4, 63, 630
 KANI, KANI_SIZE, KANI_COUNT = 0x2305EE, 47, 350
@@ -111,7 +111,7 @@ def pictures(grp, out):
 
 def _faction_lord(db, persons, serial):
     f = db[FACTIONS + FACTION_SIZE * (serial - FACTION_SERIALS[0]):][:FACTION_SIZE]
-    lord = w._u16(f, 4)
+    lord = u16(f, 4)
     return "" if lord == 0xFFFF else w._person_name(persons[lord - w.PERSONS[0]])
 
 
@@ -125,15 +125,6 @@ def _holder(db, persons, serial):
     return "人物", w._person_name(persons[serial - w.PERSONS[0]])
 
 
-def _write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        cw = csv.writer(f)
-        cw.writerow(header)
-        cw.writerows(rows)
-    return len(rows)
-
-
 def tables(game_dir, out):
     dbs = [(year, w._database(os.path.join(game_dir, "scenario"), n)) for n, year in w.SCENARIOS]
     persons = {year: w._persons(db) for year, db in dbs}
@@ -142,27 +133,25 @@ def tables(game_dir, out):
     items, holders = [], []
     for k in range(KAHOU_COUNT):
         r = main[KAHOU + KAHOU_SIZE * k:][:KAHOU_SIZE]
-        assert w._u16(r, 0) == 0xB17 + k
+        assert u16(r, 0) == 0xB17 + k
         if not r[2]:
             continue
-        name = w._text(r[2:15])
+        name = cstr(r[2:15])
         fn = k // 50 + 1
         if fn not in files:
             files[fn] = w._bio_entries(os.path.join(game_dir, "msg", f"KFile{fn:02d}.n11"))
         entry = files[fn][2 + 5 * (k % 50):][:5]
         text = "".join(line.replace("\\n", "") for line in entry[1:])
-        items.append([k, name, w._text(r[15:53]), r[53], GRADES[r[53]], r[54] + 1, PICTURE_KINDS[r[54]],
+        items.append([k, name, cstr(r[15:53]), r[53], GRADES[r[53]], r[54] + 1, PICTURE_KINDS[r[54]],
                       ORIGINS[r[55]], r[56], "" if entry[0] == name else entry[0], text])
         for year, db in dbs:
             rec = db[KAHOU + KAHOU_SIZE * k:][:KAHOU_SIZE]
-            kind, who = _holder(db, persons[year], w._u16(rec, 57))
+            kind, who = _holder(db, persons[year], u16(rec, 57))
             if kind:
                 holders.append([year, k, name, kind, who])
-    n = {"items/kahou.csv": _write_csv(os.path.join(out, "items/kahou.csv"),
-                                       ["id", "name", "reading", "grade", "gradeName", "picture", "pictureKind",
+    n = {"items/kahou.csv": write_csv(os.path.join(out, "items/kahou.csv"), ["id", "name", "reading", "grade", "gradeName", "picture", "pictureKind",
                                         "origin", "flag56", "textName", "text"], items),
-         "items/holders.csv": _write_csv(os.path.join(out, "items/holders.csv"),
-                                         ["year", "id", "name", "holderKind", "holder"], holders)}
+         "items/holders.csv": write_csv(os.path.join(out, "items/holders.csv"), ["year", "id", "name", "holderKind", "holder"], holders)}
     for key, (start, size, count, name_at, holder_at, rank_at) in {
             "kani": (KANI, KANI_SIZE, KANI_COUNT, (2, 15, 44), 45, 44),
             "yakushoku": (YAKU, YAKU_SIZE, YAKU_COUNT, (4, 15, 40), 2, 40)}.items():
@@ -170,23 +159,20 @@ def tables(game_dir, out):
         rows, held = [], []
         for k in range(count):
             r = main[start + size * k:][:size]
-            rows.append([k, w._text(r[a:b]), w._text(r[b:c]), r[rank_at]])
+            rows.append([k, cstr(r[a:b]), cstr(r[b:c]), r[rank_at]])
             for year, db in dbs:
-                kind, who = _holder(db, persons[year], w._u16(db[start + size * k:][:size], holder_at))
+                kind, who = _holder(db, persons[year], u16(db[start + size * k:][:size], holder_at))
                 if kind:
                     held.append([year, k, rows[-1][1], who])
-        n[f"tables/{key}.csv"] = _write_csv(os.path.join(out, f"tables/{key}.csv"),
-                                            ["id", "name", "reading", "rank"], rows)
-        n[f"tables/{key}_holders.csv"] = _write_csv(os.path.join(out, f"tables/{key}_holders.csv"),
-                                                    ["year", "id", "name", "holder"], held)
+        n[f"tables/{key}.csv"] = write_csv(os.path.join(out, f"tables/{key}.csv"), ["id", "name", "reading", "rank"], rows)
+        n[f"tables/{key}_holders.csv"] = write_csv(os.path.join(out, f"tables/{key}_holders.csv"), ["year", "id", "name", "holder"], held)
     daimyo = []
     for year, db in dbs:
         for k in range(len(FACTION_SERIALS)):
             f = db[FACTIONS + FACTION_SIZE * k:][:FACTION_SIZE]
-            if w._u16(f, 4) != 0xFFFF:
+            if u16(f, 4) != 0xFFFF:
                 daimyo.append([year, k, _faction_lord(db, persons[year], FACTION_SERIALS[0] + k), f[2], f[3]])
-    n["kamon/daimyo.csv"] = _write_csv(os.path.join(out, "kamon/daimyo.csv"),
-                                       ["year", "faction", "lord", "kamon", "byte3"], daimyo)
+    n["kamon/daimyo.csv"] = write_csv(os.path.join(out, "kamon/daimyo.csv"), ["year", "faction", "lord", "kamon", "byte3"], daimyo)
     return n
 
 
@@ -241,8 +227,8 @@ def events(msg_dir, out):
             index.append([name, len(boxes), len(strings) - 2, sum(t[1] == "call" for t in tokens),
                           boxes[0]["text"][:40].replace("\n", " ") if boxes else ""])
             n_boxes += len(boxes)
-    _write_csv(os.path.join(out, "events/index.csv"), ["file", "boxes", "strings", "calls", "first"], index)
-    _write_csv(os.path.join(out, "events/messages.csv"), ["file", "msg", "text"], messages)
+    write_csv(os.path.join(out, "events/index.csv"), ["file", "boxes", "strings", "calls", "first"], index)
+    write_csv(os.path.join(out, "events/messages.csv"), ["file", "msg", "text"], messages)
     return {"events/scripts.jsonl": f"{len(index)} files, {n_boxes} boxes", "events/messages.csv": len(messages)}
 
 

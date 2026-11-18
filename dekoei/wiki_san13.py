@@ -19,7 +19,11 @@ import click
 
 import sango
 from kaodata_export import SAN13PK_WIN_ROLES, kana_to_hiragana
-from places_export import _xl_rows
+import struct
+from places_export import _gaiji
+import kaodata_export as K
+from wiki_stats import _pick
+from biography import split_marked
 
 SCENARIOS = range(942, 953)
 BASE = 941
@@ -182,3 +186,169 @@ def main(game_dir):
 
 if __name__ == "__main__":
     main()
+
+
+##############################################################################
+# 三國志13 PK: names are strings 210 + id of the string tables (item 0 of item 0 of PK item 2, Japanese; 1416,
+# Traditional Chinese); positions in node.stgn (PK item 450: 20-byte records, u16 id, x, y at +4, +8). XL
+# tables of PK item 941: 1 cities (col 0 地方, col 1 州, cols 3-9 neighbours, col 10 itself), 2 関, 3 縣級地點 (col 1 id, cols
+# 2-5 related cities), 22 battle numbers (col 18 stage: 0-15 btl_CSL, 16-26 btl_FLD, 27 btl_RIV, 28 btl_GAT). 14
+# 州 names are strings 5222-5235. Field battles pick their map by the region code under the unit, not by place.
+SAN13_REGIONS = ["河北", "中原", "西北", "巴蜀", "荊楚", "吳越"]
+
+
+SAN13_STAGES = [f"btl_CSL_{i:02d}" for i in range(16)] + [f"btl_FLD_{i:02d}" for i in range(11)] + \
+    ["btl_RIV_00", "btl_GAT_00"]
+
+
+SAN13_PLACE_GAIJI_TC = {b"\xfa\x70": "坂"}  # 長坂 (the Japanese name)
+
+
+_XL = {0: "I", 1: "i", 2: "h", 3: "B", 4: "i", 5: "H", 6: "b", 7: "f"}
+
+
+def _xl_rows(b):
+    _, _, cols, rows, size, header = struct.unpack_from("<6H", b, 2)
+    fmt = "<" + "".join(_XL[t] for t in b[0x10:0x10 + cols])
+    assert struct.calcsize(fmt) == size
+    return [struct.unpack_from(fmt, b, header + r * size) for r in range(rows)]
+
+
+def places(game_dir, out_dir):
+    def strings(item, enc, gaiji):
+        return sango.san13_strings(sango.san13_items(sango.san13_items(sango.san13_entry(game_dir, item))[0])[0], enc,
+                                   gaiji)
+
+    tc = strings(sango.SAN13_NAMES_TC, "cp950", {**sango.SAN13_GAIJI_TC, **SAN13_PLACE_GAIJI_TC})
+    jp = strings(sango.SAN13_NAMES, "cp932", {})
+    # The Japanese names' gaiji (U+E0xx) read off the Chinese name of the same place, where both are as long
+    gaiji = {}
+    for i in range(210, 710):
+        if len(jp[i]) == len(tc[i]):
+            for c, d in zip(jp[i], tc[i]):
+                if 0xE000 <= ord(c) < 0xF900:
+                    assert gaiji.setdefault(ord(c), d) == d
+    guessed = {i - 210 for i in range(210, 710) if len(jp[i]) != len(tc[i]) and any(ord(c) in gaiji for c in jp[i])}
+    jp = [_gaiji(x, gaiji) for x in jp]
+    tables = sango.san13_items(sango.san13_entry(game_dir, 941))
+    cities, gates, counties, battles = (_xl_rows(sango.san13_unzip(tables[k])) for k in (1, 2, 3, 22))
+    node = sango.san13_entry(game_dir, 450)
+    n = struct.unpack_from("<I", node, 8)[0]
+    pos = {}
+    for i in range(n):
+        pid, _, _, x, y = struct.unpack_from("<HBBII", node, 0x10 + 20 * i)
+        pos[pid] = (x, y)
+    states = [tc[5222 + i] for i in range(14)]
+    county = {r[1]: r for r in counties if r[1] >= 0}
+    gate_battle = {360 + i: gates[i][0] for i in range(len(gates))}
+    rows = []
+    for pid in range(500):
+        name, name_ja = tc[210 + pid] if 210 + pid < len(tc) else "", jp[210 + pid] if 210 + pid < len(jp) else ""
+        if not name and not name_ja:
+            continue
+        row = {"id": pid, "name": name or name_ja}
+        notes, uncertain = [], []
+        if name_ja and name_ja != row["name"]:
+            row["nameJa"] = name_ja
+            if pid in guessed:
+                uncertain.append("nameJa")
+                notes.append("日文版的名稱和繁中版不同，其中的外字是照別的地點的繁中名對出來的。")
+        if pid < 60:
+            row["level"] = "都市"
+            row["region"], row["province"] = SAN13_REGIONS[cities[pid][0]], states[cities[pid][1]]
+            row["adjacent"] = [c for c in cities[pid][3:10] if c < 60]
+            notes.append(f"攻城圖是 {SAN13_STAGES[battles[pid][18]]}（3D，沒有輸出圖）。")
+        elif pid < 300:
+            row["level"] = "縣級地點"
+            uncertain.append("level")
+            notes.append("遊戲裡這類地點的稱呼沒找到，「縣級地點」是這邊的分類。")
+            related = [c for c in county[pid][2:6] if c != 255] if pid in county else []
+            if related:
+                row["parentCity"] = related[0]
+                uncertain.append("parentCity")
+                notes.append("parentCity 取相關都市的第一個（推定是所屬）；相關都市："
+                             + "、".join(tc[210 + c] for c in related) + "。")
+        elif 360 <= pid < 380:
+            row["level"] = "關"
+            notes.append(f"關的戰場圖是 {SAN13_STAGES[battles[gate_battle[pid]][18]]}，8 關共用（3D，沒有輸出圖）。")
+        elif 380 <= pid < 460:
+            row["level"] = "港" if row["name"].endswith("港") else "渡口"
+        else:
+            row["level"] = "沖" if row["name"].endswith("沖") else "地點"
+            if row["level"] == "地點":
+                uncertain.append("level")
+                notes.append("「地點」是這邊的分類（官渡、開封這類，遊戲裡的稱呼沒找到）。")
+        if pid in pos:
+            row["pos"] = {"x": pos[pid][0], "y": pos[pid][1], "grid": "world"}
+        if uncertain:
+            row["uncertain"] = uncertain
+        notes.append("野戰看部隊所在位置的地域碼選圖，不看地點；水戰另有一張。pos 是 node.stgn 的世界座標。")
+        row["notes"] = "".join(notes)
+        rows.append(row)
+    return rows
+
+
+def stats(game_dir):
+    data = sango.load_san13_persons(game_dir)
+    chars = {p: data["names"][p][0] for p in data["pictures"]
+             if p not in K.SAN13PK_WIN_ROLES and data["names"][p][0]}
+    return _pick(sango.load_san13_stats(game_dir), sango.SAN13_STATS, chars)
+
+
+# 三國志13 PK: the biography of person n is string 15235 + n (6535 + 6 x 1450) of the name table, Big5 in item 1416.
+# "summary\n ESC C4 <icon> ESC R 演義 \n ESC C2 <icon> ESC R 史實"; ESC R is also followed by digits of the text.
+# The icons are FA60 then FA49, swapped in 27 of the added persons (1151-) whose first section is still 演義 (無記述
+# for people only in the histories), so the sections go by order. The 古武將 (850-898) have one section. Gaiji (FAxx) besides the names' own: 坂 (長坂坡) and 𩅦 (孫𩅦, the
+# Japanese text writes 孫［ソンワン］)
+SAN13_BIO = sango.SAN13_NAME_FIELDS[0] + 6 * sango.SAN13_NAME_FIELDS[1]
+
+
+SAN13_BIO_GAIJI = {0xFA40: "伷", 0xFA41: "璝", 0xFA44: "𩅦", 0xFA45: "儁", 0xFA70: "坂"}
+
+
+SAN13_MARKS = {b"\x1bC4\xfa\x60\x1bR", b"\x1bC2\xfa\x49\x1bR", b"\x1bC4\xfa\x49\x1bR", b"\x1bC2\xfa\x60\x1bR"}
+
+
+def san13_big5(b: bytes) -> str:
+    """Big5 text with the game's gaiji; the section marks become \0."""
+    out, i = [], 0
+    while i < len(b):
+        mark = next((m for m in SAN13_MARKS if b.startswith(m, i)), None)
+        if mark:
+            out.append("\0")
+            i += len(mark)
+        elif b[i] >= 0x81:
+            code = b[i] << 8 | b[i + 1]
+            out.append(SAN13_BIO_GAIJI.get(code) or b[i:i + 2].decode("cp950"))
+            i += 2
+        else:
+            assert b[i] != 0x1B, b[i:i + 4]
+            out.append(chr(b[i]))
+            i += 1
+    return "".join(out)
+
+
+def san13_raw_strings(b: bytes) -> list[bytes]:
+    rows, size, header = struct.unpack_from("<3H", b, 8)
+    out = []
+    for r in range(rows):
+        o = header + struct.unpack_from("<I", b, header + r * size)[0]
+        out.append(b[o:b.index(b"\0", o)])
+    return out
+
+
+def bios(game_dir) -> dict[int, list[tuple[str, str]]]:
+    item = sango.san13_items(sango.san13_items(sango.san13_entry(game_dir, sango.SAN13_NAMES_TC))[0])[0]
+    strings = san13_raw_strings(item)
+    out = {}
+    for n in range(sango.SAN13_NAME_FIELDS[1]):
+        if strings[SAN13_BIO + n]:
+            out[n] = split_marked(san13_big5(strings[SAN13_BIO + n]))
+    return out
+
+
+def bio_names(game_dir) -> dict[int, str]:
+    return {p: v[1] for p, v in sango.load_san13_persons(game_dir)["names"].items()}
+
+
+BIO_LANG = "zh-Hant"  # biography.py: the 列傳 are read from the Chinese release

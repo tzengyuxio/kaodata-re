@@ -14,6 +14,7 @@ import struct
 
 import ls11
 import nobu16_extras as X
+from common import u16
 
 SCENARIOS = ["01", "02", "04", "03", "05", "06", "10", "11", "12", "13", "14"]  # file numbers, in scenario order
 SCENARIO_NAMES = 15113  # msgdata row of scenario 0
@@ -44,17 +45,13 @@ STATUS = {7: "家臣", 3: "浪人", 6: "姫"}
 ITEM_NAMES, ITEM_COUNT = X.ITEM_NAMES, X.ITEM_COUNT
 
 
-def _u16(b, o):
-    return struct.unpack_from("<H", b, o)[0]
-
-
 def scenario(game_dir, f):
     """(number, year, decoded data) of SCENARIO_PK/scedaPK<f>.n16"""
     with open(os.path.join(game_dir, "SCENARIO_PK", f"scedaPK{f}.n16"), "rb") as fh:
         raw = fh.read()
     number, = struct.unpack_from("<I", raw, 0x14)
     data = ls11.lwc_decode(raw[raw.index(b"LWC\x1a"):])
-    return number, _u16(data, len(data) - 0x734A), data
+    return number, u16(data, len(data) - 0x734A), data
 
 
 def persons_raw(data):
@@ -79,15 +76,15 @@ def _clans(data, recs, start):
     leader slot (whose person record has that clan at +0); record 0's +2 u32 is the record count"""
     def ok(p, k):
         cid, = struct.unpack_from("<I", data, p + 6)
-        lead = _u16(data, p + 10)
-        return (k == 0 or _u16(data, p + 1) == k) and lead < SLOTS and _u16(recs[lead][3], 0) == cid
+        lead = u16(data, p + 10)
+        return (k == 0 or u16(data, p + 1) == k) and lead < SLOTS and u16(recs[lead][3], 0) == cid
 
     p = start
     while not all(ok(p + CLAN_REC * k, k) for k in range(4)):
         p += 1
     n, = struct.unpack_from("<I", data, p + 2)
     assert all(ok(p + CLAN_REC * k, k) for k in range(n))
-    return {struct.unpack_from("<I", data, p + CLAN_REC * k + 6)[0]: _u16(data, p + CLAN_REC * k + 10)
+    return {struct.unpack_from("<I", data, p + CLAN_REC * k + 6)[0]: u16(data, p + CLAN_REC * k + 10)
             for k in range(n)}
 
 
@@ -107,7 +104,7 @@ def places(game_dir, out_dir):
         number, _, data = scenario(game_dir, f)
         for _, _, _, t in persons_raw(data)[0]:
             if t[6] != KOKUJIN and t[28] in (7, 3, 6):
-                used.setdefault(_u16(t, 10), set()).add(number)
+                used.setdefault(u16(t, 10), set()).add(number)
     rows = []
     for k, name in names.items():
         row = {"id": k, "name": name, "level": "城", "uncertain": ["level"],
@@ -143,7 +140,7 @@ def persons(game_dir):
     people = [k for k in list(PERSON_SLOTS) + list(CULTURE)
               if main[k][0][0] != 0xFFFF and (k in PERSON_SLOTS or bios_tc[k].strip())]
     known = set(people)
-    fathers = {k: _u16(main[k][2], 0) for k in people}
+    fathers = {k: u16(main[k][2], 0) for k in people}
     castles = set(_castle_ids())
     rows = []
     for k in people:
@@ -156,14 +153,14 @@ def persons(game_dir):
             row["familyName"] = tc[head[0]]  # head[0] is the 姓 row, head[1] the 名 row
             if ja[head[0] + READING] and row["reading"].startswith(ja[head[0] + READING]):
                 row["familyReading"] = ja[head[0] + READING]
-        row["born"], row["died"] = _u16(t, 22), _u16(t, 26)
+        row["born"], row["died"] = u16(t, 22), u16(t, 26)
         row["stats"] = {"統率": t[46], "武勇": t[47], "知略": t[48], "政務": t[49]}
         if t[IDEOLOGY_AT] in IDEOLOGY:
             row["more"] = {"主義": IDEOLOGY[t[IDEOLOGY_AT]]}
         skills = {}
         if t[SENPO_AT] < SENPO_COUNT and msg[SENPO_NAMES + t[SENPO_AT]]:
             skills["戦法"] = [msg[SENPO_NAMES + t[SENPO_AT]]]
-        traits = [msg[TRAIT_NAMES + _u16(t, o)] for o in TRAITS_AT if _u16(t, o) != 0xFFFF]
+        traits = [msg[TRAIT_NAMES + u16(t, o)] for o in TRAITS_AT if u16(t, o) != 0xFFFF]
         if traits:
             skills["特性"] = traits
         if skills:
@@ -178,17 +175,17 @@ def persons(game_dir):
         siblings = [j for j, v in fathers.items() if j != k and father != 0xFFFF and v == father]
         if siblings:
             relations["siblings"] = siblings
-        spouses = list(dict.fromkeys(_u16(r[k][2], 4) for _, _, r, _ in recs if _u16(r[k][2], 4) in known))
+        spouses = list(dict.fromkeys(u16(r[k][2], 4) for _, _, r, _ in recs if u16(r[k][2], 4) in known))
         if spouses:
             relations["spouse"] = spouses
-        if _u16(t, 12) != 0xFFFF:
-            relations["clan"] = _u16(t, 12)
+        if u16(t, 12) != 0xFFFF:
+            relations["clan"] = u16(t, 12)
         if relations:
             row["relations"] = relations
         row["scenarios"] = []
         for number, year, r, clans in recs:
             ts = r[k][3]
-            st, clan, loc = ts[28], _u16(ts, 0), _u16(ts, 10)
+            st, clan, loc = ts[28], u16(ts, 0), u16(ts, 10)
             sc = {"scenario": number, "year": year}
             if st == 7 and ts[6] == KOKUJIN:
                 sc["status"] = "国衆"
@@ -199,9 +196,9 @@ def persons(game_dir):
                 sc["status"] = "大名" if lord == k else STATUS[st]
                 if loc in castles:
                     sc["location"] = loc
-            elif st in (0, 1) and _u16(ts, 26) >= year:
+            elif st in (0, 1) and u16(ts, 26) >= year:
                 sc["status"] = "未登場"
-                sc["debut"] = _u16(ts, 24)
+                sc["debut"] = u16(ts, 24)
             else:  # 13: dead or not in this scenario
                 continue
             row["scenarios"].append(sc)

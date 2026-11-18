@@ -6,6 +6,7 @@ import re
 import struct
 
 import koei_games
+from common import cstr, u32
 
 SCENARIOS = ["01", "02", "03", "04", "05", "08", "09", "10", "11", "12", "13", "14"]  # SCEDA??.NB9 that exist
 REGION, PROVINCE, CASTLE = 16, 26, 28  # record types: 地方 (11), 国 (77: 0-53 land, 54-76 sea), 城 (135)
@@ -25,10 +26,6 @@ def _typed(data, kind):
     return out
 
 
-def _text(data, o, n):
-    return data[o:o + n].split(b"\0")[0].decode("cp932")
-
-
 def _refs(data, o):
     """(list of (id, type) refs, offset after it): u32 count, count x (u16 id, u16 type)."""
     n = struct.unpack_from("<I", data, o)[0]
@@ -40,9 +37,9 @@ def places(game_dir, out_dir):
         exe = f.read()
     datas = [koei_games.nobu9_win_data(os.path.join(game_dir, f"SCEDA{s}.NB9"), exe) for s in SCENARIOS]
     data = datas[0]
-    regions = {i: _text(data, o, 8) for i, o in _typed(data, REGION).items()}
+    regions = {i: cstr(data[o:o + 8]) for i, o in _typed(data, REGION).items()}
     provinces = _typed(data, PROVINCE)
-    castle_names = [{i: (_text(d, o, 10), _text(d, o + 10, 30)) for i, o in _typed(d, CASTLE).items()} for d in datas]
+    castle_names = [{i: (cstr(d[o:o + 10]), cstr(d[o + 10:(o + 10) + 30])) for i, o in _typed(d, CASTLE).items()} for d in datas]
     rows, province_of = [], {}
     for k in range(len(provinces)):
         o = provinces[k]
@@ -54,7 +51,7 @@ def places(game_dir, out_dir):
         for c, _ in castles:
             if c != NONE:
                 province_of[c] = k
-        row = {"id": PROVINCE_ID + k, "name": _text(data, o, 10), "reading": _text(data, o + 10, 30),
+        row = {"id": PROVINCE_ID + k, "name": cstr(data[o:o + 10]), "reading": cstr(data[o + 10:(o + 10) + 30]),
                "level": "国" if k < LAND else "海"}
         if region != NONE:
             row["region"] = regions[region]
@@ -68,7 +65,7 @@ def places(game_dir, out_dir):
         name, reading = castle_names[0][n]
         k = province_of[n]
         o = provinces[k]
-        row = {"id": n, "name": name, "reading": reading, "level": "城", "province": _text(data, o, 10),
+        row = {"id": n, "name": name, "reading": reading, "level": "城", "province": cstr(data[o:o + 10]),
                "region": regions[struct.unpack_from("<HH", data, o + 0x2C)[0]]}
         assert struct.unpack_from("<HH", data, _typed(data, CASTLE)[n] + 0x2C) == (k, PROVINCE)
         others = {}
@@ -97,10 +94,6 @@ ARMS = ["槍", "弓", "騎馬", "鉄砲", "大砲", "荷駄"]  # +0xDC 兵種 (6
 BIO_LANG = "ja"
 
 
-def _u32(data, o):
-    return struct.unpack_from("<I", data, o)[0]
-
-
 def _scenario_data(game_dir):
     with open(os.path.join(game_dir, "Nobunaga9WPK.exe"), "rb") as f:
         exe = f.read()
@@ -113,7 +106,7 @@ def _ids(game_dir, main):
 
 
 def _name(data, o):
-    return _text(data, o, 10) + _text(data, o + 24, 10)
+    return cstr(data[o:o + 10]) + cstr(data[o + 24:(o + 24) + 10])
 
 
 def _bio_pairs(game_dir):
@@ -154,12 +147,12 @@ def persons(game_dir):
     main = datas[MAIN]
     _, ids = _ids(game_dir, main)
     people = set(ids)
-    provinces = {i: _text(main, o, 10) for i, o in _typed(main, PROVINCE).items()}
+    provinces = {i: cstr(main[o:o + 10]) for i, o in _typed(main, PROVINCE).items()}
     titles = [bio_entry(raw)[0] for raw in _bio_pairs(game_dir)]
     order = sorted(SCENARIOS, key=lambda s: (YEARS[s], s))
 
     def field(s, i, o):
-        return _u32(datas[s], records[s][i] + o)
+        return u32(datas[s], records[s][i] + o)
 
     def person(v):
         return v if v in people else None
@@ -185,8 +178,8 @@ def persons(game_dir):
     rows = []
     for i in ids:
         d, o = main, records[MAIN][i]
-        row = {"id": i, "name": _name(d, o), "reading": _text(d, o + 34, 18) + _text(d, o + 52, 18),
-               "born": _u32(d, o + 0x5E), "died": _u32(d, o + 0x66)}
+        row = {"id": i, "name": _name(d, o), "reading": cstr(d[o + 34:(o + 34) + 18]) + cstr(d[o + 52:(o + 52) + 18]),
+               "born": u32(d, o + 0x5E), "died": u32(d, o + 0x66)}
         notes = [f"姓名、讀音取劇本 {MAIN}（{YEARS[MAIN]} 年）。"]
         uncertain = ["hidden.元服年", "relations.clan", "game.出身国", "game.兵種", "scenarios.lord", "scenarios.status",
                      "scenarios.loyalty", "scenarios.year"]
@@ -195,7 +188,7 @@ def persons(game_dir):
         stats = next(struct.unpack_from("<I4xI4xI4xI", datas[s], records[s][i] + 0xB0) for s in order
                      if not field(s, i, 0x62) <= YEARS[s] <= field(s, i, 0x66))
         row["stats"] = dict(zip(["政治", "統率", "知略", "野望"], stats))
-        row["hidden"] = {"元服年": _u32(d, o + 0x62)}
+        row["hidden"] = {"元服年": u32(d, o + 0x62)}
         relations = {}
         if fathers[i] is not None:
             relations["father"] = [fathers[i]]
@@ -206,7 +199,7 @@ def persons(game_dir):
         if siblings:
             relations["siblings"] = siblings
         if i < OFFICERS:
-            relations["clan"] = _u32(d, o + 0x6A)
+            relations["clan"] = u32(d, o + 0x6A)
         if relations:
             row["relations"] = relations
         wives = sorted({field(s, i, 0x7E) & 0xFFFF for s in SCENARIOS} - {NONE})
@@ -214,7 +207,7 @@ def persons(game_dir):
             notes.append("配偶者（+0x7E，姫不是 kaodata 人物，沒有 id）：" +
                          "、".join(princesses.get(w, f"編號 {w}") for w in wives) + "。")
         game = {}
-        tsusho = _text(d, o + 10, 14)
+        tsusho = cstr(d[o + 10:(o + 10) + 14])
         if tsusho:
             game["通称"] = tsusho
         origin = field(MAIN, i, 0x76)
@@ -256,7 +249,7 @@ def persons(game_dir):
                          "有勢力的是大名或家臣，沒有勢力而有居城的是浪人；遊戲裡的身分名稱沒找到，status 是推的。"
                          "lord 是同勢力裡主君（+0xAC）為空的那個人（每個勢力剛好一人）。劇本年由人物的元服年與歿年推出。"
                          "兵種取最後一個登場的劇本。")
-            if titles[i] not in (row["name"], _text(d, o, 10) + tsusho + _text(d, o + 24, 10)):
+            if titles[i] not in (row["name"], cstr(d[o:o + 10]) + tsusho + cstr(d[o + 24:(o + 24) + 10])):
                 notes.append(f"列伝標題寫「{titles[i]}」。")
         notes.append("能力是原始值（未登場、已死的記錄存的值，各劇本相同；登場中的依劇本年成長過）；"
                      "4Gamer 試玩版截圖顯示的政治、統率、知略是存值的一半，發售版未確認。")

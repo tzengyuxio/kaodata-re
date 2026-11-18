@@ -18,7 +18,6 @@ re-derived here; the formats are in notes/genpei.md.
     cd dekoei && ../.venv/bin/python genpei_extras.py --game-dir ../games/genpei-dos --out ../games/genpei-dos/extract
 """
 import collections
-import csv
 import math
 import os
 import re
@@ -30,6 +29,7 @@ from PIL import Image, ImageDraw
 
 import genpei
 from ls11 import ls11_decode_parts
+from common import cstr, fold_kana, write_csv
 
 SCEN_SIZE = genpei.SCENARIO_SIZE
 SCEN_HEADER = genpei.SCENARIO_HEADER
@@ -69,10 +69,6 @@ KNOWN_PALETTES = {("Enddat.gp", i): 10 for i in range(72, 78)}
 
 # ---------------------------------------------------------------- helpers
 
-def sjis(b: bytes) -> str:
-    return b.split(b"\0", 1)[0].decode("cp932", errors="replace")
-
-
 def u16(b: bytes, o: int) -> int:
     v = struct.unpack_from("<H", b, o)[0]
     return -1 if v == 0xFFFF else v
@@ -92,14 +88,6 @@ def chain(head: int, nxt) -> list:
 
 def recs(block: bytes, off: int, size: int, n: int) -> list:
     return [block[off + i * size:off + (i + 1) * size] for i in range(n)]
-
-
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def unpacked_main(game_dir) -> bytes:
@@ -198,12 +186,12 @@ def scenario_tables(k: int, block: bytes, nodes: list, minimap: list) -> dict:
     RG = recs(block, REGIONS, 9, N_REGIONS)
     R = recs(block, RANKS, 19, N_RANKS)
     T = recs(block, TREASURES, 18, N_TREASURES)
-    gname = [sjis(g[0:7]) + sjis(g[14:19]) for g in G]
-    pname = [sjis(p[0:9]) for p in P]
+    gname = [cstr(g[0:7], errors="replace") + cstr(g[14:19], errors="replace") for g in G]
+    pname = [cstr(p[0:9], errors="replace") for p in P]
     cname = [gname[u16(c, 0)] if u16(c, 0) >= 0 else "" for c in C]
-    rgname = [sjis(r[0:6]) for r in RG]
-    rname = [sjis(r[0:13]) for r in R]
-    tname = [sjis(t[0:11]) for t in T]
+    rgname = [cstr(r[0:6], errors="replace") for r in RG]
+    rname = [cstr(r[0:13], errors="replace") for r in R]
+    tname = [cstr(t[0:11], errors="replace") for t in T]
     face_owner = {u16(g, 0x1A): i for i, g in enumerate(G) if u16(g, 0x1A) >= 0}
     rank_holder = {u16(g, 0x29): i for i, g in enumerate(G) if u16(g, 0x29) >= 0}
     t_owner = {t: i for i, g in enumerate(G) for t in chain(u16(g, 0x3A), lambda x: u16(T[x], 0x0B))}
@@ -216,7 +204,7 @@ def scenario_tables(k: int, block: bytes, nodes: list, minimap: list) -> dict:
                     else f"montage{face >> 14}:h{face >> 11 & 7}/b{face >> 8 & 7}/e{face >> 4 & 15}/m{face & 15}")
         parent = face_owner.get(kin, -1) if 0 <= kin < 400 or kin >= 0x4000 else -1
         rows.append([
-            k, i, gname[i], sjis(g[0:7]), sjis(g[7:14]), sjis(g[14:19]), sjis(g[19:26]),
+            k, i, gname[i], cstr(g[0:7], errors="replace"), cstr(g[7:14], errors="replace"), cstr(g[14:19], errors="replace"), cstr(g[19:26], errors="replace"),
             face, face_src, i // 2 % 5, kin, ref(parent, gname),
             g[0x1E], 1180 - g[0x1E] if g[0x1E] else "", ref(g[0x1F], pname),
             *("○" if g[0x20] & m else "×" for m, _ in SKILLS),
@@ -250,7 +238,7 @@ def scenario_tables(k: int, block: bytes, nodes: list, minimap: list) -> dict:
         members = chain(u16(p, 0x20), lambda x: u16(G[x], 0x23))
         ronin = chain(u16(p, 0x24), lambda x: u16(G[x], 0x23))
         rows.append([
-            k, i, pname[i], sjis(p[9:18]), ref(u16(p, 0x26), rgname), ref(u16(p, 0x28), cname),
+            k, i, pname[i], cstr(p[9:18], errors="replace"), ref(u16(p, 0x26), rgname), ref(u16(p, 0x28), cname),
             ref(members[0] if members else -1, gname), len(members), u16(p, 0x22), len(ronin),
             " ".join(pname[a] for a in (u16(p, 0x12 + 2 * j) for j in range(7)) if a >= 0),
             *(u16(p, o) for o in range(0x2A, 0x3E, 2)), *(u16(p, o) for o in range(0x3E, 0x46, 2)),
@@ -274,7 +262,7 @@ def scenario_tables(k: int, block: bytes, nodes: list, minimap: list) -> dict:
 
 def scenario_row(k: int, s: bytes, block: bytes) -> list:
     G = recs(block, GENERALS, 71, N_GENERALS)
-    gname = [sjis(g[0:7]) + sjis(g[14:19]) for g in G]
+    gname = [cstr(g[0:7], errors="replace") + cstr(g[14:19], errors="replace") for g in G]
     C = recs(block, CLANS, 20, N_CLANS)
     clans = [c for c in struct.unpack_from("<16h", s, 4) if c >= 0]
     return [k, u16(s, 0), s[2] + 1, s[3], " ".join(f"{c}:{gname[u16(C[c], 0)]}" for c in clans), u16(s, 0x24),
@@ -336,7 +324,7 @@ def map_outputs(game_dir, out) -> dict:
     exe = unpacked_main(game_dir)
     sn = genpei.read_game_file(game_dir, "Sndata.gp")
     P0 = recs(sn[SCEN_HEADER:SCEN_SIZE], PLACES, 76, N_PLACES)
-    base = {u16(p, 0x4A): (i, sjis(p[0:9])) for i, p in enumerate(P0)}
+    base = {u16(p, 0x4A): (i, cstr(p[0:9], errors="replace")) for i, p in enumerate(P0)}
     nodes = recs(exe, NODES, 11, N_NODES)
     edges = [[struct.unpack_from("<H", exe, EDGES + 16 * n + 4 * j)[0] for j in range(4)] for n in range(N_NODES)]
     rows, colour = [], collections.defaultdict(collections.Counter)
@@ -448,11 +436,6 @@ def pictures(game_dir, out) -> dict:
 
 # ---------------------------------------------------------------- text
 
-def _kana(s: str, katakana: bool) -> str:
-    s = unicodedata.normalize("NFKC", s)
-    return s if katakana else "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in s)
-
-
 def to_display(body: bytes) -> str:
     """Message bytes → text: \\n newline, {C6} colour, half-width kana as hiragana (katakana after ESC K, back to
     hiragana after ESC H), printf arguments as they are."""
@@ -479,7 +462,7 @@ def to_display(body: bytes) -> str:
             i += 2
         elif 0xA1 <= b <= 0xDF:
             j = i + 1 + (i + 1 < len(body) and body[i + 1] in (0xDE, 0xDF))
-            out.append(_kana(body[i:j].decode("cp932"), kata))
+            out.append(fold_kana(body[i:j].decode("cp932"), kata))
             i = j
         else:
             out.append(chr(b))

@@ -10,6 +10,7 @@ import struct
 from PIL import Image
 
 import wiki_lempe
+from common import cstr, read_file
 
 SCENARIOS = 5
 SAME = 0x1600  # NPDATA*.CIM 0..0x15FF equals the DOS scenario (persons, owners, date); later parts are moved
@@ -58,11 +59,6 @@ def decode_picture(data, off):
     return img
 
 
-def _read(game_dir, name):
-    with open(os.path.join(game_dir, name), "rb") as f:
-        return f.read()
-
-
 def _city(scen, c):
     return scen[CITY + CITY_SIZE * c:][:CITY_SIZE]
 
@@ -70,9 +66,9 @@ def _city(scen, c):
 def places(game_dir, out_dir):
     world = os.path.join(out_dir, "world")
     os.makedirs(world, exist_ok=True)
-    img = decode_picture(_read(game_dir, "PACDATA.DAT"), 0)
+    img = decode_picture(read_file(game_dir, "PACDATA.DAT"), 0)
     img.save(os.path.join(world, "world.png"))
-    scen = _read(game_dir, "NPDATA1.CIM")
+    scen = read_file(game_dir, "NPDATA1.CIM")
     rows = wiki_lempe.places(os.path.join(game_dir, "..", "lempe-dos"), None)
     for r in rows:
         rec = _city(scen, r["id"])
@@ -92,10 +88,10 @@ def places(game_dir, out_dir):
 def world_check(game_dir, rows):
     """The PC-98 scenarios equal the DOS ones where the rows come from; nameJa and links match the PC-98 city
     records; every pos is inside the map."""
-    dos = _read(os.path.join(game_dir, "..", "lempe-dos"), "NPDATA.CIM")
+    dos = read_file(os.path.join(game_dir, "..", "lempe-dos"), "NPDATA.CIM")
     checked, bad = 0, []
     for k in range(SCENARIOS):
-        scen = _read(game_dir, f"NPDATA{k + 1}.CIM")
+        scen = read_file(game_dir, f"NPDATA{k + 1}.CIM")
         d = dos[k * wiki_lempe.SCEN:(k + 1) * wiki_lempe.SCEN]
         checked += 1
         if scen[:SAME] != d[:SAME]:
@@ -106,10 +102,10 @@ def world_check(game_dir, rows):
             if rec[33:41] != d[wiki_lempe.CITY + 34 * r["id"] + 26:][:8]:
                 bad.append(f"scenario {k + 1} city {r['id']}: links or flags differ from DOS")
     for r in rows:
-        rec = _city(_read(game_dir, "NPDATA1.CIM"), r["id"])
+        rec = _city(read_file(game_dir, "NPDATA1.CIM"), r["id"])
         checked += 2
-        if wiki_lempe._kana(rec[:12]) != r.get("nameJa", r["name"]):
-            bad.append(f"{r['id']}: PC-98 name {wiki_lempe._kana(rec[:12])} != nameJa")
+        if cstr(rec[:12], nfkc=True).strip() != r.get("nameJa", r["name"]):
+            bad.append(f"{r['id']}: PC-98 name {cstr(rec[:12], nfkc=True).strip()} != nameJa")
         p = r["pos"]
         if not (0 <= p["x"] < p["w"] and 0 <= p["y"] < p["h"]):
             bad.append(f"{r['id']}: pos {p['x']},{p['y']} outside the map")

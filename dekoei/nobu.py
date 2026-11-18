@@ -1,5 +1,17 @@
 import os
+
 import click
+from PIL import Image
+
+from utils import output_images, to_3bpp_indexes
+
+
+def _image(w, h, px, colors):
+    """RGB image of palette indexes; colors are '#rrggbb'."""
+    im = Image.new('P', (w, h))
+    im.putdata(px)
+    im.putpalette([int(c[i:i + 2], 16) for c in colors for i in (1, 3, 5)])
+    return im.convert('RGB')
 
 ##############################################################################
 
@@ -24,15 +36,21 @@ def nobu3():
 @click.option('--out_dir', 'out_dir', default='_output', help='output directory')
 @click.option('--prefix', 'prefix', default='', help='filename prefix of output files')
 def nobu3_face(face_file, out_dir, prefix):
-    pass
+    """DOS KAODATA.DAT: the 177 whole portraits, decoded as the kaodata builder (build_nobu3_dos)."""
+    import kaodata_export as K
+    with open(face_file, 'rb') as f:
+        kao = f.read()
+    faces = [K.san2_pixels(kao[i * K.SAN2_FACE:(i + 1) * K.SAN2_FACE], True) for i in range(K.NOBU3_DOS_PORTRAITS)]
+    output_images([_image(w, h, px, K.SAN2_PALETTE) for w, h, px in faces], out_dir, prefix)
 
 
-@click.command(help='人物資料解析')
-def nobu3_person():
-    """
-    人物資料解析
-    """
-    pass
+@click.command(help='人物資料解析（同 nobu-person）')
+@click.option('--game', default='nobu3-pc98', type=click.Choice(['nobu3-pc98', 'nobu3-pc88', 'nobu3-x68', 'nobu3-win']))
+@click.option('--game-dir', 'game_dir', required=True, help='遊戲目錄')
+@click.option('-s', '--scenario', help='只列這個劇本（SNDATA1、SNDATA2）')
+@click.pass_context
+def nobu3_person(ctx, game, game_dir, scenario):
+    ctx.invoke(nobu_person, game=game, game_dir=game_dir, scenario=scenario)
 
 
 nobu3.add_command(nobu3_face, 'face')
@@ -59,15 +77,20 @@ def nobu4():
 @click.option('--out_dir', 'out_dir', default='_output', help='output directory')
 @click.option('--prefix', 'prefix', default='', help='filename prefix of output files')
 def nobu4_face(face_file, out_dir, prefix):
-    pass
+    """DOS KAODATA.DAT: 64x80 3bpp portraits, decoded as the kaodata builder (build_nobu4_dos)."""
+    import kaodata_export as K
+    with open(face_file, 'rb') as f:
+        kao = f.read()
+    output_images([_image(64, 80, bytes(to_3bpp_indexes(kao[i:i + 1920])), K.NOBU4_DOS_PALETTE)
+                   for i in range(0, len(kao) - 1919, 1920)], out_dir, prefix)
 
 
-@click.command(help='人物資料解析')
-def nobu4_person():
-    """
-    人物資料解析
-    """
-    pass
+@click.command(help='人物資料解析（同 nobu-person nobu4-pc98）')
+@click.option('--game-dir', 'game_dir', required=True, help='PC-98 版遊戲目錄')
+@click.option('-s', '--scenario', help='只列這個劇本（SNDATA1、SNDATA1T…）')
+@click.pass_context
+def nobu4_person(ctx, game_dir, scenario):
+    ctx.invoke(nobu_person, game='nobu4-pc98', game_dir=game_dir, scenario=scenario)
 
 
 nobu4.add_command(nobu4_face, 'face')

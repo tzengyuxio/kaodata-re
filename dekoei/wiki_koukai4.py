@@ -16,6 +16,7 @@ from PIL import Image
 import kaodata_export as ke
 import koei_games
 import koukai4_extras as kx
+from gfx import texture_image
 
 DATASET = "koukai4pk-win"
 # DK4HD_jp.exe VAs (.rdata, readable without decrypting): nationality names (person +0x27), star signs (12 x 32
@@ -160,7 +161,7 @@ def _world_png(game_dir, path):
     koukai4-extras shrunk to a quarter."""
     cells = _cells(game_dir)
     with open(os.path.join(game_dir, "Chip.DK4"), "rb") as f:
-        tex = [kx.decode(fmt, w, h, px) for _, fmt, w, h, px in kx.textures(f.read())]
+        tex = [texture_image(fmt, w, h, px) for _, fmt, w, h, px in kx.textures(f.read())]
     chip, sea = tex[0], tex[4].convert("RGB").resize((16, 16), Image.BOX)
     seapx = list(sea.getdata())
     tiles = {}
@@ -228,7 +229,7 @@ def world_check(game_dir, rows):
     """Every port has sea (a Chip.DK4 tile with transparent pixels: open sea or coast) within 4 cells of its pos."""
     cells = _cells(game_dir)
     with open(os.path.join(game_dir, "Chip.DK4"), "rb") as f:
-        chip = next(kx.decode(fmt, w, h, px) for _, fmt, w, h, px in kx.textures(f.read()))
+        chip = next(texture_image(fmt, w, h, px) for _, fmt, w, h, px in kx.textures(f.read()))
     sea = {v for v in set(cells) if chip.crop((v % 16 * kx.TILE, v // 16 * kx.TILE, v % 16 * kx.TILE + kx.TILE,
                                                 v // 16 * kx.TILE + kx.TILE)).getextrema()[3][0] < 255}
     checked, bad = 0, []

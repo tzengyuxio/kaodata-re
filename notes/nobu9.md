@@ -125,7 +125,7 @@
 
 ### 人物與列伝（2026-11-07）
 
-`dekoei.py persons-export nobu9pk-win --game-dir ../games/nobu9pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_nobu9.persons`，koei-persons/1）、`dekoei.py biography nobu9pk-win --game-dir ../games/nobu9pk-win --out ../export/koei-wiki/nobu9pk-win.jsonl`（`bios`、`bio_names`）。`games/nobu9pk-win/RETSUDEN.NB9` 是 Steam 版的硬連結。
+`dekoei.py persons-export nobu9pk-win --game-dir ../games/nobu9pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_nobu9.persons`，koei-persons/1）、`dekoei.py biography nobu9pk-win --game-dir ../games/nobu9pk-win --out ../export/koei-wiki`（`bios`、`bio_names`）。`games/nobu9pk-win/RETSUDEN.NB9` 是 Steam 版的硬連結。
 
 - 1465 人（id 同 kaodata：武將 0–1449、史實武將 30000–30014）；檢查 19939 項、0 筆不符，koei-wiki `verify_persons.py` 49714 項、0 筆不符。列伝 1450 筆（武將全有，日文 `ja`，`kind` 單段）。
 - `name`、`reading`：劇本 14 的姓＋名、讀音。`born`、`died` +0x5E、+0x66 ✅。

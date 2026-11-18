@@ -17,7 +17,6 @@ text, written under --out as eventcg/, items/, kamon/ and events/ (notes/nobu6.m
 - MESSAGE.N6P (PK, LS11, 23 parts): each part a u16 offset table, then strings. Parts 15-17 are the 家宝
   descriptions (header ESC k reading ESC H \\n name, then body), 18-22 castle descriptions.
 """
-import csv
 import json
 import os
 import re
@@ -31,6 +30,7 @@ import ls11
 import utils
 import wiki_nobu6
 from sango import san5_parts
+from common import fold_kana, read_file, write_csv
 
 PALETTE = 0x28CBE  # MAINPK.EXE
 ITEMS, ITEM_SIZE, ITEM_COUNT = 0xD334, 19, 120
@@ -91,11 +91,6 @@ def npk(data, palette):
     return im
 
 
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def _text(b):
     """MESSAGE string: half-width kana is hiragana, katakana between ESC K and ESC H; gaiji as in the 列伝; other
     control codes (I… conditions, S*n, C…, d/e/f placeholders) are left as they are, bytes below 0x20 as {xx}."""
@@ -113,7 +108,7 @@ def _text(b):
                 j += 1
             run = b[i:j].decode("cp932")
             out.append(("ヶ" if run == "ｹ" else unicodedata.normalize("NFKC", run)) if katakana
-                       else wiki_nobu6._kana(run, True))
+                       else fold_kana(run))
             i = j
         elif b[i] == 5:
             i += 1
@@ -142,13 +137,6 @@ def _described(parts):
     return out
 
 
-def _write_csv(path, header, rows):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
-
-
 def eventcg(game_dir, base_dir, out):
     pal = _palette(game_dir)
     os.makedirs(out, exist_ok=True)
@@ -173,21 +161,21 @@ def eventcg(game_dir, base_dir, out):
         im.save(os.path.join(out, file))
         rows.append([file, "gamen", f"GAMEN.NB6#{top}-{bottom}", f"{im.width}x{im.height}", desc,
                      "🟡 bars stacked above and below the hall; how the game places them not checked"])
-    parts = ls11.ls11_decode_parts(_read(os.path.join(base_dir, "OHIROME.NB6")))
+    parts = ls11.ls11_decode_parts(read_file(os.path.join(base_dir, "OHIROME.NB6")))
     for n in range(OHIROME_BACKGROUNDS):
         file = f"ohirome_{n:02d}.png"
         im = npk(parts[n], pal)
         im.save(os.path.join(out, file))
         rows.append([file, "ohirome", f"OHIROME.NB6#{n}", f"{im.width}x{im.height}", "修行披露の背景",
                      "🟡 description read off the picture"])
-    _write_csv(os.path.join(out, "index.csv"), ["file", "group", "source", "size", "description", "evidence"], rows)
+    write_csv(os.path.join(out, "index.csv"), ["file", "group", "source", "size", "description", "evidence"], rows)
     return len(rows)
 
 
 def _scenario_names(game_dir):
     """per scenario: name of each name-record slot (1-based)"""
     out = []
-    for sc in ls11.ls11_decode_parts(_read(os.path.join(game_dir, "SNDATA.N6P"))):
+    for sc in ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "SNDATA.N6P"))):
         names = {}
         for slot in range(1, 532):
             rec = sc[wiki_nobu6.NAMES + 18 * (slot - 1):][:18]
@@ -206,7 +194,7 @@ def items(game_dir, base_dir, out):
     os.makedirs(os.path.join(out, "pictures"), exist_ok=True)
     packgrp = san5_parts(os.path.join(base_dir, "PACKGRP.NB6"))
     scenarios = _scenario_names(game_dir)
-    messages = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "MESSAGE.N6P")))
+    messages = ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "MESSAGE.N6P")))
     descs = _described(messages[15:18])
     rows = []
     for i in range(ITEM_COUNT):
@@ -224,8 +212,7 @@ def items(game_dir, base_dir, out):
         rows.append([i + 1, name, reading, kind, KINDS[kind], item_stat(kind), bonus, f"pictures/{picture:02d}.png",
                      " ".join(holders), f"{flags:02x}", desc_name if desc_name != name else "",
                      _text(body).replace("\n", "")])
-    _write_csv(os.path.join(out, "kahou.csv"),
-               ["id", "name", "reading", "kind", "kind_name", "stat", "bonus", "picture", "holders", "flags",
+    write_csv(os.path.join(out, "kahou.csv"), ["id", "name", "reading", "kind", "kind_name", "stat", "bonus", "picture", "holders", "flags",
                 "description_name", "description"], rows)
     for n in range(22):  # picture n is PACKGRP entry 1 + n
         npk(packgrp[1 + n], pal).save(os.path.join(out, "pictures", f"{n:02d}.png"))
@@ -238,13 +225,13 @@ def items(game_dir, base_dir, out):
             if h != 0xFFFF:
                 holders.append(f"{year}:{names.get(h, h)}")
         kani.append([i + 1, _name13(rec), rec[0xD], court_rank(rec[0xD]), rec[0x10], " ".join(holders)])
-    _write_csv(os.path.join(out, "kani.csv"), ["id", "name", "rank_code", "court_rank", "value", "holders"], kani)
+    write_csv(os.path.join(out, "kani.csv"), ["id", "name", "rank_code", "court_rank", "value", "holders"], kani)
     return len(rows), len(kani)
 
 
 def kamon(game_dir, out):
     pal = _palette(game_dir)[8:]
-    data = _read(os.path.join(game_dir, "KAMON2.N6P"))
+    data = read_file(os.path.join(game_dir, "KAMON2.N6P"))
     users = {}
     for year, (sc, names) in zip(SCENARIOS, _scenario_names(game_dir)):
         for d in range(72):
@@ -259,13 +246,13 @@ def kamon(game_dir, out):
         im.putdata([pal[i] for i in utils.to_3bpp_indexes(data[96 * n:96 * n + 96])])
         im.save(os.path.join(out, f"{n:03d}.png"))
         rows.append([n, f"{n:03d}.png", " ".join(users.get(n, []))])
-    _write_csv(os.path.join(out, "index.csv"), ["number", "file", "daimyo"], rows)
+    write_csv(os.path.join(out, "index.csv"), ["number", "file", "daimyo"], rows)
     return len(rows)
 
 
 def events(game_dir, out):
     """MESSAGE.N6P strings, one line each (parts 0-14 and the castle descriptions 18-22)."""
-    parts = ls11.ls11_decode_parts(_read(os.path.join(game_dir, "MESSAGE.N6P")))
+    parts = ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "MESSAGE.N6P")))
     os.makedirs(out, exist_ok=True)
     n = 0
     with open(os.path.join(out, "messages.jsonl"), "w", encoding="utf-8") as f:
@@ -284,7 +271,7 @@ def events(game_dir, out):
             continue
         castles.append([wiki_nobu6._nobu6_pc98_text(m.group(1)),
                         unicodedata.normalize("NFKC", m.group(2).decode("cp932")), _text(body).replace("\n", "")])
-    _write_csv(os.path.join(out, "castles.csv"), ["name", "reading", "description"], castles)
+    write_csv(os.path.join(out, "castles.csv"), ["name", "reading", "description"], castles)
     return n, len(castles)
 
 

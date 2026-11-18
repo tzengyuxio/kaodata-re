@@ -94,7 +94,7 @@
 
 **koei-wiki 匯出**：`dekoei.py places-export genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/places`（`genghis4_extras.places`，koei-places/1，2026-11-10）。都市 61（四個劇本合起來，id 是遊戲的都市號，同一都市在各劇本的名稱與座標相同，匯出時有檢查）、地域 56（100＋地域號，`level` 標在 `uncertain`）。遊戲沒有都市的相鄰表，所以沒有 `adjacent`。大地圖是 `world/largemap.png`（16000 × 3616，約 35 MB），`pos` 是都市所在格的中心（`grid: pixel`，64x＋32、16y＋8）。檢查 61 項、0 不符。
 
-人物：`dekoei.py persons-export genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_genghis4.py`，koei-persons/1，2026-11-11），629 人（男 519、女 110）。檢查 2136 項、0 不符；koei-wiki `verify_persons.py` 7780 項、0 不符。列傳：`dekoei.py biography genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/genghis4pk-win.jsonl`，519 段（`kind` 單段）。
+人物：`dekoei.py persons-export genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki/persons --places ../export/koei-wiki/places`（`wiki_genghis4.py`，koei-persons/1，2026-11-11），629 人（男 519、女 110）。檢查 2136 項、0 不符；koei-wiki `verify_persons.py` 7780 項、0 不符。列傳：`dekoei.py biography genghis4pk-win --game-dir ../games/genghis4pk-win --out ../export/koei-wiki`，519 段（`kind` 單段）。
 
 - 跨劇本對人：kaodata 的 id 是（性別、姓名、頭像）的流水號，同一人在各劇本用遊戲的人物號（+0）連。7 組名字與頭像相同、人物號不同（北條泰時 6／338 等），kaodata 當同一人，生卒年與列傳取第一個人物號，`notes` 有寫。同名不同頭像的 5 人（帖木爾滅里、高宗…）是不同人。
 - `born`、`died` 取生卒年表（7000＋人物號），`????` 不填、標 `uncertain`。

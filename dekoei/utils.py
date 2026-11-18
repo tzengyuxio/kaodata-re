@@ -9,7 +9,7 @@ import typing
 import struct
 from PIL import Image
 from rich.console import Console
-from rich.progress import track
+from rich.progress import Progress
 from rich.table import Table
 from pytablewriter import JsonTableWriter, MarkdownTableWriter
 from ls11 import ls11_decode, LS11_MAGIC
@@ -149,7 +149,7 @@ def data_to_image(data: bytes, w: int, h: int, palette: list, hh=False, alpha=No
     color_indexes = to_color_indexes(data, len(palette))
     for px_index, color_index in enumerate(color_indexes):
         y, x = divmod(px_index, w)
-        c = palette[color_index] + (alpha[px_index],)
+        c = tuple(palette[color_index][:3]) + (alpha[px_index],)  # [:3]: 4-byte (RGBX) palettes
         if hh:
             image.putpixel((x, 2*y), c)
             image.putpixel((x, 2*y+1), c)
@@ -160,16 +160,19 @@ def data_to_image(data: bytes, w: int, h: int, palette: list, hh=False, alpha=No
 
 def load_images_with_data(data: bytes, w: int, h: int, palette: list, hh: bool, part_size: int, num_part: int) -> list[Image.Image]:
     images = []
-    for i in track(range(num_part), description="Loding...   "):
-        pos = i*part_size
-        img = data_to_image(data[pos:pos+part_size], w, h, palette, hh)
-        images.append(img)
+    with Progress() as progress:
+        for i in progress.track(range(num_part), description="Loding...   "):
+            pos = i*part_size
+            img = data_to_image(data[pos:pos+part_size], w, h, palette, hh)
+            images.append(img)
     return images
 
 
 def load_images(g: typing.Generator[bytes, None, None], w: int, h: int, palette: list, hh: bool) -> list[Image.Image]:
-    data_stream = track(g, description="Loding...   ")
-    return [data_to_image(data, w, h, palette, hh) for data in data_stream]
+    # an explicit Progress context: with rich's track() an exception in the loop body left the refresh thread
+    # running and the process hung at exit
+    with Progress() as progress:
+        return [data_to_image(data, w, h, palette, hh) for data in progress.track(g, description="Loding...   ")]
 
 
 def save_index_image(images: list[Image.Image], w: int, h: int, num_col: int, filename: str) -> None:
@@ -180,17 +183,19 @@ def save_index_image(images: list[Image.Image], w: int, h: int, num_col: int, fi
     img_w = w * num_col
     img_h = h * math.ceil(len(images) / num_col)
     index_image = Image.new('RGB', (img_w, img_h), color=BGCOLOR)
-    for idx, img in track(enumerate(images), description="Saving index", total=len(images)):
-        pos_x = (idx % num_col) * w
-        pos_y = (idx // num_col) * h
-        index_image.paste(img, (pos_x, pos_y))
+    with Progress() as progress:
+        for idx, img in progress.track(enumerate(images), description="Saving index", total=len(images)):
+            pos_x = (idx % num_col) * w
+            pos_y = (idx // num_col) * h
+            index_image.paste(img, (pos_x, pos_y))
     index_image.save(filename)
 
 
 def save_single_images(images: dict[str, Image.Image], out_dir: str, prefix: str) -> None:
-    for key in track(images, description='Saving...   ', total=len(images)):
-        out_filename = '{}/{}{:0>4}.png'.format(out_dir, prefix, key)
-        images[key].save(out_filename)
+    with Progress() as progress:
+        for key in progress.track(images, description='Saving...   ', total=len(images)):
+            out_filename = '{}/{}{:0>4}.png'.format(out_dir, prefix, key)
+            images[key].save(out_filename)
 
 
 def calc_part_size(w: int, h: int, num_colors: int, hh=False) -> int:
@@ -422,7 +427,10 @@ def cns_to_order(s: str) -> int:
     return offset + hi * 94 + lo
 
 
-def load_cns11643_unicode_table(filename: str = '../Unicode/CNS2UNICODE_Unicode BMP.txt') -> dict[str, str]:
+CNS11643_TABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Unicode', 'CNS2UNICODE_Unicode BMP.txt')
+
+
+def load_cns11643_unicode_table(filename: str = CNS11643_TABLE) -> dict[str, str]:
     table = {'': ''}
     with open(filename, 'r') as f:
         while entry := f.readline():

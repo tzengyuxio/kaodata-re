@@ -12,7 +12,6 @@ to <out>/{eventcg,items,events}/ and <out>/inventory.csv. Formats are in notes/s
 - World map (worldmap/): the 3D map has no painted 2D picture; what is 2D is the ground's base colour (FieldEditor4.rdb),
   the editor's 8192 x 8192 hex terrain preview (RRPreview.rdb) and the painted backdrop around the map (map_cover).
 """
-import csv
 import json
 import os
 import re
@@ -23,6 +22,8 @@ from PIL import Image
 
 import ls11
 import sango
+from common import write_csv
+from gfx import gt1g_texture
 
 LAYOUT = "0002/ScreenLayout.rdb"
 ITEMS = "0010_{}/fixdataex.s14"
@@ -58,14 +59,6 @@ PICTURES = [
 
 def _strip(s: str) -> str:
     return re.sub(r"\^\d\d", "", s)
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def sprites(game_dir) -> dict[str, tuple]:
@@ -109,14 +102,8 @@ class Textures:
         (fsize, loc), ti, (u0, v0, u1, v1) = ref
         if self.key != loc:
             self.key, self.data = loc, sango.san14_read(self.rdb, fsize, loc)
-        t = self.data
-        header = struct.unpack_from("<I", t, 0x0C)[0]
-        o = header + struct.unpack_from("<I", t, header + 4 * ti)[0]
-        fmt, dim = t[o + 1], t[o + 2]
-        w, h = 1 << (dim & 15), 1 << (dim >> 4)
-        start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-        assert fmt == 0x5B, fmt
-        im = Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3)
+        im = gt1g_texture(self.data, ti)
+        w, h = im.size
         return im.crop((round(u0 * w), round(v0 * h), round(u1 * w), round(v1 * h)))
 
 
@@ -213,7 +200,7 @@ def _magic(rdb, loc) -> str:
 # world map textures: (rdb, (bin, offset, stored size) of the entry, texture index, file name); the locations are those
 # of the Steam PK build in notes/steam.md (depot 1427650)
 WORLDMAP = [("0002/FieldEditor4.rdb", (14, 57802752, 30968596), 2, "ground_color.png"),  # BC3 4096, GT1G4600
-            ("0002/RRPreview.rdb", (-1, 8323072, 64039516), 0, "hex_terrain.png")]  # RGBA8 8192, GT1G0500
+            ("0002/RRPreview.rdb", (-1, 8323072, 64039516), 0, "hex_terrain.png")]  # BGRA8 (format 0x01) 8192, GT1G0500
 
 
 def worldmap(game_dir, out, sp=None) -> list[tuple]:
@@ -224,23 +211,15 @@ def worldmap(game_dir, out, sp=None) -> list[tuple]:
         path = os.path.join(game_dir, rdb)
         fsize = next(e[1] for e in sango.san14_entries(path) if e[2] == loc)
         t = sango.san14_read(path, fsize, loc)
-        header = struct.unpack_from("<I", t, 0x0C)[0]
-        o = header + struct.unpack_from("<I", t, header + 4 * k)[0]
-        fmt, dim = t[o + 1], t[o + 2]
-        w, h = 1 << (dim & 15), 1 << (dim >> 4)
-        start = o + 8 + (struct.unpack_from("<I", t, o + 8)[0] if t[o + 7] & 0x10 else 0)
-        if fmt == 1:
-            im = Image.frombytes("RGBA", (w, h), t[start:start + w * h * 4])
-        else:
-            assert fmt == 0x5B, fmt
-            im = Image.frombytes("RGBA", (w, h), t[start:start + w * h], "bcn", 3)
+        im = gt1g_texture(t, k)
+        w, h = im.size
         im.convert("RGB").save(os.path.join(out, "worldmap", file))
         index.append((file, f"{w}x{h}", f"{os.path.basename(rdb)} {loc} texture {k}"))
     sp = sp or sprites(game_dir)
     im = Textures(game_dir).cut(sp["map_cover"])
     im.save(os.path.join(out, "worldmap", "map_cover.png"))
     index.append(("map_cover.png", f"{im.width}x{im.height}", "ScreenLayout.rdb sprite map_cover"))
-    _csv(os.path.join(out, "worldmap", "index.csv"), ["file", "size", "source"], index)
+    write_csv(os.path.join(out, "worldmap", "index.csv"), ["file", "size", "source"], index)
     return index
 
 
@@ -254,14 +233,13 @@ def san14_extras(game_dir, out, no_pictures):
     os.makedirs(os.path.join(out, "items"), exist_ok=True)
     with open(os.path.join(out, "items", "items.json"), "w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=1)
-    _csv(os.path.join(out, "items", "items.csv"), list(rows[0]) + ["evidence"],
-         [list(r.values()) + ["✅ cross: 名稱、種類、說明、圖；stat 順序與 value 🟡"] for r in rows])
+    write_csv(os.path.join(out, "items", "items.csv"), list(rows[0]) + ["evidence"], [list(r.values()) + ["✅ cross: 名稱、種類、說明、圖；stat 順序與 value 🟡"] for r in rows])
     ev = events(game_dir)
     os.makedirs(os.path.join(out, "events"), exist_ok=True)
     with open(os.path.join(out, "events", "events.jsonl"), "w", encoding="utf-8") as f:
         for r in ev:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    _csv(os.path.join(out, "inventory.csv"), ["rdb", "type", "magic", "entries", "MB"], inventory(game_dir))
+    write_csv(os.path.join(out, "inventory.csv"), ["rdb", "type", "magic", "entries", "MB"], inventory(game_dir))
     click.echo(f"{len(rows)} items, {len(ev)} event texts ({len({r['id'] for r in ev})} events)")
     if no_pictures:
         return
@@ -287,9 +265,7 @@ def san14_extras(game_dir, out, no_pictures):
         index.append((os.path.relpath(path, out), name, kind, f"{im.width}x{im.height}",
                       f"ScreenLayout.rdb {loc}", note))
     index.sort()
-    _csv(os.path.join(out, "eventcg", "index.csv"), ["file", "sprite", "kind", "size", "source", "note"],
-         [r for r in index if r[0].startswith("eventcg")])
-    _csv(os.path.join(out, "items", "pictures", "index.csv"), ["file", "sprite", "kind", "size", "source", "note"],
-         [r for r in index if r[0].startswith("items")])
+    write_csv(os.path.join(out, "eventcg", "index.csv"), ["file", "sprite", "kind", "size", "source", "note"], [r for r in index if r[0].startswith("eventcg")])
+    write_csv(os.path.join(out, "items", "pictures", "index.csv"), ["file", "sprite", "kind", "size", "source", "note"], [r for r in index if r[0].startswith("items")])
     click.echo(f"{len(index)} pictures")
     click.echo(f"{len(worldmap(game_dir, out, sp))} world maps")

@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw
 
 from ls11 import ls11_decode_parts
 import koei_games
+from common import u16
 
 # Operand bytes after the opcode: skip table DGROUP 0x1A06 (62 entries), with the interpreter's own reads where the
 # table is wrong (03, 22 are > 255; 1D reads 4 but the table says 2). 20, 21, 32 have variable length.
@@ -110,10 +111,6 @@ FACING = {1: '右', 3: '左'}
 # text of the same messages (下邳, 冀州の鄴, 雒城, 涪城, 宛城, 潁川, 兗州); FONT.R3 glyph = xx - 0x9F up to CE,
 # xx - 0xA1 for D7-D9, xx - 0xA2 for E4
 EIKETSU_PC98_PLACE_GAIJI = {0xAA: '兗', 0xBF: '邳', 0xCC: '邳', 0xCD: '宛', 0xD7: '鄴', 0xD8: '雒', 0xD9: '涪', 0xE4: '潁'}
-
-
-def u16(d, i):
-    return d[i] | d[i + 1] << 8
 
 
 def oplen(d, p) -> int:

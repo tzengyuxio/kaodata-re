@@ -3,16 +3,15 @@
 See notes/san11.md「事件、插圖、道具」. Usage (from dekoei/):
     dekoei.py san11-extras --game-dir ../games/san11pk-win --out ../games/san11pk-win/extract
 """
-import csv
 import os
 import struct
-import unicodedata
 
 import click
 from PIL import Image, ImageDraw
 
 from ls11 import ls11_decode
 from sango import SAN11_GAIJI, SAN11_PERSONS, load_san11_persons
+from common import fold_kana, write_csv
 
 # media/san11pkres.bin, media/san11res1.bin: "LINK", u32 count at +4, (u32 offset, u32 size) pairs from +0x10.
 # A WFTX0010 texture: u32 total size at +8, u32 frame count at +12, then per frame u16 w, u16 h, u8 bpp, 3 flag
@@ -117,14 +116,6 @@ def sjis(b, gaiji=None):
     return "".join(table.get(ord(c), c) for c in s)
 
 
-def _kana(run, katakana):
-    """Half-width kana stand for hiragana (ESC H, the default) or katakana (ESC K)."""
-    s = unicodedata.normalize("NFKC", run)
-    if katakana:
-        return s
-    return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in s)
-
-
 def decode_message(b):
     """S11MSG text: cp932, half-width kana in hiragana / katakana mode (1B 'H' / 1B 'K'), 0A new line, 05 end.
     02 96 'NNx' colour (dropped), 02 97 68 / 02 97 7A ruby start / end (dropped, the reading stays in []),
@@ -134,7 +125,7 @@ def decode_message(b):
 
     def flush():
         if run:
-            out.append(_kana(bytes(run).decode("cp932"), kata))
+            out.append(fold_kana(bytes(run).decode("cp932"), kata))
             run.clear()
 
     while i < len(b):
@@ -193,14 +184,6 @@ def messages(game_dir, n):
     count = struct.unpack_from("<H", d)[0]
     offs = list(struct.unpack_from(f"<{count}I", d, 2)) + [len(d)]
     return [d[offs[k]:offs[k + 1]] for k in range(count)]
-
-
-def write_csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def pictures(game_dir, out):

@@ -21,12 +21,12 @@
   section C is 49-byte blocks (7 x 7 terrain codes, 0 = sea). The world is 504 x 252 bytes.
 - STIZU.DAT: the 「MAPA DE MUNDO」 picture, 640 x 400, three 32000-byte planes in turn (B, R, G), bit 7 leftmost.
 """
-import csv
 import os
 import struct
 
 import click
 from PIL import Image, ImageDraw
+from common import write_csv
 
 DIGITAL = ["#000000", "#00ff00", "#ff0000", "#ffff00", "#0000ff", "#00ffff", "#ff00ff", "#ffffff"]
 DGROUP = 0x40910
@@ -45,14 +45,6 @@ ITEM_EFFECTS = {
 
 def _name(b):
     return b.split(b"\0")[0].decode("cp932")
-
-
-def _csv(path, header, rows):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(rows)
 
 
 def ports(cim):
@@ -75,11 +67,10 @@ def tables(game_dir, out):
             r = cim[0xD9A + p[0] * 18:0xD9A + p[0] * 18 + 18]
             e = [*struct.unpack_from("<II", r), r[8], r[9], r[10], r[11:].hex(" ")]
         rows.append([*p, *e])
-    _csv(f"{out}/tables/ports.csv", ["id", "name", "bx", "by", "fx", "fy", "x", "y", "flag",
+    write_csv(f"{out}/tables/ports.csv", ["id", "name", "bx", "by", "fx", "fy", "x", "y", "flag",
                                      "u32_0", "u32_4", "share_a", "share_b", "share_c", "raw_11"], rows)
     goods = struct.unpack_from("<26H", exe, DGROUP + 0x1EAC)
-    _csv(f"{out}/tables/goods.csv", ["id", "name"],
-         [(i, exe[DGROUP + q:exe.index(b"\0", DGROUP + q)].decode("cp932")) for i, q in enumerate(goods)])
+    write_csv(f"{out}/tables/goods.csv", ["id", "name"], [(i, exe[DGROUP + q:exe.index(b"\0", DGROUP + q)].decode("cp932")) for i, q in enumerate(goods)])
     items = [_name(cim[0xA8 + i * 15:0xA8 + i * 15 + 13]) for i in range(31)]
     shops = [(p[0], p[1], cim[0xD9A + p[0] * 18 + 14:0xD9A + p[0] * 18 + 18]) for p in pts[:50] if p[8] & 4]
     irows = []
@@ -90,22 +81,20 @@ def tables(game_dir, out):
         effect = ITEM_EFFECTS[i] if kind == 0 else ITEM_EFFECTS[f"kind{kind}"]
         irows.append((i, name, price, price // 2, kind, rank, " ".join(str(s[0]) for s in sold),
                       "、".join(s[1] for s in sold), effect))
-    _csv(f"{out}/items/items.csv", ["id", "name", "price", "sell", "kind", "rank", "ports", "port_names", "effect"],
-         irows)
-    _csv(f"{out}/items/shops.csv", ["port", "name", *(f"item{k}" for k in range(4)), *(f"name{k}" for k in range(4))],
-         [(p, n, *lst, *(items[b] for b in lst)) for p, n, lst in shops])
+    write_csv(f"{out}/items/items.csv", ["id", "name", "price", "sell", "kind", "rank", "ports", "port_names", "effect"], irows)
+    write_csv(f"{out}/items/shops.csv", ["port", "name", *(f"item{k}" for k in range(4)), *(f"name{k}" for k in range(4))], [(p, n, *lst, *(items[b] for b in lst)) for p, n, lst in shops])
     ships = []
     for i, a in [("flagship", 0x12C6), *((k, 0x132F + k * 21) for k in range(6))]:
         r = cim[a:a + 21]
         ships.append((i, _name(r[:15]), *struct.unpack_from("<H", r, 15), r[17], *struct.unpack_from("<H", r, 18), r[20]))
-    _csv(f"{out}/ships/ship_types.csv", ["id", "name", "u16_15", "u8_17", "u16_18", "u8_20"], ships)
+    write_csv(f"{out}/ships/ship_types.csv", ["id", "name", "u16_15", "u8_17", "u16_18", "u8_20"], ships)
     yard = exe[DGROUP + 0xC7D4:DGROUP + 0xC7D4 + 54].split(b"\0")
-    _csv(f"{out}/ships/shipyard.csv", ["id", "name"], enumerate(s.decode("cp932") for s in yard if s))
+    write_csv(f"{out}/ships/shipyard.csv", ["id", "name"], enumerate(s.decode("cp932") for s in yard if s))
     fleets = []
     for i in range(21):
         r = cim[0xC34 + i * 17:0xC34 + i * 17 + 17]
         fleets.append((i, *r[:4], r[0] * 14 + r[2], r[1] * 14 + r[3], r[4:].hex(" ")))
-    _csv(f"{out}/tables/fleets.csv", ["id", "bx", "by", "fx", "fy", "x", "y", "raw_4"], fleets)
+    write_csv(f"{out}/tables/fleets.csv", ["id", "bx", "by", "fx", "fy", "x", "y", "raw_4"], fleets)
     return pts
 
 

@@ -30,6 +30,7 @@ import koei_games
 import ls11
 import wiki_nobu9 as w
 from wiki_nobu10 import kana_text
+from common import cstr, read_file
 
 # (file, folder): picture sets written one PNG per entry
 PICTURES = [
@@ -71,13 +72,8 @@ MESSAGE_PARTS = {0: "口調、稱呼", 1: "系統訊息", 2: "出生、元服", 
                  42: "南蛮、宣教師", 43: "PK 任務", 44: "事件編輯器", 47: "事件編輯器", 48: "編輯器", 49: "PK 事件"}
 
 
-def _read(path):
-    with open(path, "rb") as f:
-        return f.read()
-
-
 def palette(game_dir):
-    p = _read(os.path.join(game_dir, "palette.NB9"))
+    p = read_file(os.path.join(game_dir, "palette.NB9"))
     return b"".join(bytes((p[56 + 4 * c], p[55 + 4 * c], p[54 + 4 * c])) for c in range(256))
 
 
@@ -109,7 +105,7 @@ def write_pictures(game_dir, out, pal):
         d = os.path.join(out, folder)
         os.makedirs(d, exist_ok=True)
         n = 0
-        for i, (wd, h, bpp, px) in enumerate(pictures(_read(os.path.join(game_dir, name)))):
+        for i, (wd, h, bpp, px) in enumerate(pictures(read_file(os.path.join(game_dir, name)))):
             image(wd, h, bpp, px, pal).save(os.path.join(d, f"{i:04d}.png"))
             n += 1
         counts[folder] = n
@@ -143,7 +139,7 @@ class Exe:
 def message_parts(game_dir):
     """the entries (raw bytes) of every MESSAGE.NB9 part."""
     out = []
-    for p in ls11.ls11_decode_parts(_read(os.path.join(game_dir, "MESSAGE.NB9"))):
+    for p in ls11.ls11_decode_parts(read_file(os.path.join(game_dir, "MESSAGE.NB9"))):
         a = struct.unpack_from(f"<{struct.unpack_from('<H', p)[0] // 2}H", p)
         b = []
         if len(a) > 1:
@@ -225,8 +221,8 @@ def write_kahou(game_dir, exe, out, parts):
         r = main[o0 + KAHOU_SIZE * i:][:KAHOU_SIZE]
         assert struct.unpack_from("<IHH", r)[::2] == (1, KAHOU)
         grade, _, picture, amount, ability, troop, skill, flags = struct.unpack_from("<8I", r, 80)
-        rows.append({"slot": i, "id": struct.unpack_from("<H", r, 4)[0], "name": w._text(r, 12, 14),
-                     "reading": w._text(r, 26, 50), "kind": r[76], "kind_name": kinds[r[76]], "grade": grade,
+        rows.append({"slot": i, "id": struct.unpack_from("<H", r, 4)[0], "name": cstr(r[12:12 + 14]),
+                     "reading": cstr(r[26:26 + 50]), "kind": r[76], "kind_name": kinds[r[76]], "grade": grade,
                      "picture": picture, "ability": ABILITIES[ability] if ability < 4 else "",
                      "ability_amount": amount if ability < 4 else "", "troop": troop if troop != 5 else "",
                      "skill_code": skill, "flags": flags, "effect": effects[r[76]], "pk": int(i >= 350)})
@@ -249,7 +245,7 @@ def write_kahou(game_dir, exe, out, parts):
             force, lord = struct.unpack_from("<I", d, o + 0x8C)[0] & 0xFFFF, struct.unpack_from("<I", d, o + 0xAC)[0]
             if force != w.NONE and lord == 0xFFFFFFFF:
                 heads[force] = pid
-        cities = {i: w._text(d, o, 12) for i, o in w._typed(d, 21).items()}
+        cities = {i: cstr(d[o:o + 12]) for i, o in w._typed(d, 21).items()}
         start = _kahou_start(d)
         for i in range(KAHOU_COUNT):
             hid, htype = struct.unpack_from("<HH", d, start + KAHOU_SIZE * i + 84)
@@ -280,7 +276,7 @@ def nobu9_extras(game_dir, out):
     pal = palette(game_dir)
     for folder, n in write_pictures(game_dir, out, pal).items():
         click.echo(f"{folder}: {n}")
-    exe = Exe(_read(os.path.join(game_dir, "Nobunaga9WPK.exe")))
+    exe = Exe(read_file(os.path.join(game_dir, "Nobunaga9WPK.exe")))
     parts = message_parts(game_dir)
     click.echo(f"messages: {write_messages(game_dir, out, parts)}")
     click.echo(f"event titles: {write_titles(exe, out)}")

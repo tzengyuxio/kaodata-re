@@ -14,13 +14,15 @@ import collections
 import csv
 import os
 import struct
-import unicodedata
 
 import click
 
 import sango
 import san8_extras
 from kaodata_export import SAN8PK_WIN_ALIASES, SAN8PK_WIN_ROLES
+from common import cstr, fold_kana, u16
+from PIL import Image
+from places_export import PLACE_GAIJI, _gaiji, _reading
 
 SCE = "D_Sce.s8"
 ZH_DIR = os.path.join("..", "steam", "628040-tchinese", "depot")  # relative to game_dir
@@ -44,10 +46,6 @@ TACTICS = ["突撃", "乱撃", "撹乱", "奇襲", "槍衾", "車懸", "火矢",
            "攻城"]
 
 
-def _u16(b, o):
-    return struct.unpack_from("<H", b, o)[0]
-
-
 def _read(game_dir):
     with open(os.path.join(game_dir, SCE), "rb") as f:
         return f.read()
@@ -60,7 +58,7 @@ def _record(data, i):
 
 def timeline(data):
     """person id -> [(year, city, force, status, loyalty, rank)] in year order"""
-    assert _u16(data, 6) == SCENARIO_COUNT and _u16(data, 20) == TL_COUNT
+    assert u16(data, 6) == SCENARIO_COUNT and u16(data, 20) == TL_COUNT
     out = collections.defaultdict(list)
     for k in range(TL_COUNT):
         pid, year, city, force, status, loyalty, rank = struct.unpack_from("<HHBBBBB", data, TIMELINE + TL_SIZE * k)
@@ -69,7 +67,7 @@ def timeline(data):
 
 
 def died(data, i):
-    return _u16(_record(data, i), 0x2B)
+    return u16(_record(data, i), 0x2B)
 
 
 def state(tl, i, year):
@@ -94,15 +92,6 @@ def scenario_states(data, tl, year):
     return states, lords
 
 
-def _kana(s):
-    s = unicodedata.normalize("NFKC", s)
-    return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in s)
-
-
-def _zh_text(b):
-    return b.split(b"\0")[0].decode("cp950").strip()
-
-
 def persons(game_dir):
     data = _read(game_dir)
     zh_dir = os.path.join(game_dir, ZH_DIR)
@@ -115,7 +104,7 @@ def persons(game_dir):
     scens = [(n, FIRST_YEAR + n - 1, *scenario_states(data, tl, FIRST_YEAR + n - 1)) for n in range(1, SCENARIO_COUNT + 1)]
     children = {}
     for i in people:
-        parent = _u16(_record(data, i), 0x33)
+        parent = u16(_record(data, i), 0x33)
         if parent in people and parent != i:
             children.setdefault(parent, []).append(i)
     rows = []
@@ -124,11 +113,11 @@ def persons(game_dir):
         row = {"id": i, "name": zh[i]}
         if zh[i] != p["name"]:
             row["nameJa"] = p["name"]
-        courtesy = _zh_text(_record(zh_data, i)[0x22:0x27])
+        courtesy = cstr(_record(zh_data, i)[0x22:0x27], "cp950").strip()
         if courtesy:
             row["courtesy"] = courtesy
-        row["reading"] = _kana("".join(p["kana"]))
-        row["born"], row["died"] = _u16(r, 0x29), _u16(r, 0x2B)
+        row["reading"] = fold_kana("".join(p["kana"]))
+        row["born"], row["died"] = u16(r, 0x29), u16(r, 0x2B)
         row["stats"] = dict(zip(sango.SAN8_STATS, r[0x2D:0x31]))
         row["more"] = {"性別": "女" if r[0x38] & 0x80 else "男"}
         row["hidden"] = {"相性": r[0x35], "義理": r[0x36] & 15, "野望": r[0x36] >> 4, "冷静": r[0x37] & 7,
@@ -144,8 +133,8 @@ def persons(game_dir):
             row["game"] = {"戦法等級": levels}
         if skills:
             row["skills"] = skills
-        rel = {"clan": _u16(r, 0x31)}
-        parent = _u16(r, 0x33)
+        rel = {"clan": u16(r, 0x31)}
+        parent = u16(r, 0x33)
         if parent in people and parent != i:
             rel["father"] = [parent]
         if i in children:
@@ -201,3 +190,94 @@ def main(game_dir):
 
 if __name__ == "__main__":
     main()
+
+
+##############################################################################
+# 三國志VIII PK: D_Sce.s8 (plain): 16 州 from 0x22 (17 bytes, name +2), 50 cities from 0x7F3 (16 bytes: name
+# +1 5, reading +6 7, 州 +13), 86 roads from 0xB22 (7 bytes: kind, city A, city B, A-end place, B-end place, FF FF);
+# the 172 places are the road ends (D_YMap.s8 part k is place k). San8WPK.exe VA 0x5D8A00 finds the place of the
+# city pair; place -> picture: file 0x363EF0, 172 x (u32 left, u32 right) into G_W01Map.s8 (left, 35 + right).
+# Each half is 1008 x 648 in its own palette: half k (and 35 + k) uses p_main.s8 palette 174 + k (256 x RGBX; 209-243
+# repeat 174-208), found by colour statistics and by eye, not in the code. Place ids here: cities 0-49, place k is
+# 50 + k.
+SAN8_STATES, SAN8_CITIES, SAN8_ROADS, SAN8_PICTURES, SAN8_PALETTES = 0x22, 0x7F3, 0xB22, 0x363EF0, 174
+
+
+def san8_picture(halves, palettes, left, right):
+    """The 2016 x 648 battle map of W01Map[left] + W01Map[35 + right], each half in palette 174 + its number."""
+    out = Image.new("RGB", (2016, 648))
+    for x, k in ((0, left), (1008, 35 + right)):
+        im = Image.frombytes("P", (1008, len(halves[k]) // 1008), halves[k])
+        im.putpalette(b"".join(palettes[SAN8_PALETTES + k % 35][4 * c:4 * c + 3] for c in range(256)))
+        out.paste(im.convert("RGB"), (x, 0))
+    return out
+
+
+def places(game_dir, out_dir):
+    with open(os.path.join(game_dir, "D_Sce.s8"), "rb") as f:
+        sce = f.read()
+    exe_path = os.path.join(game_dir, "San8WPK.exe")
+    with open(exe_path, "rb") as f:
+        exe = f.read()
+    gaiji = {**sango.SAN8_GAIJI, **PLACE_GAIJI}
+
+    def s(b):
+        return _gaiji(b.split(b"\0")[0].decode("cp932").strip(), gaiji)
+
+    states = [s(sce[SAN8_STATES + 17 * k + 2:][:5]) for k in range(16)]
+    cities = [sce[SAN8_CITIES + 16 * k:][:16] for k in range(50)]
+    roads, o = [], SAN8_ROADS
+    while sce[o + 5] == 0xFF:
+        roads.append(sce[o:o + 5])
+        o += 7
+    pictures = struct.unpack_from("<344I", exe, SAN8_PICTURES)
+    end = {}
+    for kind, a, b, pa, pb in roads:
+        end[pa], end[pb] = (a, b, kind), (b, a, kind)
+    file = {p: f"W01Map_{pictures[2 * p]:02d}_{35 + pictures[2 * p + 1]:02d}.png" for p in end}
+    with open(os.path.join(game_dir, "G_W01Map.s8"), "rb") as f:
+        halves = sango.koei_archive(f.read())
+    with open(os.path.join(game_dir, "p_main.s8"), "rb") as f:
+        palettes = sango.koei_archive(f.read())
+    os.makedirs(out_dir, exist_ok=True)
+    for p in sorted(end, key=file.get):
+        path = os.path.join(out_dir, file[p])
+        if not os.path.exists(path):
+            san8_picture(halves, palettes, pictures[2 * p], pictures[2 * p + 1]).save(path)
+    users = {}
+    for p in end:
+        users.setdefault(file[p], []).append(50 + p)
+    palette_note = "戰場圖的色盤是 p_main.s8 第 174＋（半張號 mod 35）組，用色彩統計和看圖找到，程式裡的出處沒追。"
+    rows = []
+    for k, r in enumerate(cities):
+        adjacent, maps = [], []
+        for _, a, b, pa, pb in roads:
+            if k in (a, b):
+                adjacent.append(b if a == k else a)
+                maps.append({"file": file[pa if a == k else pb], "role": "野戰", "from": b if a == k else a})
+        rows.append({"id": k, "name": s(r[1:6]), "reading": _reading(r[6:13]), "level": "都市",
+                     "province": states[r[13]], "adjacent": adjacent, "battlemaps": maps, "uncertain": ["battlemaps"],
+                     "notes": "相鄰是 D_Sce.s8 的道路表，照道路順序。戰場圖取道路在這個都市一端的地點；"
+                              "遊戲用守方還是攻方那一端沒確認，所以標 uncertain。" + palette_note})
+    for p in range(len(end)):
+        a, b, kind = end[p]
+        m = {"file": file[p], "role": "野戰"}
+        shared = [x for x in users[file[p]] if x != 50 + p]
+        if shared:
+            m["sharedWith"] = shared
+        rows.append({"id": 50 + p, "name": None, "level": "道路地點", "parentCity": a, "battlemaps": [m],
+                     "uncertain": ["level"],
+                     "notes": f"道路 {s(cities[a][1:6])}—{s(cities[b][1:6])} 的{s(cities[a][1:6])}端（號碼是遊戲的地點號＋50，"
+                              f"也是 D_YMap.s8 的段號），道路種類碼 {kind}。這一代的 191 個戰場名和 172 個地點對不上，"
+                              "所以不填名稱；「道路地點」是這邊的分類。戰場圖是 G_W01Map.s8 第 "
+                              f"{pictures[2 * p]} 張（左）與第 {35 + pictures[2 * p + 1]} 張（右）拼成，172 個地點只有 43 種組合，"
+                              "同組合的地形相同，差在布陣點和旗標。" + palette_note})
+    return rows
+
+
+def stats(game_dir):
+    # build_san8pk_win: D_Sce.s8 persons without the role and alias records, id = record id
+    rows = {r[0]: r for r in sango.load_san8_stats(os.path.join(game_dir, "D_Sce.s8"))}
+    persons = sango.load_san8_persons(os.path.join(game_dir, "D_Sce.s8"))
+    return [(p["id"], p["name"], dict(zip(sango.SAN8_STATS, rows[p["id"]][2:])))
+            for p in persons if p["name"] not in SAN8PK_WIN_ROLES | SAN8PK_WIN_ALIASES]
