@@ -1,5 +1,6 @@
 import bitarray
 import csv
+import glob
 import click
 import unicodedata
 import re
@@ -1581,6 +1582,23 @@ def load_eiketsu3_win_persons(path) -> list[tuple[str, int]]:
         face, = struct.unpack_from("<H", data, o + 28)
         persons.append((data[o:o + 13].split(b"\0")[0].decode("big5"), face))
     return persons
+
+
+# script op 16 (毛利元就傳_Gr.EXE 0x4087f3) changes a person field: (2, person) (0x23, field) (0x34, mode: 0 set,
+# 1 add, 2 subtract) (4, u32 value); field 10 is the face (0x40140b, at most 0x14c)
+EIKETSU3_WIN_FACE_OP = re.compile(rb"\x16\x00\x02\x00(..)\x23\x00\x0a\x00\x34\x00(..)\x04\x00(....)", re.S)
+
+
+def eiketsu3_win_face_changes(game_dir) -> list[tuple[str, int, int, int, int]]:
+    """(script file, offset, person, mode, value) of every face change in R_*.EEX and S_*.EEX."""
+    out = []
+    for path in sorted(glob.glob(os.path.join(game_dir, "R_*.EEX"))) + sorted(glob.glob(os.path.join(game_dir, "S_*.EEX"))):
+        with open(path, "rb") as f:
+            data = f.read()
+        for m in EIKETSU3_WIN_FACE_OP.finditer(data):
+            out.append((os.path.basename(path), m.start(), *struct.unpack("<H", m[1]), *struct.unpack("<H", m[2]),
+                        *struct.unpack("<I", m[3])))
+    return out
 
 # GENGHIS4 PK (Win, Chinese): SCEDAT1-4.CK each hold a run of 51-byte male records followed by
 # 24-byte female records. A male record is u16 id + 17-byte Big5 name (NUL, then spaces) + ...; a female

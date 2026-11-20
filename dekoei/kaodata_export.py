@@ -7168,8 +7168,9 @@ EIKETSU3_WIN_RETAINERS = range(200, 248)
 # childhood or earlier names of the same person (same face, or the young face of their set)
 EIKETSU3_WIN_ALIASES = {"少輔太郎": "毛利隆元", "少輔次郎": "吉川元春", "德壽丸": "小早川隆景", "竹千代": "德川家康",
                         "松平元康": "德川家康", "竹若丸": "安國寺惠瓊", "夫人": "妙姬"}
-# no record uses the older faces; they follow the record's face in KAO.E3 (matched by eye, the EXE draws
-# whatever face the person object holds)
+# no record uses the older faces: the chapter scripts switch them in (op 16 field 10,
+# koei_games.eiketsu3_win_face_changes); the youngest faces belong to alias records, and 19, 22, 25 are only
+# matched by eye (no script switches to them)
 EIKETSU3_WIN_LOOKS = {
     "毛利元就": [(0, "少年"), (1, "青年"), (2, "壯年"), (3, "老年")],
     "毛利隆元": [(4, "少年"), (5, "青年"), (6, "壯年")],
@@ -7180,10 +7181,23 @@ EIKETSU3_WIN_LOOKS = {
     "山中鹿之介": [(17, "青年"), (18, "壯年"), (19, "頭巾")],
     "織田信長": [(20, "青年"), (21, "壯年"), (22, "老年")],
     "德川家康": [(23, "少年"), (24, "青年"), (25, "壯年")],
-    "安國寺惠瓊": [(26, "少年"), (27, "青年")],
+    "安國寺惠瓊": [(26, "少年"), (27, "青年"), (28, "壯年")],
+    "村上吉充": [(326, "青年"), (327, "壯年")],
     "妙姬": [(29, "青年"), (30, "壯年")],
+    "阿曾沼廣秀": [(68, "青年"), (311, "壯年")],  # not 69: the script sets 311
+    "安藤景綱": [(80, "青年"), (312, "壯年")],
+    "世鬼政清": [(93, "青年"), (322, "壯年")],
+    "山內隆通": [(79, "青年"), (310, "壯年")],
+    "杉杜房康": [(81, "青年"), (313, "壯年")],
+    "杉重輔": [(82, "青年"), (314, "壯年")],
+    "吉見正賴": [(83, "青年"), (315, "壯年")],
+    "益田藤兼": [(84, "青年"), (316, "壯年")],
+    "湯原春綱": [(86, "青年"), (317, "壯年")],
+    "三刀屋久扶": [(87, "青年"), (318, "壯年")],
+    "三澤為清": [(88, "青年"), (319, "壯年")],
+    "志乃": [(120, "平時"), (279, "第12–14章")],  # R_12 sets the 女孩 face 279, R_15 sets 120 back
 }
-EIKETSU3_WIN_PAIRS = range(42, 74, 2)  # face + 1 is the same officer, older
+EIKETSU3_WIN_PAIRS = range(42, 74, 2)  # face + 1 is the same officer, older (the scripts add 1; 68 is in LOOKS)
 EIKETSU3_WIN_NAME_HISTORICAL = {"神原康政": "榊原康政", "佐佐成正": "佐佐成政", "下間賴簾": "下間賴廉"}
 EIKETSU3_WIN_FACE = 112
 # faces some character uses go first; the grouped ones go to extra.bin
@@ -7214,17 +7228,23 @@ def build_eiketsu3_win(game_dir: str) -> tuple[dict, list[bytes]]:
             ch["nameHistorical"] = EIKETSU3_WIN_NAME_HISTORICAL[name]
         characters.append(ch)
 
-    # faces only retainers, NPCs or troops use take the first role name (digits dropped)
+    # faces only retainers, NPCs or troops use take the first role name (digits dropped); a character's face that
+    # such records also use lists that role in alsoAs (P000 工匠, P220 負責官, P279 女孩)
     portraits = [{"code": f"{i:04X}"} for i in range(len(faces))]
     person_faces = {look["portrait"] for ch in characters for look in [ch["face"]] + ch.get("expressions", [])}
     for i, (name, code) in enumerate(records):
         p = portraits[code]
-        if code in person_faces or "name" in p:
-            continue
         if i in EIKETSU3_WIN_RETAINERS:
-            p.update(name="一般武將", group="一般人物")
+            role = {"name": "一般武將", "group": "一般人物"}
         elif i not in EIKETSU3_WIN_PEOPLE:
-            p.update(name=name.rstrip("0123456789"), group="部隊" if i in EIKETSU3_WIN_TROOPS else "一般人物")
+            role = {"name": name.rstrip("0123456789"), "group": "部隊" if i in EIKETSU3_WIN_TROOPS else "一般人物"}
+        else:
+            continue
+        if code in person_faces:
+            if role not in p.setdefault("alsoAs", []):
+                p["alsoAs"].append(role)
+        elif "name" not in p:
+            p.update(role)
     for i, p in enumerate(portraits):
         if i not in person_faces and "group" not in p:
             p["group"] = "未使用"
