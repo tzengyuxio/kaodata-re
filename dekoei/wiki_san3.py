@@ -22,9 +22,22 @@ SAME_CODE = {(1, 0x82CB, "車胄"): 0x9831}
 ZH_OTHER_PERSON = {0xC1, 0xC02B, 0x96D9, 0x9C95}
 
 
+def zh_variants(dos_dir, zh):
+    """face code -> [(spelling, [scenario numbers])] for the DOS Chinese spellings other than zh[code] (the one name
+    takes; koei-wiki 遊戲/三國志III/人名勘誤 lists the same ones)."""
+    out = {}
+    for k, file in enumerate(SAN3_INPUTS[2:], 1):
+        for p in san3.load_san3_persons(os.path.join(dos_dir, file)):
+            name = p["name"].strip()  # 臧霸 has a trailing space in scenario 4
+            if name != zh[p.face]:
+                out.setdefault(p.face, {}).setdefault(name, []).append(k)
+    return {code: list(v.items()) for code, v in out.items()}
+
+
 def persons(game_dir):
     chars = ke.san3_characters(game_dir, True)
     zh = dict(ke.san3_characters(os.path.join(game_dir, "..", "san3-dos")))
+    variants = zh_variants(os.path.join(game_dir, "..", "san3-dos"), zh)
     assert set(zh) == {c for c, _ in chars}
     cid = {c: i for i, (c, _) in enumerate(chars)}
     by_id = {i: st for i, _, st in stats(game_dir)}
@@ -90,6 +103,8 @@ def persons(game_dir):
             notes.append(f"中文版寫成別人的名字「{zh[code]}」，name 改用史書寫法。")
         elif code in ke.SAN3_NAME_HISTORICAL:
             notes.append(f"中文版寫法的史書寫法 {ke.SAN3_NAME_HISTORICAL[code]}。")
+        for spelling, ks in variants.get(code, []):
+            notes.append(f"中文版劇本 {'、'.join(map(str, ks))} 寫作「{spelling}」。")
         if code in ke.SAN3_PC98_NAME_HISTORICAL and not ke.yoshikawa_note(row["name"]):
             notes.append(f"日文版寫法的史書寫法 {ke.SAN3_PC98_NAME_HISTORICAL[code]}。")
         if notes:
