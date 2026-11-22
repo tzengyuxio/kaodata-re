@@ -20,7 +20,7 @@ import struct
 
 import sango
 from kaodata_export import SAN12PK_WIN_ROLE_FACES, kana_to_hiragana
-from places_export import PLACE_GAIJI, _gaiji
+from places_export import PLACE_GAIJI, _gaiji, area_interior
 import kaodata_export as K
 from wiki_stats import _pick
 
@@ -240,20 +240,97 @@ def scenarios_csv(game_dir, path):
 SAN12_REGIONS = ["河北", "中原", "西北", "呉越", "荊楚", "巴蜀"]
 
 
+# 全國地圖 (world/minimap.png): the strategic map is 3D; the only flat whole-country picture is the minimap base
+# Data/UI/20_shoki/20_map_minimap_base.G1T of the 繁中版 depot (512 x 512 BGRA, China in the top-left 320 x 340, sea
+# transparent, flattened here onto SAN12_SEA). Its 40 areas are split by 1 px lines about 15 % darker than their
+# surroundings; SAN12_AREAS gives the city of each area in the order san12_areas finds them (top to bottom), assigned
+# by geography and checked by world_check: every pair of adjacent cities has touching areas.
+SAN12_DEPOT = os.path.join("..", "steam", "628080-tchinese", "depot")
+SAN12_MINIMAP, SAN12_CROP, SAN12_SEA = "Data/UI/20_shoki/20_map_minimap_base.G1T", (320, 340), (40, 44, 90)
+SAN12_AREAS = [0, 1, 2, 5, 17, 3, 4, 7, 6, 16, 14, 10, 8, 15, 11, 9, 35, 13, 12, 24, 36, 28, 18, 37, 25, 20, 21, 26, 38,
+               34, 27, 19, 22, 29, 23, 30, 39, 31, 33, 32]
+
+
+def san12_areas(game_dir):
+    """(the cropped minimap on SAN12_SEA, a "P" image colouring each city's area with city + 1)."""
+    from PIL import Image, ImageFilter
+    import san12_extras
+    with open(os.path.join(game_dir, SAN12_DEPOT, SAN12_MINIMAP), "rb") as f:
+        im = san12_extras.gt1g(f.read()).crop((0, 0) + SAN12_CROP)
+    w, h = im.size
+    grey = im.convert("RGB").convert("L")
+    g, m, a = grey.load(), grey.filter(ImageFilter.MaxFilter(5)).load(), im.getchannel("A").load()
+    areas = Image.new("P", (w, h))
+    lab = areas.load()
+    seen, n = set(), 0
+    for y in range(h):
+        for x in range(w):
+            if (x, y) in seen or not (a[x, y] > 200 and g[x, y] >= 0.85 * m[x, y]):
+                continue
+            seen.add((x, y))
+            stack, cells = [(x, y)], []
+            while stack:
+                p, q = stack.pop()
+                cells.append((p, q))
+                for u, v in ((p + 1, q), (p - 1, q), (p, q + 1), (p, q - 1)):
+                    if 0 <= u < w and 0 <= v < h and (u, v) not in seen and a[u, v] > 200 and g[u, v] >= 0.85 * m[u, v]:
+                        seen.add((u, v))
+                        stack.append((u, v))
+            if len(cells) >= 40:  # specks along the lines are left out
+                for c in cells:
+                    lab[c] = SAN12_AREAS[n] + 1
+                n += 1
+    assert n == 40
+    flat = Image.new("RGBA", (w, h), SAN12_SEA + (255,))
+    flat.alpha_composite(im)
+    return flat.convert("RGB"), areas
+
+
+def world_check(game_dir, rows):
+    """Two adjacent cities have touching areas (within 3 px, across the line), and each pos is inside its area."""
+    _, areas = san12_areas(game_dir)
+    px, (w, h) = areas.load(), areas.size
+    touch = set()
+    for y in range(h):
+        for x in range(w):
+            if px[x, y]:
+                for i in range(-3, 4):
+                    for j in range(-3, 4):
+                        if 0 <= x + i < w and 0 <= y + j < h and px[x + i, y + j] not in (0, px[x, y]):
+                            touch.add((px[x, y] - 1, px[x + i, y + j] - 1))
+    bad, checked = [], 0
+    for r in rows:
+        checked += 1
+        if any(px[r["pos"]["x"] + i, r["pos"]["y"] + j] != r["id"] + 1 for i in range(-2, 3) for j in range(-2, 3)):
+            bad.append(f"{r['id']}: pos not inside its area")
+        for b in r["adjacent"]:
+            checked += 1
+            if (r["id"], b) not in touch:
+                bad.append(f"{r['id']}-{b}: areas do not touch")
+    return checked, bad
+
+
 def places(game_dir, out_dir):
     with open(os.path.join(game_dir, "PK", "Scenario", "Scenario0.dat"), "rb") as f:
         d = f.read()
     n = struct.unpack_from("<I", d, 4)[0]
     offsets = list(struct.unpack_from(f"<{n}I", d, 8)) + [len(d)]
     city = sango.san12_decrypt(d[offsets[6]:offsets[7]])
+    minimap, areas = san12_areas(game_dir)
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    minimap.save(os.path.join(out_dir, "world", "minimap.png"))
+    pos = area_interior(areas, range(1, 41))
     rows = []
     for k in range(40):
         r = city[248 * k:][:248]
         rows.append({"id": k, "name": _gaiji(r[4:9].split(b"\0")[0].decode("cp932"), PLACE_GAIJI), "level": "都市",
                      "region": SAN12_REGIONS[struct.unpack_from("<I", r, 0x18)[0] & 0xF],
                      "adjacent": [x for x in struct.unpack_from("<6I", r, 0x1C) if x < 40],
+                     "pos": {"x": pos[k + 1][0], "y": pos[k + 1][1], "grid": "pixel",
+                             "w": SAN12_CROP[0], "h": SAN12_CROP[1]},
                      "notes": "戰場號＝都市號（San12WPK.exe RVA 0x3E600），戰場推定用守方都市的地形；地形是 3D，沒有輸出圖。"
-                              "沒有関、港。"})
+                              "沒有関、港。pos 是小地圖 world/minimap.png（320×340）上這個都市的區塊裡離邊界最遠的點，"
+                              "區塊和都市的對應是照地理排的，遊戲沒有都市在這張圖上的座標。"})
     return rows
 
 

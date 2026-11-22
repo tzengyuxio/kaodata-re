@@ -16,6 +16,7 @@ import csv
 import os
 
 import click
+from PIL import Image
 
 import sango
 from kaodata_export import SAN13PK_WIN_ROLES, kana_to_hiragana
@@ -214,7 +215,48 @@ def _xl_rows(b):
     return [struct.unpack_from(fmt, b, header + r * size) for r in range(rows)]
 
 
+# 全國地圖 (world/ground.png and ground-autumn / -winter.png): texture 1 of ground_<season>.g1t.zp (PK items 487,
+# 495, 499; summer 491 is the same bytes as spring), the 4096 x 4096 ground colour of the 3D map seen from above,
+# cropped to SAN13_CROP and halved. It shares its texture space with the place-id map (item 486 texture 2): the
+# coastlines and borders line up with no offset. node.stgn's world position (x, y) is at (SAN13_TEX[0] x + SAN13_TEX[1],
+# SAN13_TEX[2] y + SAN13_TEX[3]) on both, fitted so that all 266 places fall in their own id area (🟡 fitted).
+SAN13_TEX = (0.00557924, -9.8, 0.007169, -7.0)
+SAN13_CROP = (480, 640, 3680, 3600)
+SAN13_GROUND = {"": 487, "-autumn": 495, "-winter": 499}
+SAN13_PLACE_IDS = 486
+
+
+def san13_texture_pos(x, y):
+    """node.stgn world position -> pixel on the 4096 x 4096 ground textures."""
+    a, b, c, d = SAN13_TEX
+    return a * x + b, c * y + d
+
+
+def world_check(game_dir, rows):
+    """Each place's world position falls in its own area of the place-id map (id = (B - 2) / 5 * 50 + (G - 2) / 5)."""
+    import san13_extras
+    from gfx import gt1g_texture
+    pk = san13_extras.Container(game_dir, "pk/DATA0.S13", "pk/DATA1.S13")
+    px = gt1g_texture(pk[SAN13_PLACE_IDS], 2).convert("RGB").load()
+    bad = []
+    for r in rows:
+        x, y = san13_texture_pos(r["game"]["座標"]["x"], r["game"]["座標"]["y"])
+        c = px[round(x), round(y)]
+        if (c[2] - 2) // 5 * 50 + (c[1] - 2) // 5 != r["id"]:
+            bad.append(f"{r['id']}: world position not in its area")
+    return len(rows), bad
+
+
 def places(game_dir, out_dir):
+    import san13_extras
+    from gfx import gt1g_texture
+    pk = san13_extras.Container(game_dir, "pk/DATA0.S13", "pk/DATA1.S13")
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    for suffix, item in SAN13_GROUND.items():
+        im = gt1g_texture(pk[item], 1).convert("RGB").crop(SAN13_CROP)
+        im.resize((im.width // 2, im.height // 2), Image.LANCZOS).save(os.path.join(out_dir, "world", f"ground{suffix}.png"))
+    mw, mh = (SAN13_CROP[2] - SAN13_CROP[0]) // 2, (SAN13_CROP[3] - SAN13_CROP[1]) // 2
+
     def strings(item, enc, gaiji):
         return sango.san13_strings(sango.san13_items(sango.san13_items(sango.san13_entry(game_dir, item))[0])[0], enc,
                                    gaiji)
@@ -279,10 +321,13 @@ def places(game_dir, out_dir):
                 uncertain.append("level")
                 notes.append("「地點」是這邊的分類（官渡、開封這類，遊戲裡的稱呼沒找到）。")
         if pid in pos:
-            row["pos"] = {"x": pos[pid][0], "y": pos[pid][1], "grid": "world"}
+            tx, ty = san13_texture_pos(*pos[pid])
+            row["pos"] = {"x": round((tx - SAN13_CROP[0]) / 2), "y": round((ty - SAN13_CROP[1]) / 2), "grid": "pixel",
+                          "w": mw, "h": mh}
+            row["game"] = {"座標": {"x": pos[pid][0], "y": pos[pid][1]}}
         if uncertain:
             row["uncertain"] = uncertain
-        notes.append("野戰看部隊所在位置的地域碼選圖，不看地點；水戰另有一張。pos 是 node.stgn 的世界座標。")
+        notes.append("野戰看部隊所在位置的地域碼選圖，不看地點；水戰另有一張。game.座標是 node.stgn 的世界座標；pos 是它在全國地圖 world/ground.png（3D 大地圖的地面貼圖，從上往下看）上的像素，換算係數是擬合的。")
         row["notes"] = "".join(notes)
         rows.append(row)
     return rows

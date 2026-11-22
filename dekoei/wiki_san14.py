@@ -19,6 +19,7 @@ import os
 import struct
 
 import click
+from PIL import Image
 
 import ls11
 import sango
@@ -296,6 +297,18 @@ SAN14_AREAS, SAN14_MAP = 0x24824, 220
 
 
 SAN14_LEVELS = {15: "府", 16: "都市", 17: "關", 18: "港"}
+# 全國地圖 (world/ground.png): ground_color (FieldEditor4.rdb, san14_extras.WORLDMAP[0]), the 4096 x 4096 ground
+# colour of the 3D hex map seen from above, cropped to the hex grid SAN14_CROP and halved. The map editor's preview
+# (RRPreview.rdb, WORLDMAP[1], 8192 x 8192) has the same layout at twice the size, with the cells drawn: flat-topped
+# hexes of side 18.75 and height 32.5, column c at x 1484.1 + 18.75 + 28.125 c, odd columns half a cell higher; the grid
+# fills (1484, 514.5)-(7681, 7681) of the preview. The cities' tan hexes, the 府 dots and the 關 on the roads of the
+# ground texture sit on these centres.
+SAN14_CROP = (742, 256, 3842, 3842)
+
+
+def san14_cell_centre(x, y):
+    """Centre of cell (column x, row y) on the 4096 x 4096 ground texture."""
+    return (1484.1 + 18.75 + 28.125 * x) / 2, (514.5 + 16.25 + 32.5 * y + (16.25 if x % 2 == 0 else 0)) / 2
 
 
 SAN14_TC_GAIJI = {0xE030: "坂"}  # 長坂 (the JP file has 坂)
@@ -338,6 +351,15 @@ def places(game_dir, out_dir):
         areas.append((i, *names(o, 5), s(jp, o + 10, 10), tc[o + 36], tile, SAN14_LEVELS[mp[4 + 16 * tile + 4]],
                       [a for a in struct.unpack_from("<8H", tc, o + 47) if a]))
     city_area = {city: i for i, _, _, _, city, _, level, _ in areas if level == "都市"}
+    import san14_extras
+    from gfx import gt1g_texture
+    rdb, loc, k, _ = san14_extras.WORLDMAP[0]
+    path = os.path.join(game_dir, rdb)
+    fsize = next(e[1] for e in sango.san14_entries(path) if e[2] == loc)
+    ground = gt1g_texture(sango.san14_read(path, fsize, loc), k).convert("RGB").crop(SAN14_CROP)
+    mw, mh = ground.width // 2, ground.height // 2
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    ground.resize((mw, mh), Image.LANCZOS).save(os.path.join(out_dir, "world", "ground.png"))
     rows = []
     for i, name, name_ja, reading, city, tile, level, adjacent in areas:
         state, region = city_state[city]
@@ -347,12 +369,16 @@ def places(game_dir, out_dir):
         row.update({"reading": reading, "level": level, "province": state, "region": region})
         if level != "都市":
             row["parentCity"] = city_area[city]
-        row.update({"adjacent": adjacent, "pos": {"x": tile % SAN14_MAP, "y": tile // SAN14_MAP, "grid": "square",
-                                                  "w": SAN14_MAP, "h": SAN14_MAP}})
+        cx, cy = san14_cell_centre(tile % SAN14_MAP, tile // SAN14_MAP)
+        row.update({"adjacent": adjacent,
+                    "pos": {"x": round((cx - SAN14_CROP[0]) / 2), "y": round((cy - SAN14_CROP[1]) / 2), "grid": "pixel",
+                            "w": mw, "h": mh},
+                    "game": {"座標": {"x": tile % SAN14_MAP, "y": tile // SAN14_MAP}}})
         notes = ["地區沒有種類欄位，level 是看治所那一格的地形碼分的（都市、關、港、府四種）。"]
         if city >= 47 and level == "都市":
             notes.append("異民族（遊戲的都市表 47–51 號）。")
-        notes.append("州、地方照所屬都市。pos 是治所在 220 × 220 格大地圖上的位置。"
+        notes.append("州、地方照所屬都市。game.座標是治所在 220 × 220 格大地圖上的格子（欄、列）；pos 是那一格的中心在"
+                     "全國地圖 world/ground.png（3D 大地圖的地面貼圖，從上往下看）上的像素。"
                      "沒有戰場圖，戰鬥在大地圖上打。")
         notes += [n for pair, n in SAN14_ONE_WAY.items() if i in pair]
         row["notes"] = "".join(notes)

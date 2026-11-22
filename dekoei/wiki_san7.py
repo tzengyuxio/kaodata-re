@@ -15,7 +15,7 @@ import sango
 import san7_extras
 from kaodata_export import kana_to_hiragana
 from common import u16
-from places_export import PLACE_GAIJI, _bmp_png, _gaiji, _reading
+from places_export import PLACE_GAIJI, _bmp_png, _gaiji, _reading, area_interior
 
 DATASET = "san7pk-win"
 STATUS = ("君主", "太守", "軍師", "一般", "在野", "未発見", "待機", "死亡")
@@ -170,24 +170,6 @@ def san7_world_maps(game_dir):
     return a, b, mm[1]
 
 
-def san7_area_pos(areas):
-    """{city: (x, y)}: the point of each area farthest from its edge (chessboard distance), nearest the centroid."""
-    px, out = areas.load(), {}
-    for k in range(54):
-        cells = {(x, y) for y in range(SAN7_MAP_H) for x in range(SAN7_MAP_W) if px[x, y] == k + 1}
-        dist, ring, d = {}, [c for c in cells if any((c[0] + i, c[1] + j) not in cells
-                                                     for i in (-1, 0, 1) for j in (-1, 0, 1))], 0
-        while ring:
-            for c in ring:
-                dist[c] = d
-            d += 1
-            ring = list({(c[0] + i, c[1] + j) for c in ring for i in (-1, 0, 1) for j in (-1, 0, 1)}
-                        & cells - dist.keys())
-        cx, cy = sum(x for x, _ in cells) / len(cells), sum(y for _, y in cells) / len(cells)
-        out[k] = max(cells, key=lambda c: (dist[c], -abs(c[0] - cx) - abs(c[1] - cy)))
-    return out
-
-
 def places(game_dir, out_dir):
     with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
         exe = f.read()
@@ -206,7 +188,7 @@ def places(game_dir, out_dir):
     areas_map, roads_map, areas = san7_world_maps(game_dir)
     areas_map.save(os.path.join(out_dir, "world", "minimap.png"))
     roads_map.save(os.path.join(out_dir, "world", "minimap-roads.png"))
-    pos = san7_area_pos(areas)
+    pos = {k - 1: p for k, p in area_interior(areas, range(1, 55)).items()}
     users = {}
     for b, (_, m) in enumerate(fields):
         users.setdefault(m, []).append(54 + b)

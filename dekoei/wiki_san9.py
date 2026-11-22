@@ -18,7 +18,7 @@ import san9_extras
 import sango
 from common import fold_kana, u16
 import unicodedata
-from places_export import PLACE_GAIJI
+from places_export import PLACE_GAIJI, area_interior, label_world_map
 import kaodata_export as K
 from wiki_stats import _pick
 
@@ -203,6 +203,80 @@ if __name__ == "__main__":
 # 17 facility kinds. D_Sce001.S9 (RIFF S9SC): `city` 50 x 56 bytes (+22 u16 州, +44/+46 x, y), `bldg` 200 x 28
 # bytes (+6 u16 kind = fbld index, 0xFFFF a name only; +14 u16 city; +18/+20 x, y). No battle maps: battles are
 # on the 200 x 200 map (`squa`).
+# 全國地圖 (world/overview.png): G_MMap.s9 picture 168, the flat 576 x 512 stone-relief map of the strategic screen
+# (palette guessed, san9_extras.WORLDMAP). Picture 166 colours each city's area on the same map with colour city + 1
+# (1-50), as the isometric picture 162 does on the 200 x 200 grid; the game has no point for a city on the flat map.
+SAN9_FLAT, SAN9_FLAT_AREAS, SAN9_ISO_AREAS = 168, 166, 162
+
+
+def san9_world(game_dir):
+    """(the flat map, its area index image, the isometric area index image), all "P" images."""
+    from PIL import Image
+    depot = os.path.join(game_dir, san9_extras.WORLDMAP_DEPOT)
+    pals, pics = san9_extras.load_pictures(os.path.join(depot, "G_MMap.s9"))
+    w, h, px = pics[SAN9_FLAT]
+    flat = san9_extras.to_image(w, h, px, pals[san9_extras.pick_palette(w, h, px, pals)])
+    areas = [Image.frombytes("P", pics[k][:2], bytes(pics[k][2])) for k in (SAN9_FLAT_AREAS, SAN9_ISO_AREAS)]
+    return flat, areas[0], areas[1]
+
+
+# The isometric land map (land/land-<season>.png, not in world/: its scale differs from pos): san9_extras.land's
+# 12800 x 6430 render in the four seasons, reduced to an eighth. The ground piece of cell (x, y) is a 64 x 32 diamond
+# centred at ((200 - y + x) * 32, (x + y) * 16 + 56 - 10 * height) on the render (D_Land00's corner formula, the flat
+# ground mask's offset (32, 48) and the render's top edge at -30), height from the cell's layer-9 record.
+SAN9_LAND_SCALE = 8
+
+
+def san9_land(game_dir, out_dir, rows):
+    """Writes land/land-<season>.png and land/land-labelled.png (spring, 2x, the 50 cities)."""
+    from PIL import Image
+    depot = os.path.join(game_dir, san9_extras.WORLDMAP_DEPOT)
+    with open(os.path.join(depot, "D_Land00.s9"), "rb") as f:
+        d = f.read()
+    height = {}
+    for i in range(struct.unpack_from("<I", d)[0]):
+        r = d[8 + 13 * i:21 + 13 * i]
+        if r[7] == 9:
+            height[r[4], r[5]] = r[6]
+    folder = os.path.join(out_dir, "land")
+    os.makedirs(folder, exist_ok=True)
+    for code, name in san9_extras.LAND_SEASONS:
+        im = san9_extras.land(depot, code)
+        im = im.resize((im.width // SAN9_LAND_SCALE, round(im.height / SAN9_LAND_SCALE)), Image.LANCZOS)
+        path = os.path.join(folder, f"land-{name}.png")
+        im.save(path)
+        if name == "spring":
+            spring = path
+    cities = []
+    for r in rows[:50]:
+        x, y = r["game"]["座標"]["x"], r["game"]["座標"]["y"]
+        cx, cy = (200 - y + x) * 32, (x + y) * 16 + 56 - 10 * height[x, y]
+        cities.append({"id": r["id"], "name": r["name"],
+                       "pos": {"x": round(cx / SAN9_LAND_SCALE), "y": round(cy / SAN9_LAND_SCALE)}})
+    label_world_map(spring, cities, 4, scale=2).save(os.path.join(folder, "land-labelled.png"))
+
+
+def world_check(game_dir, rows):
+    """Each city's grid position (game.座標) falls in area city + 1 of the isometric area picture (cell (x, y) at
+    pixel ((200 - y + x) * 2, x + y), D_Land00's corner formula / 16), each other place's in its parent city's area,
+    and each city's pos lies inside its own area on the flat picture (at least 2 px from the edge)."""
+    _, flat, iso = san9_world(game_dir)
+    fp, ip = flat.load(), iso.load()
+    bad, checked = [], 0
+    for r in rows:
+        g = r["game"]["座標"]
+        city = r["id"] if r["id"] < 50 else r["parentCity"]
+        checked += 1
+        if ip[(200 - g["y"] + g["x"]) * 2, g["x"] + g["y"]] != city + 1:
+            bad.append(f"{r['id']}: grid {g} not in area {city + 1}")
+        if "pos" in r:
+            x, y = r["pos"]["x"], r["pos"]["y"]
+            checked += 1
+            if any(fp[x + i, y + j] != r["id"] + 1 for i in range(-2, 3) for j in range(-2, 3)):
+                bad.append(f"{r['id']}: pos not inside its area")
+    return checked, bad
+
+
 SAN9_KIND_LEVEL = {0: "都市", 1: "港", 2: "関", 3: "関", 4: "関"}  # fbld index -> level (2-4 are 3 grades of 関)
 
 
@@ -228,13 +302,20 @@ def places(game_dir, out_dir):
     states = [text(136 + 2 * k) for k in range(15)]
     kinds = [text(959 + k) for k in range(17)]
     city, bldg = chunk(b"city"), chunk(b"bldg")
+    flat, areas, _ = san9_world(game_dir)
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    flat.save(os.path.join(out_dir, "world", "overview.png"))
+    centre = area_interior(areas, range(1, 51))
     rows = []
     for k in range(50):
         state, x, y = (struct.unpack_from("<H", city, 56 * k + o)[0] for o in (22, 44, 46))
         row = {"id": k, "name": text(721 + 2 * k), "reading": reading(722 + 2 * k),
                "level": "都市" if k < 45 else "異民族", "province": states[state],
-               "pos": {"x": x, "y": y, "grid": "square", "w": 200, "h": 200},
-               "notes": "沒有戰場圖，野戰、攻城都在 200 × 200 格的大地圖上打。沒有相鄰表。"}
+               "pos": {"x": centre[k + 1][0], "y": centre[k + 1][1], "grid": "pixel", "w": 576, "h": 512},
+               "game": {"座標": {"x": x, "y": y}},
+               "notes": "沒有戰場圖，野戰、攻城都在 200 × 200 格的大地圖上打。沒有相鄰表。"
+                        "game.座標是 200 × 200 格大地圖上的格子；pos 是平面全國圖 world/overview.png（576×512）上"
+                        "這個都市的區域（G_MMap.s9 第 166 張，色號＝都市號＋1）裡離邊界最遠的點，遊戲沒有都市在這張圖上的座標。"}
         if k >= 45:
             row["uncertain"] = ["level"]
             row["notes"] += "「異民族」是這邊的稱呼（州表裡寫「異民」）。"
@@ -243,12 +324,13 @@ def places(game_dir, out_dir):
         kind, parent, x, y = (struct.unpack_from("<H", bldg, 28 * k + o)[0] for o in (6, 14, 18, 20))
         row = {"id": 50 + k, "name": text(166 + 2 * k), "reading": reading(167 + 2 * k),
                "level": SAN9_KIND_LEVEL.get(kind, kinds[kind] if kind < 17 else "地名"), "parentCity": parent,
-               "pos": {"x": x, "y": y, "grid": "square", "w": 200, "h": 200},
-               "notes": "號碼是 bldg 區塊的序號＋50。所屬都市是 bldg +14。"}
+               "game": {"座標": {"x": x, "y": y}},
+               "notes": "號碼是 bldg 區塊的序號＋50。所屬都市是 bldg +14。game.座標是 200 × 200 格大地圖上的格子。"}
         if kind == 0xFFFF:
             row["uncertain"] = ["level"]
             row["notes"] += "這一筆只有地名、沒有設施，「地名」是這邊的分類。"
         rows.append(row)
+    san9_land(game_dir, out_dir, rows)
     return rows
 
 

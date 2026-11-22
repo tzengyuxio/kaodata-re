@@ -59,6 +59,27 @@ def _areas(im, colour):
     return lab
 
 
+def area_interior(im, indexes):
+    """{index: (x, y)} for each colour index of the "P" image im: the point of that index's pixels farthest from their
+    edge (chessboard distance; the image border counts as edge), nearest the centroid among equals. For region maps
+    that colour each place's area with its own index, where the game has no point for the place."""
+    w, h = im.size
+    px, out = im.load(), {}
+    for k in indexes:
+        cells = {(x, y) for y in range(h) for x in range(w) if px[x, y] == k}
+        dist, ring, d = {}, [c for c in cells if any((c[0] + i, c[1] + j) not in cells
+                                                     for i in (-1, 0, 1) for j in (-1, 0, 1))], 0
+        while ring:
+            for c in ring:
+                dist[c] = d
+            d += 1
+            ring = list({(c[0] + i, c[1] + j) for c in ring for i in (-1, 0, 1) for j in (-1, 0, 1)}
+                        & cells - dist.keys())
+        cx, cy = sum(x for x, _ in cells) / len(cells), sum(y for _, y in cells) / len(cells)
+        out[k] = max(cells, key=lambda c: (dist[c], -abs(c[0] - cx) - abs(c[1] - cy)))
+    return out
+
+
 def _gaiji(s: str, table: dict) -> str:
     """Replace the private-use characters (gaiji) of a decoded string through table {code point: char}."""
     return "".join(table.get(ord(c), c) for c in s)
@@ -207,7 +228,15 @@ def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1, first=0, dots
 LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24, 1), "kouryuuki-dos": ("world-spring.png", 24, 1),
                  "genpei-pc98": ("world-spring.png", 24, 2), "lempe-pc98": ("world.png", 24, 3),
                  "san6pk-win": ("MAINMAP.png", 24, 2), "san8pk-win": ("overview.png", 18, 3),
-                 "san7pk-win": ("minimap.png", 6, 3)}
+                 "san7pk-win": ("minimap.png", 6, 3),
+                 "san9pk-win": ("overview.png", 4, 2),
+                 "san10pk-win": ("San10Map.png", 6, 2),
+                 "san11pk-win": ("minimap.png", 6, 3),
+                 "san12pk-win": ("minimap.png", 4, 3),
+                 "san13pk-win": ("ground.png", 4, 2),
+                 "san14pk-win": ("ground.png", 4, 2)}
+# only these levels are labelled where every place would not fit
+LABEL_LEVELS = {"san13pk-win": {"都市"}, "san14pk-win": {"都市"}}
 # label numbers start here instead of 0 where the map itself prints id + 1
 LABEL_FIRST = {"lempe-pc98": 1}
 # 大航海 world maps are schematics without port icons: draw dots, smaller text, number-only labels where crowded
@@ -228,6 +257,8 @@ def places_label(dataset, places):
     name, icon_half, scale = LABELLED_MAPS[dataset]
     with open(os.path.join(places, f"{dataset}.jsonl"), encoding="utf-8") as f:
         rows = [json.loads(line) for line in f]
+    if dataset in LABEL_LEVELS:
+        rows = [r for r in rows if r.get("level") in LABEL_LEVELS[dataset]]
     world = os.path.join(places, dataset, "world")
     out = os.path.join(world, name.replace(".png", "-labelled.png"))
     dots = {"dots": True, "size": 16} if dataset in LABEL_DOTS else {}

@@ -16,6 +16,9 @@ import csv
 import os
 import struct
 
+from PIL import Image
+
+import san10_extras
 import sango
 from kaodata_export import kana_to_hiragana
 from common import u16
@@ -220,6 +223,13 @@ SAN10_EXTRA_GAIJI = {0xE018: "譙", 0xE06B: "祁", 0xE06C: "嶲", 0xE02D: "鄴",
 SAN10_REGIONS = {62: "河北", 61: "中原", 59: "西北", 55: "巴蜀", 47: "楚", 31: "呉越"}  # b4 -> name (EXE 0x4F4030)
 
 
+# 全國地圖 (world/San10Map.png): the 4800 x 3072 strategic map (san10_extras.big_map) reduced to a third, 1600 x 1024.
+# fieldmap.s10's hexes are 48 x 24 px on it: the cell at doubled coordinates (x, row) has its top-left corner at
+# (24 x, 12 row) and its centre at (24 x + 24, 12 row + 12) (100 x 128 hexes fill 4800 x 3072 exactly); the 拠点
+# cells sit on the map's bare ground pads and 関 walls, the cities (drawn as objects, not on the map) on road junctions.
+SAN10_WORLD_SCALE = 3
+
+
 SAN10_MAP_LEVELS = [(119, "市街戦"), (144, "平地街道"), (169, "山地街道"), (194, "水路")]  # first entry, level
 
 
@@ -256,6 +266,10 @@ def places(game_dir, out_dir):
     with open(os.path.join(game_dir, "ScePK000.s10"), "rb") as f:
         sce = f.read()
     gates = {50 + i for i in range(69) if sce[0x5804 + 7 * i + 1] == 3}
+    big = san10_extras.big_map(os.path.join(game_dir, san10_extras.WORLDMAP_DEPOT))
+    mw, mh = big.width // SAN10_WORLD_SCALE, big.height // SAN10_WORLD_SCALE
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    big.resize((mw, mh), Image.LANCZOS).save(os.path.join(out_dir, "world", "San10Map.png"))
     rows = []
     for i, (name, _, _) in enumerate(table):
         row = {"id": i, "name": s(name)}
@@ -265,14 +279,17 @@ def places(game_dir, out_dir):
             if i >= 50 and city < 50:
                 row["parentCity"] = city
             row["region"] = SAN10_REGIONS[bits]
-            row["pos"] = {"x": x, "y": y, "grid": "hex-doubled", "w": w, "h": h}
+            row["pos"] = {"x": (24 * x + 24) // SAN10_WORLD_SCALE, "y": (12 * y + 12) // SAN10_WORLD_SCALE,
+                          "grid": "pixel", "w": mw, "h": mh}
+            row["game"] = {"座標": {"x": x, "y": y}}
             row["uncertain"] = ["region"] + (["parentCity"] if "parentCity" in row else [])
             notes = ["地方是大地圖格子的地方位元，位元和地方名的對應照地理推定。"]
             if i >= 50:
                 notes.append("所屬都市是大地圖上這個拠点那一格的所屬都市（沒有靜態表）。")
             if i in gates:
                 notes.append("遊戲裡是拠点，工作物是関（18 個劇本都有）。")
-            notes.append("沒有相鄰表，部隊在大地圖的六角格上沿街道走。pos 是大地圖六角格（列交錯，x 用兩倍寬座標）。"
+            notes.append("沒有相鄰表，部隊在大地圖的六角格上沿街道走。game.座標是大地圖六角格（列交錯，x 用兩倍寬座標，"
+                         f"{w}×{h}）；pos 是這一格的中心在全國地圖 world/San10Map.png（原圖 4800×3072 縮成 1/3）上的像素。"
                          "戰場圖晚點補（城門戰、拠点、市街戰、街道共 200 張）。")
             row["notes"] = "".join(notes)
         else:

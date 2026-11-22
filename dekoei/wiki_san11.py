@@ -18,6 +18,8 @@ from kaodata_export import SAN11PK_WIN_EMPTY, SAN11PK_WIN_ROLES, SAN11PK_WIN_SCE
 from san9_extras import zh_text
 from common import read_file, u16
 import struct
+
+from PIL import Image
 from places_export import _gaiji
 import kaodata_export as K
 from wiki_stats import _pick
@@ -233,7 +235,56 @@ def san11_borders(path):
     return border
 
 
+# 全國地圖 (world/minimap.png): the 628 x 628 minimap of san11pkres.bin item 4857, layer 0 (the map) under layer 2
+# (roads and borders); layer 1 colours each territory with its id (cities 0-41 match SHEX0008 on 95.6 % of the cells
+# inside a city territory, 港 territories and the sea are colour 87). The hex at column x, row y lies at
+# (SAN11_MM_SCALE x + SAN11_MM_X, SAN11_MM_SCALE (y + x % 2 / 2) + SAN11_MM_Y) on it, fitted to those cells (🟡).
+# The facilities are SHEX cells of terrain 16 (都市, 7 cells), 18 (関, 3-5) and 17 (港, 1) whose territory is the
+# place id; pos is the mean of their positions.
+SAN11_MM_ITEM, SAN11_MM_SCALE, SAN11_MM_X, SAN11_MM_Y, SAN11_MM = 4857, 2.97, 18.5, 18.25, 628
+SAN11_FACILITY = {16, 17, 18}
+
+
+def san11_minimap(game_dir):
+    """(the minimap with roads and borders, the territory layer, {place: (x, y)} on it)."""
+    import san11_extras
+    path = os.path.join(game_dir, san11_extras.PK_RES)
+    ents = san11_extras.link_entries(path)
+    layers = san11_extras.wftx_frames(san11_extras.link_item(path, ents, SAN11_MM_ITEM))
+    im = Image.new("RGBA", layers[0].size, (0, 0, 0, 255))
+    im.alpha_composite(layers[0])
+    im.alpha_composite(layers[2])
+    b = san11_extras.link_item(path, ents, san11_extras.WORLD_HEX)
+    acc = {}
+    for x in range(SAN11_MAP):
+        for y in range(SAN11_MAP):
+            c = b[8 + 11 * (SAN11_MAP * x + y):][:2]
+            if c[0] in SAN11_FACILITY:
+                a = acc.setdefault(c[1], [0, 0, 0])
+                a[0] += SAN11_MM_SCALE * x + SAN11_MM_X
+                a[1] += SAN11_MM_SCALE * (y + x % 2 / 2) + SAN11_MM_Y
+                a[2] += 1
+    pos = {k: (round(a[0] / a[2]), round(a[1] / a[2])) for k, a in acc.items()}
+    return im.convert("RGB"), layers[1], pos
+
+
+def world_check(game_dir, rows):
+    """Each city's pos lies in its own territory colour on the minimap's territory layer, and every place has a
+    facility on the hex map."""
+    _, terr, pos = san11_minimap(game_dir)
+    px, bad = terr.load(), []
+    for r in rows:
+        if r["id"] not in pos:
+            bad.append(f"{r['id']}: no facility cells")
+        elif r["id"] < 42 and px[pos[r["id"]]] != r["id"]:
+            bad.append(f"{r['id']}: pos on territory {px[pos[r['id']]]}")
+    return len(rows), bad
+
+
 def places(game_dir, out_dir):
+    minimap, _, pos = san11_minimap(game_dir)
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    minimap.save(os.path.join(out_dir, "world", "minimap.png"))
     with open(os.path.join(game_dir, "Scenario.s11"), "rb") as f:
         sc = f.read()
     gaiji = {**sango.SAN11_GAIJI, **SAN11_EXTRA_GAIJI}
@@ -260,7 +311,10 @@ def places(game_dir, out_dir):
                      "notes": "関、港沒有所屬都市的欄位，parentCity 是大地圖上和它的領地接壤最長的都市（推定），"
                               "州、地方照那個都市。関、港沒有相鄰表。"})
     for row in rows:
-        row["notes"] = row.get("notes", "") + "沒有戰場圖，野戰、攻城都在 200 × 200 格的大地圖上打。"
+        row["pos"] = {"x": pos[row["id"]][0], "y": pos[row["id"]][1], "grid": "pixel", "w": SAN11_MM, "h": SAN11_MM}
+        row["notes"] = row.get("notes", "") + "沒有戰場圖，野戰、攻城都在 200 × 200 格的大地圖上打。" \
+            "pos 是這個地點在大地圖上的設施格（都市 7 格、関 3–5 格、港 1 格）的平均位置，換算到小地圖 world/minimap.png" \
+            "（628×628）上的像素；格子到小地圖的換算是用領地圖擬合的，誤差約 1–2 點。"
     return rows
 
 

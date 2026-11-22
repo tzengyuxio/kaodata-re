@@ -304,7 +304,8 @@ WORLDMAP_TILE, WORLDMAP_ACROSS = (480, 256), 10
 OVERVIEW = ["overview", "overview_regions", "overview_roads", "overview_borders"]
 
 
-def worldmap(depot: str, out: str) -> int:
+def big_map(depot: str) -> Image.Image:
+    """The 4800 x 3072 strategic map of San10Map.s10."""
     with open(os.path.join(depot, "San10Map.s10"), "rb") as f:
         data = f.read()
     dic = data[20:276]
@@ -319,7 +320,11 @@ def worldmap(depot: str, out: str) -> int:
             raw = ls11.recover(ls11.get_codes(raw), dic)[:size]
         im.paste(Image.frombytes("RGB", (w, h), raw, "raw", "BGR;15"),
                  ((i % WORLDMAP_ACROSS) * tw, (i // WORLDMAP_ACROSS) * th))
-    _save(im, os.path.join(out, "worldmap", "San10Map.png"))
+    return im
+
+
+def worldmap(depot: str, out: str) -> int:
+    _save(big_map(depot), os.path.join(out, "worldmap", "San10Map.png"))
     for name, e in zip(OVERVIEW, sango.load_san10_grp(os.path.join(depot, "Grp", "GrpMdMap.s10"))):
         _save(grp_png(e), os.path.join(out, "worldmap", f"{name}.png"))
     bgs = sango.load_san10_grp(os.path.join(depot, "Grp", "GrpBtlBg.s10"))
