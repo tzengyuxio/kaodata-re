@@ -1912,6 +1912,9 @@ def genghis_characters(m, s, face, name_historical) -> list[dict]:
             ch = {"id": len(characters), "name": name}
             if name in name_historical:
                 ch["nameHistorical"] = name_historical[name]
+            if table in (m["son"], s["son"]) and faces[0] == 0x8000:
+                characters.append(ch)  # daughters: code 0x8000, the game never draws a child's face (PC-98 MAIN.EXE)
+                continue
             ch["face"] = face(faces[0])
             extra = []
             for f, label in zip(faces[1:], ("笑", "哭")):  # women: normal, smile, cry
