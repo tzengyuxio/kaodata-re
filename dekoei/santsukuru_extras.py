@@ -145,6 +145,16 @@ def items(ld, out):
 def provinces(ld, game_dir, out):
     """41 州: name and scenario position from the sample scenario, the box from HMMP, filled with the atlas's
     stg_map_area_mask_NN (alpha) on the strategy map. HMMP's own 1-bit masks do not fit the borders (not used)."""
+    im, base, rows = province_maps(ld, game_dir)
+    save(im, os.path.join(out, "map", "provinces.png"))
+    save(base, os.path.join(out, "map", "stg_map.png"))
+    write_csv(os.path.join(out, "map", "provinces.csv"),
+              ["province", "name", "maskX", "maskY", "maskW", "maskH", "scenarioX", "scenarioY", "neighbours"], rows)
+    return len(rows)
+
+
+def province_maps(ld, game_dir):
+    """(labelled map, plain stg_map, csv rows) of the 41 州 (see provinces); 州 numbers 1-41 in scenario order."""
     from wiki_san2 import santsukuru_provinces
     b = ld[PROVINCE_MASKS]
     assert b[8:12] == b"HMMP"
@@ -169,11 +179,7 @@ def provinces(ld, game_dir, out):
     for n, name, cx, cy in boxes:
         draw.text((cx, cy), f"{n}{name}", fill=(0, 0, 0), font=font, anchor="mm", stroke_width=2,
                   stroke_fill=(255, 255, 255))
-    save(im, os.path.join(out, "map", "provinces.png"))
-    save(base, os.path.join(out, "map", "stg_map.png"))
-    write_csv(os.path.join(out, "map", "provinces.csv"),
-              ["province", "name", "maskX", "maskY", "maskW", "maskH", "scenarioX", "scenarioY", "neighbours"], rows)
-    return len(rows)
+    return im, base, rows
 
 
 def texts(ld, out):

@@ -141,6 +141,11 @@ def persons(game_dir):
 # SENJOU0-39.S6 / SHIRO0-38.S6 are 1008 x 720 8-bit BMPs. Place ids here: cities 0-50, field place p is 51 + p
 # (its MAPDATA.S6 part number).
 SAN6_CITIES, SAN6_PLACES, SAN6_LINKS = 0x803A8, 0x81994, 0x34F808
+# world map points per city (51 x u32 x, y; SAN6.EXE file offsets): getters 0x659903 / 0x659975 index them by city.
+# The second is the bottom left of the city's icon on MAIN*.S6 (seen on the map); the first lies 3-9 px left and
+# 16-28 px above it, use not traced. pos is the second + SAN6_POS, about the middle of the icon.
+SAN6_POINTS_A, SAN6_POINTS = 0x3063D0, 0x306568
+SAN6_POS = (15, -3)
 
 
 def places(game_dir, out_dir):
@@ -162,6 +167,11 @@ def places(game_dir, out_dir):
         _bmp_png(os.path.join(game_dir, f"SHIRO{s}.S6"), out_dir, f"SHIRO{s}.png")
     for _, s in places:
         _bmp_png(os.path.join(game_dir, f"SENJOU{s}.S6"), out_dir, f"SENJOU{s}.png")
+    # world map, one 1008x720 BMP per season: SAN6.EXE VA 0x619FF2 picks MAIN{SPR,SMR,AUT,WIN}.S6 from the table at
+    # 0x74D5C8 by (month - 1) / 3 (0x636688)
+    for f, season in (("MAINSPR", "spring"), ("MAINSMR", "summer"), ("MAINAUT", "autumn"), ("MAINWIN", "winter")):
+        _bmp_png(os.path.join(game_dir, f"{f}.S6"), os.path.join(out_dir, "world"), f"MAINMAP-{season}.png")
+    _bmp_png(os.path.join(game_dir, "MAINSPR.S6"), os.path.join(out_dir, "world"), "MAINMAP.png")  # labelled
     shiro_users, senjou_users = {}, {}
     for c, (_, s) in enumerate(cities):
         shiro_users.setdefault(s, []).append(c)
@@ -175,10 +185,15 @@ def places(game_dir, out_dir):
             maps[0]["sharedWith"] = [x for x in shiro_users[s] if x != c]
         for nb, p in links[c]:
             maps.append({"file": f"SENJOU{places[p][1]}.png", "role": "野戰", "from": nb})
+        x, y = struct.unpack_from("<2I", exe, SAN6_POINTS + 8 * c)
         rows.append({"id": c, "name": name, "level": "都市" if c < 45 else "外族", "adjacent": [nb for nb, _ in links[c]],
-                     "battlemaps": maps, "uncertain": ["battlemaps"],
+                     "battlemaps": maps,
+                     "pos": {"x": x + SAN6_POS[0], "y": y + SAN6_POS[1], "grid": "pixel", "w": 1008, "h": 720},
+                     "uncertain": ["battlemaps"],
                      "notes": "攻城圖取都市記錄的 SHIRO 號；野戰圖依攻方從哪個鄰城來，查 SAN6.EXE 的鄰城表得到野戰地點，"
-                              "再取地點的 SENJOU 號。" + direction + ("45–50 號是外族，遊戲的都市表裡和都市同列。" if c >= 45 else "")})
+                              "再取地點的 SENJOU 號。" + direction
+                              + "pos 是大地圖 world/MAINMAP.png（1008×720）上城圖示的中央附近：SAN6.EXE 的都市座標表"
+                              "（城圖示左下角）加 (15, −3)。" + ("45–50 號是外族，遊戲的都市表裡和都市同列。" if c >= 45 else "")})
     for p, (name, s) in enumerate(places):
         users = sorted({c for c in range(51) for nb, q in links[c] if q == p})
         row = {"id": 51 + p, "name": name, "level": "野戰地點",
@@ -192,6 +207,28 @@ def places(game_dir, out_dir):
         rows.append(row)
     return rows
 
+
+
+def world_check(game_dir, rows):
+    """Each city's pos is within 4 px of the centroid of the dark icon outline (sum of RGB < 40) on MAINSPR.S6 in the
+    box from its table point - (2, 20) to + (34, 3); the cities are at least 16 px apart."""
+    from PIL import Image
+    with open(os.path.join(game_dir, "SAN6.EXE"), "rb") as f:
+        exe = f.read()
+    with Image.open(os.path.join(game_dir, "MAINSPR.S6")) as im:
+        px = im.convert("RGB").load()
+    bad, pts = [], [(r["id"], r["pos"]["x"], r["pos"]["y"]) for r in rows if "pos" in r]
+    for i, x, y in pts:
+        tx, ty = struct.unpack_from("<2I", exe, SAN6_POINTS + 8 * i)
+        dark = [(u, v) for u in range(tx - 2, tx + 35) for v in range(ty - 20, ty + 4) if sum(px[u, v]) < 40]
+        if len(dark) < 30 or abs(sum(u for u, _ in dark) / len(dark) - x) > 4 or \
+                abs(sum(v for _, v in dark) / len(dark) - y) > 4:
+            bad.append(f"{i}: pos is not on its icon")
+    for a in pts:
+        for b in pts:
+            if a[0] < b[0] and abs(a[1] - b[1]) < 16 and abs(a[2] - b[2]) < 16:
+                bad.append(f"{a[0]}, {b[0]}: closer than 16 px")
+    return len(pts), bad
 
 def stats(game_dir):
     # build_san6pk_win: load_san6_persons (slot order, first seen over SNDATA01-23), dedup by (name, code); stats

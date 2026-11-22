@@ -137,6 +137,7 @@
 
 - `map/provinces.png`：把 41 州的 `stg_map_area_mask_NN`（alpha）照位置塗在 `stg_map` 上，並標上州號和州名。✅ cross：襄平在東北、交趾在西南、南海在南。
 - `map/provinces.csv` 有州名、遮罩框、劇本裡的座標與相鄰州。
+- 同樣的兩張圖也放進三國志II 的 koei-wiki 地點匯出（`places/san2-pc98/compare/`），見 `notes/san-maps.md`「koei-wiki 匯出」的 II。
   - 州名、座標、相鄰來自 `places_export.santsukuru_provinces`。
   - 遮罩框來自 LINKDATA 139 的 `HMMP`，格式如下：
     - 0x10 起是 82 個位置，每州兩個。

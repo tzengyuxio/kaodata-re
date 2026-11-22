@@ -205,7 +205,9 @@ def label_world_map(src, rows, icon_half, gap=2, size=20, scale=1, first=0, dots
 
 # dataset -> (world map file, half the size of a city icon around pos, enlargement)
 LABELLED_MAPS = {"san4pk-pc98": ("MAINMAP.png", 24, 1), "kouryuuki-dos": ("world-spring.png", 24, 1),
-                 "genpei-pc98": ("world-spring.png", 24, 2), "lempe-pc98": ("world.png", 24, 3)}
+                 "genpei-pc98": ("world-spring.png", 24, 2), "lempe-pc98": ("world.png", 24, 3),
+                 "san6pk-win": ("MAINMAP.png", 24, 2), "san8pk-win": ("overview.png", 18, 3),
+                 "san7pk-win": ("minimap.png", 6, 3)}
 # label numbers start here instead of 0 where the map itself prints id + 1
 LABEL_FIRST = {"lempe-pc98": 1}
 # 大航海 world maps are schematics without port icons: draw dots, smaller text, number-only labels where crowded

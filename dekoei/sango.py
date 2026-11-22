@@ -329,8 +329,10 @@ def san4_world_cells(game_dir) -> list[list[list[int]]]:
     return [[[r[L * SAN4_WORLD_COLS + x] for L in range(10)] for x in range(SAN4_WORLD_COLS)] for r in rows]
 
 
-def render_san4_world_map(game_dir, palette_exe=None) -> Image.Image:
-    """The 1536x1280 world map without the ownership flags and names (MAIN.EXE default palette)."""
+def render_san4_world_map(game_dir, palette_exe=None, season=None) -> Image.Image:
+    """The 1536x1280 world map without the ownership flags and names: MAIN.EXE default palette, or with `season`
+    (0-3) each 16-pixel row in the colours the game uses with that row at the middle of the screen
+    (san4_world_season_palette; `game_dir` must then hold the PK MAIN.EXE)."""
     palette = san4_pc98_palette(palette_exe or os.path.join(game_dir, 'MAIN.EXE'))
     with open(os.path.join(game_dir, 'MAINCG.S4'), 'rb') as f:
         cg = ls11.ls11_decode_parts(f.read())[0]
@@ -365,7 +367,39 @@ def render_san4_world_map(game_dir, palette_exe=None) -> Image.Image:
                     put(cx, cy, SAN4_WORLD_BASES[L] + v * 128, 'masked')
     im = Image.frombytes('P', (w, SAN4_WORLD_ROWS * 16), bytes(idx))
     im.putpalette([c for rgb in palette for c in rgb])
-    return im.convert('RGB')
+    if season is None:
+        return im.convert('RGB')
+    out = Image.new('RGB', im.size)
+    for row in range(SAN4_WORLD_ROWS):
+        band = im.crop((0, row * 16, w, row * 16 + 16))
+        low = san4_world_season_palette(os.path.join(game_dir, 'MAIN.EXE'), season,
+                                        row - SAN4_WORLD_SCREEN_ROWS // 2)
+        band.putpalette([c for rgb in low + palette[8:] for c in rgb])
+        out.paste(band.convert('RGB'), (0, row * 16))
+    return out
+
+
+# seasonal world-map colours (PK MAIN.EXE image 0x1F7F0, called after the month change at 0x60A2D): colours 0-7 are
+# a mix of a north and a south table, DS:0x11A6 / 0x1206 + 24 x season (DS 0x5C9 = (month - 1) / 3), weighted by
+# how far down the screen's top row is; 8-15 stay the default (DS:0x114E). PK file offsets of the two tables:
+SAN4PK_WORLD_NORTH, SAN4PK_WORLD_SOUTH = 0x4E7A6, 0x4E806
+SAN4_WORLD_SCREEN_ROWS = 25  # DS:0xB234, the map rows on screen (full 640x400 screen)
+
+
+def san4_world_season_palette(pk_exe, season, top) -> list[tuple]:
+    """Colours 0-7 with map row `top` at the top of the screen: w = 100 above row lo, 0 below row hi, linear
+    between (lo, hi = (80 - V) / 2 -+ V / 2, clamped), colour = (north x w + south x (100 - w)) // 100."""
+    with open(pk_exe, 'rb') as f:
+        exe = f.read()
+    v = SAN4_WORLD_SCREEN_ROWS
+    lo = max(0, (SAN4_WORLD_ROWS - v) // 2 - v // 2)
+    hi = min((SAN4_WORLD_ROWS - v) // 2 + v // 2, SAN4_WORLD_ROWS - v)
+    top = max(0, min(top, SAN4_WORLD_ROWS - v))  # the map does not scroll past its edges
+    w = 100 if lo > top else 0 if top > hi else 100 - (top - lo) * 100 // (hi - lo)
+    north = exe[SAN4PK_WORLD_NORTH + 24 * season:][:24]
+    south = exe[SAN4PK_WORLD_SOUTH + 24 * season:][:24]
+    mix = [(n * w + s * (100 - w)) // 100 for n, s in zip(north, south)]
+    return [(mix[3 * i + 1] * 17, mix[3 * i + 2] * 17, mix[3 * i] * 17) for i in range(8)]
 
 
 @click.command(help='戰場地圖（PC-98）')

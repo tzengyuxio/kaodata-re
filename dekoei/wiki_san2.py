@@ -248,7 +248,15 @@ def places(game_dir, out_dir):
     maps, _ = san2.render_san2_battle_maps(os.path.join(game_dir, "HEXDATA.DAT"))
     _save(maps, out_dir, [f"{n:02d}.png" for n in range(1, 42)])
     where = {qr: k + 1 for k, qr in enumerate(san2.SAN2_PROVINCE_HEX)}
-    borrowed = santsukuru_provinces(os.path.join(game_dir, "..", "santsukuru-win"))
+    tsukuru_dir = os.path.join(game_dir, "..", "santsukuru-win")
+    borrowed = santsukuru_provinces(tsukuru_dir)
+    # 三国志ツクール's strategy map, for comparison: plain, and with its 41 州 numbered like ours; in compare/, since
+    # every world/ map must fit the pos coordinates
+    import santsukuru_extras
+    labelled, plain, _ = santsukuru_extras.province_maps(santsukuru_extras.Linkdata(tsukuru_dir), tsukuru_dir)
+    os.makedirs(os.path.join(out_dir, "compare"), exist_ok=True)
+    plain.save(os.path.join(out_dir, "compare", "tsukuru-map.png"))
+    labelled.save(os.path.join(out_dir, "compare", "tsukuru-provinces.png"))
     rows = []
     for k, (q, r) in enumerate(san2.SAN2_PROVINCE_HEX):
         adjacent = sorted(where[q + dq, r + dr] for dq, dr in san2.HEX_DIRS if (q + dq, r + dr) in where)

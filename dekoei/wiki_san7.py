@@ -147,6 +147,45 @@ SAN7_CITIES, SAN7_FIELDS = 0x160FC, 0x157C8
 
 
 SAN7_ROADS = {0: "陸路", 1: "山路", 2: "渡河", 3: "海路", 4: "棧道"}  # guessed from the maps
+# 全國地圖 (the strategic screen's small map, 400 x 360): G_MMapCh.s7 picture 0 is the frame and land outside China
+# (black inside), G_M5MMap.s7 picture 1 colours each city's area with colour city + 1 (55 the borders), picture 0
+# the roads by kind with a legend. Each file has its own palette (P_<name>.s7). The game probably recolours the
+# areas by ruler (not checked); the export keeps the file's colours.
+SAN7_MAP_W, SAN7_MAP_H = 400, 360
+
+
+def san7_world_maps(game_dir):
+    """(areas, areas + roads, area index image)."""
+    from PIL import Image
+    bg = dict(san7_extras.pictures(game_dir, "G_MMapCh"))[0].load()
+    mm = dict(san7_extras.pictures(game_dir, "G_M5MMap"))
+    pb, pm = san7_extras.palette(game_dir, "G_MMapCh"), san7_extras.palette(game_dir, "G_M5MMap")
+    area, road = mm[1].load(), mm[0].load()
+    a, b = Image.new("RGB", (SAN7_MAP_W, SAN7_MAP_H)), Image.new("RGB", (SAN7_MAP_W, SAN7_MAP_H))
+    pa, pr = a.load(), b.load()
+    for y in range(SAN7_MAP_H):
+        for x in range(SAN7_MAP_W):
+            pa[x, y] = pm[area[x, y]] if area[x, y] else pb[bg[x, y]]
+            pr[x, y] = pm[road[x, y]] if road[x, y] else pa[x, y]
+    return a, b, mm[1]
+
+
+def san7_area_pos(areas):
+    """{city: (x, y)}: the point of each area farthest from its edge (chessboard distance), nearest the centroid."""
+    px, out = areas.load(), {}
+    for k in range(54):
+        cells = {(x, y) for y in range(SAN7_MAP_H) for x in range(SAN7_MAP_W) if px[x, y] == k + 1}
+        dist, ring, d = {}, [c for c in cells if any((c[0] + i, c[1] + j) not in cells
+                                                     for i in (-1, 0, 1) for j in (-1, 0, 1))], 0
+        while ring:
+            for c in ring:
+                dist[c] = d
+            d += 1
+            ring = list({(c[0] + i, c[1] + j) for c in ring for i in (-1, 0, 1) for j in (-1, 0, 1)}
+                        & cells - dist.keys())
+        cx, cy = sum(x for x, _ in cells) / len(cells), sum(y for _, y in cells) / len(cells)
+        out[k] = max(cells, key=lambda c: (dist[c], -abs(c[0] - cx) - abs(c[1] - cy)))
+    return out
 
 
 def places(game_dir, out_dir):
@@ -163,6 +202,11 @@ def places(game_dir, out_dir):
     cities = [sc[SAN7_CITIES + 0x60 * k:][:0x60] for k in range(54)]
     for m in sorted({m for _, m in fields}):
         _bmp_png(os.path.join(game_dir, f"G_YMap{m:02d}.s7"), out_dir, f"G_YMap{m:02d}.png")
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    areas_map, roads_map, areas = san7_world_maps(game_dir)
+    areas_map.save(os.path.join(out_dir, "world", "minimap.png"))
+    roads_map.save(os.path.join(out_dir, "world", "minimap-roads.png"))
+    pos = san7_area_pos(areas)
     users = {}
     for b, (_, m) in enumerate(fields):
         users.setdefault(m, []).append(54 + b)
@@ -181,8 +225,12 @@ def places(game_dir, out_dir):
                 "沒有各都市專用的攻城圖（攻城用共用素材拼成）。"
         for j, b in odd:
             notes += f"第 {j + 1} 格有戰場（{fields[b][0]}）但沒有鄰城，遊戲資料本身如此，沒有輸出。"
+        notes += ("pos 是全國地圖 world/minimap.png（400×360）上這個都市的區域（G_M5MMap.s7 第 1 張的色號＝都市號＋1）"
+                  "裡離邊界最遠的點；遊戲裡沒找到都市在這張圖上的座標。")
         rows.append({"id": k, "name": s(r[:6]), "reading": _reading(r[6:0x0E]), "level": "都市", "adjacent": adjacent,
-                     "battlemaps": maps, "notes": notes})
+                     "battlemaps": maps,
+                     "pos": {"x": pos[k][0], "y": pos[k][1], "grid": "pixel", "w": SAN7_MAP_W, "h": SAN7_MAP_H},
+                     "notes": notes})
     owners = {}
     for k, r in enumerate(cities):
         for j in range(6):
@@ -210,3 +258,39 @@ def stats(game_dir):
         first.setdefault(pid, (name, v))
     names = sango.load_san7_persons(game_dir)
     return [(pid, names[pid][0], dict(zip(sango.SAN7_STATS, first[pid][1]))) for pid in sorted(names)]
+
+
+def world_check(game_dir, rows):
+    """Each city's pos lies inside its own area (at least 2 px from the edge), and two adjacent cities' areas touch
+    (within 3 px, across the border line) unless the road between them is 海路 (kind 3)."""
+    with open(os.path.join(game_dir, "San7WPK.exe"), "rb") as f:
+        exe = f.read()
+    with open(os.path.join(game_dir, "D_Sn001.s7"), "rb") as f:
+        sc = sango.decode_san7_scenario(exe, f.read())
+    px = san7_world_maps(game_dir)[2].load()
+    bad, checked = [], 0
+    for r in rows:
+        if "pos" not in r:
+            continue
+        x, y = r["pos"]["x"], r["pos"]["y"]
+        checked += 1
+        if any(px[x + i, y + j] != r["id"] + 1 for i in range(-2, 3) for j in range(-2, 3)):
+            bad.append(f"{r['id']}: pos not inside its area")
+    touch = set()
+    for y in range(SAN7_MAP_H):
+        for x in range(SAN7_MAP_W):
+            a = px[x, y]
+            if 1 <= a <= 54:
+                for i in range(-3, 4):
+                    for j in range(-3, 4):
+                        if 0 <= x + i < SAN7_MAP_W and 0 <= y + j < SAN7_MAP_H and 1 <= px[x + i, y + j] <= 54:
+                            touch.add((a - 1, px[x + i, y + j] - 1))
+    for k in range(54):
+        r = sc[SAN7_CITIES + 0x60 * k:][:0x60]
+        for j in range(6):
+            nb, road = r[0x0E + j], r[0x14 + j]
+            if nb != 0xFF and k < nb:
+                checked += 1
+                if ((k, nb) in touch) == (road == 3):
+                    bad.append(f"{k}-{nb}: areas {'touch' if (k, nb) in touch else 'apart'}, road kind {road}")
+    return checked, bad

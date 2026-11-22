@@ -201,6 +201,11 @@ if __name__ == "__main__":
 # repeat 174-208), found by colour statistics and by eye, not in the code. Place ids here: cities 0-49, place k is
 # 50 + k.
 SAN8_STATES, SAN8_CITIES, SAN8_ROADS, SAN8_PICTURES, SAN8_PALETTES = 0x22, 0x7F3, 0xB22, 0x363EF0, 174
+# 全國總覽圖 (g_maindy.s8 entry 1817, the most top-down of san8_extras.WORLDMAP, 392 x 352, palette 7): the 50 city
+# squares are centred on the San8WPK.exe u32 (x, y) points at 0x2FCDE8, stored top to bottom; point i is city
+# SAN8_OVERVIEW_CITY[i] (u8 table at 0x2FDD88, a second copy at 0x2FDDBC). Readers not traced.
+SAN8_OVERVIEW, SAN8_OVERVIEW_POINTS, SAN8_OVERVIEW_CITY = 1817, 0x2FCDE8, 0x2FDD88
+SAN8_OVERVIEW_SQUARE = (32, 24, 216)  # the 9 x 9 blue inside of each city square
 
 
 def san8_picture(halves, palettes, left, right):
@@ -239,7 +244,9 @@ def places(game_dir, out_dir):
         halves = sango.koei_archive(f.read())
     with open(os.path.join(game_dir, "p_main.s8"), "rb") as f:
         palettes = sango.koei_archive(f.read())
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
+    overview(game_dir).save(os.path.join(out_dir, "world", "overview.png"))
+    pos = overview_pos(exe)
     for p in sorted(end, key=file.get):
         path = os.path.join(out_dir, file[p])
         if not os.path.exists(path):
@@ -256,9 +263,13 @@ def places(game_dir, out_dir):
                 adjacent.append(b if a == k else a)
                 maps.append({"file": file[pa if a == k else pb], "role": "野戰", "from": b if a == k else a})
         rows.append({"id": k, "name": s(r[1:6]), "reading": _reading(r[6:13]), "level": "都市",
-                     "province": states[r[13]], "adjacent": adjacent, "battlemaps": maps, "uncertain": ["battlemaps"],
+                     "province": states[r[13]], "adjacent": adjacent, "battlemaps": maps,
+                     "pos": {"x": pos[k][0], "y": pos[k][1], "grid": "pixel", "w": 392, "h": 352},
+                     "uncertain": ["battlemaps"],
                      "notes": "相鄰是 D_Sce.s8 的道路表，照道路順序。戰場圖取道路在這個都市一端的地點；"
-                              "遊戲用守方還是攻方那一端沒確認，所以標 uncertain。" + palette_note})
+                              "遊戲用守方還是攻方那一端沒確認，所以標 uncertain。" + palette_note
+                              + "pos 是全國總覽圖 world/overview.png（392×352）上這個都市藍色方塊的中心，"
+                                "取自 San8WPK.exe 的座標表與點號→都市號表。"})
     for p in range(len(end)):
         a, b, kind = end[p]
         m = {"file": file[p], "role": "野戰"}
@@ -273,6 +284,41 @@ def places(game_dir, out_dir):
                               f"{pictures[2 * p]} 張（左）與第 {35 + pictures[2 * p + 1]} 張（右）拼成，172 個地點只有 43 種組合，"
                               "同組合的地形相同，差在布陣點和旗標。" + palette_note})
     return rows
+
+
+
+def overview(game_dir):
+    with open(os.path.join(game_dir, "g_maindy.s8"), "rb") as f:
+        e = sango.koei_archive(f.read())[SAN8_OVERVIEW]
+    pals = san8_extras.load_palettes(game_dir)
+    im = Image.frombytes("P", (392, len(e) // 392), e)
+    im.putpalette([c for p in pals[7] for c in p])
+    return im.convert("RGB")
+
+
+def overview_pos(exe):
+    """{city: (x, y)} on the overview map."""
+    order = exe[SAN8_OVERVIEW_CITY:][:50]
+    assert sorted(order) == list(range(50)) and exe[SAN8_OVERVIEW_CITY + 52:][:50] == order
+    return {order[i]: struct.unpack_from("<2I", exe, SAN8_OVERVIEW_POINTS + 8 * i) for i in range(50)}
+
+
+def world_check(game_dir, rows):
+    """Each city's pos is the centre of a 9 x 9 blue square on the overview map, and every square has a city."""
+    px = overview(game_dir).load()
+    bad, seen = [], set()
+    for r in rows:
+        if "pos" not in r:
+            continue
+        x, y = r["pos"]["x"], r["pos"]["y"]
+        if not all(px[x + i, y + j] == SAN8_OVERVIEW_SQUARE for i in range(-4, 5) for j in range(-4, 5)) or \
+                px[x - 5, y] == SAN8_OVERVIEW_SQUARE or px[x, y - 5] == SAN8_OVERVIEW_SQUARE:
+            bad.append(f"{r['id']}: pos is not the centre of a blue square")
+        seen.add((x, y))
+    blue = sum(px[x, y] == SAN8_OVERVIEW_SQUARE for x in range(392) for y in range(352))
+    if blue != 81 * len(seen):
+        bad.append(f"{blue} blue pixels, {81 * len(seen)} in the cities' squares")
+    return len(seen), bad
 
 
 def stats(game_dir):

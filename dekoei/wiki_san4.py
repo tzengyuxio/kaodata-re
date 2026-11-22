@@ -221,7 +221,12 @@ def places(game_dir, out_dir):
     base = os.path.join(game_dir, "..", "san4-pc98", "MAIN.EXE")  # the palette offsets are the base game's
     _save(sango.render_san4_battle_maps(game_dir, palette_exe=base), out_dir, [f"{n:02d}.png" for n in range(1, 89)])
     os.makedirs(os.path.join(out_dir, "world"), exist_ok=True)
-    sango.render_san4_world_map(game_dir, palette_exe=base).save(os.path.join(out_dir, "world", "MAINMAP.png"))
+    # MAINMAP.png is the spring map: the default palette (DS:0x1136) colours 0-7 never appear in the game
+    for season, name in enumerate(("spring", "summer", "autumn", "winter")):
+        im = sango.render_san4_world_map(game_dir, palette_exe=base, season=season)
+        im.save(os.path.join(out_dir, "world", f"MAINMAP-{name}.png"))
+        if season == 0:
+            im.save(os.path.join(out_dir, "world", "MAINMAP.png"))
     pos = san4_world_pos(game_dir)
     with open(os.path.join(game_dir, "MAIN.EXE"), "rb") as f:
         exe = f.read()
