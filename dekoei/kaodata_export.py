@@ -7187,10 +7187,18 @@ EIKETSU3_WIN_LOOKS = {
     "安國寺惠瓊": [(26, "少年"), (27, "青年"), (28, "壯年")],
     "村上吉充": [(326, "青年"), (327, "壯年")],
     "妙姬": [(29, "青年"), (30, "壯年")],
-    "阿曾沼廣秀": [(68, "青年"), (311, "壯年")],  # not 69: the script sets 311
     "安藤景綱": [(80, "青年"), (312, "壯年")],
     "世鬼政清": [(93, "青年"), (322, "壯年")],
-    "山內隆通": [(79, "青年"), (310, "壯年")],
+    # R_17 swaps these two (山內隆通 -> 310, 阿曾沼廣秀 -> 311) and gives 飯田義武 76; the PS 人物事典 pairs
+    # 78/310, 79/311, 68/69 and 75/308
+    "山內隆通": [(79, "青年"), (311, "壯年")],
+    "己斐直之": [(78, "青年"), (310, "壯年")],
+    "飯田義武": [(75, "青年"), (308, "壯年")],
+    "來島通總": [(77, "青年"), (309, "壯年")],  # no script sets 309; it matches 77
+    # no script sets these older faces; they match the record's face
+    "長介": [(91, "青年"), (320, "壯年")],
+    "秋月種實": [(92, "青年"), (321, "壯年")],
+    "志道廣忠": [(323, "青年"), (324, "壯年")],
     "杉杜房康": [(81, "青年"), (313, "壯年")],
     "杉重輔": [(82, "青年"), (314, "壯年")],
     "吉見正賴": [(83, "青年"), (315, "壯年")],
@@ -7200,7 +7208,7 @@ EIKETSU3_WIN_LOOKS = {
     "三澤為清": [(88, "青年"), (319, "壯年")],
     "志乃": [(120, "平時"), (279, "第12–14章")],  # R_12 sets the 女孩 face 279, R_15 sets 120 back
 }
-EIKETSU3_WIN_PAIRS = range(42, 74, 2)  # face + 1 is the same officer, older (the scripts add 1; 68 is in LOOKS)
+EIKETSU3_WIN_PAIRS = range(42, 74, 2)  # face + 1 is the same officer, older (the scripts add 1)
 EIKETSU3_WIN_NAME_HISTORICAL = {"神原康政": "榊原康政", "佐佐成正": "佐佐成政", "下間賴簾": "下間賴廉"}
 EIKETSU3_WIN_FACE = 112
 # faces some character uses go first; the grouped ones go to extra.bin
